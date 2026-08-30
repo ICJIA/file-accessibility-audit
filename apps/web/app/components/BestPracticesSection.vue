@@ -17,13 +17,16 @@
          generically like any other fix, not hardcoded by id: the catalog
          already carries this in evidence/why/fix, so the section never
          has to know which three they are.
-       - Several practices (heading-content, single-h1, character-mapping,
-         content-in-tag-tree, list-labels — five, not the four the product's
-         own doctrine text currently claims; see task-7-report.md's fix-round
-         notes) have no MET branch in the catalog at all — the analyzer only
-         speaks up when something looks wrong, so a flawless document lands
-         them on NOT CHECKED. NEVER a "N of 19" fraction anywhere — a
-         denominator beside a status is read as a grade in this product.
+       - Four practices (heading-content, single-h1, character-mapping,
+         content-in-tag-tree) have no MET branch in the catalog at all — the
+         analyzer only speaks up when something looks wrong, so a flawless
+         document lands them on NOT CHECKED. (list-labels was briefly
+         mistaken for a fifth during this fix round — supplementary.ts:184-186
+         DOES push an unconditional witness for it; see task-7-report.md's
+         fix-round-2 notes for the trace, and the "the headline invariant"
+         test below for the empirically-verified flawless-PDF split.) NEVER
+         a "N of 19" fraction anywhere — a denominator beside a status is
+         read as a grade in this product.
        - A NOT CHECKED row is not one thing: `result.reason` (types.ts)
          tells "silent" (the check ran, found nothing to say — the analyzer
          genuinely only speaks up on trouble) from "not-run" (the category

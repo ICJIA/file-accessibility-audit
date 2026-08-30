@@ -17,6 +17,7 @@
  */
 import {
   matchAny,
+  matchMain,
   matchNotScored,
   signalLines,
   firstNumber,
@@ -1026,6 +1027,14 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["This document has no tagged lists, so there are no list labels to check."],
         };
       }
+      // ORDER IS LOAD-BEARING: supplementary.ts:184-186 pushes the census
+      // witness ("N list(s) detected with M total item(s)") unconditionally
+      // whenever qpdf.lists.length > 0 — before the per-list items (:198,
+      // indented, so signalLines/List Structure Analysis sees them, not
+      // matchMain) and before the <Lbl> advisory (:204-205) even run. A
+      // document with unlabelled lists therefore carries BOTH the witness
+      // and the advisory in the same findings array — the advisory check
+      // must run first, or such a document would read MET here.
       const advisory = matchAny(ctx, "have no <lbl>");
       if (advisory) {
         const count = firstNumber(advisory);
@@ -1046,6 +1055,26 @@ export const PDF_PRACTICES: BestPractice[] = [
               "Use the source application's real list formatting (bullets/numbering), not manually typed characters, then re-export.",
             app: "In Acrobat's Tags panel, add an <Lbl> child to each <LI> holding its marker text.",
           },
+        };
+      }
+      // The witness itself — NOT "All lists are well-formed (each <LI> has
+      // an <LBody>)" (supplementary.ts:201), which is about <LBody>, a
+      // different property from <Lbl>; gating on it would report MET only
+      // for documents that happen to be well-formed in that unrelated
+      // respect. GATE, same reason as xlsx-defined-tables (office.ts): the
+      // witness carries its own count, so require it to be > 0 rather than
+      // trusting presence alone — belt-and-braces against a forged report
+      // whose findings claim a witness with a zero count, something the
+      // real analyzer's own `qpdf.lists.length > 0` guard never emits, but
+      // /report/[id] renders attacker-controlled stored JSON.
+      const witness = matchMain(ctx, "list(s) detected");
+      const count = firstNumber(witness);
+      if (witness && count !== null && count > 0) {
+        return {
+          status: "met",
+          evidence: [
+            "This document's lists were checked, and every item carries its own <Lbl> marker.",
+          ],
         };
       }
       return notChecked("This report contains no finding about this document's list item labels.");

@@ -270,15 +270,15 @@ describe("BestPracticesSection", () => {
     expect(body.classes()).toContain("bp-body");
   });
 
-  // The headline invariant. NOTE: the product's own doctrine text (and the
-  // original brief) claims "15 met · 0 not met · 4 not checked" for a
-  // flawless PDF. Building the first full flawless-PDF fixture for this
-  // catalog surfaced a fifth practice with no MET branch — list-labels
-  // (reading_order) — independently corroborated by
-  // bestPracticesPdf.test.ts:840 ("is NOT CHECKED when the analyzer said
-  // nothing either way (no MET line exists)"). This test pins the TRUE,
-  // empirically-verified count (5), not the stated one (4) — see
-  // task-7-report.md's fix-round notes for the full trace.
+  // The headline invariant. CORRECTED in fix round 2: list-labels was
+  // briefly believed to be a fifth never-MET practice (round 1). It is
+  // not — supplementary.ts:184-186 pushes an unconditional census witness
+  // ("N list(s) detected with M total item(s)"), un-indented (main, so
+  // matchMain finds it), before the <Lbl> advisory — see pdf.ts's
+  // list-labels detect() and its ORDER IS LOAD-BEARING comment. Re-verified
+  // empirically against this exact fixture (with list content now
+  // included) before pinning anything: the product's stated
+  // "15 met · 0 not met · 4 not checked" holds.
   const flawlessPdf = {
     fileType: "pdf",
     pageCount: 40,
@@ -289,6 +289,10 @@ describe("BestPracticesSection", () => {
         findings: [
           "Reading-order fidelity: 100% of comparable content agreed with the page's draw order.",
           "Structure tree depth: 4 level(s).",
+          "--- List Structure Analysis ---",
+          "3 list(s) detected with 14 total item(s)",
+          "  List 1: 5 <LI> | <Lbl> ✓ | <LBody> ✓ | well-formed",
+          "All lists are well-formed (each <LI> has an <LBody>)",
           "--- Footnotes ---",
           "  All notes carry a unique /ID.",
         ],
@@ -318,23 +322,20 @@ describe("BestPracticesSection", () => {
     ],
   };
 
-  it("the headline invariant: a flawless PDF is never 19 MET — five practices structurally never reach MET", () => {
+  it("the headline invariant: a flawless PDF is 15 met · 0 not met · 4 not checked, never 19 met", () => {
     const w = mountSection(flawlessPdf);
-    const neverMet = [
-      "heading-content",
-      "single-h1",
-      "character-mapping",
-      "content-in-tag-tree",
-      "list-labels",
-    ];
+    const neverMet = ["heading-content", "single-h1", "character-mapping", "content-in-tag-tree"];
     for (const id of neverMet) {
       expect(w.find(`[data-practice="${id}"]`).attributes("data-status")).toBe("not-checked");
     }
-    expect(w.findAll('[data-status="not-checked"]').length).toBe(5);
-    expect(w.findAll('[data-status="met"]').length).toBe(14);
+    // list-labels DOES reach MET here — the fixture includes its witness
+    // (a well-formed list with <Lbl> present) and no <Lbl> advisory.
+    expect(w.find('[data-practice="list-labels"]').attributes("data-status")).toBe("met");
+    expect(w.findAll('[data-status="not-checked"]').length).toBe(4);
+    expect(w.findAll('[data-status="met"]').length).toBe(15);
     expect(w.findAll('[data-status="not-met"]').length).toBe(0);
     const summary = w.find('[data-testid="best-practices-summary"]');
-    expect(summary.text()).toContain("5");
-    expect(summary.text()).toContain("14");
+    expect(summary.text()).toContain("4");
+    expect(summary.text()).toContain("15");
   });
 });

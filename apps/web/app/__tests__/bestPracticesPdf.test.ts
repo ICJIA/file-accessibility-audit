@@ -823,10 +823,37 @@ describe("list-labels", () => {
     expect(r.status).toBe("not-applicable");
   });
 
-  it("is NOT MET when lists have no <Lbl> element on their items (un-prefixed, lands in `main`)", () => {
+  it("is NOT MET when lists have no <Lbl> element on their items (un-prefixed, lands in `main`) — the fixture keeps the coexisting witness so a reorder fails", () => {
     const r = run("list-labels", LIST_GROUP);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2 list\(s\)/);
+  });
+
+  // CORRECTED (fix round 2): list-labels DOES have a witness after all —
+  // supplementary.ts:184-186 pushes "N list(s) detected with M total
+  // item(s)" unconditionally whenever qpdf.lists.length > 0, un-indented
+  // (lands in `main`, matchMain finds it), before the <Lbl> advisory. Not
+  // "All lists are well-formed (each <LI> has an <LBody>)" — that is a
+  // different property (<LBody>, not <Lbl>) and would report MET only for
+  // documents well-formed in an unrelated respect.
+  it("is MET when every list carries its own <Lbl> marker (the witness alone, no <Lbl> advisory)", () => {
+    const r = run("list-labels", [
+      "--- List Structure Analysis ---",
+      "3 list(s) detected with 14 total item(s)",
+      "  List 1: 5 <LI> | <Lbl> ✓ | <LBody> ✓ | well-formed",
+      "  List 2: 4 <LI> | <Lbl> ✓ | <LBody> ✓ | well-formed",
+      "  List 3: 5 <LI> | <Lbl> ✓ | <LBody> ✓ | well-formed",
+      "All lists are well-formed (each <LI> has an <LBody>)",
+    ]);
+    expect(r.status).toBe("met");
+  });
+
+  it("does not report MET from a zero-count witness — belt-and-braces against a forged report (the real analyzer's own qpdf.lists.length > 0 guard never emits this shape)", () => {
+    const r = run("list-labels", [
+      "--- List Structure Analysis ---",
+      "0 list(s) detected with 0 total item(s)",
+    ]);
+    expect(r.status).not.toBe("met");
   });
 
   it("is NOT CHECKED — not NOT APPLICABLE — when the category itself is absent from the report", () => {
@@ -837,7 +864,7 @@ describe("list-labels", () => {
     expect(practice("list-labels").detect(ctx).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no MET line exists)", () => {
+  it("is NOT CHECKED when the analyzer said nothing at all (no witness, no advisory, no N/A line)", () => {
     expect(run("list-labels", []).status).toBe("not-checked");
   });
 });
