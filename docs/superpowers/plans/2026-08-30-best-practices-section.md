@@ -1883,6 +1883,17 @@ counts computed from the rendered rows."
 
 ### Task 8: Wire into the Visual view and narrow "Above and beyond"
 
+**THE BEYOND-GROUP INTRO IS NOW FACTUALLY WRONG — rewriting it is not cosmetic.** `ActionPlan.vue`'s beyond-group currently reads:
+
+> "The numbered fixes above are everything WCAG 2.1 — the standard Illinois (IITAA) and federal law (ADA Title II) require — asks of this document. Everything here is extra: PDF/UA (ISO 14289) rules **and best practices like bookmarks, heading conventions, and navigation labels**, for authors who want to go past the legal floor."
+
+Bookmarks, heading conventions and navigation labels are exactly what the new Best Practices section now covers, practice by practice, with this document's own evidence. Leaving that sentence in place points a reader at the wrong block for the thing it names.
+
+After this task the beyond-group carries **only veraPDF's verdict** — an independent validator's verbatim findings, which is the one thing the new section does not and should not reproduce. Rewrite the intro to say that and nothing more. Task 7 already differentiated the new section's own intro to "Every practice below was checked against this document specifically — its own status, and its own evidence, for each one," so the two must now read as a pair rather than as two attempts at the same paragraph.
+
+Also drop the duplicated `BEST PRACTICE — NOT SCORED` chip from ONE of the two blocks — they are inches apart and identical. Keep it on the new section (whose heading is "Best practices — not scored") and let the beyond-group's heading carry veraPDF's name instead.
+
+
 **Files:**
 - Modify: `apps/web/app/components/ActionPlan.vue`
 - Modify: `apps/web/app/__tests__/pdfUaCosign.test.ts`
