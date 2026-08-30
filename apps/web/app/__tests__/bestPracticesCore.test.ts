@@ -23,6 +23,7 @@ import {
   understandingLink,
   safeLinks,
 } from "../utils/bestPractices/links";
+import { CATALOG, evaluateBestPractices, summarizeBestPractices } from "../utils/bestPractices";
 
 const category = {
   id: "heading_structure",
@@ -184,5 +185,204 @@ describe("link resolution", () => {
     // Assert the call does not mutate its input.
     expect(input.length).toBe(4);
     expect(input[0]!.url).toBe("https://example.org/a");
+  });
+});
+
+describe("evaluateBestPractices", () => {
+  const pdfReport = {
+    fileType: "pdf",
+    pageCount: 40,
+    categories: [
+      {
+        id: "heading_structure",
+        label: "Heading Structure",
+        findings: [
+          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+          "--- Heading Tree ---",
+          "  H1 → H2 → H1 → H1",
+        ],
+      },
+    ],
+  };
+
+  it("returns only the practices for the report's own format", () => {
+    const rows = evaluateBestPractices(pdfReport);
+    expect(rows.length).toBe(CATALOG.filter((p) => p.formats.includes("pdf")).length);
+    expect(rows.every((r) => r.practice.formats.includes("pdf"))).toBe(true);
+    expect(rows.some((r) => r.practice.id.startsWith("docx-"))).toBe(false);
+  });
+
+  it("evaluates each practice against its own category", () => {
+    const rows = evaluateBestPractices(pdfReport);
+    const order = rows.find((r) => r.practice.id === "heading-level-order");
+    expect(order?.status).toBe("not-met");
+    expect(order?.block?.lines).toContain("H1 → H2 → H1 → H1");
+  });
+
+  it("returns nothing for a page-audit row with no categories", () => {
+    expect(evaluateBestPractices({ fileType: "pdf" })).toEqual([]);
+    expect(evaluateBestPractices({ fileType: "pdf", categories: [] })).toEqual([]);
+  });
+
+  it("returns nothing for an unknown or absent file type", () => {
+    expect(evaluateBestPractices({ categories: [{ id: "x", findings: [] }] })).toEqual([]);
+    expect(evaluateBestPractices(null)).toEqual([]);
+    expect(evaluateBestPractices("hostile")).toEqual([]);
+  });
+
+  it("never throws on a forged stored report", () => {
+    const hostile = [
+      { fileType: "pdf", categories: "not an array" },
+      { fileType: "pdf", categories: [null, 42, "x"] },
+      { fileType: 99, categories: [{ findings: [1] }] },
+    ];
+    for (const h of hostile) expect(() => evaluateBestPractices(h)).not.toThrow();
+  });
+});
+
+describe("summarizeBestPractices", () => {
+  it("counts each status and totals them", () => {
+    const rows = evaluateBestPractices({
+      fileType: "pdf",
+      pageCount: 40,
+      categories: [
+        { id: "heading_structure", findings: ["Found 6 heading tags with logical hierarchy"] },
+      ],
+    });
+    const s = summarizeBestPractices(rows);
+    expect(s.met + s.notMet + s.notApplicable + s.notChecked).toBe(s.total);
+    expect(s.total).toBe(rows.length);
+    expect(s.met).toBeGreaterThan(0);
+  });
+});
+
+describe("a document that PASSES WCAG still has best practices to meet", () => {
+  // A report with NO failing WCAG criterion — the grade is A, the score is
+  // 100, conformance.failures is empty — that nonetheless carries several
+  // not-scored advisories. This is the exact shape the section exists for.
+  const wcagCleanButImperfect = {
+    fileType: "pdf",
+    pageCount: 40,
+    overallScore: 100,
+    grade: "A",
+    conformance: { failures: [], notAssessed: [] },
+    categories: [
+      {
+        id: "heading_structure",
+        label: "Heading Structure",
+        score: 100,
+        grade: "A",
+        severity: "No issues found",
+        findings: [
+          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+          "--- Heading Tree ---",
+          "  H1 → H2 → H1 → H1 → H3 → H5",
+          "--- Heading Outline ---",
+          "  Heading hierarchy skip: H1 → H3 (skipped H2)",
+          "Found 6 heading tags with logical hierarchy",
+        ],
+      },
+      {
+        id: "bookmarks",
+        label: "Bookmarks",
+        score: 100,
+        grade: "A",
+        severity: "No issues found",
+        findings: [
+          "Advisory — not scored: this document has 40 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected.",
+        ],
+      },
+    ],
+  };
+
+  it("reports unmet best practices even though no WCAG criterion is failing", () => {
+    const rows = evaluateBestPractices(wcagCleanButImperfect);
+    const notMet = rows.filter((r) => r.status === "not-met");
+    expect(notMet.length).toBeGreaterThan(0);
+    expect(notMet.map((r) => r.practice.id)).toContain("heading-level-order");
+    expect(notMet.map((r) => r.practice.id)).toContain("bookmarks");
+  });
+
+  it("carries the document's own evidence on each unmet row", () => {
+    const rows = evaluateBestPractices(wcagCleanButImperfect);
+    const order = rows.find((r) => r.practice.id === "heading-level-order");
+    expect(order?.block?.lines.join(" ")).toContain("H1 → H2 → H1 → H1 → H3 → H5");
+    expect(order?.evidence.join(" ")).toMatch(/H1 → H3 \(skipped H2\)/);
+  });
+
+  it("never marks an unmet best practice as a WCAG obligation", () => {
+    const rows = evaluateBestPractices(wcagCleanButImperfect);
+    for (const r of rows) {
+      const copy = `${r.practice.label} ${r.practice.description} ${r.practice.why} ${r.evidence.join(" ")}`;
+      expect(copy, r.practice.id).not.toMatch(/required by law/i);
+      expect(copy, r.practice.id).not.toMatch(/WCAG 2\.1 failure/i);
+    }
+  });
+});
+
+describe("a document in Word that PASSES WCAG still has best practices to meet", () => {
+  // The Office half of the same claim. A Word report with no failing WCAG
+  // criterion — grade A, score 100 — that nonetheless carries advisory-only
+  // findings for skipped heading levels and merged table cells. Findings are
+  // verbatim strings from packages/analyzer/src/scoring/docx.ts: the skip
+  // advisory (:178) and the merged-cell note (:311), each alongside the
+  // witness line a real document always carries too (:162 "N real
+  // heading(s) found.", :290 "N table(s) found.") — a fixture that omitted
+  // those witnesses would test less than it appears to.
+  const wcagCleanWordButImperfect = {
+    fileType: "docx",
+    pageCount: 12,
+    overallScore: 100,
+    grade: "A",
+    conformance: { failures: [], notAssessed: [] },
+    categories: [
+      {
+        id: "heading_structure",
+        label: "Heading Structure",
+        score: 100,
+        grade: "A",
+        severity: "No issues found",
+        findings: [
+          "5 real heading(s) found.",
+          "Advisory — not scored: 2 place(s) skip a heading level (e.g. Heading 1 → Heading 3) — not a WCAG 2.1 failure, so your grade is not affected, but screen-reader users may wonder what they missed at the skipped level.",
+        ],
+      },
+      {
+        id: "table_markup",
+        label: "Table Markup",
+        score: 100,
+        grade: "A",
+        severity: "No issues found",
+        findings: [
+          "2 table(s) found.",
+          "Note — not scored: 3 merged cell(s) across the table(s). Merged and split cells can confuse screen-reader navigation (Microsoft's own checker flags them); whether they harm depends on placement — review manually.",
+        ],
+      },
+    ],
+  };
+
+  it("reports unmet best practices even though no WCAG criterion is failing", () => {
+    const rows = evaluateBestPractices(wcagCleanWordButImperfect);
+    const notMet = rows.filter((r) => r.status === "not-met");
+    expect(notMet.length).toBeGreaterThan(0);
+    expect(notMet.map((r) => r.practice.id)).toContain("docx-heading-skips");
+    expect(notMet.map((r) => r.practice.id)).toContain("docx-merged-cells");
+  });
+
+  it("carries the document's own evidence on each unmet row", () => {
+    const rows = evaluateBestPractices(wcagCleanWordButImperfect);
+    const skips = rows.find((r) => r.practice.id === "docx-heading-skips");
+    expect(skips?.evidence.join(" ")).toMatch(/2 places where the heading levels skip a step/);
+    const merged = rows.find((r) => r.practice.id === "docx-merged-cells");
+    expect(merged?.evidence.join(" ")).toMatch(/3 merged cells across its tables/);
+  });
+
+  it("never marks an unmet best practice as a WCAG obligation", () => {
+    const rows = evaluateBestPractices(wcagCleanWordButImperfect);
+    for (const r of rows) {
+      const copy = `${r.practice.label} ${r.practice.description} ${r.practice.why} ${r.evidence.join(" ")}`;
+      expect(copy, r.practice.id).not.toMatch(/required by law/i);
+      expect(copy, r.practice.id).not.toMatch(/WCAG 2\.1 failure/i);
+    }
   });
 });
