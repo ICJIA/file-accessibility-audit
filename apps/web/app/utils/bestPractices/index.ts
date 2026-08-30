@@ -7,7 +7,12 @@
  */
 import { PDF_PRACTICES } from "./pdf";
 import { OFFICE_PRACTICES } from "./office";
-import { buildContext, type BestPractice, type BestPracticeResult } from "./types";
+import {
+  buildContext,
+  type BestPractice,
+  type BestPracticeResult,
+  type BestPracticeStatus,
+} from "./types";
 import type { FileType } from "@file-audit/shared";
 
 export * from "./types";
@@ -53,6 +58,29 @@ export function evaluateBestPractices(result: unknown): EvaluatedPractice[] {
     const ctx = buildContext(byId.get(practice.categoryId), ft, pageCount);
     return { practice, ...practice.detect(ctx) };
   });
+}
+
+// NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then
+// NOT CHECKED last — never by severity, because nothing here has one. The
+// ONE place this order is defined: BestPracticesSection.vue (the on-screen
+// accordion) and printablePlan.ts (the printout) both call sortBestPractices
+// rather than each keeping its own copy, so the same document can never
+// show its practices in two different orders depending on which surface a
+// reader is looking at.
+export const BEST_PRACTICE_STATUS_ORDER: Record<BestPracticeStatus, number> = {
+  "not-met": 0,
+  met: 1,
+  "not-applicable": 2,
+  "not-checked": 3,
+};
+
+/** Sorted by status per BEST_PRACTICE_STATUS_ORDER. Array#sort is stable in
+ *  every engine this app ships on, so ties keep the catalog's own order
+ *  within a status. Returns a new array; does not mutate `rows`. */
+export function sortBestPractices<T extends { status: BestPracticeStatus }>(rows: T[]): T[] {
+  return [...rows].sort(
+    (a, b) => BEST_PRACTICE_STATUS_ORDER[a.status] - BEST_PRACTICE_STATUS_ORDER[b.status],
+  );
 }
 
 export function summarizeBestPractices(rows: EvaluatedPractice[]): BestPracticeSummary {

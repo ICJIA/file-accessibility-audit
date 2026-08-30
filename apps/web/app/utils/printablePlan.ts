@@ -28,6 +28,7 @@ import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
+import { sortBestPractices } from "~/utils/bestPractices";
 import type { BestPracticeStatus, EvaluatedPractice } from "~/utils/bestPractices";
 import { safeLinks } from "~/utils/bestPractices/links";
 
@@ -108,6 +109,7 @@ ul.bp>li{border:1px solid #bbb;border-radius:8px;padding:12px 14px;margin:0 0 12
 .bp-cap{margin:8px 0 2px;font-size:12px;color:#555}
 pre.bp-block{margin:0 0 8px;padding:8px 10px;background:#f4f4f4;border:1px solid #ddd;
  border-radius:4px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.bp-standard{margin:6px 0 0;font-size:11px;color:#666}
 .bp-links{margin:6px 0 0;font-size:12px;color:#444}
 ul.checks{list-style:none;padding:0;margin:0}
 ul.checks li{border-left:3px solid #bbb;padding:0 0 0 12px;margin:0 0 14px;
@@ -227,6 +229,16 @@ function renderBestPractice(
         ? `<p class="bp-fix"><strong>In the PDF (Acrobat):</strong> ${escapeHtml(r.fix.app)}</p>`
         : `<p class="bp-fix">${escapeHtml(r.fix.app)}</p>`)
     : "";
+  // The citation (e.g. "PDF/UA (ISO 14289) clause 7.1") is independent of
+  // whether the practice has any links — display-doc-title cites a standard
+  // with links: [] — so it prints even when the links paragraph below does
+  // not. On screen this sits under the same "Read more" label as the links
+  // list (BestPracticesSection.vue); the printout is the artifact someone
+  // may cite a decision from, so the provenance travels onto paper too.
+  const standard = r.practice.standard
+    ? `<p class="bp-standard">${escapeHtml(r.practice.standard)}</p>`
+    : "";
+
   // wcagSlugs concatenated onto the practice's own links and run through
   // safeLinks TOGETHER, exactly as BestPracticesSection.vue does — a link
   // is the one thing on the page a reader is invited to click (or, here,
@@ -248,6 +260,7 @@ function renderBestPractice(
     block +
     `<p class="bp-why">${escapeHtml(r.practice.why)}</p>` +
     fix +
+    standard +
     links +
     `</li>`
   );
@@ -289,15 +302,21 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
       `<ol class="steps">${o.steps.map((s) => renderStep(s, criterionHref)).join("")}</ol>`
     : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
 
-  // Between "What to fix" and the human checks: the fixes above are
-  // everything WCAG 2.1 asks of this document, and best practices are
+  // Between "What to fix" and the human checks: best practices are
   // reported-but-never-scored, so they sit in their own group rather than
-  // inside the fix count above it.
-  const practices = (o.bestPractices ?? []).length
+  // inside the fix count above it. sortBestPractices (bestPractices/index.ts)
+  // is the ONE place NOT-MET-first ordering is defined — BestPracticesSection.vue
+  // calls the same function, so a reader comparing the screen and the
+  // printout sees the same rows in the same order, not the catalog's raw
+  // declaration order scattering the one or two actionable rows among
+  // mostly "Does not apply"/"Not checked".
+  const sortedPractices = sortBestPractices(o.bestPractices ?? []);
+  const practices = sortedPractices.length
     ? `<h2>Best practices — not scored</h2>` +
       `<p class="sub">None of this affected the grade. The fixes above are everything WCAG 2.1 ` +
-      `asks of this document; everything here is optional work that helps real readers.</p>` +
-      `<ul class="bp">${(o.bestPractices ?? []).map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
+      `asks of this document that an automated check can find; everything here is optional work ` +
+      `that helps real readers.</p>` +
+      `<ul class="bp">${sortedPractices.map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
     : "";
 
   const hasCaution = (o.manualChecks ?? []).some((c) => c.tone === "caution");

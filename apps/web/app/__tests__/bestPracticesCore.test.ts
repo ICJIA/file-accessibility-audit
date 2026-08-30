@@ -23,7 +23,13 @@ import {
   understandingLink,
   safeLinks,
 } from "../utils/bestPractices/links";
-import { CATALOG, evaluateBestPractices, summarizeBestPractices } from "../utils/bestPractices";
+import {
+  CATALOG,
+  evaluateBestPractices,
+  summarizeBestPractices,
+  sortBestPractices,
+  type BestPracticeStatus,
+} from "../utils/bestPractices";
 
 const category = {
   id: "heading_structure",
@@ -253,6 +259,63 @@ describe("summarizeBestPractices", () => {
     expect(s.met + s.notMet + s.notApplicable + s.notChecked).toBe(s.total);
     expect(s.total).toBe(rows.length);
     expect(s.met).toBeGreaterThan(0);
+  });
+});
+
+describe("sortBestPractices", () => {
+  // The ONE place NOT-MET-first ordering is defined — BestPracticesSection.vue
+  // (the on-screen accordion) and printablePlan.ts (the printout) both call
+  // this instead of keeping their own copy, so the two surfaces cannot show
+  // the same document's practices in two different orders.
+  it("orders not-met, met, not-applicable, not-checked — never catalog declaration order", () => {
+    const rows: Array<{ status: BestPracticeStatus }> = [
+      { status: "not-checked" },
+      { status: "not-applicable" },
+      { status: "met" },
+      { status: "not-met" },
+    ];
+    expect(sortBestPractices(rows).map((r) => r.status)).toEqual([
+      "not-met",
+      "met",
+      "not-applicable",
+      "not-checked",
+    ]);
+  });
+
+  it("does not mutate its input", () => {
+    const rows: Array<{ status: BestPracticeStatus }> = [
+      { status: "not-checked" },
+      { status: "not-met" },
+    ];
+    const original = [...rows];
+    sortBestPractices(rows);
+    expect(rows).toEqual(original);
+  });
+
+  it("moves an actionable row ahead of catalog entries declared before it", () => {
+    // "bookmarks" is declared in bestPractices/pdf.ts well after the five
+    // heading_structure practices — in raw catalog order it would print
+    // behind six "not-checked" rows. A real not-met bookmarks result must
+    // still land first once sorted, proving this isn't a coincidence of
+    // "heading-level-order" (the catalog's actual first entry) happening to
+    // already be the not-met one in other fixtures.
+    const rows = evaluateBestPractices({
+      fileType: "pdf",
+      pageCount: 40,
+      categories: [
+        {
+          id: "bookmarks",
+          findings: [
+            "PDF/UA only — not scored: this 40-page document has 40 pages and no bookmarks, which makes it harder to navigate.",
+          ],
+        },
+      ],
+    });
+    const rawIndex = rows.findIndex((r) => r.practice.id === "bookmarks");
+    expect(rawIndex).toBeGreaterThan(0); // not already first in catalog order
+    expect(rows[rawIndex]?.status).toBe("not-met");
+    const sorted = sortBestPractices(rows);
+    expect(sorted[0]?.practice.id).toBe("bookmarks");
   });
 });
 

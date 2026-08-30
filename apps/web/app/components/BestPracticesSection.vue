@@ -278,7 +278,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { evaluateBestPractices, summarizeBestPractices } from "~/utils/bestPractices";
+import {
+  evaluateBestPractices,
+  sortBestPractices,
+  summarizeBestPractices,
+} from "~/utils/bestPractices";
 import type {
   BestPractice,
   BestPracticeLink,
@@ -295,17 +299,6 @@ const props = defineProps<{ result: unknown }>();
 // module-scope array cannot call.
 const wcag = useWcag();
 
-// NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then
-// NOT CHECKED last — never by severity, because nothing here has one.
-// Array#sort is stable in every engine this app ships on, so ties keep the
-// catalog's own order within a status.
-const STATUS_ORDER: Record<BestPracticeStatus, number> = {
-  "not-met": 0,
-  met: 1,
-  "not-applicable": 2,
-  "not-checked": 3,
-};
-
 /** A row plus its fully-resolved link list, computed once per row per
  *  re-evaluation rather than twice per render from the template (once for
  *  the "is there anything to show" guard, once for the v-for) — each call
@@ -316,10 +309,15 @@ interface DisplayRow extends EvaluatedPractice {
   links: BestPracticeLink[];
 }
 
+// NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then
+// NOT CHECKED last — sortBestPractices (bestPractices/index.ts) is the ONE
+// place this order is defined; the printable plan calls it too, so the two
+// surfaces cannot drift apart on the same document.
 const rows = computed<DisplayRow[]>(() =>
-  [...evaluateBestPractices(props.result)]
-    .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
-    .map((r) => ({ ...r, links: practiceLinks(r.practice) })),
+  sortBestPractices(evaluateBestPractices(props.result)).map((r) => ({
+    ...r,
+    links: practiceLinks(r.practice),
+  })),
 );
 
 const summary = computed(() => summarizeBestPractices(rows.value));
