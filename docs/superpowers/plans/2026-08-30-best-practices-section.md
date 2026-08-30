@@ -1161,19 +1161,44 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "table(s) have proper row structure")) {
-        return { status: "met", evidence: ["No merged or split cells were found."] };
-      }
-      if (!ctx.categoryPresent || matchAny(ctx, "no tables")) {
+      // NO MET BRANCH, deliberately. scoreDocxTables emits only
+      // "No tables were found.", "N table(s) found.", and the missing-header
+      // line — it has no "no merged cells" positive. Under the catalog's
+      // central rule, a practice with no positive line from its own scorer
+      // can never be MET: silence is not a pass. This one reports NOT MET,
+      // NOT APPLICABLE, or NOT CHECKED only.
+      if (!ctx.categoryPresent || matchAny(ctx, "no tables were found")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no tables."],
         };
       }
-      return notChecked("This document's tables were not checked for merged cells.");
+      return notChecked(
+        "This document has tables, but they were not checked for merged cells.",
+      );
     },
   },
 ];
+```
+
+**The verified Office positive lines.** Each format's MET branch may use only
+its OWN scorer's positive line. Never reuse a PDF string — `"All N table(s)
+have proper row structure"` and `"All N link(s) use descriptive text"` are
+`pdf.ts` only. Confirmed present on 2026-08-30:
+
+| Format | Positive line (MET) | "None of the thing" line (NOT APPLICABLE) |
+|---|---|---|
+| Excel | `` `All ${n} visible sheet(s) have descriptive names.` `` | `"No visible sheets were found."` · `"No tables or sizable data ranges were found."` · `"No hyperlinks were found."` |
+| PowerPoint | `` `All ${n} visible slide(s) have a distinct title.` `` · `"Every titled slide's title reads first in tab order."` | `"No slides were found."` · `"No tables were found."` |
+| Word | — its table scorer has **no** positive line | `"No tables were found."` |
+
+Where a format emits no positive line for a practice, **drop the MET branch
+entirely**, as the worked example above does — that practice reports NOT MET,
+NOT APPLICABLE, or NOT CHECKED only. Verify each with:
+
+```bash
+grep -oE '`(All|No|Every|Found)[^`]{0,120}`|"(All|No|Every|Found)[^"]{0,120}"' \
+  packages/analyzer/src/scoring/<format>.ts
 ```
 
 Notes that will otherwise cost a debugging cycle:
