@@ -1255,7 +1255,12 @@ Half 2 was discovered the hard way. `list-labels` was given a MET branch on a wi
 
 That is a fabricated document fact on an ordinary Word or InDesign export — not a forged report — and it is exactly the failure the catalog exists to prevent.
 
-**So: before adding any witness-backed MET, read the advisory's enclosing conditions too, not just the witness's.** If the advisory can be suppressed by an unrelated condition, either qualify the MET with the property it actually claims (for `list-labels`: require every `/^List\b/` line in the `List Structure Analysis` signal group to contain `<Lbl> ✓`), or omit the MET branch.
+**Suppression has TWO shapes, and a nesting check only catches one of them.**
+
+- **Nested under an unrelated condition** — `list-labels`, above.
+- **Mutually exclusive with a sibling advisory** — `xlsx.ts:225-238` is `if (datafulWithoutTable && a.tables.length === 0) { …"no defined Excel Table anywhere"… } else if (datafulWithoutTable) { …"sits outside the defined table(s)"… }`. `xlsx-data-outside-tables` matched the second. A workbook with data and **zero** tables takes the first branch, so the second never fires, the witness is still present, and MET claimed "none has sizable data sitting outside a defined Table" for a workbook where all of it is.
+
+The second shape is invisible to a brace-depth or nearest-`if` sweep — the advisory is not nested under anything unrelated, it simply loses an `else if`. **So: read the whole block that emits the advisory, not just its enclosing conditions.** Ask "for every document where this defect exists, does this exact string get pushed?" — and answer it from the code, not from the advisory's own `if`. If the advisory can be suppressed by an unrelated condition, either qualify the MET with the property it actually claims (for `list-labels`: require every `/^List\b/` line in the `List Structure Analysis` signal group to contain `<Lbl> ✓`), or omit the MET branch.
 
 **The qualifying rule, and it is strict.** A line is a valid witness ONLY if the scorer emits it *unconditionally whenever it runs* — never only when it finds a problem. This is exactly the distinction that inverted `heading-content` in the PDF catalog: its `--- Do the Headings Read Like Headings? ---` group is pushed only *after* an early return for the clean case, so gating MET on it meant MET fired only on flagged documents. Before using any line as a witness, read its scorer and confirm it is pushed before, and independently of, every advisory branch.
 
@@ -1833,7 +1838,9 @@ full — the rest of the template follows from the requirements below it.
 </template>
 ```
 
-**NOT MET MUST READ AS "WORTH DOING", NEVER AS A FAILURE.** Nothing in this section is scored, so no row is a failure — but three practices make that especially load-bearing, because an author can never reach MET on them at all: `docx-layout-grids`, `xlsx-pivot-tables` and `xlsx-merged-cells` all mean "a person should look at this", and `office.ts` says so outright ("No structural fix applies"). A workbook containing pivot tables will therefore carry that row for the rest of its life, no matter what its author does.
+**NOT MET MUST READ AS "WORTH DOING", NEVER AS A FAILURE.** Nothing in this section is scored, so no row is a failure. Some practices — `docx-layout-grids`, `xlsx-pivot-tables`, `xlsx-merged-cells` — mean "a person should look at this" rather than "fix this", and `office.ts` says so outright ("No structural fix applies"); a reader must not be sent hunting for a fix that does not exist.
+
+(An earlier draft of this plan claimed those three "can never reach MET". That was wrong — all three have live, reachable MET branches, and the only practices with none are the four PDF ones named below. The copy discipline stands on its own: an unscored row is never a failure regardless of whether success is reachable.)
 
 Rather than add a fifth status, carry it in the copy and the visual weight:
 
