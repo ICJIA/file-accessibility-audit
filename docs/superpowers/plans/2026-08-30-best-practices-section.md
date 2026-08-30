@@ -26,7 +26,14 @@
 - **Tailwind v4:** never put a negative margin (`-mb-*`/`-mt-*`) on a direct child of a `space-y-*` container — v4's zero-specificity `:where()` makes it REPLACE the gap, overlapping content.
 - **Vue condense mode drops whitespace-only text containing a newline between two elements.** Two inline links on separate template lines render touching — use an explicit `{{ " " }}`.
 - **The web `NuxtLink` test stub is `<a><slot /></a>`**, so props fall through as raw attributes. Assert `attributes("to")`, never `attributes("href")`.
-- **Test command:** `pnpm --filter @file-audit/web test` (add `-- <path>` to scope, `-t "<name>"` to filter).
+- **Test command:** `pnpm --filter web test` (add `-- <path>` to scope, `-t "<name>"` to filter).
+  The web package is named **`web`**, NOT `@file-audit/web`. This matters: a
+  `--filter` that matches nothing prints "No projects matched the filters" and
+  **still exits 0**, so a wrong filter reads as a passing suite. Ground truth on
+  this branch at Task 2: **91 test files, 1351 tests**. If your run reports far
+  fewer, or no counts at all, your filter is wrong — do not report success.
+  (Only `@file-audit/shared` and `@file-audit/analyzer` carry the scope; `api` is
+  `api` and the CLI is `@icjia/a11y-audit`.)
 
 ---
 
@@ -157,7 +164,7 @@ Add `isNotScoredFinding` to the existing import block at the top of the file.
 
 ```bash
 cd /Volumes/satechi/webdev/file-accessibility-audit
-pnpm --filter @file-audit/web test -- app/__tests__/findings.test.ts -t "prefix contract"
+pnpm --filter web test -- app/__tests__/findings.test.ts -t "prefix contract"
 ```
 
 Expected: FAIL — `expected false to be true` on the `"Note — not scored:"` case.
@@ -189,7 +196,7 @@ export function isNotScoredFinding(finding: string): boolean {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/findings.test.ts
+pnpm --filter web test -- app/__tests__/findings.test.ts
 ```
 
 Expected: PASS, whole file.
@@ -197,7 +204,7 @@ Expected: PASS, whole file.
 - [ ] **Step 5: Run the full web suite — this changes a shared partition**
 
 ```bash
-pnpm --filter @file-audit/web test
+pnpm --filter web test
 ```
 
 Expected: PASS. If a card-rendering test now finds a finding in `notScored` that it expected in `main`, that test was pinning the bug — update it and say so in the commit body.
@@ -369,7 +376,7 @@ describe("firstNumber", () => {
 
 ```bash
 cd /Volumes/satechi/webdev/file-accessibility-audit
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesCore.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts
 ```
 
 Expected: FAIL — `Cannot find module '../utils/bestPractices/types'`.
@@ -533,7 +540,7 @@ export function firstNumber(text: string | null): number | null {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesCore.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts
 ```
 
 Expected: PASS, 10 tests.
@@ -635,7 +642,7 @@ describe("link resolution", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesCore.test.ts -t "link resolution"
+pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts -t "link resolution"
 ```
 
 Expected: FAIL — `Cannot find module '../utils/bestPractices/links'`.
@@ -700,7 +707,7 @@ export function safeLinks(links: BestPracticeLink[]): BestPracticeLink[] {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesCore.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts
 ```
 
 Expected: PASS, 15 tests.
@@ -846,7 +853,7 @@ describe("every PDF practice", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesPdf.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesPdf.test.ts
 ```
 
 Expected: FAIL — `Cannot find module '../utils/bestPractices/pdf'`.
@@ -948,7 +955,7 @@ export const PDF_PRACTICES: BestPractice[] = [
 - [ ] **Step 4: Run the test — the flagship describe should pass, the sweeps should fail**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesPdf.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesPdf.test.ts
 ```
 
 Expected: the four `heading-level-order` tests PASS; the three `every PDF practice` tests PASS trivially (one entry). This confirms the shape before scaling.
@@ -1007,7 +1014,7 @@ The matcher needle and positive line for each:
 - [ ] **Step 7: Run the whole PDF suite**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesPdf.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesPdf.test.ts
 ```
 
 Expected: PASS. `PDF_PRACTICES.length === 19`; add that assertion to the `every PDF practice` describe.
@@ -1017,7 +1024,7 @@ Expected: PASS. `PDF_PRACTICES.length === 19`; add that assertion to the `every 
 A gate that has only ever passed proves nothing. Temporarily change one `detect()`'s fallback from `notChecked(...)` to `{ status: "met", evidence: [] }`, run the suite, and confirm `every PDF practice → returns NOT CHECKED for an empty document` FAILS. Then revert.
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesPdf.test.ts -t "silence is never a pass"
+pnpm --filter web test -- app/__tests__/bestPracticesPdf.test.ts -t "silence is never a pass"
 ```
 
 Expected while sabotaged: FAIL naming the practice. Expected after revert: PASS. **Do not commit the sabotage.** Note in the commit body that the guard was proven able to fire.
@@ -1101,7 +1108,7 @@ describe("the six 'Note — not scored' lines Task 1 unblocked", () => {
 - [ ] **Step 3: Run the test to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesOffice.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesOffice.test.ts
 ```
 
 Expected: FAIL — module not found.
@@ -1210,7 +1217,7 @@ Notes that will otherwise cost a debugging cycle:
 - [ ] **Step 5: Run the test to verify it passes**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesOffice.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesOffice.test.ts
 ```
 
 Expected: PASS. Assert `OFFICE_PRACTICES.length === 19`.
@@ -1326,7 +1333,7 @@ describe("summarizeBestPractices", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesCore.test.ts -t "evaluateBestPractices"
+pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts -t "evaluateBestPractices"
 ```
 
 Expected: FAIL — module not found.
@@ -1408,7 +1415,7 @@ export function summarizeBestPractices(rows: EvaluatedPractice[]): BestPracticeS
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesCore.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts
 ```
 
 Expected: PASS.
@@ -1555,7 +1562,7 @@ describe("BestPracticesSection", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesSection.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesSection.test.ts
 ```
 
 Expected: FAIL — component not found.
@@ -1674,7 +1681,7 @@ Requirements for the rest, all asserted by the tests above:
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/bestPracticesSection.test.ts
+pnpm --filter web test -- app/__tests__/bestPracticesSection.test.ts
 ```
 
 Expected: PASS, 8 tests.
@@ -1749,7 +1756,7 @@ Define `SCOPE_RESULT` as a report carrying the `/Scope` not-scored finding plus 
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/pdfUaCosign.test.ts
+pnpm --filter web test -- app/__tests__/pdfUaCosign.test.ts
 ```
 
 Expected: FAIL — no `best-practices` testid; the beyond group still contains `no /Scope`.
@@ -1785,7 +1792,7 @@ const showBeyondGroup = computed(() => {
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/pdfUaCosign.test.ts app/__tests__/actionPlan.test.ts
+pnpm --filter web test -- app/__tests__/pdfUaCosign.test.ts app/__tests__/actionPlan.test.ts
 ```
 
 Expected: PASS. Update the `Above and beyond` assertion at `actionPlan.test.ts:855` to the new heading.
@@ -1793,7 +1800,7 @@ Expected: PASS. Update the `Above and beyond` assertion at `actionPlan.test.ts:8
 - [ ] **Step 5: Run the full web suite**
 
 ```bash
-pnpm --filter @file-audit/web test
+pnpm --filter web test
 ```
 
 Expected: PASS.
@@ -1868,7 +1875,7 @@ describe("Best Practices placement (2026-08-30)", () => {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/reportSectionOrder.test.ts
+pnpm --filter web test -- app/__tests__/reportSectionOrder.test.ts
 ```
 
 Expected: FAIL — `BestPracticesSection not found in source`.
@@ -1897,8 +1904,8 @@ On `report/[id].vue` the binding is `data.report`, not `result` — use `v-if="d
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/reportSectionOrder.test.ts
-pnpm --filter @file-audit/web test
+pnpm --filter web test -- app/__tests__/reportSectionOrder.test.ts
+pnpm --filter web test
 ```
 
 Expected: PASS.
@@ -2025,7 +2032,7 @@ describe("printable plan — best practices", () => {
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/printablePlanBestPractices.test.ts
+pnpm --filter web test -- app/__tests__/printablePlanBestPractices.test.ts
 ```
 
 Expected: FAIL — `bestPractices` is not a recognised option; the string is absent.
@@ -2143,8 +2150,8 @@ Add `bestPractices: bestPractices.value` to the `buildPrintablePlan` call, and u
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-pnpm --filter @file-audit/web test -- app/__tests__/printablePlanBestPractices.test.ts
-pnpm --filter @file-audit/web test
+pnpm --filter web test -- app/__tests__/printablePlanBestPractices.test.ts
+pnpm --filter web test
 ```
 
 Expected: PASS.
