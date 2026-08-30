@@ -848,6 +848,13 @@ describe("list-labels", () => {
       "All lists are well-formed (each <LI> has an <LBody>)",
     ]);
     expect(r.status).toBe("met");
+    // QUANTIFIER SCOPE: "<Lbl> ✓" is set from l.hasLabels, true as soon as
+    // ONE <LI> in that list has a <Lbl> child (qpdfService.ts:1524-1526).
+    // What was established is "every LIST carries markers", never "every
+    // ITEM is labelled" — the evidence must not read as the latter.
+    expect(r.evidence.join(" ")).toMatch(/every list in it/);
+    expect(r.evidence.join(" ")).toMatch(/list by list, not item by item/);
+    expect(r.evidence.join(" ")).not.toMatch(/every item|each one uses/);
   });
 
   // THE CRITICAL BUG, PINNED: reproduces the coordinator's exact scenario —

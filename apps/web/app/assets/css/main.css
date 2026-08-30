@@ -283,6 +283,16 @@ body {
   button.bp-row-header {
     display: flex !important;
   }
+  /* ...but not its Show/Hide affordance. Only the HTML export path honours
+     [data-export-exclude] (useReportExport.ts:113 removes those nodes, :135
+     hides any that survive); print has no such pass, so force-showing the
+     header above also printed a literal "Show" at the end of every row —
+     on paper, where the body is already forced open right beneath it.
+     Scoped to .bp-row-header on purpose: ActionPlan/TechnicalReport carry
+     the same defect and are handled separately. */
+  .bp-row-header [data-export-exclude] {
+    display: none !important;
+  }
   .action-plan li,
   .category-bars li {
     break-inside: avoid;

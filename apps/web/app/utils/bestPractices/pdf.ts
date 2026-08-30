@@ -1062,17 +1062,18 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      // hasLabels itself is an ANY-quantifier per list (qpdfService.ts
-      // :1524-1526 sets it true the moment ONE <LI> in the list has a
-      // <Lbl> child) — so even a genuine "<Lbl> ✓" line does not mean
-      // every item in that list is labelled, only that the list has at
-      // least one labelled item. The evidence text below is scoped to
-      // that, not "every item".
+      // hasLabels is an ANY-quantifier per list (qpdfService.ts:1524-1526
+      // sets it true the moment ONE <LI> in the list has a <Lbl> child), so
+      // "<Lbl> ✓" means "this list has at least one labelled item" — never
+      // "every item in it is labelled". `every` below therefore establishes
+      // exactly one thing: every LIST carries the markers. The evidence
+      // wording states that, and says which unit it was reported in, so it
+      // cannot be read as a claim about every item.
       if (perList.length > 0 && perList.every((l) => l.includes("<Lbl> ✓"))) {
         return {
           status: "met",
           evidence: [
-            "This document's lists were checked, and each one uses <Lbl> (bullet/number) elements for its items.",
+            "This document's lists were checked, and every list in it uses <Lbl> (bullet/number) markers — reported list by list, not item by item.",
           ],
         };
       }

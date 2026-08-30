@@ -288,15 +288,40 @@ describe("BestPracticesSection", () => {
     expect(btn.classes()).toContain("bp-row-header");
   });
 
-  // The headline invariant. CORRECTED in fix round 2: list-labels was
-  // briefly believed to be a fifth never-MET practice (round 1). It is
-  // not — supplementary.ts:184-186 pushes an unconditional census witness
-  // ("N list(s) detected with M total item(s)"), un-indented (main, so
-  // matchMain finds it), before the <Lbl> advisory — see pdf.ts's
-  // list-labels detect() and its ORDER IS LOAD-BEARING comment. Re-verified
-  // empirically against this exact fixture (with list content now
-  // included) before pinning anything: the product's stated
-  // "15 met · 0 not met · 4 not checked" holds.
+  it("the Show/Hide affordance sits INSIDE bp-row-header and is marked data-export-exclude", () => {
+    // The nesting is the CSS contract: main.css's print rule is
+    // `.bp-row-header [data-export-exclude] { display: none !important }`,
+    // the only thing that keeps a printed row — whose body is force-shown
+    // right beneath it — from ending in a literal "Show". Print honours no
+    // [data-export-exclude] rule of its own (only useReportExport.ts does,
+    // and only for the HTML export), so moving this span out of the header
+    // or dropping the attribute silently reinstates the contradiction.
+    const w = mountSection(pdfResult);
+    const affordance = w.find(".bp-row-header [data-export-exclude]");
+    expect(affordance.exists()).toBe(true);
+    expect(affordance.text()).toBe("Show");
+  });
+
+  // The headline invariant: exactly FOUR practices never reach MET, so a
+  // flawless PDF reads "15 met · 0 not met · 4 not checked", not 19 met.
+  //
+  // list-labels is the one that decides four vs five, and this comment
+  // describes only what pdf.ts does NOW. Its MET branch reads the
+  // analyzer's PER-LIST detail lines (supplementary.ts:198, each rendered
+  // "  List N: … | <Lbl> ✓/✗ | …") off signalLines and requires EVERY one
+  // to show "<Lbl> ✓". Those markers come from each list's own
+  // l.hasLabels, set during the qpdf tree walk (qpdfService.ts:1524-1526)
+  // independently of <LBody> well-formedness and of whether the summary
+  // <Lbl> advisory fired. That independence is the whole point: the
+  // earlier "census witness present AND no advisory" gate was unsound,
+  // because that advisory is emitted only inside a <LBody> check which
+  // ignores <Lbl> entirely, so a malformed unlabelled list suppressed it
+  // and read MET (task-7-report.md, fix round 3).
+  //
+  // Hence the fixture below carries a real per-list line, not just the
+  // census — without it list-labels would correctly fall to NOT CHECKED
+  // and this test would be pinning 14/0/5. Counts re-verified empirically
+  // against this exact fixture before being pinned here.
   const flawlessPdf = {
     fileType: "pdf",
     pageCount: 40,

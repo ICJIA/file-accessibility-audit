@@ -124,16 +124,19 @@ const XLSX_NO_LINKS = "No hyperlinks were found.";
 const XLSX_SHEET_NAMES_MET = "All 4 visible sheet(s) have descriptive names.";
 
 // xlsx.ts:207 — the findings array initializer, pushed unconditionally
-// whenever the early return is not taken. Witnesses xlsx-data-outside-
-// tables, xlsx-pivot-tables, xlsx-data-start, xlsx-merged-cells directly;
-// xlsx-defined-tables ALSO requires this witness's own count to be > 0
+// whenever the early return is not taken. Witnesses xlsx-pivot-tables,
+// xlsx-data-start and xlsx-merged-cells directly; xlsx-defined-tables AND
+// xlsx-data-outside-tables also require this witness's own count to be > 0
 // (see XLSX_TABLE_WITNESS_ZERO below for the trap that gate closes).
 const XLSX_TABLE_WITNESS = "2 defined table(s) found.";
 // The pivot-only-workbook trap office.ts's header comment documents: this
 // line is pushed even at n=0 whenever a workbook's only sizable data lives
 // on a sheet excluded from `datafulWithoutTable` by being a pivot. Paired
 // with a pivot-tables advisory and NO defined-tables advisory, this must
-// NOT read MET for xlsx-defined-tables.
+// NOT read MET for xlsx-defined-tables (its concern, "does at least one
+// table exist", is unconfirmed) and must NOT read MET for
+// xlsx-data-outside-tables either (with zero tables, the pivot's own data
+// does sit outside one — MET would state a false document fact).
 const XLSX_TABLE_WITNESS_ZERO = "0 defined table(s) found.";
 const XLSX_PIVOT_ONLY_WORKBOOK =
   'Note — not scored: 1 sheet(s) contain pivot tables ("PivotSheet"). Pivots cannot become Excel Tables; verify their readability manually.';
@@ -651,15 +654,48 @@ describe("xlsx-data-outside-tables", () => {
     expect(run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS]).status).toBe("met");
   });
 
-  // UNLIKE xlsx-defined-tables' own pivot-only test (which expects NOT
-  // CHECKED — its concern, "does at least one table exist," is genuinely
-  // unconfirmed here): MET is still correct for THIS practice on a
-  // pivot-only workbook, because its concern (non-pivot data sitting
-  // outside a table) has no non-pivot data to be wrong about, whether or
-  // not a defined table exists.
-  it("is MET for a pivot-only workbook — no non-pivot data exists to sit outside a table either way", () => {
-    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_PIVOT_ONLY_WORKBOOK]);
+  // A workbook with real Tables AND a pivot sheet: MET is right (no ordinary
+  // range sits outside a Table), but the unqualified sentence would not be —
+  // the pivot's cells are outside one. The wording carries the carve-out
+  // only where the pivot line establishes there is one.
+  it("names the pivot carve-out in its MET wording when a pivot sheet is present alongside real tables", () => {
+    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS, XLSX_PIVOT_ONE]);
     expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/apart from its pivot tables/);
+  });
+
+  // CORRECTED: this test used to pin MET here, on the reasoning that this
+  // practice's concern (non-pivot data outside a table) has no non-pivot
+  // data to be wrong about. The reasoning is about the ADVICE, not the
+  // FACT. With zero defined tables, the pivot sheet's own >=12-cell range
+  // demonstrably DOES sit outside a defined Table — there is no Table in
+  // the workbook for it to sit in — so MET's own sentence ("none has
+  // sizable data sitting outside a defined Table") stated something false
+  // about the document, and this test pinned that as correct. The analyzer
+  // excludes pivots from `datafulWithoutTable` (xlsx.ts:222-224) because a
+  // pivot cannot be converted into an Excel Table, i.e. the fix would be
+  // wrong — not because the data is inside one. NOT APPLICABLE says that
+  // without asserting anything untrue.
+  it("is NOT APPLICABLE for a pivot-only workbook — MET would state a false fact, since with zero tables the pivot's data does sit outside one", () => {
+    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_PIVOT_ONLY_WORKBOOK]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/pivot tables, which cannot be turned into Tables/);
+    // The carve-out may only be NAMED where the analyzer established it.
+    expect(r.evidence.join(" ")).not.toMatch(/none has sizable data sitting outside/);
+  });
+
+  // The same n=0 witness WITHOUT the pivot line. Reachable: a workbook whose
+  // only >=12-cell sheet is hidden (xlsx.ts:191 counts hidden sheets, but
+  // both :222 datafulWithoutTable and :239 pivotSheets require !s.hidden).
+  // Nothing was established about the visible sheets either way, and the
+  // pivot carve-out must NOT be named here — inferring it from the absence
+  // of two advisories would fabricate the exact class of document fact this
+  // catalog exists to prevent.
+  it("is NOT CHECKED at a zero-count witness with no pivot line — the carve-out is never inferred from silence", () => {
+    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS_ZERO]);
+    expect(r.status).toBe("not-checked");
+    expect(r.evidence.join(" ")).toMatch(/does not establish whether/);
+    expect(r.evidence.join(" ")).not.toMatch(/pivot/i);
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {

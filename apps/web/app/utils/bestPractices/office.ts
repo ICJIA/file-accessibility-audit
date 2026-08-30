@@ -13,12 +13,44 @@
  *
  *   MET = witness present AND no advisory for this practice
  *
- * The qualifying rule is strict: a line only counts as a witness if the
- * scorer pushes it unconditionally whenever it runs — never only on the
+ * THAT RULE HAS TWO HALVES, and both false-green bugs this catalog has
+ * actually shipped turned on the SECOND one.
+ *
+ * FIRST HALF — THE WITNESS MUST BE UNCONDITIONAL. A line only counts as a
+ * witness if the scorer pushes it whenever it runs — never only on the
  * clean path, and never nested inside a branch an advisory could skip.
  * Getting this wrong reproduces the PDF catalog's heading-content
  * inversion bug (a "positive-looking" group that only ever appears once a
- * problem was already found). ORDER IS LOAD-BEARING at every witness site
+ * problem was already found).
+ *
+ * SECOND HALF — THE ADVISORY MUST BE UNCONDITIONAL TOO. "No advisory" only
+ * means "no defect" if the scorer emits that exact advisory for EVERY
+ * document carrying the defect. Two shapes of suppression have each cost a
+ * real false MET here:
+ *
+ *   - NESTED UNDER AN UNRELATED CONDITION. pdf.ts's list-labels keyed MET
+ *     off the absence of supplementary.ts:200-206's "<Lbl>" advisory —
+ *     which is pushed only inside `if (wellFormed === qpdf.lists.length)`,
+ *     a check about <LBody> that ignores <Lbl> entirely (qpdfService.ts
+ *     :1561's own comment: "<Lbl> is deliberately NOT required"). A
+ *     malformed list that ALSO lacked <Lbl> took the sibling else-branch,
+ *     emitted no advisory at all, and read MET.
+ *   - MUTUALLY EXCLUSIVE WITH A SIBLING ADVISORY. xlsx.ts:225-238 is
+ *     `if (datafulWithoutTable && a.tables.length === 0) { …"no defined
+ *     Excel Table anywhere"… } else if (datafulWithoutTable) { …"sits
+ *     outside the defined table(s)"… }`. xlsx-data-outside-tables matched
+ *     only the second, so a workbook with data and ZERO tables fired the
+ *     first, never the second, and its witness alone read MET — claiming
+ *     nothing sat outside a Table in a workbook where all of it did. This
+ *     shape is INVISIBLE to a nesting check: the advisory is not nested
+ *     under anything, it just loses an `else if`.
+ *
+ * So the test is NOT "is this advisory's own `if` unconditional". It is:
+ * FOR EVERY DOCUMENT WHERE THIS DEFECT EXISTS, DOES THIS EXACT STRING GET
+ * PUSHED? Answer it from the scorer's control flow read end to end — the
+ * advisory's own condition is only one branch of it.
+ *
+ * ORDER IS LOAD-BEARING at every witness site
  * below: docx.ts:290 and xlsx.ts:207 (this file's two busiest witnesses)
  * are pushed unconditionally alongside EVERY advisory in their category —
  * a document WITH the problem emits both the witness and the advisory
@@ -26,20 +58,33 @@
  * first, or a bad document reads as MET. Sixteen of this file's MET
  * branches are correct only because that ordering holds at every site.
  *
- * ONE WITNESS NEEDS AN EXTRA GATE. xlsx.ts's table-markup witness
- * (`${a.tables.length} defined table(s) found.`) is pushed even at n=0 in
- * one real scenario: a workbook whose only sizable data lives on a PIVOT
- * sheet (pivots are explicitly excluded from `datafulWithoutTable`, so
- * neither table_markup advisory fires, yet zero defined tables exist).
- * `xlsx-defined-tables`'s own concern IS "does at least one table exist",
- * so — unlike its four table_markup siblings, whose concerns are
- * orthogonal to the witness's numeric value — it additionally requires the
- * witness's own count to be > 0. Skipping that gate would report a
- * workbook with literally zero defined tables as having met a practice
- * called "Data uses defined Excel Tables". `pptx.ts:176-178`'s witness has
- * the same shape of trap (a deck whose slides are ALL hidden reads "All 0
- * visible slide(s) have a distinct title.", vacuously true), and gets the
- * same `n > 0` gate for both PowerPoint title practices.
+ * THE TABLE WITNESS NEEDS AN EXTRA GATE — for TWO practices, not one.
+ * xlsx.ts's table-markup witness (`${a.tables.length} defined table(s)
+ * found.`) is pushed even at n=0 in one real scenario: a workbook whose
+ * only sizable data lives on a PIVOT sheet (pivots are explicitly excluded
+ * from `datafulWithoutTable`, xlsx.ts:222-224, so neither table_markup
+ * advisory fires, yet zero defined tables exist). Both practices whose
+ * concern turns on the witness's numeric VALUE, not just its presence,
+ * additionally require that value to be > 0:
+ *
+ *   - `xlsx-defined-tables` — its concern IS "does at least one table
+ *     exist". Skipping the gate would report a workbook with literally
+ *     zero defined tables as having met a practice called "Data uses
+ *     defined Excel Tables". Below the gate it reports NOT CHECKED.
+ *   - `xlsx-data-outside-tables` — at n=0 the pivot sheet's own >=12-cell
+ *     range demonstrably DOES sit outside a defined Table, because there
+ *     is no Table in the workbook for it to sit in. The analyzer carves
+ *     pivots out because the ADVICE would be wrong (a pivot cannot become
+ *     an Excel Table), not because the fact is. Below the gate it reports
+ *     NOT APPLICABLE, naming the carve-out.
+ *
+ * The other three table_markup practices (xlsx-pivot-tables,
+ * xlsx-data-start, xlsx-merged-cells) key off their own independent
+ * advisory lines rather than the witness's number, and take no such gate.
+ * `pptx.ts:176-178`'s witness has the same shape of trap (a deck whose
+ * slides are ALL hidden reads "All 0 visible slide(s) have a distinct
+ * title.", vacuously true), and gets the same `n > 0` gate for both
+ * PowerPoint title practices.
  *
  * Reading witnesses/N-A/MET lines: use `matchMain` (types.ts), never
  * `matchAny` — `matchAny` searches the RAW, unpartitioned findings array,
@@ -895,7 +940,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     categoryId: "table_markup",
     label: "No sizable data outside a table",
     description:
-      "Where at least one Excel Table already exists, other sizable data in the same workbook should also sit inside a defined Table rather than a plain range.",
+      "A sizable block of worksheet data should sit inside a defined Excel Table rather than a plain range of cells.",
     why: "A screen reader can announce column headers while a reader moves across a defined Table's cells, but not across a plain, unstructured range sitting next to it.",
     links: [],
     detect(ctx) {
@@ -905,7 +950,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      // FIX (audit sweep, same bug class as list-labels): xlsx.ts:41-53 is
+      // FIX (audit sweep, same bug class as list-labels): xlsx.ts:225-238 is
       // an if/else-if — "no defined Excel Table anywhere" (advisory A, the
       // tables.length===0 case) and "sits outside the defined table(s)"
       // (advisory B, tables exist but some data isn't in one) never
@@ -943,20 +988,59 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       }
       // ORDER IS LOAD-BEARING: xlsx.ts:207's witness is pushed unconditionally
       // whenever the early return is not taken, before either advisory check
-      // (:225-238) even runs. Both advisory checks above must win. With the
-      // tables=0 case now caught above, the only way to reach this point
-      // with a.tables.length === 0 is the pivot-only-workbook case (pivot
-      // sheets are excluded from `datafulWithoutTable` by design, xlsx.ts
-      // :222-224) — where MET is still accurate, because this practice's
-      // concern (non-pivot data outside a table) has no non-pivot data to
-      // be wrong about.
-      if (matchMain(ctx, "defined table(s) found")) {
-        return {
-          status: "met",
-          evidence: [
-            "This workbook's visible sheets were checked, and none has sizable data sitting outside a defined Table.",
-          ],
-        };
+      // (:225-238) even runs. Both advisory checks above must win.
+      //
+      // EXTRA GATE, same `n > 0` as xlsx-defined-tables but for a different
+      // reason. With the tables=0 advisory now caught above, reaching here
+      // with a.tables.length === 0 means every sizable sheet was skipped by
+      // `datafulWithoutTable` (xlsx.ts:222-224) — which excludes pivot
+      // sheets and hidden sheets — so no advisory fired even though zero
+      // tables exist. The pivot case is the one that matters, and MET is
+      // NOT accurate there: the pivot sheet's own >=12-cell range
+      // demonstrably DOES sit outside a defined Table, because there is no
+      // Table in the workbook for it to sit in. The analyzer carves pivots
+      // out because the ADVICE would be wrong (a pivot cannot be converted
+      // into an Excel Table), not because the fact is. So: NOT APPLICABLE,
+      // naming the carve-out, rather than a green row asserting something
+      // false about the document.
+      const tableWitness = matchMain(ctx, "defined table(s) found");
+      // xlsx.ts:239-247, pushed whenever any VISIBLE sheet has a pivot. Used
+      // only to establish the carve-out actually applies before naming it.
+      // Without it the hidden-sheet case (a workbook whose only sizable
+      // sheet is hidden lands here at n=0 too) would be told it is full of
+      // pivots — inferring a document fact from the absence of two
+      // advisories, exactly what this fix exists to stop. No pivot line, no
+      // claim: that case falls through to NOT CHECKED below.
+      const pivotLine = matchNotScored(ctx, "contain pivot tables");
+      if (tableWitness) {
+        const n = firstNumber(tableWitness);
+        if (n !== null && n > 0) {
+          return {
+            status: "met",
+            evidence: [
+              pivotLine
+                ? "This workbook's visible sheets were checked, and apart from its pivot tables — which cannot be turned into Excel Tables — no sizable data sits outside a defined Table."
+                : "This workbook's visible sheets were checked, and none has sizable data sitting outside a defined Table.",
+            ],
+          };
+        }
+        if (pivotLine) {
+          return {
+            status: "not-applicable",
+            evidence: [
+              "This workbook has no defined Excel Tables, and the sizable data on its visible sheets is all in pivot tables, which cannot be turned into Tables.",
+              "There is no ordinary range of cells here that could be moved into one.",
+            ],
+          };
+        }
+        // Witness present at zero with no pivot line: the report shows "0
+        // defined table(s) found." while naming no data outside a table and
+        // no pivot. Nothing about the workbook's visible sheets was
+        // established either way, and a message claiming the report holds no
+        // finding would contradict the line the reader can see.
+        return notChecked(
+          "This report does not establish whether any sizable data in this workbook sits outside a defined Table.",
+        );
       }
       return notChecked(
         "This report contains no finding about data outside defined tables in this workbook.",

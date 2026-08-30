@@ -26,13 +26,16 @@
        - Four practices (heading-content, single-h1, character-mapping,
          content-in-tag-tree) have no MET branch in the catalog at all — the
          analyzer only speaks up when something looks wrong, so a flawless
-         document lands them on NOT CHECKED. (list-labels was briefly
-         mistaken for a fifth during this fix round — supplementary.ts:184-186
-         DOES push an unconditional witness for it; see task-7-report.md's
-         fix-round-2 notes for the trace, and the "the headline invariant"
-         test below for the empirically-verified flawless-PDF split.) NEVER
-         a "N of 19" fraction anywhere — a denominator beside a status is
-         read as a grade in this product.
+         document lands them on NOT CHECKED. Exactly four: list-labels does
+         reach MET, but it gets there by reading the analyzer's PER-LIST
+         detail lines and requiring every one to show "<Lbl> ✓" (pdf.ts,
+         off supplementary.ts:198) — not by treating a top-level census
+         line plus the absence of an advisory as a pass, which was tried
+         and proved unsound (task-7-report.md, fix round 3). The
+         empirically-verified flawless-PDF split is pinned by the "headline
+         invariant" test, not restated here. NEVER a "N of 19" fraction
+         anywhere — a denominator beside a status is read as a grade in
+         this product.
        - A NOT CHECKED row is not one thing: `result.reason` (types.ts)
          tells "silent" (the check ran, found nothing to say — the analyzer
          genuinely only speaks up on trouble) from "not-run" (the category
