@@ -1822,6 +1822,15 @@ full — the rest of the template follows from the requirements below it.
 </template>
 ```
 
+**NOT MET MUST READ AS "WORTH DOING", NEVER AS A FAILURE.** Nothing in this section is scored, so no row is a failure — but three practices make that especially load-bearing, because an author can never reach MET on them at all: `docx-layout-grids`, `xlsx-pivot-tables` and `xlsx-merged-cells` all mean "a person should look at this", and `office.ts` says so outright ("No structural fix applies"). A workbook containing pivot tables will therefore carry that row for the rest of its life, no matter what its author does.
+
+Rather than add a fifth status, carry it in the copy and the visual weight:
+
+- The NOT MET pill reads **`WORTH DOING`** — never `FAILED`, `ISSUE`, or a bare `✗`. Use the sky palette the beyond-group already uses, never red or amber.
+- The section's own heading and intro must say, before any row, that none of this is required and none of it affected the grade.
+- Where a practice can only ever be reviewed rather than fixed, its row must say so plainly — "This one needs a person's judgment; there is no change that settles it automatically" — so a reader does not hunt for a fix that does not exist.
+- Order the rows so NOT MET comes first (the actionable ones), then MET, then NOT APPLICABLE, then NOT CHECKED. Never sort by severity — there is no severity here.
+
 **FOUR PRACTICES CAN NEVER REPORT MET — the summary must not read as four failures.** `heading-content`, `single-h1`, `character-mapping` and `content-in-tag-tree` have no MET branch at all, because the analyzer emits no positive line for them: when they are fine it simply says nothing. Manufacturing a pass from that silence is the one thing this catalog exists to prevent, so those rows land on NOT CHECKED for a flawless document.
 
 Consequence: **a perfect PDF shows `15 met · 0 not met · 4 not checked`**, never `19 met`. Design for that, or the section reads as if a clean document still has four problems.
