@@ -9,13 +9,14 @@
  *
  * WITNESS LINES. Sixteen of these practices key MET off a census line the
  * scorer pushes unconditionally before any advisory (office.ts's header
- * comment explains the qualifying rule and the one line that needs an
- * extra numeric gate: xlsx.ts's table-markup witness at n=0). EVERY NOT MET
- * fixture below therefore includes BOTH the witness line AND the advisory
- * — exactly as a real document would emit them — so a branch reorder (MET
- * checked before NOT MET) fails these tests. A fixture that omitted the
- * witness would not prove the ordering; it would only prove the advisory
- * matches, which is a weaker claim.
+ * comment explains the qualifying rule, and the two lines that need an
+ * extra numeric gate: xlsx.ts's table-markup witness and pptx.ts's shared
+ * distinct-title witness, both of which can vacuously read n=0). EVERY NOT
+ * MET fixture below therefore includes BOTH the witness line AND the
+ * advisory — exactly as a real document would emit them — so a branch
+ * reorder (MET checked before NOT MET) fails these tests. A fixture that
+ * omitted the witness would not prove the ordering; it would only prove
+ * the advisory matches, which is a weaker claim.
  */
 import { describe, it, expect } from "vitest";
 import { OFFICE_PRACTICES } from "../utils/bestPractices/office";
@@ -184,7 +185,7 @@ const NOT_MET_TRIGGERS: Record<string, string[]> = {
   "pptx-distinct-slide-titles": [PPTX_DUP_ONE],
   "pptx-raw-url-link-text": [PPTX_LINK_WITNESS, PPTX_RAW_URL],
   "xlsx-sheet-names": [XLSX_RENAME_ONE, XLSX_RENAME_TWO],
-  "xlsx-defined-tables": [XLSX_NO_DEFINED_TABLE],
+  "xlsx-defined-tables": [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE],
   "xlsx-data-outside-tables": [XLSX_TABLE_WITNESS, XLSX_DATA_OUTSIDE_TABLE],
   "xlsx-pivot-tables": [XLSX_TABLE_WITNESS, XLSX_PIVOT_ONE],
   "xlsx-data-start": [XLSX_TABLE_WITNESS, XLSX_DATA_START_ONE],
@@ -420,7 +421,7 @@ describe("docx-raw-url-link-text", () => {
   it("is NOT MET, even with the witness line present (un-prefixed in the analyzer's category header, but 'Advisory — not scored against you' IS recognised)", () => {
     const r = run("docx-raw-url-link-text", [DOCX_LINK_WITNESS, DOCX_RAW_URL]);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/2 link\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/2 links showing a raw web address/);
   });
 
   it("is NOT APPLICABLE when the document has no links", () => {
@@ -470,6 +471,12 @@ describe("pptx-slide-titles", () => {
     expect(r.status).toBe("met");
   });
 
+  it("is NOT CHECKED — never MET — when the distinct-title witness reads n=0: pptx.ts:176-178 pushes 'All 0 visible slide(s) have a distinct title.' for a deck whose slides are ALL hidden, which is vacuously true but not something a reader can act on or verify", () => {
+    const r = run("pptx-slide-titles", ["All 0 visible slide(s) have a distinct title."]);
+    expect(r.status).toBe("not-checked");
+    expect(r.evidence.join(" ")).toMatch(/all hidden/);
+  });
+
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
     expect(run("pptx-slide-titles", []).status).toBe("not-checked");
   });
@@ -500,6 +507,12 @@ describe("pptx-distinct-slide-titles", () => {
     expect(run("pptx-distinct-slide-titles", [PPTX_DISTINCT_MET]).status).toBe("met");
   });
 
+  it("is NOT CHECKED — never MET — for the same all-hidden-deck trap as pptx-slide-titles (both practices share the same witness line)", () => {
+    const r = run("pptx-distinct-slide-titles", ["All 0 visible slide(s) have a distinct title."]);
+    expect(r.status).toBe("not-checked");
+    expect(r.evidence.join(" ")).toMatch(/all hidden/);
+  });
+
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
     expect(run("pptx-distinct-slide-titles", []).status).toBe("not-checked");
   });
@@ -509,7 +522,7 @@ describe("pptx-raw-url-link-text", () => {
   it("is NOT MET, even with the witness line present", () => {
     const r = run("pptx-raw-url-link-text", [PPTX_LINK_WITNESS, PPTX_RAW_URL]);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/3 link\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/3 links showing a raw web address/);
   });
 
   it("is NOT APPLICABLE when the presentation has no links", () => {
@@ -564,7 +577,7 @@ describe("xlsx-sheet-names", () => {
 
 describe("xlsx-defined-tables", () => {
   it("is NOT MET when data exists with no defined Excel Table anywhere", () => {
-    const r = run("xlsx-defined-tables", [XLSX_NO_DEFINED_TABLE]);
+    const r = run("xlsx-defined-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/no defined Excel Table anywhere/);
   });
@@ -598,6 +611,9 @@ describe("xlsx-defined-tables", () => {
     // tables. The extra n > 0 gate in office.ts is what prevents that.
     const r = run("xlsx-defined-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_PIVOT_ONLY_WORKBOOK]);
     expect(r.status).toBe("not-checked");
+    // The witness IS present ("0 defined table(s) found." is right there in
+    // the report) — the message must not deny a line the reader can see.
+    expect(r.evidence.join(" ")).toMatch(/does not establish whether/);
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
@@ -663,6 +679,14 @@ describe("xlsx-data-start", () => {
     expect(r.evidence.join(" ")).toMatch(/"Data" \(row 8, column 1\)/);
   });
 
+  it("is NOT MET when only the column exceeds the threshold, so the row renders as '?' — xlsx.ts:251-255 admits a sheet on firstDataCol alone, and xlsx.ts:256 renders a missing firstDataRow as '?'; the regex must accept that or silently drop the sheet", () => {
+    const XLSX_DATA_START_ROW_UNKNOWN =
+      'Note — not scored: on "Sheet1" data begins at row ?, column 6 — screen readers land at A1, so leading blank rows/columns are dead space to navigate. Start data at or near A1.';
+    const r = run("xlsx-data-start", [XLSX_TABLE_WITNESS, XLSX_DATA_START_ROW_UNKNOWN]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/"Sheet1" \(row \?, column 6\)/);
+  });
+
   it("is NOT APPLICABLE when the workbook has no tables or sizable data ranges", () => {
     expect(run("xlsx-data-start", [XLSX_NO_DATA]).status).toBe("not-applicable");
   });
@@ -701,7 +725,7 @@ describe("xlsx-raw-url-link-text", () => {
   it("is NOT MET, even with the witness line present", () => {
     const r = run("xlsx-raw-url-link-text", [XLSX_LINK_WITNESS, XLSX_RAW_URL]);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/5 link\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/5 links showing a raw web address/);
   });
 
   it("is NOT APPLICABLE when the workbook has no links", () => {

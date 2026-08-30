@@ -128,6 +128,18 @@ export function matchAny(ctx: DetectContext, ...needles: string[]): string | nul
   return findIn(ctx.findings, needles);
 }
 
+/** The first finding in `main` — the analyzer's OWN positive/informational
+ *  voice — containing every needle, or null. Unlike `matchAny`, this never
+ *  sees a document's own quoted text: `ctx.findings` is the raw,
+ *  unpartitioned array, which can include an indented signal item that
+ *  interpolates document content (a fake heading's own sample text, a
+ *  bookmark title, …). Use this, not `matchAny`, for every
+ *  positive/witness/not-applicable lookup — anywhere the caller is reading
+ *  what the analyzer itself asserted, not quoting the document. */
+export function matchMain(ctx: DetectContext, ...needles: string[]): string | null {
+  return findIn(ctx.main, needles);
+}
+
 function findIn(haystack: string[], needles: string[]): string | null {
   if (needles.length === 0) return null;
   const lowered = needles.map((n) => n.toLowerCase());

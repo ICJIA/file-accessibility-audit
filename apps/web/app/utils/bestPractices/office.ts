@@ -6,13 +6,6 @@
  * :259, :273) — before that fix they rendered under the Tier-1 heading
  * claiming the score measures them. See findings.ts's isNotScoredFinding.
  *
- * UNLIKE THE PDF CATALOG, the Office scorers never push a "positive" line
- * unconditionally alongside an advisory — every advisory here is gated
- * behind its own independent `if (count > 0)` check with nothing pushed
- * afterward that could coexist misleadingly. There is no "ORDER IS
- * LOAD-BEARING" hazard in the sense the PDF catalog has it anywhere in
- * this file (re-verified against docx.ts/pptx.ts/xlsx.ts on 2026-08-30).
- *
  * WITNESS LINES. Most Office scorers never emit a "this is clean" positive
  * line — but several emit a CENSUS line unconditionally whenever they
  * examine a document's headings/tables/links at all, before any advisory.
@@ -26,9 +19,12 @@
  * Getting this wrong reproduces the PDF catalog's heading-content
  * inversion bug (a "positive-looking" group that only ever appears once a
  * problem was already found). ORDER IS LOAD-BEARING at every witness site
- * below: a document WITH the problem emits both the witness and the
- * advisory line in the same findings array, so the advisory check must be
- * tested first, or a bad document reads as MET.
+ * below: docx.ts:290 and xlsx.ts:207 (this file's two busiest witnesses)
+ * are pushed unconditionally alongside EVERY advisory in their category —
+ * a document WITH the problem emits both the witness and the advisory
+ * line in the same findings array, so the advisory check must be tested
+ * first, or a bad document reads as MET. Sixteen of this file's MET
+ * branches are correct only because that ordering holds at every site.
  *
  * ONE WITNESS NEEDS AN EXTRA GATE. xlsx.ts's table-markup witness
  * (`${a.tables.length} defined table(s) found.`) is pushed even at n=0 in
@@ -40,18 +36,28 @@
  * orthogonal to the witness's numeric value — it additionally requires the
  * witness's own count to be > 0. Skipping that gate would report a
  * workbook with literally zero defined tables as having met a practice
- * called "Data uses defined Excel Tables".
+ * called "Data uses defined Excel Tables". `pptx.ts:176-178`'s witness has
+ * the same shape of trap (a deck whose slides are ALL hidden reads "All 0
+ * visible slide(s) have a distinct title.", vacuously true), and gets the
+ * same `n > 0` gate for both PowerPoint title practices.
  *
- * Where no line qualifies as a witness (scorePptxSlideTitles has none for
- * "every heading is a specific level" style claims beyond its own two
- * dedicated positive lines, and no docx/pptx/xlsx scorer has anything
- * beyond what is used below), the practice keeps reporting NOT MET, NOT
- * APPLICABLE, or NOT CHECKED only — an unqualified witness is worse than
- * none, because it produces exactly this inverted gate.
+ * Reading witnesses/N-A/MET lines: use `matchMain` (types.ts), never
+ * `matchAny` — `matchAny` searches the RAW, unpartitioned findings array,
+ * which can include a document's OWN quoted text inside an indented signal
+ * item (docx.ts:199 interpolates a fake heading's own sample). `matchMain`
+ * searches only `ctx.main`, the analyzer's own voice.
+ *
+ * Every practice in this file traced to a valid witness once its scorer
+ * was read end to end — that is a fact about docx.ts/pptx.ts/xlsx.ts as
+ * they exist today, not a promise. A future scorer change, or a future
+ * 20th practice, may have no unconditional positive line to key off; in
+ * that case the practice must keep reporting NOT MET, NOT APPLICABLE, or
+ * NOT CHECKED only. An unqualified witness is worse than none, because it
+ * produces exactly the inverted gate described above.
  */
 import {
   firstNumber,
-  matchAny,
+  matchMain,
   matchNotScored,
   type BestPractice,
   type BestPracticeResult,
@@ -113,7 +119,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no headings were found")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no headings, so there is no first heading to check."],
@@ -124,7 +130,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // (:167) even runs — so a document whose first heading is NOT
       // Heading 1 carries BOTH lines. The advisory check above must win, or
       // a document that fails this practice would read MET here.
-      if (matchAny(ctx, "real heading(s) found")) {
+      if (matchMain(ctx, "real heading(s) found")) {
         return {
           status: "met",
           evidence: ["This document's headings were checked, and its outline starts at Heading 1."],
@@ -164,7 +170,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no headings were found")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no headings, so there is no level order to check."],
@@ -175,7 +181,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // computed (:172-176) — so a document with a skip carries BOTH lines.
       // The advisory check above must win, or a skipped document would read
       // MET here.
-      if (matchAny(ctx, "real heading(s) found")) {
+      if (matchMain(ctx, "real heading(s) found")) {
         return {
           status: "met",
           evidence: ["This document's headings were checked, and none of the levels skip a step."],
@@ -217,7 +223,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no headings were found")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no headings, so there are no empty headings to check."],
@@ -229,7 +235,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // the SAME early-return guard the witness does, just outside the
       // `if (total > 0)` block. A document with empty headings carries both
       // lines, so the advisory check above must win.
-      if (matchAny(ctx, "real heading(s) found")) {
+      if (matchMain(ctx, "real heading(s) found")) {
         return {
           status: "met",
           evidence: ["This document's headings were checked, and none of them is empty."],
@@ -272,7 +278,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // conditional in the function) always runs right after it, with no
       // early return anywhere. A document with the problem therefore
       // carries both lines, so the advisory check above must win.
-      if (matchAny(ctx, "fully extractable, selectable text")) {
+      if (matchMain(ctx, "fully extractable, selectable text")) {
         return {
           status: "met",
           evidence: [
@@ -319,14 +325,14 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables were found")) {
+      if (matchMain(ctx, "no tables were found")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       // ORDER IS LOAD-BEARING: docx.ts:290 pushes "N table(s) found."
       // unconditionally whenever any tables exist, before the bare-grid
       // check (:296) even runs — so a document with a bare grid carries
       // both lines. The advisory check above must win.
-      if (matchAny(ctx, "table(s) found")) {
+      if (matchMain(ctx, "table(s) found")) {
         return {
           status: "met",
           evidence: ["This document's tables were checked, and none is a bare, unstyled grid."],
@@ -343,7 +349,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     categoryId: "table_markup",
     label: "No nested tables",
     description: "A table should not contain another table nested inside one of its cells.",
-    why: "A nested table is genuinely difficult to navigate by keyboard or by screen reader, one table inside another, even where both are properly built.",
+    why: "A nested table — one table inside another — is genuinely difficult to navigate by keyboard or by screen reader, even where both are properly built.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -363,14 +369,14 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables were found")) {
+      if (matchMain(ctx, "no tables were found")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       // ORDER IS LOAD-BEARING: docx.ts:290's witness is pushed whenever any
       // tables exist, before the nested-table check (:303) even runs — a
       // document with a nested table carries both lines. The advisory
       // check above must win.
-      if (matchAny(ctx, "table(s) found")) {
+      if (matchMain(ctx, "table(s) found")) {
         return {
           status: "met",
           evidence: [
@@ -422,7 +428,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables were found")) {
+      if (matchMain(ctx, "no tables were found")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no tables."],
@@ -433,7 +439,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // A document with merged cells carries both lines, so the advisory
       // check above must win — this is the SAME hazard as the PDF
       // catalog's heading-content bug, just for a different category.
-      if (matchAny(ctx, "table(s) found")) {
+      if (matchMain(ctx, "table(s) found")) {
         return {
           status: "met",
           evidence: ["This document's tables were checked, and none use merged or split cells."],
@@ -473,14 +479,14 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables were found")) {
+      if (matchMain(ctx, "no tables were found")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       // ORDER IS LOAD-BEARING: docx.ts:290's witness is pushed whenever any
       // tables exist, before the empty-row count is even computed (:314).
       // A document with an empty row carries both lines, so the advisory
       // check above must win.
-      if (matchAny(ctx, "table(s) found")) {
+      if (matchMain(ctx, "table(s) found")) {
         return {
           status: "met",
           evidence: ["This document's tables were checked, and none has an entirely empty row."],
@@ -509,7 +515,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             n !== null
-              ? `${n} link(s) in this document use the raw web address as their visible text.`
+              ? `This document has ${n} link${n === 1 ? "" : "s"} showing a raw web address instead of descriptive text.`
               : "Some links in this document use the raw web address as their visible text.",
             "This already tells a screen reader where the link goes — a descriptive label is a readability nicety, not a fix for a failure.",
           ],
@@ -520,7 +526,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no hyperlinks were found")) {
+      if (matchMain(ctx, "no hyperlinks were found")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
       }
       // ORDER IS LOAD-BEARING: docx.ts's link witness ("N link(s) found; N
@@ -528,7 +534,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // exist, before the raw-URL check (:359) even runs. A document with
       // raw-URL links carries both lines, so the advisory check above must
       // win.
-      if (matchAny(ctx, "link(s) found")) {
+      if (matchMain(ctx, "link(s) found")) {
         return {
           status: "met",
           evidence: [
@@ -581,14 +587,28 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no slides were found")) {
+      if (matchMain(ctx, "no slides were found")) {
         return { status: "not-applicable", evidence: ["This presentation has no slides."] };
       }
-      if (matchAny(ctx, "have a distinct title")) {
-        return {
-          status: "met",
-          evidence: ["Every visible slide in this presentation has a title."],
-        };
+      const distinctLine = matchMain(ctx, "have a distinct title");
+      if (distinctLine) {
+        // GATE, same reason as xlsx-defined-tables: pptx.ts:176-178 pushes
+        // this line whenever untitled.length === 0 AND duplicateGroups.length
+        // === 0, which is vacuously true when `visible` (pptx.ts:131) is
+        // empty — a deck whose slides are ALL hidden. The claim is
+        // technically true at n=0, but a green "every slide has a title"
+        // row on a deck with no visible slides is not something a reader
+        // can act on or verify.
+        const n = firstNumber(distinctLine);
+        if (n !== null && n > 0) {
+          return {
+            status: "met",
+            evidence: ["Every visible slide in this presentation has a title."],
+          };
+        }
+        return notChecked(
+          "This presentation's slides are all hidden, so there are no visible slide titles to check.",
+        );
       }
       return notChecked("This report contains no finding about slide titles in this presentation.");
     },
@@ -630,14 +650,24 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no slides were found")) {
+      if (matchMain(ctx, "no slides were found")) {
         return { status: "not-applicable", evidence: ["This presentation has no slides."] };
       }
-      if (matchAny(ctx, "have a distinct title")) {
-        return {
-          status: "met",
-          evidence: ["No two visible slides in this presentation share the same title."],
-        };
+      const distinctLine = matchMain(ctx, "have a distinct title");
+      if (distinctLine) {
+        // GATE: see pptx-slide-titles's identical comment — pptx.ts:176-178's
+        // witness is vacuously true ("All 0 visible slide(s)…") when every
+        // slide is hidden.
+        const n = firstNumber(distinctLine);
+        if (n !== null && n > 0) {
+          return {
+            status: "met",
+            evidence: ["No two visible slides in this presentation share the same title."],
+          };
+        }
+        return notChecked(
+          "This presentation's slides are all hidden, so there are no visible slide titles to check.",
+        );
       }
       return notChecked(
         "This report contains no finding about duplicate slide titles in this presentation.",
@@ -664,7 +694,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             n !== null
-              ? `${n} link(s) in this presentation use the raw web address as their visible text.`
+              ? `This presentation has ${n} link${n === 1 ? "" : "s"} showing a raw web address instead of descriptive text.`
               : "Some links in this presentation use the raw web address as their visible text.",
             "This already tells a screen reader where the link goes — a descriptive label is a readability nicety, not a fix for a failure.",
           ],
@@ -675,7 +705,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no hyperlinks were found")) {
+      if (matchMain(ctx, "no hyperlinks were found")) {
         return { status: "not-applicable", evidence: ["This presentation has no links."] };
       }
       // ORDER IS LOAD-BEARING: pptx.ts's link witness ("N link(s) found; N
@@ -683,7 +713,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // exist, before the raw-URL check (:472) even runs. A presentation
       // with raw-URL links carries both lines, so the advisory check above
       // must win.
-      if (matchAny(ctx, "link(s) found")) {
+      if (matchMain(ctx, "link(s) found")) {
         return {
           status: "met",
           evidence: [
@@ -740,10 +770,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no visible sheets were found")) {
+      if (matchMain(ctx, "no visible sheets were found")) {
         return { status: "not-applicable", evidence: ["This workbook has no visible sheets."] };
       }
-      if (matchAny(ctx, "visible sheet(s) have descriptive names")) {
+      if (matchMain(ctx, "visible sheet(s) have descriptive names")) {
         return {
           status: "met",
           evidence: ["Every visible sheet in this workbook has a descriptive name."],
@@ -779,7 +809,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables or sizable data ranges were found")) {
+      if (matchMain(ctx, "no tables or sizable data ranges were found")) {
         return {
           status: "not-applicable",
           evidence: ["This workbook has no tables or sizable data ranges."],
@@ -800,7 +830,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // witness's numeric value, not just its presence — so it must also
       // require that value to be > 0, or a workbook with zero defined
       // tables would read MET.
-      const tableWitness = matchAny(ctx, "defined table(s) found");
+      const tableWitness = matchMain(ctx, "defined table(s) found");
       if (tableWitness) {
         const n = firstNumber(tableWitness);
         if (n !== null && n > 0) {
@@ -811,9 +841,14 @@ export const OFFICE_PRACTICES: BestPractice[] = [
             ],
           };
         }
+        // The pivot-only-workbook case: the witness IS present (the report
+        // literally shows "0 defined table(s) found."), so a message
+        // claiming no finding exists would contradict what the reader can
+        // see right above it. Name what could not be established instead.
+        return notChecked(
+          "This report does not establish whether this workbook's data uses a defined Excel Table.",
+        );
       }
-      // NOTE: falls through to NOT CHECKED (never MET) when the witness is
-      // present but its count is 0 — the pivot-only-workbook case above.
       return notChecked("This report contains no finding about defined tables in this workbook.");
     },
   },
@@ -823,7 +858,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     categoryId: "table_markup",
     label: "No sizable data outside a table",
     description:
-      "Where at least one Excel Table already exists, other sizable data on the same workbook should also sit inside a defined Table rather than a plain range.",
+      "Where at least one Excel Table already exists, other sizable data in the same workbook should also sit inside a defined Table rather than a plain range.",
     why: "A screen reader can announce column headers while a reader moves across a defined Table's cells, but not across a plain, unstructured range sitting next to it.",
     links: [],
     detect(ctx) {
@@ -834,17 +869,17 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "not-met",
           evidence: [
-            "This workbook has data sitting outside its defined table(s), as plain cell ranges.",
+            "This workbook has data sitting outside its defined tables, as plain cell ranges.",
             "A screen reader can announce column headers while moving across a defined Table, but not across a plain range.",
           ],
           fix: {
             source:
-              "In Excel, select the data range outside the existing table(s) and choose Insert → Table.",
+              "In Excel, select the data range outside the existing tables and choose Insert → Table.",
             app: OFFICE_FIX_APP,
           },
         };
       }
-      if (matchAny(ctx, "no tables or sizable data ranges were found")) {
+      if (matchMain(ctx, "no tables or sizable data ranges were found")) {
         return {
           status: "not-applicable",
           evidence: ["This workbook has no tables or sizable data ranges."],
@@ -860,7 +895,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // design, so "no data sits outside a defined Table" is accurate
       // exactly whenever the advisory is silent, regardless of how many
       // defined tables exist).
-      if (matchAny(ctx, "defined table(s) found")) {
+      if (matchMain(ctx, "defined table(s) found")) {
         return {
           status: "met",
           evidence: [
@@ -904,7 +939,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables or sizable data ranges were found")) {
+      if (matchMain(ctx, "no tables or sizable data ranges were found")) {
         return {
           status: "not-applicable",
           evidence: ["This workbook has no tables or sizable data ranges."],
@@ -916,7 +951,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // both lines, so the advisory check above must win. This practice's
       // concern (are there pivot sheets) is computed from `a.sheets`
       // directly and is independent of the witness's own numeric value.
-      if (matchAny(ctx, "defined table(s) found")) {
+      if (matchMain(ctx, "defined table(s) found")) {
         return {
           status: "met",
           evidence: [
@@ -946,7 +981,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         // row/column numbers in this line, and a name containing a digit
         // (e.g. a default "Sheet1") would be picked up as if it were the
         // row or column count. Extract the named triples explicitly.
-        const matches = [...line.matchAll(/"([^"]+)" data begins at row (\d+), column (\d+)/g)];
+        const matches = [
+          ...line.matchAll(/"([^"]+)" data begins at row (\d+|\?), column (\d+|\?)/g),
+        ];
         const parts = matches.map((m) => `"${m[1]}" (row ${m[2]}, column ${m[3]})`);
         return {
           status: "not-met",
@@ -963,7 +1000,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables or sizable data ranges were found")) {
+      if (matchMain(ctx, "no tables or sizable data ranges were found")) {
         return {
           status: "not-applicable",
           evidence: ["This workbook has no tables or sizable data ranges."],
@@ -975,11 +1012,11 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // both lines, so the advisory check above must win. This check
       // applies uniformly to every dataful sheet, pivot or not, so it is
       // independent of the witness's own numeric value.
-      if (matchAny(ctx, "defined table(s) found")) {
+      if (matchMain(ctx, "defined table(s) found")) {
         return {
           status: "met",
           evidence: [
-            "This workbook's sheets were checked, and each one's data starts at or near cell A1.",
+            "This workbook's sheets with sizable data were checked, and each one starts at or near cell A1.",
           ],
         };
       }
@@ -1020,7 +1057,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no tables or sizable data ranges were found")) {
+      if (matchMain(ctx, "no tables or sizable data ranges were found")) {
         return {
           status: "not-applicable",
           evidence: ["This workbook has no tables or sizable data ranges."],
@@ -1032,10 +1069,12 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // both lines, so the advisory check above must win. This check
       // applies to every sheet directly (no pivot carve-out), so it is
       // independent of the witness's own numeric value.
-      if (matchAny(ctx, "defined table(s) found")) {
+      if (matchMain(ctx, "defined table(s) found")) {
         return {
           status: "met",
-          evidence: ["This workbook's sheets were checked, and none contains merged cells."],
+          evidence: [
+            "This workbook's visible sheets were checked, and none contains merged cells.",
+          ],
         };
       }
       return notChecked("This report contains no finding about merged cells in this workbook.");
@@ -1061,7 +1100,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             n !== null
-              ? `${n} link(s) in this workbook use the raw web address as their visible text.`
+              ? `This workbook has ${n} link${n === 1 ? "" : "s"} showing a raw web address instead of descriptive text.`
               : "Some links in this workbook use the raw web address as their visible text.",
             "This already tells a screen reader where the link goes — a descriptive label is a readability nicety, not a fix for a failure.",
           ],
@@ -1072,7 +1111,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no hyperlinks were found")) {
+      if (matchMain(ctx, "no hyperlinks were found")) {
         return { status: "not-applicable", evidence: ["This workbook has no links."] };
       }
       // ORDER IS LOAD-BEARING: xlsx.ts's link witness ("N link(s) assessed;
@@ -1080,7 +1119,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // links are assessable, before the raw-URL check (:448) even runs. A
       // workbook with raw-URL links carries both lines, so the advisory
       // check above must win.
-      if (matchAny(ctx, "link(s) assessed")) {
+      if (matchMain(ctx, "link(s) assessed")) {
         return {
           status: "met",
           evidence: [
