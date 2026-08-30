@@ -1004,7 +1004,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // naming the carve-out, rather than a green row asserting something
       // false about the document.
       const tableWitness = matchMain(ctx, "defined table(s) found");
-      // xlsx.ts:239-247, pushed whenever any VISIBLE sheet has a pivot. Used
+      // xlsx.ts:240-247, pushed whenever any VISIBLE sheet has a pivot. Used
       // only to establish the carve-out actually applies before naming it.
       // Without it the hidden-sheet case (a workbook whose only sizable
       // sheet is hidden lands here at n=0 too) would be told it is full of
@@ -1029,7 +1029,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
             status: "not-applicable",
             evidence: [
               "This workbook has no defined Excel Tables, and the sizable data on its visible sheets is all in pivot tables, which cannot be turned into Tables.",
-              "There is no ordinary range of cells here that could be moved into one.",
+              "There is no ordinary range of cells on those sheets that could be moved into one.",
             ],
           };
         }

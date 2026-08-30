@@ -685,8 +685,8 @@ describe("xlsx-data-outside-tables", () => {
   });
 
   // The same n=0 witness WITHOUT the pivot line. Reachable: a workbook whose
-  // only >=12-cell sheet is hidden (xlsx.ts:191 counts hidden sheets, but
-  // both :222 datafulWithoutTable and :239 pivotSheets require !s.hidden).
+  // only >=12-cell sheet is hidden (xlsx.ts:192 counts hidden sheets, but
+  // both :222 datafulWithoutTable and :240 pivotSheets require !s.hidden).
   // Nothing was established about the visible sheets either way, and the
   // pivot carve-out must NOT be named here — inferring it from the absence
   // of two advisories would fabricate the exact class of document fact this
