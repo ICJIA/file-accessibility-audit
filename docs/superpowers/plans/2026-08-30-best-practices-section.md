@@ -1007,9 +1007,17 @@ The matcher needle and positive line for each:
 
 **`single-h1` is deliberately different.** The analyzer emits no not-scored prefix for it — the line is `Found N H1 headings. No WCAG criterion requires a single H1, so this does not affect the score…` in `main`. Match it with `matchAny(ctx, "h1 headings")`, read the count with `firstNumber`, and set NOT MET only when the count is greater than 1. It is a style convention, not a standard, so it carries **no** `standard` and **no** Matterhorn link — say plainly in `why` that many style guides recommend a single top-level heading and that PDF/UA explicitly permits repeated H1s.
 
-**`character-mapping` and `content-in-tag-tree` read INDENTED advisories.** `supplementary.ts` and these two `pdf.ts` sites emit `"  Advisory — not scored: …"` with two leading spaces, so `partitionCardFindings` routes them into `signals`, **not** `notScored` — `matchNotScored` will never find them. Use `signalLines()` and match within the returned items. Add this comment at both sites.
+**PARTITION MAP — which array each practice must actually search.** `partitionCardFindings` routes a finding by its FIRST CHARACTERS, before any keyword is considered: starts with `---` → opens a `signals` group; starts with two spaces → appended to the current `signals` group; otherwise starts with a not-scored prefix → `notScored`; otherwise → `main`. A non-indented line that FOLLOWS a `---` heading does **not** join that group — it falls through to `main`. Verified against the analyzer source on 2026-08-30:
 
-**`list-labels` and `footnote-ids` are the same case** — both are indented in `supplementary.ts`. Same treatment.
+| Practice | Lands in | Use | Why |
+|---|---|---|---|
+| `character-mapping` | **BOTH** | `matchNotScored` **and** `signalLines(ctx, "Character Mapping")` | pdf.ts:335 is un-indented (large count → `notScored`); pdf.ts:339 IS indented (small count → `signals`). One practice, two variants — check both, or a small-count document silently reads NOT CHECKED. |
+| `content-in-tag-tree` | signals | `signalLines(ctx, "Content Outside the Tag Structure")` | pdf.ts:381 is indented |
+| `footnote-ids` | signals | `signalLines(ctx, "Footnotes")` | supplementary.ts:257 and :262 are indented |
+| `list-labels` | **`main`** | **`matchAny`**, NOT `matchNotScored` | supplementary.ts:205 begins `${withoutLabels} list(s) have no <Lbl>…` — no not-scored prefix at all, so it falls through to `main`. `matchNotScored` would never find it. |
+| `raw-url-link-text` (PDF) | **`main`** | **`matchAny`**, NOT `matchNotScored` | pdf.ts:1995 begins `${rawUrls.length} link(s) use the raw URL…` — un-prefixed, so `main`. **The Office variants differ**: docx/pptx/xlsx use `"Advisory — not scored against you:"`, which IS prefixed and lands in `notScored`. One implementation does not serve both. |
+
+Every other PDF practice in the table above reads `notScored` via `matchNotScored` — each confirmed un-indented and prefixed at its source line. Re-verify any needle you are unsure of with `sed -n '<line>p' packages/analyzer/src/scoring/pdf.ts | cat -A | head -1` (a leading `  ` means signals).
 
 - [ ] **Step 7: Run the whole PDF suite**
 
