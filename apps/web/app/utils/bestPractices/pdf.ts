@@ -14,10 +14,28 @@
  * status before another for this reason, it is commented at the site with
  * the analyzer line numbers involved. Getting the order wrong does not
  * throw or fail loudly — it silently reports the opposite of the truth.
+ *
+ * THE PAYLOAD MAY BE A YEAR OLD. /report/[id] renders stored JSON that lives
+ * 365 days (SHARED_REPORTS.EXPIRY_DAYS), and scoring/regrade.ts recomputes
+ * score/grade/summary only — it never re-derives `findings`. Every string
+ * matched here is therefore frozen at ANALYSIS time, not at deploy time, and
+ * v1.136.0 (2026-08-29) re-prefixed ~18 advisories. So:
+ *
+ *   - ADVISORY reads use `matchAdvisory` (notScored ∪ main), never
+ *     `matchNotScored` — an un-prefixed older line sits in `main`.
+ *   - WITNESS / POSITIVE / NOT-APPLICABLE reads use `matchMain`, never
+ *     `matchAny`: `matchAny` also sees indented signal items, which quote the
+ *     DOCUMENT'S own text, so a PDF whose heading reads "Why documents with
+ *     no heading tags fail" could forge four not-applicable rows.
+ *   - Where v1.136.0 changed the WORDING as well as the prefix, the needle is
+ *     narrowed to the clause both eras share, and says so at the site.
+ *
+ * bestPracticesVersionDrift.test.ts pins all of this with fixtures copied
+ * verbatim from the PRE-v1.136.0 analyzer (git show 842dde9^).
  */
 import {
-  matchAny,
-  matchNotScored,
+  matchAdvisory,
+  matchMain,
   signalLines,
   firstNumber,
   type BestPractice,
@@ -98,7 +116,12 @@ export const PDF_PRACTICES: BestPractice[] = [
       // no return in between, so a gapped document carries it TOO. The
       // gaps check must stay above the MET check or a gapped document
       // reads as passing.
-      const gaps = matchNotScored(ctx, "level order has gaps");
+      // TWO NEEDLES, ONE PER ERA'S HALF OF THE SENTENCE. v1.136.0 reworded
+      // this line's middle as well as its prefix — pre-2026-08-29 stored
+      // reports carry "Found 6 heading tags, but the HIERARCHY has gaps",
+      // today's carry "…but the LEVEL ORDER has gaps". The clause either
+      // side of the change is identical in both, so match on that.
+      const gaps = matchAdvisory(ctx, "heading tags, but the", "has gaps");
       if (gaps) {
         // Scan ALL findings, not one signal group: "--- Heading Outline
         // ---" (common.ts:423) opens a SECOND group right after the
@@ -126,14 +149,14 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       // The positive line. Only the analyzer's own words earn a pass.
-      if (matchAny(ctx, "heading tags with logical hierarchy")) {
+      if (matchMain(ctx, "heading tags with logical hierarchy")) {
         return {
           status: "met",
           evidence: ["Every heading level steps down one at a time."],
           block: headingTreeBlock(ctx),
         };
       }
-      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
         // Two distinct analyzer N/A lines for the SAME underlying fact
         // (no headings at all): "No heading tags found in the document
         // structure" (substantive documents) and "No headings were found.
@@ -163,7 +186,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // with logical hierarchy" (pdf.ts:924) — no return in between, so a
       // document with mixed conventions carries BOTH lines. The mixed-
       // convention check must run before the MET check.
-      const mixed = matchNotScored(ctx, "generic <h> heading(s) appear alongside");
+      const mixed = matchAdvisory(ctx, "generic <h> heading(s) appear alongside");
       if (mixed) {
         const count = firstNumber(mixed);
         return {
@@ -181,13 +204,13 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "heading tags with logical hierarchy")) {
+      if (matchMain(ctx, "heading tags with logical hierarchy")) {
         return {
           status: "met",
           evidence: ["Every heading in this document uses the same, numbered convention."],
         };
       }
-      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
         // Two distinct analyzer N/A lines for the SAME underlying fact
         // (no headings at all): "No heading tags found in the document
         // structure" (substantive documents) and "No headings were found.
@@ -219,7 +242,11 @@ export const PDF_PRACTICES: BestPractice[] = [
       // `if (!hasNumberedHeadings)` branch ends in a `return`), so this
       // line and "heading tags with logical hierarchy" (pushed only later,
       // once levels are computed) never coexist in one document's findings.
-      if (matchNotScored(ctx, "only generic <h> tags were found")) {
+      // TWO NEEDLES, ONE PER ERA (see heading-level-order): pre-2026-08-29
+      // this line read "Only generic /H tags FOUND (not H1–H6)", today it
+      // reads "only generic <H> tags WERE FOUND (not H1–H6)". "only generic"
+      // and the parenthetical survive both.
+      if (matchAdvisory(ctx, "only generic", "not h1–h6")) {
         return {
           status: "not-met",
           evidence: [
@@ -240,7 +267,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // coexist. Without this check a mixed document reads MET here
       // ("every heading tag carries a numbered level") while
       // heading-convention correctly reads NOT MET one row below it.
-      const mixed = matchNotScored(ctx, "generic <h> heading(s) appear alongside");
+      const mixed = matchAdvisory(ctx, "generic <h> heading(s) appear alongside");
       if (mixed) {
         return {
           status: "not-met",
@@ -255,13 +282,13 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "heading tags with logical hierarchy")) {
+      if (matchMain(ctx, "heading tags with logical hierarchy")) {
         return {
           status: "met",
           evidence: ["Every heading tag in this document carries a specific, numbered level."],
         };
       }
-      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
         // Two distinct analyzer N/A lines for the SAME underlying fact
         // (no headings at all): "No heading tags found in the document
         // structure" (substantive documents) and "No headings were found.
@@ -326,7 +353,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
         // Two distinct analyzer N/A lines for the SAME underlying fact
         // (no headings at all): "No heading tags found in the document
         // structure" (substantive documents) and "No headings were found.
@@ -376,7 +403,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
         // Two distinct analyzer N/A lines for the SAME underlying fact
         // (no headings at all): "No heading tags found in the document
         // structure" (substantive documents) and "No headings were found.
@@ -409,7 +436,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // clean document all carry that line. Check N/A (form) first, then
       // NOT MET (score<100), and only THEN treat the bare percentage line
       // as confirmation of a genuine pass.
-      if (matchAny(ctx, "it is a form")) {
+      if (matchMain(ctx, "it is a form")) {
         return {
           status: "not-applicable",
           evidence: [
@@ -417,9 +444,17 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      const drift = matchNotScored(ctx, "tagged order agreed with the content stream");
+      const drift = matchAdvisory(ctx, "tagged order agreed with the content stream");
       if (drift) {
-        const pct = firstNumber(drift);
+        // NOT firstNumber: version-blind. Pre-2026-08-29 this line opened
+        // "Reading order scored 72/100 — the tagged order agreed … on 84% of
+        // comparable content", so the FIRST number is the old score, not the
+        // similarity — a stored report would have been told its tagged order
+        // agreed on "72%" of content it actually agreed on 84% of. The clause
+        // "draw order on N%" is identical in both eras; read the number off
+        // that, and render countless when it cannot be read.
+        const pctMatch = /draw order on (\d[\d,]*)%/i.exec(drift);
+        const pct = firstNumber(pctMatch?.[1] ?? null);
         return {
           status: "not-met",
           evidence: [
@@ -435,7 +470,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "reading-order fidelity")) {
+      if (matchMain(ctx, "reading-order fidelity")) {
         return {
           status: "met",
           evidence: ["The tagged reading order agrees closely with the page's draw order."],
@@ -472,7 +507,13 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      const missing = matchNotScored(ctx, "pages and no bookmarks");
+      // TWO NEEDLES, ONE PER ERA (see heading-level-order): pre-2026-08-29
+      // this line read "Document has 20 pages BUT no bookmarks", today it
+      // reads "this document has 20 pages AND no bookmarks". The conjunction
+      // is the only word that moved. No other bookmarks finding in either
+      // era carries both halves — the short-document line says "bookmarks
+      // are not required", never "no bookmarks".
+      const missing = matchAdvisory(ctx, "pages", "no bookmarks");
       if (missing) {
         return {
           status: "not-met",
@@ -490,7 +531,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // The analyzer speaks up on failure and on the not-required cases; the
       // MET line ("N bookmark(s) found") is the only positive text it ever
       // emits for this category, so it is the one this practice matches.
-      const found = matchAny(ctx, "bookmark(s) found");
+      const found = matchMain(ctx, "bookmark(s) found");
       if (found) {
         return {
           status: "met",
@@ -517,7 +558,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // if (flagged) / else if (exempt) / else (all embedded) chain, so
       // "non-embedded font(s)" (NOT MET) can never coexist with either MET
       // line in one document's findings.
-      const flagged = matchNotScored(ctx, "non-embedded font(s)");
+      const flagged = matchAdvisory(ctx, "non-embedded font(s)");
       if (flagged) {
         const count = firstNumber(flagged);
         return {
@@ -535,7 +576,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "all fonts are embedded")) {
+      if (matchMain(ctx, "all fonts are embedded")) {
         return {
           status: "met",
           evidence: ["Every font used to display text in this document is embedded."],
@@ -543,12 +584,12 @@ export const PDF_PRACTICES: BestPractice[] = [
       }
       // A second, narrower positive line: some fonts are not embedded, but
       // none of them ever paints visible text (typically leftover
-      // whitespace runs from the source word processor) — matchAny's
+      // whitespace runs from the source word processor) — matchMain's
       // needles must ALL occur in one line, and this line's extra words
       // ("used to display text") mean the needle above never matches it,
       // so it needs its own check or a document that genuinely passes
       // reads NOT CHECKED instead.
-      if (matchAny(ctx, "all fonts used to display text are embedded")) {
+      if (matchMain(ctx, "all fonts used to display text are embedded")) {
         return {
           status: "met",
           evidence: [
@@ -571,7 +612,13 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "PDF/UA (ISO 14289) clause 7.1",
     links: [],
     detect(ctx) {
-      const off = matchNotScored(ctx, "displaydoctitle viewer preference is off");
+      // Needle stops before the word that moved: pre-2026-08-29 this line
+      // read "the DisplayDocTitle viewer preference is NOT — viewers will
+      // show the filename", today "…is OFF, so viewers show the FILENAME".
+      // The other DisplayDocTitle line ("shown by viewers — DisplayDocTitle
+      // is set") does not contain "viewer preference is", so this stays as
+      // narrow as it was.
+      const off = matchAdvisory(ctx, "displaydoctitle viewer preference is");
       if (off) {
         return {
           status: "not-met",
@@ -588,7 +635,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // found in metadata" and the filename-like-title line both also
       // contain the word "title" and would otherwise read as a pass for a
       // document with no usable title at all.
-      if (matchAny(ctx, "displaydoctitle is set")) {
+      if (matchMain(ctx, "displaydoctitle is set")) {
         return {
           status: "met",
           evidence: ["This document's descriptive title is shown by viewers, not its filename."],
@@ -616,10 +663,10 @@ export const PDF_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchAny(ctx, "no tables detected in this document")) {
+      if (matchMain(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
-      const advisory = matchNotScored(ctx, "header cell(s) across", "have no /scope");
+      const advisory = matchAdvisory(ctx, "header cell(s) across", "have no /scope");
       if (advisory) {
         const m = /(\d+) header cell\(s\) across (\d+) table\(s\)/.exec(advisory);
         return {
@@ -637,7 +684,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "all <th> cells have scope attributes")) {
+      if (matchMain(ctx, "all <th> cells have scope attributes")) {
         return {
           status: "met",
           evidence: ["Every header cell in this document's tables carries a /Scope attribute."],
@@ -665,7 +712,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchAny(ctx, "no tables detected in this document")) {
+      if (matchMain(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       // ORDER IS LOAD-BEARING: this advisory only fires when at least one
@@ -675,7 +722,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // /Scope, which cannot be true here). The advisory check must run
       // first, or a document using /Headers-without-Scope reads as
       // untouched by this practice's own concern.
-      const advisory = matchNotScored(ctx, "rely on /headers associations without /scope");
+      const advisory = matchAdvisory(ctx, "rely on /headers associations without /scope");
       if (advisory) {
         const count = firstNumber(advisory);
         return {
@@ -692,7 +739,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "all tables associate data cells with headers")) {
+      if (matchMain(ctx, "all tables associate data cells with headers")) {
         return {
           status: "met",
           evidence: [
@@ -721,10 +768,10 @@ export const PDF_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchAny(ctx, "no tables detected in this document")) {
+      if (matchMain(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
-      if (matchNotScored(ctx, "a nested table is not a wcag failure")) {
+      if (matchAdvisory(ctx, "a nested table is not a wcag failure")) {
         return {
           status: "not-met",
           evidence: [
@@ -741,7 +788,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // The analyzer's own dedicated line for this exact condition — not
       // the row-structure line, which measures a different thing (<TR>
       // presence) and is present or absent independently of nesting.
-      if (matchAny(ctx, "no nested tables detected")) {
+      if (matchMain(ctx, "no nested tables detected")) {
         return {
           status: "met",
           evidence: ["No table in this document contains another table nested inside it."],
@@ -771,10 +818,10 @@ export const PDF_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchAny(ctx, "no links found in this document")) {
+      if (matchMain(ctx, "no links found in this document")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
       }
-      const advisory = matchNotScored(ctx, "link(s) use non-descriptive text");
+      const advisory = matchAdvisory(ctx, "link(s) use non-descriptive text");
       if (advisory) {
         const m = /(\d+) of (\d+) link\(s\)/.exec(advisory);
         return {
@@ -796,7 +843,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "link(s) use descriptive text")) {
+      if (matchMain(ctx, "link(s) use descriptive text")) {
         return {
           status: "met",
           evidence: ["Every link in this document uses descriptive text."],
@@ -821,12 +868,13 @@ export const PDF_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchAny(ctx, "no links found in this document")) {
+      if (matchMain(ctx, "no links found in this document")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
       }
-      // Un-prefixed in the analyzer's own output (main, not notScored) —
-      // matchNotScored would never find this line. See the file header.
-      const raw = matchAny(ctx, "use the raw url as their visible text");
+      // Un-prefixed in the analyzer's own output in BOTH eras (main, not
+      // notScored) — matchNotScored would never find this line, which is
+      // why every advisory here reads through matchAdvisory. See the header.
+      const raw = matchAdvisory(ctx, "use the raw url as their visible text");
       if (raw) {
         const count = firstNumber(raw);
         return {
@@ -845,7 +893,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "link(s) use descriptive text")) {
+      if (matchMain(ctx, "link(s) use descriptive text")) {
         return {
           status: "met",
           evidence: ["No link in this document uses its raw web address as visible text."],
@@ -869,7 +917,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // Mutually exclusive with everything below: pdf.ts returns
       // immediately when there is no structure tree at all, before ever
       // reaching the depth line or the flatness check.
-      if (matchAny(ctx, "no structure tree present")) {
+      if (matchMain(ctx, "no structure tree present")) {
         return {
           status: "not-applicable",
           evidence: [
@@ -882,7 +930,11 @@ export const PDF_PRACTICES: BestPractice[] = [
       // flat — so a flat tree's findings contain BOTH the flat-tree
       // advisory AND text matching "structure tree depth". The flat check
       // must run first, or a flat tree reads as nested.
-      if (matchNotScored(ctx, "the structure tree is flat")) {
+      // The leading article is dropped from the needle: pre-2026-08-29 the
+      // line began the sentence ("Structure tree is flat (no meaningful
+      // nesting) — …"); today the prefix pushed it mid-sentence ("…: THE
+      // structure tree is flat (no meaningful nesting) — …").
+      if (matchAdvisory(ctx, "structure tree is flat")) {
         return {
           status: "not-met",
           evidence: [
@@ -896,7 +948,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      const depthLine = matchAny(ctx, "structure tree depth");
+      const depthLine = matchMain(ctx, "structure tree depth");
       if (depthLine) {
         const depth = firstNumber(depthLine);
         return {
@@ -1020,7 +1072,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       if (categoryAbsent(ctx)) {
         return notChecked("This report has no reading-order data for this document.", "not-run");
       }
-      if (matchAny(ctx, "no tagged lists detected")) {
+      if (matchMain(ctx, "no tagged lists detected")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no tagged lists, so there are no list labels to check."],
@@ -1043,7 +1095,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       // fired. Reusing the exact lines the NOT MET branch below already
       // reads off signalLines, not a separate top-level match.
       const perList = signalLines(ctx, "List Structure Analysis").filter((l) => /^List\b/.test(l));
-      const advisory = matchAny(ctx, "have no <lbl>");
+      const advisory = matchAdvisory(ctx, "have no <lbl>");
       if (advisory) {
         const count = firstNumber(advisory);
         return {

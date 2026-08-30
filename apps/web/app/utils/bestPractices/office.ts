@@ -92,6 +92,25 @@
  * item (docx.ts:199 interpolates a fake heading's own sample). `matchMain`
  * searches only `ctx.main`, the analyzer's own voice.
  *
+ * READING ADVISORIES: `matchAdvisory`, never `matchNotScored`. The witness
+ * rule above has a THIRD half that has nothing to do with control flow: the
+ * payload may be a year old. /report/[id] renders stored JSON that lives 365
+ * days (SHARED_REPORTS.EXPIRY_DAYS) and scoring/regrade.ts never re-derives
+ * `findings`, so every advisory string is frozen at ANALYSIS time. v1.136.0
+ * (2026-08-29) re-prefixed the docx heading advisories, the docx nested-table
+ * advisory, the pptx untitled/duplicate-slide advisories, the xlsx sheet-name
+ * advisory and the xlsx no-defined-Table advisory. On an older payload those
+ * sit UN-PREFIXED in `main`, where `matchNotScored` cannot see them — and a
+ * witness-based MET then reports a green for a document whose own stored
+ * finding, rendered verbatim in the card below, says otherwise. Confirmed
+ * false greens before the fix: docx-first-heading-is-h1, docx-heading-skips,
+ * docx-nested-tables and docx-layout-grids. `matchAdvisory` searches
+ * notScored ∪ main (never `signals`, which quote the document). Where the
+ * WORDING moved too, the needle is narrowed to the clause both eras share and
+ * says so at the site; docx-layout-grids, whose advisory did not exist at all
+ * before 2026-08-29, carries a soundness gate instead. Pinned by
+ * bestPracticesVersionDrift.test.ts against `git show 842dde9^`.
+ *
  * Every practice in this file traced to a valid witness once its scorer
  * was read end to end — that is a fact about docx.ts/pptx.ts/xlsx.ts as
  * they exist today, not a promise. A future scorer change, or a future
@@ -101,9 +120,10 @@
  * produces exactly the inverted gate described above.
  */
 import {
+  advisoryLines,
   firstNumber,
+  matchAdvisory,
   matchMain,
-  matchNotScored,
   type BestPractice,
   type BestPracticeResult,
   type DetectContext,
@@ -150,7 +170,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "the first heading is heading");
+      const line = matchAdvisory(ctx, "the first heading is heading");
       if (line) {
         const level = firstNumber(line);
         return {
@@ -204,7 +224,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "skip a heading level");
+      const line = matchAdvisory(ctx, "skip a heading level");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -260,7 +280,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "empty heading-styled paragraph");
+      const line = matchAdvisory(ctx, "empty heading-styled paragraph");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -309,7 +329,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A screen reader announces each blank paragraph individually while moving through the document — a long run of them is dead air someone has to sit through.",
     links: [],
     detect(ctx) {
-      const line = matchNotScored(ctx, "consecutive empty paragraphs");
+      const line = matchAdvisory(ctx, "consecutive empty paragraphs");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -365,7 +385,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "bare grid");
+      const line = matchAdvisory(ctx, "bare grid");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -390,11 +410,36 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // unconditionally whenever any tables exist, before the bare-grid
       // check (:296) even runs — so a document with a bare grid carries
       // both lines. The advisory check above must win.
+      //
+      // THE ONE PRACTICE WITH NO PRE-v1.136.0 ADVISORY AT ALL. Every other
+      // advisory this catalog reads was merely re-prefixed on 2026-08-29;
+      // the bare-grid line was CREATED that day, together with the
+      // looksLikeLayout rule behind it. A stored report from before it
+      // (365-day retention, findings never re-derived) can carry a bare grid
+      // and no line naming one, so the witness alone would report MET for a
+      // document that has exactly the thing this row denies.
+      //
+      // The gate below is sound in BOTH eras rather than an era guess.
+      // docxService.ts:387-391 computes looksLikeLayout as "no header mark
+      // ANYWHERE and no style and no borders and no shading", and
+      // hasHeaderRow requires a header mark on row 0 — so every bare grid is
+      // necessarily one of the tables the un-prefixed, unchanged line
+      // "N data table(s) have no header row." counts, in both eras. Its
+      // ABSENCE therefore proves there is no bare grid, whatever the payload's
+      // age. Its presence is ambiguous on an older payload (a real data table
+      // missing its header looks identical), so that case reports NOT
+      // CHECKED — the honest answer — rather than a green or a fabricated red.
+      const headerless = matchAdvisory(ctx, "data table(s) have no header row");
       if (matchMain(ctx, "table(s) found")) {
-        return {
-          status: "met",
-          evidence: ["This document's tables were checked, and none is a bare, unstyled grid."],
-        };
+        if (!headerless) {
+          return {
+            status: "met",
+            evidence: ["This document's tables were checked, and none is a bare, unstyled grid."],
+          };
+        }
+        return notChecked(
+          "This document has a table with no header row, and this report does not say whether it is a bare layout grid or a data table missing its header.",
+        );
       }
       return notChecked(
         "This report contains no finding about bare layout grids in this document.",
@@ -416,7 +461,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchNotScored(ctx, "nested tables were found")) {
+      if (matchAdvisory(ctx, "nested tables were found")) {
         return {
           status: "not-met",
           evidence: [
@@ -474,7 +519,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "merged cell(s) across the table");
+      const line = matchAdvisory(ctx, "merged cell(s) across the table");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -528,7 +573,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "entirely empty table row");
+      const line = matchAdvisory(ctx, "entirely empty table row");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -578,7 +623,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "raw url as their visible text");
+      const line = matchAdvisory(ctx, "raw url as their visible text");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -637,14 +682,21 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "no title placeholder");
+      // TWO NEEDLES, ONE PER ERA. v1.136.0 reworded this line as well as
+      // prefixing it: pre-2026-08-29 it read "Slides 3, 7 have NO TITLE. In
+      // PowerPoint: use the Outline view…", today "…have NO TITLE
+      // PLACEHOLDER — … In PowerPoint: use the Outline view…". "no title"
+      // alone would also match this category's duplicate-title advisory,
+      // which interpolates a slide's OWN title; pairing it with the fix
+      // clause both eras share cannot be forged from a title.
+      const line = matchAdvisory(ctx, "no title", "use the outline view");
       if (line) {
         // pptx.ts:154 — the evidence is a LIST of slide numbers ("slides 3,
         // 7, 12"), never a count: firstNumber would silently return only
         // the first. Lift the already-correctly-conjugated clause straight
         // out of the analyzer's own line instead of re-deriving grammar.
         const phrase =
-          /slides?\s+[\d,\s]+\s+(?:has|have)\s+no title placeholder/i.exec(line)?.[0] ?? null;
+          /slides?\s+[\d,\s]+\s+(?:has|have)\s+no title(?: placeholder)?/i.exec(line)?.[0] ?? null;
         return {
           status: "not-met",
           evidence: [
@@ -703,10 +755,12 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         );
       }
       // pptx.ts:168 is pushed once PER duplicate-title group (mirrors
-      // xlsx.ts:171's per-sheet push) — matchNotScored would return only the
-      // first group. Collect every matching line so a deck with several
-      // different repeated titles reports all of them, not just one.
-      const dupLines = ctx.notScored.filter((l) => /slides? share the title "/i.test(l));
+      // xlsx.ts:171's per-sheet push) — a single-match helper would return
+      // only the first group. Collect every matching line so a deck with
+      // several different repeated titles reports all of them, not just one.
+      // advisoryLines(), not ctx.notScored: pre-2026-08-29 payloads carry
+      // this advisory un-prefixed, in `main`. See types.ts matchAdvisory.
+      const dupLines = advisoryLines(ctx).filter((l) => /slides? share the title "/i.test(l));
       if (dupLines.length > 0) {
         const titles = dupLines
           .map((l) => /share the title "([^"]+)"/.exec(l)?.[1])
@@ -766,7 +820,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "raw url as their visible text");
+      const line = matchAdvisory(ctx, "raw url as their visible text");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -822,12 +876,13 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (categoryAbsent(ctx)) {
         return notChecked("This report contains no sheet-name data for this workbook.", "not-run");
       }
-      // xlsx.ts:171 is pushed once PER default-named sheet — matchNotScored
-      // would return only the first. Collect every match, and never call
-      // firstNumber on it: the evidence is the sheet's own NAME (quoted),
-      // and a default name like "Sheet1" would make firstNumber return 1 as
-      // if it were a count.
-      const renameLines = ctx.notScored.filter((l) =>
+      // xlsx.ts:171 is pushed once PER default-named sheet — a single-match
+      // helper would return only the first. Collect every match, and never
+      // call firstNumber on it: the evidence is the sheet's own NAME
+      // (quoted), and a default name like "Sheet1" would make firstNumber
+      // return 1 as if it were a count. advisoryLines(), not ctx.notScored:
+      // pre-2026-08-29 payloads carry this advisory un-prefixed, in `main`.
+      const renameLines = advisoryLines(ctx).filter((l) =>
         /rename "[^"]+" to describe its contents/i.test(l),
       );
       if (renameLines.length > 0) {
@@ -877,7 +932,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchNotScored(ctx, "no defined excel table anywhere")) {
+      if (matchAdvisory(ctx, "no defined excel table anywhere")) {
         return {
           status: "not-met",
           evidence: [
@@ -962,8 +1017,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // it does, because there is nowhere else for it to sit. Advisory A
       // is the tables=0 special case of the exact same fact this practice
       // measures, so it is matched here too.
-      const noTablesAtAll = matchNotScored(ctx, "no defined excel table anywhere");
-      const someOutside = matchNotScored(ctx, "sits outside the defined table");
+      const noTablesAtAll = matchAdvisory(ctx, "no defined excel table anywhere");
+      const someOutside = matchAdvisory(ctx, "sits outside the defined table");
       if (noTablesAtAll || someOutside) {
         return {
           status: "not-met",
@@ -1011,7 +1066,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // pivots — inferring a document fact from the absence of two
       // advisories, exactly what this fix exists to stop. No pivot line, no
       // claim: that case falls through to NOT CHECKED below.
-      const pivotLine = matchNotScored(ctx, "contain pivot tables");
+      const pivotLine = matchAdvisory(ctx, "contain pivot tables");
       if (tableWitness) {
         const n = firstNumber(tableWitness);
         if (n !== null && n > 0) {
@@ -1063,7 +1118,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "contain pivot tables");
+      const line = matchAdvisory(ctx, "contain pivot tables");
       if (line) {
         const n = firstNumber(line);
         return {
@@ -1120,7 +1175,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "data begins at row");
+      const line = matchAdvisory(ctx, "data begins at row");
       if (line) {
         // Never call firstNumber here: a quoted SHEET NAME sits before the
         // row/column numbers in this line, and a name containing a digit
@@ -1184,7 +1239,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "contain merged cells");
+      const line = matchAdvisory(ctx, "contain merged cells");
       if (line) {
         const n = firstNumber(line);
         const detail = [...line.matchAll(/"([^"]+)":\s*(\d+)/g)].map(
@@ -1244,7 +1299,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      const line = matchNotScored(ctx, "raw url as their visible text");
+      const line = matchAdvisory(ctx, "raw url as their visible text");
       if (line) {
         const n = firstNumber(line);
         return {

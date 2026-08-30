@@ -127,15 +127,62 @@ export function buildContext(
   };
 }
 
-/** The first not-scored line containing every needle, or null. Case-insensitive. */
+/** The first not-scored line containing every needle, or null. Case-insensitive.
+ *
+ *  VERSION-BLIND — do not use it to read an advisory. The not-scored
+ *  partition is filled by PREFIX, and the prefixes changed under stored
+ *  reports that outlive them. Use `matchAdvisory` below. */
 export function matchNotScored(ctx: DetectContext, ...needles: string[]): string | null {
   return findIn(ctx.notScored, needles);
 }
 
-/** The first finding ANYWHERE containing every needle, or null. Use for the
- *  POSITIVE lines ("All fonts are embedded…"), which live in `main`. */
+/** The first finding ANYWHERE containing every needle, or null.
+ *
+ *  DO NOT USE IN A PRACTICE. `ctx.findings` is the raw, unpartitioned array,
+ *  so this also sees indented signal items that quote the DOCUMENT'S own
+ *  text — a PDF containing a heading titled "Why documents with no heading
+ *  tags fail" made four practices report not-applicable ("This document has
+ *  no heading tags") while the Heading Tree three lines above showed
+ *  H → H → H. Use `matchMain` for the analyzer's own voice, or
+ *  `matchAdvisory` for an advisory. Retained only for the primitive's own
+ *  unit tests. */
 export function matchAny(ctx: DetectContext, ...needles: string[]): string | null {
   return findIn(ctx.findings, needles);
+}
+
+/** An advisory, found in EITHER partition.
+ *
+ *  WHY THIS EXISTS. `matchNotScored` searches only the not-scored partition,
+ *  which `partitionCardFindings` fills by PREFIX. v1.136.0 (2026-08-29)
+ *  re-prefixed ~18 advisory strings, and stored reports live 365 days
+ *  (audit.config.ts SHARED_REPORTS.EXPIRY_DAYS) without their findings ever
+ *  being re-derived — scoring/regrade.ts recomputes score/grade/summary only.
+ *  So on an older payload the advisory sits un-prefixed in `main`,
+ *  `matchNotScored` misses it, the witness still matches, and a
+ *  witness-based MET fabricates a green for a document that plainly has the
+ *  defect — with the stored finding rendered verbatim in the card below,
+ *  contradicting it. `nested-structure-tree` even printed "nested 1 level
+ *  deep", the number that disproves its own status.
+ *
+ *  Searches `notScored` ∪ `main`, and deliberately NOT `signals`: indented
+ *  signal items quote the document's own text (common.ts:426-430 renders
+ *  heading titles), which must never be able to forge an advisory.
+ *
+ *  USE THIS FOR EVERY ADVISORY/DEFECT LOOKUP. `matchNotScored` remains only
+ *  for a caller that genuinely needs to know which partition a line landed
+ *  in — no practice does. Witness, positive, and not-applicable lookups keep
+ *  using `matchMain`: those lines were never prefixed in either era. */
+export function matchAdvisory(ctx: DetectContext, ...needles: string[]): string | null {
+  return findIn([...ctx.notScored, ...ctx.main], needles);
+}
+
+/** The lines `matchAdvisory` searches, for the two practices that need a
+ *  REGEX over every advisory rather than one substring match (a per-sheet or
+ *  per-duplicate-title line the analyzer pushes once per offender, where
+ *  matching only the first would under-report). Same union, same reason,
+ *  same deliberate exclusion of `signals`. */
+export function advisoryLines(ctx: DetectContext): string[] {
+  return [...ctx.notScored, ...ctx.main];
 }
 
 /** The first finding in `main` — the analyzer's OWN positive/informational
