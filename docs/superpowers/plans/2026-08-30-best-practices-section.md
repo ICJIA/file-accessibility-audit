@@ -26,7 +26,10 @@
 - **Tailwind v4:** never put a negative margin (`-mb-*`/`-mt-*`) on a direct child of a `space-y-*` container — v4's zero-specificity `:where()` makes it REPLACE the gap, overlapping content.
 - **Vue condense mode drops whitespace-only text containing a newline between two elements.** Two inline links on separate template lines render touching — use an explicit `{{ " " }}`.
 - **The web `NuxtLink` test stub is `<a><slot /></a>`**, so props fall through as raw attributes. Assert `attributes("to")`, never `attributes("href")`.
-- **Test command:** `pnpm --filter web test` (add `-- <path>` to scope, `-t "<name>"` to filter).
+- **Test command:** `pnpm --filter web test` runs the whole suite. To scope to ONE file use
+  `pnpm --filter web exec vitest run <path>` — `pnpm ... test -- <path>` does **NOT** scope
+  (pnpm forwards a bare `--` into the script, and vitest ignores it: verified 2026-08-30,
+  it ran all 92 files).
   The web package is named **`web`**, NOT `@file-audit/web`. This matters: a
   `--filter` that matches nothing prints "No projects matched the filters" and
   **still exits 0**, so a wrong filter reads as a passing suite. Ground truth on
@@ -1006,6 +1009,18 @@ The matcher needle and positive line for each:
 | `footnote-ids` | `note(s) have no /id` OR `note(s) reuse another note's /id` | — | `categoryPresent === false` | `signalLines(ctx, "Footnotes")` |
 
 **`single-h1` is deliberately different.** The analyzer emits no not-scored prefix for it — the line is `Found N H1 headings. No WCAG criterion requires a single H1, so this does not affect the score…` in `main`. Match it with `matchAny(ctx, "h1 headings")`, read the count with `firstNumber`, and set NOT MET only when the count is greater than 1. It is a style convention, not a standard, so it carries **no** `standard` and **no** Matterhorn link — say plainly in `why` that many style guides recommend a single top-level heading and that PDF/UA explicitly permits repeated H1s.
+
+**REAL-WORLD FIXTURE RULE — a NOT MET fixture must carry every line a real document emits, not just the one your matcher targets.**
+
+`pdf.ts:924` pushes `` `Found ${levels.length} heading tags with logical hierarchy` `` **unconditionally** — after the `hierarchyBroken` block at :906 and after the content-verdict block at :915. So a document WITH skipped levels emits BOTH the gap advisory AND that positive line. The same is true for every heading practice: the mixed-conventions advisory (:893), the heading-content advisory (:920), and the multiple-H1 line (:880) are all emitted alongside :924.
+
+Two consequences, both binding:
+
+1. **Branch order inside `detect()` is load-bearing and must be commented at the site.** The NOT MET check must run BEFORE the MET check for all five heading practices. Reverse them and a document with skipped levels renders "Every heading level steps down one at a time" — the exact opposite of the truth, in user-facing copy.
+
+2. **Every NOT MET fixture must include the positive line too.** A fixture of `[ADVISORY, ...TREE]` alone does NOT exercise the coexistence, so a branch reorder would keep the suite green. Write `[ADVISORY, ...TREE, POSITIVE]` and the test then genuinely pins the ordering.
+
+Apply the same discipline to any practice whose category emits an unconditional summary line. Before writing a NOT MET fixture, read the scorer function end-to-end and include every line it would push for that document — a fixture that is a subset of reality tests less than it appears to.
 
 **PARTITION MAP — which array each practice must actually search.** `partitionCardFindings` routes a finding by its FIRST CHARACTERS, before any keyword is considered: starts with `---` → opens a `signals` group; starts with two spaces → appended to the current `signals` group; otherwise starts with a not-scored prefix → `notScored`; otherwise → `main`. A non-indented line that FOLLOWS a `---` heading does **not** join that group — it falls through to `main`. Verified against the analyzer source on 2026-08-30:
 
