@@ -17,6 +17,12 @@ import {
   signalLines,
   firstNumber,
 } from "../utils/bestPractices/types";
+import {
+  matterhornLink,
+  techniqueLink,
+  understandingLink,
+  safeLinks,
+} from "../utils/bestPractices/links";
 
 const category = {
   id: "heading_structure",
@@ -123,5 +129,43 @@ describe("firstNumber", () => {
   it("returns null rather than guessing", () => {
     expect(firstNumber(null)).toBeNull();
     expect(firstNumber("no digits here")).toBeNull();
+  });
+});
+
+describe("link resolution", () => {
+  it("names a Matterhorn checkpoint from the shipped protocol data", () => {
+    const l = matterhornLink("13");
+    expect(l).not.toBeNull();
+    expect(l!.label).toMatch(/^Matterhorn 13 —/);
+    expect(l!.url).toMatch(/^https:\/\//);
+  });
+
+  it("returns null for a checkpoint the protocol does not define", () => {
+    expect(matterhornLink("99")).toBeNull();
+  });
+
+  it("builds a W3C technique link", () => {
+    const l = techniqueLink("G141");
+    expect(l.label).toBe("WCAG technique G141");
+    expect(l.url).toBe("https://www.w3.org/WAI/WCAG22/Techniques/general/G141");
+  });
+
+  it("builds an Understanding link through the injected version-aware builder", () => {
+    const l = understandingLink(
+      "info-and-relationships",
+      "Understanding 1.3.1",
+      (s) => `https://www.w3.org/WAI/WCAG22/Understanding/${s}.html`,
+    );
+    expect(l!.url).toBe("https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html");
+  });
+
+  it("drops links whose URL is not http(s) — the shared page's data is stored JSON", () => {
+    const kept = safeLinks([
+      { label: "ok", url: "https://example.org/a" },
+      { label: "script", url: "javascript:alert(1)" },
+      { label: "data", url: "data:text/html,<script>alert(1)</script>" },
+      { label: "empty", url: "" },
+    ]);
+    expect(kept.map((l) => l.label)).toEqual(["ok"]);
   });
 });
