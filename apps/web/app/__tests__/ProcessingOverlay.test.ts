@@ -149,3 +149,56 @@ describe("DropZone — the timing expectation (v1.99.0, user request)", () => {
     expect(m![0]).toContain("up to two minutes");
   });
 });
+
+describe("the document being analysed is named above the spinner (2026-08-31)", () => {
+  // A person who queued a file, switched tabs and came back had no way to tell
+  // WHICH document the spinner belonged to: "Analyzing your document" is true
+  // of any of them.
+  it("shows the filename, in the heading colour, before the spinner", () => {
+    const w = mount(ProcessingOverlay, {
+      props: { stage: "", filename: "2022 SFS Process Evaluation Report.pdf" },
+    });
+    const name = w.find('[data-testid="overlay-filename"]');
+    expect(name.exists()).toBe(true);
+    expect(name.text()).toBe("2022 SFS Process Evaluation Report.pdf");
+    // High contrast, not muted — it is the thing the reader is looking for.
+    expect(name.classes().join(" ")).toContain("text-[var(--text-heading)]");
+    // ABOVE the spinner: the name has to be readable before the eye settles
+    // on the animation, and DOM order is what a screen reader announces.
+    const html = w.html();
+    expect(html.indexOf("overlay-filename")).toBeLessThan(html.indexOf("animate-spin"));
+  });
+
+  it("renders no filename line at all for a URL audit, which has no file", () => {
+    const w = mount(ProcessingOverlay, { props: { stage: "Fetching https://example.gov…" } });
+    expect(w.find('[data-testid="overlay-filename"]').exists()).toBe(false);
+  });
+
+  it("treats the filename as text — it is the one string an attacker controls", () => {
+    // Arrives from a file picker, so it is user-supplied. Vue interpolation
+    // escapes it; this pins that no one swaps in v-html later.
+    const hostile = '<img src=x onerror=alert(1)>"><script>alert(2)</script>.pdf';
+    const w = mount(ProcessingOverlay, { props: { stage: "", filename: hostile } });
+    const el = w.find('[data-testid="overlay-filename"]');
+    // The name survives verbatim as TEXT…
+    expect(el.text()).toBe(hostile);
+    // …and produced no elements. Asserting on ELEMENTS, not on the serialized
+    // string: html() prints the title attribute's raw "<", which is harmless
+    // inside a quoted attribute (Vue escapes the quote to &quot;, so it cannot
+    // break out) but would fail a naive string match and teach the wrong
+    // lesson to whoever reads this next.
+    expect(w.findAll("script")).toHaveLength(0);
+    expect(w.findAll("img")).toHaveLength(0);
+    expect(el.element.innerHTML).toContain("&lt;script&gt;");
+    expect(el.attributes("title")).toBe(hostile);
+  });
+
+  it("wraps a long unbroken filename instead of overflowing the card", () => {
+    const w = mount(ProcessingOverlay, {
+      props: { stage: "", filename: `${"a".repeat(180)}.pdf` },
+    });
+    const cls = w.find('[data-testid="overlay-filename"]').classes().join(" ");
+    expect(cls).toContain("break-all");
+    expect(cls).toMatch(/max-w-/);
+  });
+});

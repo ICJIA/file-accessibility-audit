@@ -215,3 +215,19 @@ describe("the era gate is wired end to end (2026-08-30)", () => {
     );
   });
 });
+
+describe("the analysing overlay is told which document it is working on (2026-08-31)", () => {
+  // Source-inspected on purpose. A component test proves the overlay CAN show
+  // a filename; only this proves the page actually hands it one. Breaking the
+  // page's assignment left every component test green — the failure mode this
+  // repo has already shipped twice.
+  it("sets the filename when analysis starts, clears it when it ends, and passes it down", () => {
+    const src = pageSource("index.vue");
+    const overlay = src.match(/<ProcessingOverlay\b[\s\S]*?\/>/)?.[0] ?? "";
+    expect(overlay).toContain(':filename="processingFilename"');
+    // Set from the real file, not a placeholder.
+    expect(src).toMatch(/processingFilename\.value = file\.name;/);
+    // And cleared, or the next run shows the previous document's name.
+    expect(src).toMatch(/processingFilename\.value = null;/);
+  });
+});

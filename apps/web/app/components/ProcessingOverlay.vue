@@ -1,5 +1,24 @@
 <template>
   <div class="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
+    <!-- The document being analysed, ABOVE the spinner and in the heading
+         colour (user request 2026-08-31). A person who queued a file, switched
+         tabs and came back had no way to tell WHICH document this spinner
+         belonged to — "Analyzing your document" is true of any of them. The
+         name is the one thing that identifies it.
+
+         Rendered as text through Vue's interpolation, never v-html: a filename
+         is user-supplied and arrives from a file picker, so it is exactly the
+         string an attacker controls. `break-all` because filenames run long
+         and carry no spaces to wrap on. -->
+    <p
+      v-if="filename"
+      data-testid="overlay-filename"
+      class="max-w-xl px-4 text-center text-base sm:text-lg font-semibold text-[var(--text-heading)] break-all"
+      :title="filename"
+    >
+      {{ filename }}
+    </p>
+
     <div class="relative">
       <div
         class="w-16 h-16 border-4 border-[var(--border)] border-t-green-500 rounded-full animate-spin"
@@ -142,6 +161,9 @@ const props = defineProps<{
   /** v1.100.0: REAL observed step states from the job endpoints. When
    *  present, replaces the rotating queue. */
   steps?: OverlayStep[] | null;
+  /** The document being analysed, shown above the spinner. Absent for URL
+   *  audits, which have no file — the line then does not render at all. */
+  filename?: string | null;
 }>();
 
 // The REAL checks, per pipeline. Wording matches the report's own category
