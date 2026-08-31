@@ -185,6 +185,34 @@ if (trapManifest.count !== manual.traps)
   throw new Error(
     `manifests hold ${trapManifest.count} entries but brief-stats.json says traps=${manual.traps} — rerun pnpm synthetic-controls + synthetic-office-controls or fix brief-stats`,
   );
+// The public dispute record, COUNTED from the cards rather than typed beside
+// them. The prose said "three times ... two of the four it won" over four
+// cards showing three losses and one win — 3 + 2 = 5, and it overstated the
+// tool's record, which is the worst direction for a page whose whole argument
+// is that it loses arguments honestly. A card marked "right" is a win; every
+// other card is a loss.
+const DISPUTE_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"];
+const disputeWord = (n) => DISPUTE_WORDS[n] ?? String(n);
+/** "once" / "twice" / "three times" — the sentence reads "This one has X". */
+const disputeTimes = (n) => (n === 1 ? "once" : n === 2 ? "twice" : `${disputeWord(n)} times`);
+let disputesTotal = 0;
+let disputesWon = 0;
+{
+  const tpl = fs.readFileSync(path.join(BRIEF, "checker-brief.template.html"), "utf8");
+  const start = tpl.indexOf('class="disputes"');
+  const end = tpl.indexOf('<p class="agree"', start);
+  if (start === -1 || end === -1) throw new Error("cannot find the disputes block to count");
+  const cards = tpl.slice(start, end).split('<div class="dis">').slice(1);
+  disputesTotal = cards.length;
+  // ONLY the span class, never the words. The LOSING cards say "The expert
+  // was right" in their body copy, so matching that text inverted the record
+  // — the page briefly claimed three wins and one loss, the exact opposite of
+  // the truth, which is worse than the typo it replaced.
+  disputesWon = cards.filter((c) => /class="right"/.test(c)).length;
+  if (disputesTotal === 0)
+    throw new Error("no dispute cards found — the counted prose would read zero");
+}
+
 const escHtml = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const chipFor = (i) =>
   i.chip === "bug"
@@ -238,6 +266,10 @@ const SUBS = {
   TRAPS_CAUGHT: String(trapsCaught),
   TRAPS_HELD: String(trapsHeld),
   TRAPS_BUGS: String(trapBugs),
+  DISPUTES_TOTAL_WORD: disputeWord(disputesTotal),
+  // Starts a sentence in both templates, so it ships capitalised.
+  DISPUTES_WON_WORD: disputeWord(disputesWon).replace(/^./, (c) => c.toUpperCase()),
+  DISPUTES_LOST_TIMES: disputeTimes(disputesTotal - disputesWon),
   COMMITS: String(commits),
   COMMITS_30D: String(commits30d),
   WEEKS: String(weeks),

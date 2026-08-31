@@ -235,6 +235,13 @@ const SLIDE_BODY = (text: string) =>
  *  inherited size proves nothing and the detector ignores it). */
 const SLIDE_FAKE_HEADING = (text: string, sz = 3200) =>
   `<p:sp><p:nvSpPr><p:nvPr/></p:nvSpPr><p:txBody><a:p><a:r><a:rPr sz="${sz}" b="1"/><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+/** A BODY placeholder carrying explicitly large text — the commonest real
+ *  pattern on an untitled slide: a statistic or pull-quote set big for
+ *  emphasis. It is content, already marked up as content, and must never be
+ *  mistaken for a typed heading. Fifteen slides of one real agency deck look
+ *  exactly like this. */
+const SLIDE_BIG_BODY = (text: string, sz = 3600) =>
+  `<p:sp><p:nvSpPr><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:rPr sz="${sz}" b="1"/><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 const SLIDE_PIC = (id: number, descr?: string) =>
   `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/><p:nvPr/></p:nvPicPr></p:pic>`;
 
@@ -1011,6 +1018,45 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-148-pptx-big-text-in-placeholder.pptx",
+    truth:
+      "An untitled slide whose large bold text sits in a BODY PLACEHOLDER — a statistic set at 36 point for emphasis. Drawn from life: fifteen slides of a real agency deck (Dynamics of Domestic Violence) look exactly like this, and every one of them must stay unflagged. The text is already marked up as content, so nothing is conveyed by presentation alone and there is no WCAG failure; the slide simply has no heading, which is 2.4.10 Section Headings, Level AAA. If the typed-heading detector is ever widened to look inside placeholders, this trap fails and fifteen slides of one real deck become false accusations.",
+    build: () =>
+      pptx([SLIDE_BIG_BODY("More than 1 in 3 women have experienced intimate partner violence.")], {
+        title: "Dynamics",
+      }),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score === null) return "slide_titles unscored";
+      if (c.score !== 100)
+        return `large text inside a body placeholder cost ${100 - c.score} points — it is content, already marked up, and no WCAG 2.1 criterion is breached`;
+      return /typed into an ordinary text box/i.test(allFindings(r))
+        ? "text in a body placeholder was called a typed heading"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-149-pptx-long-line-not-a-heading.pptx",
+    truth:
+      "An untitled slide with a floating text box holding a long sentence — over 120 characters — set large and bold. Emphasis, not a heading: a heading is short by nature, and treating a whole paragraph as one would turn every emphasised pull-quote into a WCAG accusation. slide_titles must stay at 100. This is the other half of the typed-heading boundary, and it is the half a reader never sees until it goes wrong.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_FAKE_HEADING(
+            "Domestic violence affects people of every age, income, race and background, and the effects reach far beyond the household in which it happens.",
+          ),
+        ],
+        { title: "Dynamics" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score === null) return "slide_titles unscored";
+      if (c.score !== 100)
+        return `a 140-character sentence was scored as a typed heading (${c.score}) — a heading is short, and a paragraph set large is emphasis`;
+      return null;
+    },
+  },
+  {
     file: "synthetic-145-pptx-typed-heading.pptx",
     truth:
       "Two slides whose heading is typed into a floating 32-point bold text box instead of the slide's title placeholder — no <p:ph> on the shape at all, and the size set explicitly on the run. The heading EXISTS and is simply not marked up, which is WCAG 1.3.1 Level A, the same failure Word has scored since the start. PowerPoint had no equivalent check until 2026-08-31: this was a real Level A failure the report never mentioned in any form. slide_titles must lose points (15 per slide, capped at 40) AND the verdict must name 1.3.1. Deliberately NOT the same question as a slide with no heading at all, which is 2.4.10 Section Headings — Level AAA — and stays unscored.",
@@ -1354,6 +1400,14 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-133-docx-language-good-twin.docx": {
     label: "Word: the same document with its language declared",
+    chip: "held",
+  },
+  "synthetic-148-pptx-big-text-in-placeholder.pptx": {
+    label: "PowerPoint: a big statistic in a body placeholder — content, not a heading",
+    chip: "held",
+  },
+  "synthetic-149-pptx-long-line-not-a-heading.pptx": {
+    label: "PowerPoint: a long sentence set large — emphasis, not a heading",
     chip: "held",
   },
   "synthetic-145-pptx-typed-heading.pptx": {

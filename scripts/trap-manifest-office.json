@@ -1,5 +1,5 @@
 {
-  "count": 37,
+  "count": 39,
   "generated": "2026-08-31",
   "items": [
     {
@@ -146,6 +146,16 @@
     {
       "file": "synthetic-133-docx-language-good-twin.docx",
       "label": "Word: the same document with its language declared",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-148-pptx-big-text-in-placeholder.pptx",
+      "label": "PowerPoint: a big statistic in a body placeholder — content, not a heading",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-149-pptx-long-line-not-a-heading.pptx",
+      "label": "PowerPoint: a long sentence set large — emphasis, not a heading",
       "chip": "held"
     },
     {

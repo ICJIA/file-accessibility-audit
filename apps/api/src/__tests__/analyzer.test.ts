@@ -114,3 +114,19 @@ describe("detectFileType: aggregate zip-package limits (C1 DoS hardening)", () =
     });
   });
 });
+
+describe("a document extension is never taken on trust (2026-08-31)", () => {
+  // From a real agency folder: a file named .pptx that is an HTML page —
+  // almost certainly a failed download saved under the intended name. It must
+  // be refused by CONTENT, with the specific explanation, not parsed as a
+  // presentation and not crashed on.
+  it("refuses an HTML page named .pptx", async () => {
+    const html = Buffer.from(
+      "\n\n\n<!DOCTYPE html>\n<html><head><title>Important Information</title></head>\n<body><p>Not a presentation.</p></body></html>\n",
+      "utf8",
+    );
+    await expect(
+      analyzeDocument(html, "CLEPDSFY_2022_Important_Information.pptx"),
+    ).rejects.toMatchObject({ code: "UNSUPPORTED_FILE_TYPE" });
+  });
+});

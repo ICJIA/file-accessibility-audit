@@ -40,7 +40,7 @@ This is not an internal experiment. The checker is **used every day — by ICJIA
 - **Table headers: the checker was right** — verified against the file's internals; the advice was made clearer instead.
 - **The state IT agency's reference document: 89 B → 100 A.** Their file was right and the checker was wrong — a table's corner header used the standard's third scope value, which this checker did not recognise. Fixed, with a trap document added so it can never come back.
 
-Software that only pretends to work can't afford to lose an argument in public. This one has — three times — and got better every time. Two of the four it won on the evidence; every one was settled by reading the file, not by defending the tool.
+Software that only pretends to work can't afford to lose an argument in public. This one has — {{DISPUTES_LOST_TIMES}} — and got better every time. {{DISPUTES_WON_WORD}} of the {{DISPUTES_TOTAL_WORD}} it won on the evidence; every one was settled by reading the file, not by defending the tool.
 
 
 ## How this app is tested before anything ships
