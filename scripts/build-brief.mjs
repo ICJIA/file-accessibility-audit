@@ -153,6 +153,12 @@ const trapBugs = trapManifest.items.filter((i) => i.chip === "bug").length;
     /Lost (one|two|three|four|five|\d+) public arguments/i,
     /See all \d+ trap documents/i,
     /All \d+ traps held(?!.*then in the battery)/i,
+    // Fixed counts of the corpus and the Office battery. Both staled without
+    // anyone noticing (the page said "fifteen" Office traps at 34, and named a
+    // 136-document sweep at 187): every count is placeholder-driven or absent.
+    /\b(fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\d+) native <strong>Word/i,
+    /\d+-document corpus sweep/i,
+    /\d+ real agency documents plus the \d+ traps/i,
   ];
   for (const t of ["checker-brief.template.html", "checker-brief.template.md"]) {
     const src = fs.readFileSync(path.join(BRIEF, t), "utf8");
