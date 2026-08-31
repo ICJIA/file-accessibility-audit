@@ -44,7 +44,7 @@ import {
   type DetectContext,
   type EvidenceBlock,
 } from "./types";
-import { SCORED_IN_PLAN } from "./types";
+import { BLOCKED_BY_PLAN, SCORED_IN_PLAN } from "./types";
 import { matterhornLink, techniqueLink } from "./links";
 // apps/web has no #config alias (that exists in api/cli only) — import the
 // root config by relative path, as other web code does.
@@ -126,12 +126,16 @@ function tableNotApplicable(ctx: DetectContext, aboutScope: boolean): BestPracti
     // are fine here" beside a table category scoring 45 with 1.3.1 failing.
     const headerCellsCostPoints = ctx.score !== null && ctx.score < 100;
     return {
-      status: "not-applicable",
+      // Blocked, not inapplicable, when the missing header cells cost points:
+      // the practice (which way headers point) is above and beyond, but it
+      // could not be judged, and saying "not applicable" beside a table
+      // category scoring 45 reads as "your tables are fine on this point".
+      status: headerCellsCostPoints ? "not-checked" : "not-applicable",
+      ...(headerCellsCostPoints ? { reason: "blocked" as const } : {}),
       evidence: [
-        "This document's tables have no header cells, so there is no header scope to check." +
-          (headerCellsCostPoints
-            ? ` Those missing header cells are themselves ${SCORED_IN_PLAN}`
-            : ""),
+        headerCellsCostPoints
+          ? `This document's tables have no header cells, ${BLOCKED_BY_PLAN}`
+          : "This document's tables have no header cells, so there is no header scope to check.",
       ],
     };
   }
@@ -263,10 +267,9 @@ export const PDF_PRACTICES: BestPractice[] = [
       // different branch entirely: score null, not assessed, nothing lost.
       if (matchMain(ctx, "no heading tags")) {
         return {
-          status: "not-applicable",
-          evidence: [
-            `This document has no heading tags at all, so there is no level order to check. That absence is ${SCORED_IN_PLAN}`,
-          ],
+          status: "not-checked",
+          reason: "blocked",
+          evidence: [`This document has no heading tags at all, ${BLOCKED_BY_PLAN}`],
         };
       }
       if (matchMain(ctx, "no headings were found")) {
@@ -350,10 +353,9 @@ export const PDF_PRACTICES: BestPractice[] = [
       // different branch entirely: score null, not assessed, nothing lost.
       if (matchMain(ctx, "no heading tags")) {
         return {
-          status: "not-applicable",
-          evidence: [
-            `This document has no heading tags at all, so there is no convention to check. That absence is ${SCORED_IN_PLAN}`,
-          ],
+          status: "not-checked",
+          reason: "blocked",
+          evidence: [`This document has no heading tags at all, ${BLOCKED_BY_PLAN}`],
         };
       }
       if (matchMain(ctx, "no headings were found")) {
@@ -450,10 +452,9 @@ export const PDF_PRACTICES: BestPractice[] = [
       // different branch entirely: score null, not assessed, nothing lost.
       if (matchMain(ctx, "no heading tags")) {
         return {
-          status: "not-applicable",
-          evidence: [
-            `This document has no heading tags at all, so there are no levels to check. That absence is ${SCORED_IN_PLAN}`,
-          ],
+          status: "not-checked",
+          reason: "blocked",
+          evidence: [`This document has no heading tags at all, ${BLOCKED_BY_PLAN}`],
         };
       }
       if (matchMain(ctx, "no headings were found")) {
@@ -543,10 +544,9 @@ export const PDF_PRACTICES: BestPractice[] = [
       // different branch entirely: score null, not assessed, nothing lost.
       if (matchMain(ctx, "no heading tags")) {
         return {
-          status: "not-applicable",
-          evidence: [
-            `This document has no heading tags at all, so there is no content to check. That absence is ${SCORED_IN_PLAN}`,
-          ],
+          status: "not-checked",
+          reason: "blocked",
+          evidence: [`This document has no heading tags at all, ${BLOCKED_BY_PLAN}`],
         };
       }
       if (matchMain(ctx, "no headings were found")) {
@@ -617,10 +617,9 @@ export const PDF_PRACTICES: BestPractice[] = [
       // different branch entirely: score null, not assessed, nothing lost.
       if (matchMain(ctx, "no heading tags")) {
         return {
-          status: "not-applicable",
-          evidence: [
-            `This document has no heading tags at all, so there is no H1 count to check. That absence is ${SCORED_IN_PLAN}`,
-          ],
+          status: "not-checked",
+          reason: "blocked",
+          evidence: [`This document has no heading tags at all, ${BLOCKED_BY_PLAN}`],
         };
       }
       if (matchMain(ctx, "no headings were found")) {

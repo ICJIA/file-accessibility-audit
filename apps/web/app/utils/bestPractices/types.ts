@@ -57,6 +57,26 @@ export interface EvidenceBlock {
 export const SCORED_IN_PLAN =
   "counted in your score — see the action plan above, not this section.";
 
+/**
+ * The other sentence, and the other case (v1.148.1, user's ruling).
+ *
+ * SCORED_IN_PLAN marks a row whose OWN subject is a scored failure — a
+ * two-axis table with no /Scope, an empty bookmark outline. Those do not
+ * belong in this section at all: "best practices should only be things above
+ * and beyond WCAG 2.1; if it is already counted it does not need to be
+ * labelled a best practice." evaluateBestPractices drops them, and the action
+ * plan is where they live.
+ *
+ * BLOCKED_BY_PLAN marks the opposite: the practice IS above and beyond — the
+ * analyzer says so in its own words about skipped heading levels, "a PDF/UA /
+ * best-practice concern, not a WCAG 2.1 failure, so your grade is not
+ * affected" — but it could not be judged, because a scored failure got there
+ * first. A document with no heading tags has no level order to inspect. Those
+ * rows stay, as NOT CHECKED, which is exactly what happened to them.
+ */
+export const BLOCKED_BY_PLAN =
+  "so this could not be checked. That absence is in your action plan above, not this section.";
+
 export interface BestPracticeResult {
   status: BestPracticeStatus;
   /** Plain sentences of document-specific evidence. */
@@ -74,16 +94,11 @@ export interface BestPracticeResult {
    *  category is absent from this report, so the check itself never ran —
    *  there was no silence to interpret. Omitted (undefined) means "silent";
    *  only a categoryAbsent() branch sets "not-run" explicitly. */
-  reason?: "silent" | "not-run" | "error";
-  /** Only meaningful when status is "not-applicable" — WHY the row does not
-   *  apply, because the two reasons mean opposite things to a reader.
-   *  "absent" = there is genuinely nothing of this kind in the document (no
-   *  links to judge, no tables to scope) and nothing was lost. "scored" =
-   *  the thing DOES apply, it is defective, and the defect already cost
-   *  points; the row defers to the action plan rather than repeating it.
-   *  Derived centrally in evaluateBestPractices from SCORED_IN_PLAN, so a
-   *  new divert cannot forget to set it. Absent (undefined) means "absent". */
-  naReason?: "scored" | "absent";
+  reason?: "silent" | "not-run" | "error" | "blocked";
+  // "blocked": the check could not run because a SCORED failure in the same
+  // category got in the way (no heading tags at all, so no level order to
+  // read). Distinct from "silent" and "not-run" because the reassurance those
+  // two carry — nothing is wrong with your document — would be false here.
   // "error": detect() threw and evaluateBestPractices caught it (spec §2:
   // one bad practice must never take down the page — /report/[id] renders
   // stored JSON through SSR). The row is NOT CHECKED; the component shows

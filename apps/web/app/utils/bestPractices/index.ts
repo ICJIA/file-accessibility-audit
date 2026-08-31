@@ -34,12 +34,6 @@ export interface BestPracticeSummary {
   met: number;
   notMet: number;
   notApplicable: number;
-  /** The subset of notApplicable whose defect is already SCORED — the row
-   *  defers to the action plan rather than repeating it. Counted separately
-   *  because the summary chips read as a description of the document, and
-   *  "9 not applicable" on a file whose headings score 0/Critical tells the
-   *  same untruth the row chips did before v1.148.0. */
-  notApplicableScored: number;
   notChecked: number;
   total: number;
 }
@@ -114,26 +108,28 @@ function eraGate(
 }
 
 /**
- * Tell the two kinds of NOT APPLICABLE apart, in the one place every row
- * passes through.
+ * A row whose OWN subject is a scored failure does not belong in this section.
  *
- * "There are no links in this document" and "your tables have no header cells,
- * which already cost you points" are opposite messages that shared a single
- * amber chip until v1.148.0. A document with no headings at all rendered five
- * NOT APPLICABLE rows above a heading category scoring 0/Critical with WCAG
- * 1.3.1 failing — and a reader who trusts the chip concludes headings are
- * irrelevant to their file.
+ * The user's ruling, 2026-08-31: "best practices should only be things above
+ * and beyond WCAG 2.1. If it's already counted, then it doesn't need to be
+ * labelled as a best practice — since it's already scored." A two-axis table
+ * with no /Scope, an empty bookmark outline, characters outside the tag tree:
+ * each is a WCAG failure the action plan already lists, and repeating it here
+ * under any label invites the reader to think it is optional.
  *
- * Derived HERE rather than set at each of the forty-odd not-applicable
- * branches, because a new divert would otherwise have to remember a flag, and
- * the one that forgot would be invisible. SCORED_IN_PLAN is the marker: it is
- * a constant precisely so this test and the sentence the reader sees cannot
- * drift apart, and a guard test forbids the literal sentence elsewhere.
+ * Dropped rather than relabelled. Two labels were tried in one afternoon and
+ * both misled: NOT APPLICABLE said the defect did not apply to a document it
+ * had just cost points, and COUNTED IN YOUR SCORE — sitting beside a practice
+ * NAME — said that practice was scored, which for most of them is the
+ * opposite of true. The section is now exactly what it claims to be, and
+ * needs no qualifier at all.
+ *
+ * The sibling case is NOT dropped: a practice that is genuinely above and
+ * beyond but could not be judged, because a scored failure got there first,
+ * stays as NOT CHECKED (BLOCKED_BY_PLAN) — that is what happened to it.
  */
-function classifyNotApplicable(res: BestPracticeResult): BestPracticeResult {
-  if (res.status !== "not-applicable") return res;
-  const scored = res.evidence.some((line) => line.includes(SCORED_IN_PLAN));
-  return { ...res, naReason: scored ? "scored" : "absent" };
+function isScoredDefect(res: BestPracticeResult): boolean {
+  return res.evidence.some((line) => line.includes(SCORED_IN_PLAN));
 }
 
 export function evaluateBestPractices(
@@ -170,9 +166,10 @@ export function evaluateBestPractices(
       return {
         practice,
         categoryLinks: readHelpLinks(category),
-        ...classifyNotApplicable(eraGate(practice, ctx, runDetect(practice, ctx))),
+        ...eraGate(practice, ctx, runDetect(practice, ctx)),
       };
-    });
+    })
+    .filter((row) => !isScoredDefect(row));
 }
 
 // NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then
@@ -203,17 +200,14 @@ export function summarizeBestPractices(rows: EvaluatedPractice[]): BestPracticeS
     met: 0,
     notMet: 0,
     notApplicable: 0,
-    notApplicableScored: 0,
     notChecked: 0,
     total: rows.length,
   };
   for (const r of rows) {
     if (r.status === "met") s.met++;
     else if (r.status === "not-met") s.notMet++;
-    else if (r.status === "not-applicable") {
-      s.notApplicable++;
-      if (r.naReason === "scored") s.notApplicableScored++;
-    } else s.notChecked++;
+    else if (r.status === "not-applicable") s.notApplicable++;
+    else s.notChecked++;
   }
   return s;
 }

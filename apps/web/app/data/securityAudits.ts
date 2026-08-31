@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.148.1",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: correcting the label shipped an hour earlier, after a reader caught it claiming the opposite.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The release above replaced a misleading &ldquo;not applicable&rdquo; with &ldquo;counted in your score&rdquo;, and a reader immediately pointed out that this was wrong in the other direction: the label sits next to the practice&rsquo;s name, so on <strong>Heading level order</strong> it claimed heading level order is scored. It is not, and never has been &mdash; this tool&rsquo;s own analyzer says as much in the report itself, that skipping heading levels is a best-practice concern and not a WCAG 2.1 failure, so the grade is not affected. What was scored on that document was the <em>absence</em> of headings, a different fact that happened to sit in the same row.",
+      },
+      {
+        kind: "p",
+        html: "The fix is the section&rsquo;s own definition rather than a third label: best practices are things above and beyond the legal standard, so anything already counted does not belong in the section. Those rows are now left out entirely and live only in the action plan. A practice that is genuinely above and beyond but could not be judged &mdash; heading level order on a document with no headings &mdash; is reported as not checked, with the reason, and is the one case that does not end by saying nothing is wrong with the document, because something is.",
+      },
+      {
+        kind: "p",
+        html: "Recorded here rather than quietly amended: two labels were wrong in one afternoon, in opposite directions, and both were caught by a reader looking at a real report rather than by a test. The sentences that drive this behaviour are now single shared constants with a test forbidding either being written out again, which is precisely how the label and the text beneath it came apart the first time.",
+      },
+    ],
+  },
+  {
     version: "v1.148.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: a label that told readers a scored failure did not apply to their document.",
     body: [

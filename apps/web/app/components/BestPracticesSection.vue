@@ -113,16 +113,16 @@
             :aria-controls="`bp-body-${row.practice.id}`"
             @click="toggle(row.practice.id)"
           >
-            <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row)">{{
-              statusIcon(row)
+            <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row.status)">{{
+              statusIcon(row.status)
             }}</span>
             <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
               row.practice.label
             }}</span>
             <span
               class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border"
-              :class="statusPillClass(row)"
-              >{{ statusLabel(row) }}</span
+              :class="statusPillClass(row.status)"
+              >{{ statusLabel(row.status) }}</span
             >
             <span
               class="text-xs text-[var(--link)] whitespace-nowrap w-[72px] text-right flex-shrink-0"
@@ -404,6 +404,16 @@ function notCheckedReason(row: EvaluatedPractice): string {
   // so each branch now says why not, and what would settle it. Keyed on the
   // SAME `reason` field the body copy branches on, so the two cannot drift.
   const specific = (row.evidence[0] ?? "").trim();
+  // BLOCKED is the one branch that must NOT end with the reassurance. The
+  // check could not run because something in this document IS wrong and has
+  // already cost points — a document with no heading tags has no level order
+  // to read. "Nothing is wrong with your document" there would be the same
+  // false comfort the old NOT APPLICABLE chip gave (v1.148.1).
+  if (row.reason === "blocked") {
+    return `${specific} It is worth doing once that is fixed, and it is not counted against you either way — nothing in this section is.`
+      .replace(/\s+/g, " ")
+      .trim();
+  }
   const why =
     row.reason === "not-run"
       ? "That data is not in this report at all — usually because the audit ran before this check existed, or the document had nothing of that kind in it to examine. Re-running the audit will settle it."
@@ -419,27 +429,7 @@ function notCheckedReason(row: EvaluatedPractice): string {
 const summaryChips = computed(() => [
   { key: "not-met", count: summary.value.notMet, label: "worth doing" },
   { key: "met", count: summary.value.met, label: "met" },
-  // Split since v1.148.0: "9 not applicable" on a document whose headings
-  // score 0/Critical told the same untruth the row chips did. The scored ones
-  // are work the reader has; only the remainder genuinely does not apply.
-  // Only when it applies. The other four chips are a fixed vocabulary a
-  // reader learns; a fifth reading "0 counted in your score" on every clean
-  // document would be noise, and this one is meaningful precisely because it
-  // is unusual.
-  ...(summary.value.notApplicableScored > 0
-    ? [
-        {
-          key: "not-applicable-scored",
-          count: summary.value.notApplicableScored,
-          label: "counted in your score",
-        },
-      ]
-    : []),
-  {
-    key: "not-applicable",
-    count: summary.value.notApplicable - summary.value.notApplicableScored,
-    label: "not applicable",
-  },
+  { key: "not-applicable", count: summary.value.notApplicable, label: "not applicable" },
   { key: "not-checked", count: summary.value.notChecked, label: "not checked" },
 ]);
 
@@ -492,25 +482,21 @@ const STATUS_PILL_CLASS: Record<BestPracticeStatus, string> = {
 // chips above a heading category scoring 0/Critical with WCAG 1.3.1 failing —
 // which reads, reasonably, as "headings are irrelevant to my document".
 //
-// Sky, matching WORTH DOING and the action plan it points at: this is work
-// the reader has, not a row they can skip. Never the muted grey of a true N/A.
-type Row = { status: BestPracticeStatus; naReason?: "scored" | "absent" };
-const isScoredDivert = (row: Row): boolean =>
-  row.status === "not-applicable" && row.naReason === "scored";
-
-function statusIcon(row: Row): string {
-  return isScoredDivert(row) ? "→" : STATUS_ICON[row.status];
+// Back to a plain lookup (v1.148.1). Two extra labels were tried in one
+// afternoon and both misled — see bestPractices/index.ts. A row whose defect
+// is scored is no longer in this section at all, and a row that merely could
+// not be judged is NOT CHECKED, which the vocabulary already covers.
+function statusIcon(status: BestPracticeStatus): string {
+  return STATUS_ICON[status];
 }
-function statusIconClass(row: Row): string {
-  return isScoredDivert(row) ? "text-sky-400" : STATUS_ICON_CLASS[row.status];
+function statusIconClass(status: BestPracticeStatus): string {
+  return STATUS_ICON_CLASS[status];
 }
-function statusLabel(row: Row): string {
-  return isScoredDivert(row) ? "COUNTED IN YOUR SCORE" : STATUS_LABEL[row.status];
+function statusLabel(status: BestPracticeStatus): string {
+  return STATUS_LABEL[status];
 }
-function statusPillClass(row: Row): string {
-  return isScoredDivert(row)
-    ? "border-sky-500/40 bg-sky-500/10 text-sky-400"
-    : STATUS_PILL_CLASS[row.status];
+function statusPillClass(status: BestPracticeStatus): string {
+  return STATUS_PILL_CLASS[status];
 }
 
 // Each catalog practice belongs to exactly one format family (pdf, or one of

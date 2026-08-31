@@ -488,13 +488,17 @@ describe("the grade answer never contradicts the row above it (2026-08-31 WCAG a
     ],
   };
 
-  it("does not print the 'optional' answer on a row that says the defect IS scored", () => {
+  it("does not render a row at all when the defect is already scored", () => {
+    // v1.148.1, the user's rule: "best practices should only be things above
+    // and beyond WCAG 2.1. If it's already counted, then it doesn't need to be
+    // labelled as a best practice." An empty bookmark outline is a scored
+    // failure; it belongs in the action plan and nowhere else. Two attempts to
+    // LABEL it here both misled — first "NOT APPLICABLE" (on a defect that had
+    // just cost points), then "COUNTED IN YOUR SCORE" (beside a practice name,
+    // asserting that practice was scored). Not rendering it needs no qualifier.
     const w = mountSection(scoredDivert);
-    const row = w.find('[data-practice="bookmarks"]');
-    expect(row.attributes("data-status")).toBe("not-applicable");
-    expect(row.text()).toMatch(/counted in your score/);
-    expect(row.text()).not.toMatch(/does not change your score/);
-    expect(row.text()).not.toMatch(/Does this affect my grade/);
+    expect(w.find('[data-practice="bookmarks"]').exists()).toBe(false);
+    expect(w.text()).not.toMatch(/counted in your score/);
   });
 
   it("still answers the question on a genuine NOT MET row — without the word 'optional'", () => {

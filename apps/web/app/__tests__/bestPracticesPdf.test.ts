@@ -195,9 +195,14 @@ describe("heading-level-order", () => {
     expect(r.block?.lines).toContain("H1 → H2 → H1 → H1 → H3 → H5");
   });
 
-  it("is NOT APPLICABLE when the document has no headings at all", () => {
+  it("is NOT CHECKED — blocked — when the document has no headings at all", () => {
+    // v1.148.1: this practice is above and beyond (skipped levels are PDF/UA,
+    // never WCAG 2.1 — the analyzer says so itself). It is not scored and
+    // never will be. What IS scored here is the ABSENCE of headings, which is
+    // also why there is nothing to read: the check could not run.
     const r = run("heading-level-order", [NO_HEADINGS]);
-    expect(r.status).toBe("not-applicable");
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBe("blocked");
   });
 
   it("is NOT APPLICABLE for the SHORT-document no-headings line too — a second, distinct analyzer N/A line for the same fact", () => {
@@ -231,8 +236,12 @@ describe("heading-convention", () => {
     expect(run("heading-convention", [HEADING_OK]).status).toBe("met");
   });
 
-  it("is NOT APPLICABLE when the document has no headings at all", () => {
-    expect(run("heading-convention", [NO_HEADINGS]).status).toBe("not-applicable");
+  it("is NOT CHECKED — blocked — when the document has no headings at all", () => {
+    // Above and beyond, and not scored: the check simply could not run,
+    // because the scored absence of headings left nothing to read (v1.148.1).
+    const r = run("heading-convention", [NO_HEADINGS]);
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBe("blocked");
   });
 
   it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
@@ -303,8 +312,12 @@ describe("heading-numbered-levels", () => {
     expect(run("heading-numbered-levels", [HEADING_OK]).status).toBe("met");
   });
 
-  it("is NOT APPLICABLE when the document has no headings at all", () => {
-    expect(run("heading-numbered-levels", [NO_HEADINGS]).status).toBe("not-applicable");
+  it("is NOT CHECKED — blocked — when the document has no headings at all", () => {
+    // Above and beyond, and not scored: the check simply could not run,
+    // because the scored absence of headings left nothing to read (v1.148.1).
+    const r = run("heading-numbered-levels", [NO_HEADINGS]);
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBe("blocked");
   });
 
   it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
@@ -359,8 +372,12 @@ describe("heading-content", () => {
     expect(r.evidence.join(" ")).toMatch(/5 of 6 heading tag\(s\)/);
   });
 
-  it("is NOT APPLICABLE when the document has no headings at all", () => {
-    expect(run("heading-content", [NO_HEADINGS]).status).toBe("not-applicable");
+  it("is NOT CHECKED — blocked — when the document has no headings at all", () => {
+    // Above and beyond, and not scored: the check simply could not run,
+    // because the scored absence of headings left nothing to read (v1.148.1).
+    const r = run("heading-content", [NO_HEADINGS]);
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBe("blocked");
   });
 
   it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
@@ -404,8 +421,12 @@ describe("single-h1", () => {
     expect(r.block?.lines).toContain("H1 → H2 → H1 → H1");
   });
 
-  it("is NOT APPLICABLE when the document has no headings at all", () => {
-    expect(run("single-h1", [NO_HEADINGS]).status).toBe("not-applicable");
+  it("is NOT CHECKED — blocked — when the document has no headings at all", () => {
+    // Above and beyond, and not scored: the check simply could not run,
+    // because the scored absence of headings left nothing to read (v1.148.1).
+    const r = run("single-h1", [NO_HEADINGS]);
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBe("blocked");
   });
 
   it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
@@ -1319,16 +1340,21 @@ describe("the five heading rows tell a no-heading document where its score went 
   it("points at the action plan when headings are absent AND scored", () => {
     for (const id of IDS) {
       const r = run(id, [HEADINGS_ABSENT_SCORED]);
-      expect(r.status, id).toBe("not-applicable");
-      expect(r.evidence.join(" "), id).toMatch(/counted in your score/);
+      // NOT "counted in your score": that sentence beside a practice NAME
+      // asserts the practice is scored, and none of these five ever is.
+      expect(r.status, id).toBe("not-checked");
+      expect(r.reason, id).toBe("blocked");
+      expect(r.evidence.join(" "), id).toMatch(/in your action plan above/);
+      expect(r.evidence.join(" "), id).not.toMatch(/counted in your score/);
     }
   });
 
   it("says nothing about the score for a short document, where none was lost", () => {
     for (const id of IDS) {
+      // A short document lost nothing — this stays a genuine NOT APPLICABLE.
       const r = run(id, [HEADINGS_ABSENT_SHORT]);
       expect(r.status, id).toBe("not-applicable");
-      expect(r.evidence.join(" "), id).not.toMatch(/counted in your score/);
+      expect(r.evidence.join(" "), id).not.toMatch(/counted in your score|action plan/);
     }
   });
 });

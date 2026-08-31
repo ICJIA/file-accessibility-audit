@@ -182,18 +182,6 @@ const STATUS_LABEL: Record<BestPracticeStatus, string> = {
   "not-checked": "Not checked",
 };
 
-/** The printed twin of the screen's chip split (v1.148.0). "Does not apply"
- *  is right for a document with no links to judge and wrong for one whose
- *  headings scored 0/Critical — there the practice applies, the document
- *  fails it, and the deduction is already in the plan this page is printing.
- *  On paper that distinction matters more, not less: the reader has no row to
- *  open and no chip colour to read. */
-function statusWord(row: { status: BestPracticeStatus; naReason?: "scored" | "absent" }): string {
-  return row.status === "not-applicable" && row.naReason === "scored"
-    ? "Counted in your score"
-    : STATUS_LABEL[row.status];
-}
-
 /** Each catalog practice belongs to exactly one format family — pdf, or one
  *  of docx/pptx/xlsx — never both (bestPractices/types.ts), so this single
  *  check is enough to pick the right fix-route labels. */
@@ -263,7 +251,7 @@ function renderBestPractice(
       `</p>`
     : "";
   return (
-    `<li><h3>${escapeHtml(r.practice.label)} — ${escapeHtml(statusWord(r))}</h3>` +
+    `<li><h3>${escapeHtml(r.practice.label)} — ${escapeHtml(STATUS_LABEL[r.status])}</h3>` +
     `<p class="bp-what">${escapeHtml(r.practice.description)}</p>` +
     evidence +
     block +

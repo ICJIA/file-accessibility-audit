@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.148.1] - 2026-08-31
+
+### Fixed
+
+- **A label correction, within the hour, on the release above.** v1.148.0 replaced a misleading "not applicable" with "counted in your score" — and a reader immediately caught that this was wrong in the other direction. The chip sits beside the practice's *name*, so "counted in your score" next to **Heading level order** says that heading level order is scored. It is not, and never has been: this tool's own analyzer says so in as many words — skipping heading levels is "a PDF/UA / best-practice concern, not a WCAG 2.1 failure, so your grade is not affected". What was scored on that document was the *absence* of headings, which is a different thing that happened to be sitting in the same row.
+- **The section now holds only what it says it holds.** Following the rule that settles this properly — best practices are things above and beyond WCAG 2.1, so anything already counted does not belong here at all — a row whose own defect is scored (a two-axis table with no scope declared, an empty bookmark outline, characters outside the tag tree) no longer appears in the section. It is in the action plan, which is the whole of the point. On a remediated report used for testing, two rows correctly disappear.
+- **A practice that could not be checked now says so.** The five heading rows on a document with no headings at all, and the table-scope rows on tables with no header cells, are genuinely above-and-beyond checks that simply could not be run. They now read **NOT CHECKED**, with the reason — "this document has no heading tags at all, so this could not be checked; that absence is in your action plan above" — and, alone among the not-checked explanations, they do not end by saying nothing is wrong with your document, because something is.
+
 ## [1.148.0] - 2026-08-31
 
 ### Fixed

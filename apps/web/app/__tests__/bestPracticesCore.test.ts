@@ -13,6 +13,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  SCORED_IN_PLAN,
   type BestPractice,
   buildContext,
   matchNotScored,
@@ -657,94 +658,74 @@ describe("naming a WCAG criterion means linking it (standing rule, 2026-08-31)",
   });
 });
 
-describe("the two kinds of NOT APPLICABLE are told apart (v1.148.0)", () => {
-  // A real FY21 annual report with no heading tags at all rendered NINE
-  // NOT APPLICABLE rows — five about headings, above a heading_structure
-  // scoring 0/Critical with WCAG 1.3.1 Level A failing. The row text said
-  // "counted in your score"; the chip above it said the opposite, and a
-  // reader who trusts the chip concludes headings do not apply to their file.
-  const report = (categories: Array<{ id: string; findings: string[] }>) => ({
+describe("this section holds only things above and beyond WCAG 2.1 (v1.148.1)", () => {
+  // The user's rule, after two labels in one afternoon both misled: "best
+  // practices should only be things above and beyond WCAG 2.1. If it's
+  // already counted, then it doesn't need to be labelled as a best practice."
+  const report = (categories: Array<Record<string, unknown>>) => ({
     fileType: "pdf",
     pageCount: 12,
     categories,
   });
 
-  it("marks a divert to the action plan as `scored`", () => {
+  it("drops a row whose OWN defect is scored — it lives in the action plan", () => {
     const rows = evaluateBestPractices(
       report([
-        { id: "heading_structure", findings: ["No heading tags found in the document structure"] },
+        {
+          id: "bookmarks",
+          score: 60,
+          findings: ["This document has a bookmark outline with no entries in it."],
+        },
       ]),
     );
-    const headingRows = rows.filter(
-      (r) => r.practice.categoryId === "heading_structure" && r.status === "not-applicable",
-    );
-    expect(headingRows.length).toBeGreaterThan(0);
-    for (const r of headingRows) expect(r.naReason, r.practice.id).toBe("scored");
-  });
-
-  it("marks a genuine absence as `absent` — nothing of this kind exists", () => {
-    const rows = evaluateBestPractices(
-      report([{ id: "link_quality", findings: ["No links found in this document"] }]),
-    );
-    const naLinkRows = rows.filter(
-      (r) => r.practice.categoryId === "link_quality" && r.status === "not-applicable",
-    );
-    expect(naLinkRows.length).toBeGreaterThan(0);
-    for (const r of naLinkRows) expect(r.naReason, r.practice.id).toBe("absent");
-  });
-
-  it("does NOT claim a deduction that did not happen", () => {
-    // The mirror of the bug, and worse: telling a reader their clean tables
-    // cost them points. The pointer is gated on the category's actual score.
-    const clean = evaluateBestPractices({
-      fileType: "pdf",
-      pageCount: 12,
-      categories: [{ id: "table_markup", score: 100, findings: ["Scope attributes: n/a"] }],
-    });
-    for (const r of clean.filter((x) => x.practice.id.startsWith("table-scope"))) {
-      expect(r.naReason, r.practice.id).not.toBe("scored");
-      expect(r.evidence.join(" "), r.practice.id).not.toContain("counted in your score");
+    const bookmark = rows.find((r) => r.practice.id === "bookmarks");
+    // Whatever it would have said, it must not be offered as an optional nicety.
+    if (bookmark) {
+      expect(bookmark.evidence.join(" ")).not.toContain(SCORED_IN_PLAN);
     }
-    const docked = evaluateBestPractices({
-      fileType: "pdf",
-      pageCount: 12,
-      categories: [{ id: "table_markup", score: 45, findings: ["Scope attributes: n/a"] }],
-    });
-    const scoredRows = docked.filter(
-      (x) => x.practice.id.startsWith("table-scope") && x.status === "not-applicable",
-    );
-    expect(scoredRows.length).toBeGreaterThan(0);
-    for (const r of scoredRows) expect(r.naReason, r.practice.id).toBe("scored");
+    for (const r of rows) expect(r.evidence.join(" "), r.practice.id).not.toContain(SCORED_IN_PLAN);
   });
 
-  it("SCORED_IN_PLAN is the only definition of that sentence", () => {
-    // The flag is derived from this exact string. If a catalog file spells it
-    // out again, the copy and the chip drift and the bug returns silently.
+  it("keeps a blocked practice as NOT CHECKED — it is above and beyond, it just could not be judged", () => {
+    // Skipped heading levels are PDF/UA, never WCAG 2.1: the analyzer says so
+    // itself ("not a WCAG 2.1 failure, so your grade is not affected"). What
+    // is scored on a document like this is the ABSENCE of headings — a
+    // different thing wearing the same row, and the reason it cannot be read.
+    const rows = evaluateBestPractices(
+      report([
+        {
+          id: "heading_structure",
+          score: 0,
+          findings: ["No heading tags found in the document structure"],
+        },
+      ]),
+    );
+    const order = rows.find((r) => r.practice.id === "heading-level-order");
+    expect(order?.status).toBe("not-checked");
+    expect(order?.reason).toBe("blocked");
+    expect(order?.evidence.join(" ")).toContain("no heading tags at all");
+  });
+
+  it("a blocked row is never told nothing is wrong with the document", () => {
+    // The false comfort the old NOT APPLICABLE chip gave. Something IS wrong
+    // here and it has already cost points.
+    const src = readFileSync(resolve(__dirname, "../components/BestPracticesSection.vue"), "utf8");
+    const blocked = src.slice(src.indexOf('if (row.reason === "blocked")'));
+    expect(blocked.slice(0, 400)).not.toContain("Nothing is wrong with your document");
+  });
+
+  it("neither marker sentence is ever written out by hand", () => {
+    // The two are load-bearing: one decides whether a row appears at all, the
+    // other whether it reads as blocked. Spelling either out again is how the
+    // copy and the behaviour came apart the first time.
     for (const f of ["pdf.ts", "office.ts"]) {
       const src = readFileSync(resolve(__dirname, "../utils/bestPractices", f), "utf8");
-      expect(src, `${f} spells out the divert instead of using SCORED_IN_PLAN`).not.toContain(
+      expect(src, `${f} spells out the scored divert`).not.toContain(
         "counted in your score \u2014 see the action plan above, not this section.",
       );
+      expect(src, `${f} spells out the blocked sentence`).not.toContain(
+        "so this could not be checked. That absence is in your action plan above",
+      );
     }
-  });
-
-  it("summarize counts the scored diverts separately", () => {
-    const rows = [
-      { practice: { id: "a" }, status: "not-applicable", naReason: "scored", evidence: [] },
-      { practice: { id: "b" }, status: "not-applicable", naReason: "absent", evidence: [] },
-    ] as never;
-    const sum = summarizeBestPractices(rows);
-    expect(sum.notApplicable).toBe(2);
-    expect(sum.notApplicableScored).toBe(1);
-  });
-
-  it("the on-screen chip never says NOT APPLICABLE for a scored divert", () => {
-    const src = readFileSync(resolve(__dirname, "../components/BestPracticesSection.vue"), "utf8");
-    expect(src).toContain(
-      'isScoredDivert(row) ? "COUNTED IN YOUR SCORE" : STATUS_LABEL[row.status]',
-    );
-    // and the printed twin must agree
-    const plan = readFileSync(resolve(__dirname, "../utils/printablePlan.ts"), "utf8");
-    expect(plan).toContain('"Counted in your score"');
   });
 });
