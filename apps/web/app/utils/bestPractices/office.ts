@@ -306,7 +306,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A screen reader announces each blank paragraph individually while moving through the document — a long run of them is dead air someone has to sit through.",
     links: [],
     standard:
-      "No WCAG 2.1 criterion is engaged. W3C failures F32/F33/F34 cover whitespace used WITHIN a line to fake columns or tables, not blank paragraphs used as vertical spacing.",
+      "No WCAG 2.1 criterion is engaged. The nearest W3C failures cover something else: F33 and F34 are about whitespace used to fake columns or tables in plain text, and F32 is about whitespace inside a word. None addresses blank paragraphs used as vertical spacing.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -365,7 +365,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A screen reader announces a real data table's header with each cell. A layout grid does not need one — but it is easy to build a genuine data table without ever applying a table style, which would leave it looking identical to a layout grid in the file.",
     links: [],
     standard:
-      "A genuine layout table needs no header row — W3C failure F46 fails the reverse case, a layout table given header cells. Read this row with care: it is by construction the set this tool could NOT classify, so if one of these is really a data table, its missing header row IS a WCAG 1.3.1 (Level A) failure.",
+      "A genuine layout table needs no header row — W3C failure F46 fails the reverse case, a layout table given header cells (F46 is written for HTML and is cited here by analogy; Word has no equivalent markup). Read this row with care: it is by construction the set this tool could NOT classify, so if one of these is really a data table, its missing header row IS a WCAG 1.3.1 (Level A) failure.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -540,7 +540,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     // basis — say so in `why`, claim nothing more.
     links: [],
     standard:
-      "No WCAG 2.1 criterion or failure technique forbids merged cells. H43 and H63 are SUFFICIENT techniques for associating headers in HTML, not requirements, and Word has no scope or headers mechanism to fail against.",
+      "No WCAG 2.1 criterion or failure technique forbids merged cells. H43 and H63 are SUFFICIENT techniques for associating headers, and they are written for HTML — Word has no scope or headers mechanism to fail against in the first place.",
     detect(ctx) {
       // categoryAbsent is checked separately from (and before) the "no
       // tables" line below: a missing category is a missing-DATA fact, never
@@ -657,7 +657,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
-      "Satisfies WCAG 2.4.4 Link Purpose (In Context), Level A — the URL is the destination, so the purpose is determinable from the link text itself. Preferring a short label over the address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -868,7 +868,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
-      "Satisfies WCAG 2.4.4 Link Purpose (In Context), Level A — the URL is the destination, so the purpose is determinable from the link text itself. Preferring a short label over the address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1367,7 +1367,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
-      "Satisfies WCAG 2.4.4 Link Purpose (In Context), Level A — the URL is the destination, so the purpose is determinable from the link text itself. Preferring a short label over the address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(

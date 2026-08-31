@@ -454,7 +454,7 @@ export function appendSupplementaryFindings(
       }
       if (withAS > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${withAS} layer configuration(s) carry an /AS auto-state (Matterhorn 20-002) — content can appear or disappear with zoom or print without the reader acting, which assistive technology cannot follow.`,
+          `  Advisory — not scored: ${withAS} layer configuration(s) carry an /AS auto-state (Matterhorn 20) — content can appear or disappear with zoom or print without the reader acting, which assistive technology cannot follow.`,
         );
       }
     }
@@ -478,7 +478,7 @@ export function appendSupplementaryFindings(
       const missingContents = qpdf.otherAnnotationsMissingContents ?? 0;
       if (missingContents > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${missingContents} of them carry no /Contents description (PDF/UA 7.18.2) — a screen reader announces the annotation type with nothing to say about it.`,
+          `  Advisory — not scored: ${missingContents} of them carry no /Contents description (PDF/UA 7.18.1) — a screen reader announces the annotation type with nothing to say about it.`,
         );
       }
     }

@@ -1369,6 +1369,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-130-docx-picture-headings-not-blank.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-14-indesign-rolemap.pdf": {
       "score": 100,
       "grade": "A",

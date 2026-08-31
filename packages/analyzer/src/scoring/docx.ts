@@ -142,7 +142,14 @@ const MAX_FAKE_HEADING_LINES = 15;
 function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   const total = a.headings.length;
   const fakes = a.fakeHeadings.length;
-  if (total === 0 && fakes === 0) {
+  // `emptyHeadings === 0` is load-bearing (2026-08-31): without it a document
+  // whose ONLY heading styles sit on blank lines returned score null — Not
+  // Assessed — while conformance.ts asserted a 1.3.1 failure about those very
+  // paragraphs. The report then read grade A, "No headings were found",
+  // "Nothing — this document passed every automated check", and "1 criterion
+  // failing" at once. Scorer and verdict must agree on whether this category
+  // was assessed at all.
+  if (total === 0 && fakes === 0 && (a.emptyHeadingCount ?? 0) === 0) {
     return docxCategory(
       "heading_structure",
       "Heading Structure",
@@ -182,9 +189,14 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   // SCORED since 2026-08-31 (user decision, after the WCAG audit of the
   // best-practices catalog). A Heading style on a blank line is structural
   // markup applied for a presentational purpose — spacing — announcing a
-  // section that does not exist. That is W3C failure F43 for WCAG 1.3.1
-  // (Level A), and conformance.ts records it as such: nothing here may move
-  // a score without naming the criterion it broke (the legal-basis gate).
+  // section that does not exist — structure conveyed by presentation that
+  // does not represent a real relationship, which is WCAG 1.3.1 (Level A)
+  // itself. conformance.ts records that criterion: nothing here may move a
+  // score without naming the criterion it broke (the legal-basis gate).
+  // NOT cited as W3C failure F43, though it is the nearest analogue: F43 is
+  // written for HTML and all of its examples are heading markup applied to
+  // VISIBLE text for a visual effect. W3C publishes no failure technique for
+  // an empty heading, which is why the PDF twin stays hedged as contested.
   //
   // WHY WORD AND NOT PDF: this count is exact. docxService reads a Heading
   // style with no text straight from the XML — no inference. The PDF twin

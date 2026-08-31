@@ -151,8 +151,14 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Headings should step down one level at a time — H1, then H2, then H3. Jumping a level leaves a gap in the outline.",
     why: "Screen-reader users move through a document by jumping between headings. A skipped level reads as a missing section: they cannot tell whether they missed something or whether the document simply has a gap.",
+    // CORRECTED 2026-08-31 (adversarial audit). This said G141 was "a
+    // SUFFICIENT technique for 1.3.1". W3C says the opposite: G141 is ADVISORY
+    // for 1.3.1 and SUFFICIENT only for 2.4.10 Section Headings — a Level AAA
+    // criterion. The row links to that very page, so the claim was one click
+    // from being disproved, in the one product whose thesis is that AAA is
+    // not the law.
     standard:
-      "Matterhorn Protocol 14 (Headings) · W3C technique G141 — a SUFFICIENT technique for 1.3.1, not a criterion. Skipping a heading level is not a WCAG 2.1 failure: the levels are still programmatically determinable.",
+      "Matterhorn Protocol 14 (Headings) · W3C technique G141, which is ADVISORY for 1.3.1 and sufficient only for 2.4.10 Section Headings, a Level AAA criterion outside the legal standard. Skipping a heading level is not a WCAG 2.1 A/AA failure: the levels are present and programmatically determinable, which is what 1.3.1 asks.",
     links: links(matterhornLink("14"), techniqueLink("G141")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -268,7 +274,7 @@ export const PDF_PRACTICES: BestPractice[] = [
       "A document should use one heading convention throughout — either numbered tags (H1–H6) or generic ones, not a mix of both.",
     why: "A generic heading tag carries no level. Wherever one sits among numbered headings, the depth a screen reader would announce is missing at exactly that point, even though a heading tag is present.",
     standard:
-      "Matterhorn Protocol 14-002 (PDF/UA). WCAG 2.1 has no analogue: every heading here is still exposed as a heading with a determinable level, which is all 1.3.1 asks. Picking one convention is a PDF/UA consistency rule.",
+      "PDF/UA (ISO 14289) clause 7.4.4 — a document must keep to one convention, numbered heading levels or generic <H> tags, and not mix the two. WCAG 2.1 has no analogue: every heading here is still exposed as a heading with a determinable level, which is all 1.3.1 asks. Picking one convention is a PDF/UA consistency rule.",
     links: links(matterhornLink("14")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -352,7 +358,12 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Heading tags should carry a specific level (H1, H2, H3…) rather than a single generic heading tag with no level at all.",
     why: 'A generic heading tag tells a screen reader "this is a heading" but not which level — the outline it builds has no depth, so someone navigating by heading cannot tell a top-level section from a subsection.',
-    standard: "PDF/UA (ISO 14289) clause 7.4 · Matterhorn Protocol 14",
+    // "clause 7.4" implied the clause REQUIRES numbered levels. It does not:
+    // 7.4.4 permits a document that nests its sections to use generic <H>
+    // throughout. Numbered levels are a readability preference.
+    standard:
+      "Matterhorn Protocol 14 (Headings). PDF/UA (ISO 14289) clause 7.4.4 permits either convention — a document that nests its sections may use generic <H> throughout — so numbered levels are a readability preference, not a clause requirement, and WCAG 2.1 asks for neither.",
+
     links: links(matterhornLink("14")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -450,11 +461,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     // The most legally exposed row in this catalog, and it says so rather
     // than claiming to be settled (2026-08-31 WCAG audit): an EMPTY heading
     // is treated as a failure by mainstream tooling — WAVE maps empty_heading
-    // to 1.3.1 Level A, and W3C failure F43 covers structural markup used for
-    // presentation — while axe-core classes it best-practice, and the
+    // to 1.3.1 Level A — while axe-core classes it best-practice, and the
     // fragment/paragraph members of this check really are heuristic.
     standard:
-      "Contested. An empty heading is widely treated as a WCAG failure (1.3.1 Level A via W3C failure F43; a heading with no text also describes no topic or purpose under 2.4.6 Level AA), while other checkers class it a best practice. This tool does not score it, because its heading-text census is heuristic — do not read that as settled: have a person confirm any empty heading.",
+      "Contested. WebAIM's WAVE reports an empty heading as an Error and maps it to 1.3.1 (Level A); a heading with no text also describes no topic or purpose under 2.4.6 (Level AA). Other checkers disagree — axe-core classes it a best practice. W3C publishes no failure technique for an empty heading either way. This tool does not score it, because its heading-text census is heuristic — do not read that as settled: have a person confirm any empty heading.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -537,7 +547,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     why: "This is a style convention, not a rule: PDF/UA explicitly permits repeated H1s in a document with clear underlying structure, and no WCAG criterion requires just one. A single top-level heading simply gives the outline one clear starting point.",
     links: [],
     standard:
-      "No WCAG 2.1 criterion mentions H1 counts, and PDF/UA permits repeated H1s. axe-core classes the equivalent HTML rule (page-has-heading-one) a best practice, not a WCAG rule.",
+      "No WCAG 2.1 criterion mentions H1 counts, and PDF/UA (ISO 14289) clause 7.4.2 says a document may use more than one instance of any given heading level. axe-core has no rule against multiple H1s at all — its page-has-heading-one rule asks for at LEAST one and never caps the number, and even that is classed a best practice rather than a WCAG rule.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1032,7 +1042,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     // with them" — nothing about nesting. Neither rulebook forbids a nested
     // table, so this row cites no standard at all.
     standard: "No standard forbids nesting — a navigability recommendation only",
-    links: links(matterhornLink("15")),
+    // links: [] to match. The row rendered a "Matterhorn 15 — Tables" link
+    // beside a sentence saying it cites no standard; checkpoint 15 is about
+    // header association, not nesting. Its Office twin already had none.
+    links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1095,7 +1108,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     // table cell. This is unscored because that context is not machine-
     // decidable, NOT because it falls outside the legal standard.
     standard:
-      "WCAG 2.4.4 (Link Purpose, In Context) is Level A and does apply — but it is met when the surrounding sentence makes the purpose clear, which no automated check can weigh. Judging the link text on its own is 2.4.9, a AAA criterion outside the legal standard. Unscored for that reason, not because vague link text is always acceptable.",
+      "WCAG 2.4.4 Link Purpose (In Context) is Level A and does apply — but it is met when the surrounding sentence makes the purpose clear, which no automated check can weigh. Judging the link text on its own is 2.4.9, a AAA criterion outside the legal standard. Unscored for that reason, not because vague link text is always acceptable.",
     wcagSlugs: [
       { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
       { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — AAA" },
@@ -1152,7 +1165,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
-      "Satisfies WCAG 2.4.4 Link Purpose (In Context), Level A — the URL is the destination, so the purpose is determinable from the link text itself. Preferring a short label over the address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1207,7 +1220,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     why: "A flat tree still gives assistive technology a reading order, so it is not a failure — but nesting mirrors the document's real sections, which makes a long document far easier to navigate section by section.",
     links: [],
     standard:
-      "No criterion requires a nested structure tree. WCAG 1.3.2 Meaningful Sequence (Level A) asks that a correct reading sequence be programmatically determinable — a flat tree still provides one.",
+      "No criterion requires a nested structure tree. WCAG 1.3.2 Meaningful Sequence (Level A) asks that, WHERE the sequence in which content is presented affects its meaning, a correct reading sequence can be programmatically determined — and a flat tree still provides one.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked("This report has no reading-order data for this document.", "not-run");

@@ -103,7 +103,7 @@ function buildLlmsTxt(): string {
     "## Standards alignment",
     "",
     "- WCAG 2.1 Level AA",
-    "- ADA Title II (effective April 2026)",
+    "- ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)",
     "- Section 508",
     "- PDF/UA (ISO 14289-1)",
     "",

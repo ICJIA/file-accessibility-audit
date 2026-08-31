@@ -49,8 +49,9 @@
             >ADA Title II</a
           >
           digital accessibility requirements (U.S. federal law requiring state and local government
-          digital content to be accessible, effective April 2026), as adopted in Illinois by the
-          IITAA 2.1 standard.
+          digital content to be accessible; compliance due April 26, 2027 for entities of 50,000 or
+          more and April 26, 2028 for smaller ones and special districts), as adopted in Illinois by
+          the IITAA 2.1 standard.
         </p>
 
         <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">

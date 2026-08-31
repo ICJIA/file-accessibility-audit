@@ -202,7 +202,7 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
       "Document has appropriate color contrast",
       "manual",
       false,
-      "Acrobat always marks this as manual. No checker (including this one) performs rendered-contrast analysis on PDF content today.",
+      "Acrobat always marks this as manual, and this tool does not analyse rendered contrast on PDF content either. Some checkers do — PAC, the PDF Association's own, added an automated colour-contrast check — so treat this as a limitation here, not an impossibility.",
     ),
   );
 

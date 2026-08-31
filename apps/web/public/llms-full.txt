@@ -140,7 +140,7 @@ Each category also carries an individual severity label, derived from that categ
 ## Standards Alignment
 
 - **WCAG 2.2 Level AA** — the default, operative standard (a strict superset of WCAG 2.1 AA; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can revert its displayed standard to WCAG 2.1 via the `WCAG_VERSION=2.1` environment variable.
-- **ADA Title II** — the U.S. Department of Justice's digital accessibility rule for state and local government, requiring WCAG 2.1 AA; effective April 2026.
+- **ADA Title II** — the U.S. Department of Justice's digital accessibility rule for state and local government, requiring WCAG 2.1 AA. Compliance is due April 26, 2027 for entities with a population of 50,000 or more, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026).
 - **Illinois IITAA 2.1** (§E205.4) — the Illinois Information Technology Accessibility Act; frames final non-web document accessibility through WCAG 2.1 AA, the legal minimum this tool's default WCAG 2.2 auditing exceeds.
 - **Section 508** — the U.S. federal accessibility standard, aligned with WCAG 2.0/2.1 AA.
 - **PDF/UA** (ISO 14289-1) — referenced only for PDF (see "PDF-only signals" above); not applicable to Word, PowerPoint, or Excel reports.
@@ -230,7 +230,7 @@ This is the schema of the downloadable **JSON export** (the "Export as JSON" act
     "prompt": "Pre-built prompt summarizing the audit",
     "standards": [
       "WCAG 2.2 Level AA",
-      "ADA Title II (effective April 2026)",
+      "ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)",
       "Illinois IITAA 2.1 (§E205.4)",
       "Section 508",
       "PDF/UA (ISO 14289-1)"

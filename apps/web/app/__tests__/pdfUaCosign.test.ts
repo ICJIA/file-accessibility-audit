@@ -655,7 +655,7 @@ describe("the beyond group reads as a section, not a footnote (v1.140.1)", () =>
     // The seam moved out of the group and above BestPracticesSection too
     // (2026-08-30) — it now introduces both non-required tiers, so it is
     // asserted against the whole render rather than scoped to this group.
-    expect(w.text()).toMatch(/Everything the law requires is above/);
+    expect(w.text()).toMatch(/Everything WCAG 2.1 requires is above/);
     const chips = w.find('[data-testid="beyond-stat-chips"]');
     expect(chips.exists()).toBe(true);
     expect(chips.text()).toMatch(/0 of these count toward your score/);
@@ -748,7 +748,7 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     // missing/unrecognized fileType — evaluateBestPractices returns []
     // for it (gates on fileType), so BestPracticesSection renders nothing.
     // With no pdfUaVerdict either, the beyond group also stays hidden. The
-    // seam must not draw "Everything the law requires is above ↑" over
+    // seam must not draw "Everything WCAG 2.1 requires is above ↑" over
     // empty space.
     const w = mountPlanWithResult({
       pageCount: 1,
@@ -756,7 +756,7 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     });
     expect(w.find('[data-testid="best-practices"]').exists()).toBe(false);
     expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
-    expect(w.text()).not.toMatch(/Everything the law requires is above/);
+    expect(w.text()).not.toMatch(/Everything WCAG 2.1 requires is above/);
   });
 });
 

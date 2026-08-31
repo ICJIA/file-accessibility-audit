@@ -146,7 +146,7 @@ const blurb = computed(() => {
   // and would count rows the printout labels "Does not apply".
   const bpBit =
     bestPractices.value.length > 0
-      ? " It also lists the best practices checked against this document — none affect the grade."
+      ? " It also lists the best practices for this file type, each with its own status — none affect the grade."
       : "";
   if (n === 0)
     return `Opens in a new tab: the checks a person still needs to make.${bpBit} Print or save as PDF.`;

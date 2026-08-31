@@ -112,6 +112,13 @@ const EMPTY_P = "<w:p/>";
  *  empty and it lands in emptyHeadingCount rather than in `headings`. */
 const EMPTY_HEADING = (level: number) =>
   `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr></w:p>`;
+/** A heading whose content is a described picture — the agency-letterhead
+ *  pattern — and one whose content is a symbol glyph. Neither has a w:t, so
+ *  both looked "blank" to the empty-heading count until it was guarded. */
+const IMAGE_HEADING = (level: number, id: number, descr: string) =>
+  `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="381000"/><wp:docPr id="${id}" name="Picture ${id}" descr="${descr}"/></wp:inline></w:drawing></w:r></w:p>`;
+const SYMBOL_HEADING = (level: number) =>
+  `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:sym w:font="Wingdings" w:char="F0E0"/></w:r></w:p>`;
 
 /** A real data table (borders + a marked header row) whose top row is one
  *  cell spanning both columns — the merged-header habit Word encourages. */
@@ -576,6 +583,39 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-130-docx-picture-headings-not-blank.docx",
+    truth:
+      "Headings whose content is a described picture (an agency letterhead) or a symbol glyph. Neither carries a w:t element, so both LOOK empty to a naive text check — and on 2026-08-31 the newly scored empty-heading rule accused exactly this document of a WCAG 1.3.1 failure while grading it A and reporting no headings at all. A heading holding real content must never be called a blank line: no accusation, and no points lost.",
+    build: () =>
+      docx(
+        [
+          IMAGE_HEADING(1, 1, "County Health Department bulletin masthead"),
+          P(BODY_TEXT),
+          HEADING(2, "Enrollment"),
+          P(BODY_TEXT),
+          SYMBOL_HEADING(2),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Agency Bulletin", styles: true },
+      ),
+    check: (r) => {
+      if (/contain no text/i.test(allFindings(r)))
+        return "a heading holding a picture or a symbol was called a blank line";
+      const fails =
+        (
+          r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+        ).conformance?.failures?.filter((f) => String(f.category ?? "") === "heading_structure") ??
+        [];
+      if (fails.length > 0)
+        return `accused of ${fails.length} heading failure(s) it did not commit`;
+      const c = cat("heading_structure")(r);
+      // The scorer and the verdict must agree the category was assessed.
+      if (c && c.score !== null && c.score < 100)
+        return `lost points for headings that carry content (${c.score})`;
+      return null;
+    },
+  },
+  {
     file: "synthetic-129-docx-empty-headings-good-twin.docx",
     truth:
       "The same document with the blank Heading-styled lines removed — spacing done with ordinary empty paragraphs instead. The correct twin must score a clean 100 on heading structure, and must never score below its flawed twin.",
@@ -680,6 +720,10 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
 
 type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-130-docx-picture-headings-not-blank.docx": {
+    label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
+    chip: "clean",
+  },
   "synthetic-128-docx-empty-headings.docx": {
     label: "Word: heading styles on blank lines, used as spacing",
     chip: "held",

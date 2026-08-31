@@ -474,7 +474,11 @@ export function evaluateConformance(
   //     expression): multi-page or paragraph-heavy documents visually carry
   //     section headings, and zero <H1>–<H6> tags means that structure is
   //     conveyed by presentation only — the textbook 1.3.1 failure, and the
-  //     one Acrobat's own checker reports as an error.
+  //     textbook 1.3.1 failure. (This said "the one Acrobat's own checker
+  //     reports as an error" until 2026-08-31 — untrue, and contradicted by
+  //     our own adobeParity.ts, which correctly records that Acrobat has no
+  //     "document must contain headings" rule. Its only Headings rule is
+  //     "Appropriate nesting".)
   if (
     (qpdf.headings ?? []).length === 0 &&
     ((qpdf.totalPageCount ?? 0) >= 4 ||
@@ -497,7 +501,17 @@ export function evaluateConformance(
   //     consistency, and scoredAsAssociated blocks, including the
   //     layout-scaffold guard ((columnCounts[0] ?? 2) >= 2).
   {
-    const scoredTables = (qpdf.tables ?? []).filter((t) => ((t.columnCounts ?? [])[0] ?? 2) >= 2);
+    // MIRRORS scoreTableMarkup's isDataTable EXACTLY (scoring/pdf.ts:1534):
+    // `(columnCounts[0] ?? 2) >= 2 && rowCount >= 2`. The row half was missing
+    // until 2026-08-31, so a <Table> with no rows at all — no column data, so
+    // the `?? 2` default let it through — was excluded by the scorer as a
+    // layout scaffold and simultaneously accused by this verdict. Found by the
+    // widened legal-basis gate on controls/synthetic-09-empty-table.pdf, which
+    // graded 100/A with table_markup reported "not scored" beside a 1.3.1
+    // Level A failure about that same table.
+    const scoredTables = (qpdf.tables ?? []).filter(
+      (t) => ((t.columnCounts ?? [])[0] ?? 2) >= 2 && (t.rowCount ?? 0) >= 2,
+    );
     const noRows = scoredTables.filter((t) => !t.hasRowStructure).length;
     const irregular = scoredTables.filter((t) => t.hasConsistentColumns === false).length;
     const complexUnassociated = scoredTables.filter(
@@ -908,9 +922,15 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
   }
 
   // 3b-ii. A Heading style on a blank line — structural markup used to make
-  //     space, announcing a section that is not there. W3C failure F43 for
-  //     1.3.1. Mirrors the deduction scoreDocxHeadings applies; the pair is
-  //     required, because only a named criterion may move a score.
+  //     space, announcing a section that is not there — presentation
+  //     conveying a relationship the content does not have, which is 1.3.1
+  //     itself. (Not F43: that failure is HTML-scoped and its examples are
+  //     all VISIBLE text styled as a heading.) Mirrors the deduction
+  //     scoreDocxHeadings applies; the pair is required, because only a named
+  //     criterion may move a score.
+  // The same predicate scoreDocxHeadings uses. Belt and braces after the
+  // 2026-08-31 adversarial audit: an accusation must never outlive the
+  // deduction it mirrors.
   if ((analysis.emptyHeadingCount ?? 0) > 0) {
     add(
       "1.3.1",

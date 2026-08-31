@@ -1881,7 +1881,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
       url: "https://helpx.adobe.com/acrobat/using/accessibility-features-pdfs.html",
     },
     {
-      label: "WCAG 2.4.4: Link Purpose",
+      label: "WCAG 2.4.4: Link Purpose (In Context)",
       url: wcagUnderstandingUrl("link-purpose-in-context"),
     },
     {
@@ -2043,8 +2043,13 @@ function scoreFormAccessibility(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryR
       url: "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html",
     },
     {
-      label: "WCAG 1.3.1: Labels for Form Fields",
-      url: wcagUnderstandingUrl("info-and-relationships"),
+      // "WCAG 1.3.1: Labels for Form Fields" until 2026-08-31 — not the name
+      // of any success criterion. 1.3.1 is "Info and Relationships"; the
+      // criterion whose subject IS form labels is 3.3.2, which this category
+      // already maps to (shared/scoring.ts form_accessibility). The invented
+      // name shipped inside every downloadable report.
+      label: "WCAG 3.3.2: Labels or Instructions",
+      url: wcagUnderstandingUrl("labels-or-instructions"),
     },
     {
       label: "WebAIM: Accessible PDF Forms",

@@ -230,7 +230,11 @@ const FINDING_MARKERS: Array<{
   },
   {
     category: "reading_order",
-    pattern: /20-002/,
+    // Keyed on the finding's words, not a sub-number: 2026-08-31 review found
+    // the /AS condition is not 20-002 (that is a second /Name condition), and
+    // the protocol itself is not publicly fetchable to settle which it is. The
+    // finding now cites checkpoint 20 only, so match on the defect it names.
+    pattern: /\/AS auto-state/,
     id: "20",
     label: "Layers that can switch content automatically",
   },

@@ -385,7 +385,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     body: [
       {
         kind: "p",
-        html: "The first question a reviewer asks is &ldquo;does this file meet the law?&rdquo; &mdash; so every report now answers it first. Directly under the grade, in full width and large type: <strong>Required by law &mdash; WCAG 2.2 AA, ADA Title II, Illinois IITAA</strong>, with the verdict for this document and the plain statement that <strong>this, and only this, is what the grade measures</strong>. Beneath it, in a deliberately quiet footnote, sits PDF/UA readiness &mdash; the PDF industry&rsquo;s own standard, checked by an independent validator &mdash; marked <em>not counted in your score</em>. The previous release made that separation real; this one makes it impossible to miss.",
+        html: "The first question a reviewer asks is &ldquo;does this file meet the law?&rdquo; &mdash; so every report now answers it first. Directly under the grade, in full width and large type: <strong>Required by WCAG 2.1 &mdash; the standard ADA Title II and the Illinois IITAA name</strong>, with the verdict for this document and the plain statement that <strong>this, and only this, is what the grade measures</strong>. Beneath it, in a deliberately quiet footnote, sits PDF/UA readiness &mdash; the PDF industry&rsquo;s own standard, checked by an independent validator &mdash; marked <em>not counted in your score</em>. The previous release made that separation real; this one makes it impossible to miss.",
       },
       {
         kind: "p",
@@ -403,7 +403,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     body: [
       {
         kind: "p",
-        html: "Two different rulebooks apply to a PDF, and only one of them is the law. <strong>WCAG 2.2 AA, ADA Title II and the Illinois IITAA are legally required</strong>; <strong>PDF/UA is the PDF industry&rsquo;s own standard</strong> &mdash; excellent practice, not a legal obligation. This report was already built on the legal standard, but one deduction had drifted across the line, and the wording admitted it: a finding was described as &ldquo;a readiness gap rather than a confirmed failure&rdquo; while still costing points. That is now resolved. <strong>Your grade measures the law. PDF/UA work is listed beside it, clearly marked as not counted.</strong>",
+        html: "Two different rulebooks apply to a PDF, and only one of them is the law. <strong>ADA Title II and the Illinois IITAA both name WCAG 2.1 Level AA</strong>; <strong>PDF/UA is the PDF industry&rsquo;s own standard</strong> &mdash; excellent practice, not a legal obligation. This report was already built on the legal standard, but one deduction had drifted across the line, and the wording admitted it: a finding was described as &ldquo;a readiness gap rather than a confirmed failure&rdquo; while still costing points. That is now resolved. <strong>Your grade measures the law. PDF/UA work is listed beside it, clearly marked as not counted.</strong>",
       },
       {
         kind: "p",
