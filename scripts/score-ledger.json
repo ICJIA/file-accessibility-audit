@@ -2,6 +2,54 @@
   "blessed": "2026-08-31",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
+    "10drug_arrests_1999-2008.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "15adult_probation_1999-2008.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "2003CHRIAudit.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "2009 MV Annual Report.pdf": {
       "score": 43,
       "grade": "F",
@@ -34,6 +82,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "2022 Victim Service Planning Research Report -230817T20035755.pdf": {
+      "score": 35,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
     "2022-DVFR-Annual-Report-A0.pdf": {
       "score": 100,
       "grade": "A",
@@ -51,6 +115,70 @@
       }
     },
     "2022_DVFR_Annual_Report_Final_a688e16b10_a00d65b63f.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "2023 Deaths in Custody Annual Report-240216T22514713.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No issues found",
+        "alt_text": "5|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "2025_DVFRC_Annual_Report_04222026.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "0|Critical",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "2025_DVFRC_Annual_Report_05042026.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "0|Critical",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "2025_Death_in_Custody_FINAL_02f1b7de08.pdf": {
       "score": 89,
       "grade": "B",
       "categories": {
@@ -101,6 +229,70 @@
         "form_accessibility": "null|none"
       }
     },
+    "6property_arrests_1999-2008.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "7domestic_offenses_1999-2008.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "8child_abuse_1997-2007.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "9elder_abuse_2000-2009.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "ARIFactSheet-SFY26-20260427T20572257.pdf": {
       "score": 63,
       "grade": "D",
@@ -113,6 +305,70 @@
         "table_markup": "90|Minor",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Budget impasse article final PDF for posting-210121T15283297.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No scored issues",
+        "alt_text": "57|Moderate",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "CHRI.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "CIEG_112012.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No scored issues",
+        "alt_text": "83|Minor",
+        "bookmarks": "100|No issues found",
+        "table_markup": "100|No scored issues",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "COVID Death in Custody FINAL-220311T21084557.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No scored issues",
+        "alt_text": "60|Moderate",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "68|Moderate",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -133,6 +389,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "Clinton.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "Community-Based-Corrections-TF.pdf": {
       "score": 100,
       "grade": "A",
@@ -146,6 +418,54 @@
         "color_contrast": "null|none",
         "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Cook-2.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Cook.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Cumberland-2.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
     },
@@ -181,6 +501,54 @@
         "form_accessibility": "null|none"
       }
     },
+    "DeWitt-2.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Douglas-2.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Douglas.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "Draft 2-19-26 ICJIA Violence Prevention Ad Hoc Committee Meeting Notes.pdf": {
       "score": 69,
       "grade": "D",
@@ -213,6 +581,70 @@
         "form_accessibility": "null|none"
       }
     },
+    "Drug Testing Lit Review-200203T22022729.pdf": {
+      "score": 45,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "East Central Illinois Task Force.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Elderabuse2.pdf": {
+      "score": 41,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Elderabuse2_remediated.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "0|Critical",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
     "FINAL REPORT PDF FOR POSTING-230207T16344430.pdf": {
       "score": 69,
       "grade": "D",
@@ -225,6 +657,22 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "FY_21_ICJIA_Annual_Report_e999274dcb.pdf": {
+      "score": 57,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -277,6 +725,38 @@
         "form_accessibility": "null|none"
       }
     },
+    "Female Criminality.pdf": {
+      "score": 0,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "0|Critical",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "FemaleDel_IDOC.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "Full_DJJ_Recidivism_Report_3-7-2019-191011T20092914.pdf": {
       "score": 69,
       "grade": "D",
@@ -326,18 +806,34 @@
       }
     },
     "ILHEALSFallWinter2022FINAL.pdf": {
-      "score": 50,
-      "grade": "F",
+      "score": 89,
+      "grade": "B",
       "categories": {
-        "text_extractability": "50|Moderate",
+        "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "heading_structure": "0|Critical",
-        "alt_text": "0|Critical",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No scored issues",
-        "reading_order": "0|Critical",
+        "link_quality": "94|Minor",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "ILHEALSFallWinter2022FINAL_remediated.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "94|Minor",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -373,6 +869,38 @@
         "form_accessibility": "null|none"
       }
     },
+    "Overview_Methamphetamine_Trends-191011T20091574.pdf": {
+      "score": 39,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "25|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "PDF brief-231021T16005363.pdf": {
+      "score": 43,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "50|Moderate",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
     "Public Notice of Meeting.docx": {
       "score": 79,
       "grade": "C",
@@ -386,6 +914,86 @@
         "list_structure": "null|none",
         "link_quality": "100|No scored issues",
         "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "SFY_24_ICJIA_Annual_Report_FINAL_2538a182e5_1731f93851.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "SFY_25_Drone_Surveillance_Report_FINAL_24dad200dc.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "6|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Seniors.pdf": {
+      "score": 0,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "0|Critical",
+        "title_language": "0|Critical",
+        "heading_structure": "null|none",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Stigma PDF for posting-230627T13295515.pdf": {
+      "score": 53,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "75|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Use of Discretion PDF for POSTING-231128T20591887.pdf": {
+      "score": 60,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "50|Moderate",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "75|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -417,6 +1025,38 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "98|Minor",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Youth and Alcohol-200720T16430485.pdf": {
+      "score": 52,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "85|Minor",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "accessible_ESL CERT Leadership Team Evaluation-251210T19070206.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "95|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -623,6 +1263,320 @@
         "alt_text": "100|No issues found",
         "bookmarks": "100|No issues found",
         "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "not-accessible_Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update-remediated.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "75|Minor",
+        "heading_structure": "0|Critical",
+        "alt_text": "null|none",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "not-accessible_Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update.pdf": {
+      "score": 35,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "not_-accessible_SFY_25_Annual_Report_Final_67436fc6ff_ba00340a2f.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "0|Critical",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/._FY_22_ICJIA_Annual_Report_7c7ba4f4f0-remediated.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._FY_22_ICJIA_Annual_Report_7c7ba4f4f0.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update-remediated.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._ILHEALSFallWinter2022FINAL-remediated.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._ILHEALSFallWinter2022FINAL.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808-remediated.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._PDF brief-231021T16005363-fixed.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._PDF brief-231021T16005363-original.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._WomenInPolicing2021-210525T15080148-remediated.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._WomenInPolicing2021-210525T15080148.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._somewhat-accessible_2025_Death_in_Custody_FINAL_02f1b7de08-remediated-remediated.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/._somewhat-accessible_2025_Death_in_Custody_FINAL_02f1b7de08.pdf": {
+      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
+    },
+    "pdf_test-cases/FY_22_ICJIA_Annual_Report_7c7ba4f4f0-remediated.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "0|Critical",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/FY_22_ICJIA_Annual_Report_7c7ba4f4f0.pdf": {
+      "score": 57,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update-remediated.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "75|Minor",
+        "heading_structure": "0|Critical",
+        "alt_text": "null|none",
+        "bookmarks": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update.pdf": {
+      "score": 35,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "0|Critical",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/ILHEALSFallWinter2022FINAL-remediated.pdf": {
+      "score": 55,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "75|Minor",
+        "heading_structure": "0|Critical",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "0|Critical",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/ILHEALSFallWinter2022FINAL.pdf": {
+      "score": 50,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808-remediated.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "66|Moderate",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "11|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/PDF brief-231021T16005363-fixed.pdf": {
+      "score": 67,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "26|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "0|Critical",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/PDF brief-231021T16005363-original.pdf": {
+      "score": 43,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "50|Moderate",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/WomenInPolicing2021-210525T15080148-remediated.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "98|Minor",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/WomenInPolicing2021-210525T15080148.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No scored issues",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "98|Minor",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/somewhat-accessible_2025_Death_in_Custody_FINAL_02f1b7de08-remediated-remediated.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "pdf_test-cases/somewhat-accessible_2025_Death_in_Custody_FINAL_02f1b7de08.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "100|No issues found",
+        "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",

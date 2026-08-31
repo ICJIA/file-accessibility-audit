@@ -3,6 +3,20 @@
   "blessed": "2026-08-31",
   "pairs": [
     {
+      "practice": "character-mapping",
+      "category": "text_extractability",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects in the same category. The SCORED failures are about WHERE the text is: a structure tree that references no content, and 24,697 characters painted outside the tagged content entirely, so nothing a screen reader follows reaches them (1.3.1). This row is about whether characters can be DECODED to readable text at all \u2014 a broken or absent ToUnicode map, which is a PDF/UA concern and unscored below the small band. A document can have perfectly mapped characters that are entirely untagged (this one), or fully tagged text that extracts as garbage. Neither implies the other. Reviewed 2026-08-31 on Drug Testing Lit Review."
+    },
+    {
+      "practice": "descriptive-link-text",
+      "category": "link_quality",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects in the same category. The SCORED failure is structural \u2014 8 link annotations sit on the page with no <Link> element wrapping them, so a screen reader following the tag tree never reaches them at all (1.3.1). This row is about the WORDING of link text, which is unscored because WCAG 2.4.4 lets the surrounding sentence supply a link's purpose and no text-only check can weigh that. The two are independent: a perfectly tagged link can read \"click here\", and an untagged link can carry excellent text. Fixing one does not fix the other. Reviewed 2026-08-31 on 2025_Death_in_Custody_FINAL."
+    },
+    {
       "practice": "display-doc-title",
       "category": "title_language",
       "sc": "3.1.1",
@@ -28,7 +42,7 @@
       "category": "reading_order",
       "sc": "1.3.1",
       "level": "A",
-      "reviewed": "Same category, adjacent properties — deliberately separated. The scored 1.3.1 failure is a malformed list (missing <LBody>, so list structure is not determinable). This row is only about <Lbl>, the bullet or number marker, which ISO 32000 makes optional and whose absence leaves the list structure intact. Both can be true of one list; the row must not read as absolution for the list as a whole."
+      "reviewed": "Same category, adjacent properties \u2014 deliberately separated. The scored 1.3.1 failure is a malformed list (missing <LBody>, so list structure is not determinable). This row is only about <Lbl>, the bullet or number marker, which ISO 32000 makes optional and whose absence leaves the list structure intact. Both can be true of one list; the row must not read as absolution for the list as a whole."
     },
     {
       "practice": "raw-url-link-text",
@@ -42,14 +56,14 @@
       "category": "reading_order",
       "sc": "1.3.1",
       "level": "A",
-      "reviewed": "Different defects, and different questions. The scored 1.3.1 failure is a confirmed structure defect; this row is a heuristic comparison of tag order against draw order, which fails nothing by itself — a correctly remediated document routinely diverges from paint order on purpose."
+      "reviewed": "Different defects, and different questions. The scored 1.3.1 failure is a confirmed structure defect; this row is a heuristic comparison of tag order against draw order, which fails nothing by itself \u2014 a correctly remediated document routinely diverges from paint order on purpose."
     },
     {
       "practice": "table-scope-simple",
       "category": "table_markup",
       "sc": "1.3.1",
       "level": "A",
-      "reviewed": "Different defects. The scored 1.3.1 failure is a COMPLEX table (headers on more than one edge, or spanned cells) with neither /Scope nor /Headers, which conformance.ts asserts explicitly. This row is about SIMPLE tables — headers along one edge, nothing spanned — where position alone makes the relationship determinable, so PDF/UA asks for /Scope and WCAG does not."
+      "reviewed": "Different defects. The scored 1.3.1 failure is a COMPLEX table (headers on more than one edge, or spanned cells) with neither /Scope nor /Headers, which conformance.ts asserts explicitly. This row is about SIMPLE tables \u2014 headers along one edge, nothing spanned \u2014 where position alone makes the relationship determinable, so PDF/UA asks for /Scope and WCAG does not."
     }
   ]
 }
