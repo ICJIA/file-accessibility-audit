@@ -807,7 +807,11 @@ export const PDF_PRACTICES: BestPractice[] = [
               ? `${count} font${count === 1 ? "" : "s"} that ${count === 1 ? "displays" : "display"} visible text in this document ${count === 1 ? "is" : "are"} not embedded.`
               : "Some fonts that display visible text in this document are not embedded.",
           ],
-          block: blockFrom(ctx, "Font Embedding", "Fonts used in this document"),
+          block: blockFrom(
+            ctx,
+            "Font Embedding",
+            "Every font in this document, and whether it is embedded",
+          ),
           fix: {
             source:
               "In the source application (Word, InDesign), enable font embedding before exporting to PDF.",
@@ -819,6 +823,18 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: ["Every font used to display text in this document is embedded."],
+          // The per-font list on the MET paths too (user request 2026-08-31,
+          // for a communications team): "all embedded" answers the compliance
+          // question, but the people who choose the typefaces need to see
+          // WHICH ones the file actually carries. The analyzer already prints
+          // the census (scoring/pdf.ts, "--- Font Embedding ---"), one line
+          // per font with its status; it was only ever surfaced on the
+          // failing path.
+          block: blockFrom(
+            ctx,
+            "Font Embedding",
+            "Every font in this document, and whether it is embedded",
+          ),
         };
       }
       // A second, narrower positive line: some fonts are not embedded, but
@@ -835,6 +851,11 @@ export const PDF_PRACTICES: BestPractice[] = [
             "Every font that actually puts text on the page is embedded.",
             "A few font entries are not embedded, but they never display visible text — usually leftover spacing from the program the document came from — so they cannot change how it looks or reads.",
           ],
+          block: blockFrom(
+            ctx,
+            "Font Embedding",
+            "Every font in this document, and whether it is embedded",
+          ),
         };
       }
       return notChecked("This report contains no finding about this document's font embedding.");
