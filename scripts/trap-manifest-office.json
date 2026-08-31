@@ -1,5 +1,5 @@
 {
-  "count": 27,
+  "count": 31,
   "generated": "2026-08-31",
   "items": [
     {
@@ -91,6 +91,26 @@
     {
       "file": "synthetic-130-docx-picture-headings-not-blank.docx",
       "label": "Word: headings made of a letterhead picture and a symbol — not blank lines",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-138-docx-low-contrast.docx",
+      "label": "Word: body text in yellow on a white page",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-139-docx-contrast-good-twin.docx",
+      "label": "Word: the same notice in near-black on white",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-140-docx-typed-bullets.docx",
+      "label": "Word: a list typed with bullet characters instead of list formatting",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-141-docx-real-list-twin.docx",
+      "label": "Word: the same list built with Word's numbering",
       "chip": "held"
     },
     {

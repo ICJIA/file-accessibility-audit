@@ -103,6 +103,18 @@ function docx(
   });
 }
 
+/** A run carrying an EXPLICIT color, which is what the contrast walk needs:
+ *  style-inherited colors resolve to "unresolved" and are reported as
+ *  un-evaluated rather than as failures. Background falls back to white. */
+const COLORED_P = (text: string, hex: string) =>
+  `<w:p><w:r><w:rPr><w:color w:val="${hex}"/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+/** A paragraph that TYPES its bullet character instead of using Word's list
+ *  formatting — no w:numPr, so nothing announces it as a list. */
+const TYPED_BULLET_P = (text: string) => `<w:p><w:r><w:t>\u2022 ${text}</w:t></w:r></w:p>`;
+/** A real list item: direct numbering properties, the form agency documents
+ *  most often carry. */
+const REAL_LIST_P = (text: string) =>
+  `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
 const P = (text: string) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`;
 const HEADING = (level: number, text: string) =>
   `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
@@ -660,6 +672,117 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-138-docx-low-contrast.docx",
+    truth:
+      "Ten explicitly coloured runs, nine of them near-black and ONE in yellow (#FFFF00) on Word's default white page — about 1.07:1 against a WCAG minimum of 4.5:1. The proportional score would be 90, so the category's 85 cap is what decides the number: a single unreadable line may never leave the category in the A band. Both halves must hold — exactly 85, and WCAG 1.4.3 Contrast (Minimum), Level AA named in the verdict. Remove the cap and this trap fails, which is the whole point: a fixture that already scores below 85 proves nothing about it. The colours are EXPLICIT, so this is a resolved measurement, not the 'could not be evaluated' branch.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Program Notice"),
+          ...Array.from({ length: 9 }, (_, i) =>
+            COLORED_P(`Readable paragraph number ${i + 1} of the notice.`, "1A1A1A"),
+          ),
+          COLORED_P("Applications are due by the fifteenth of March.", "FFFF00"),
+        ].join(""),
+        { title: "Program Notice", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null)
+        return "color_contrast was not assessed — the explicit run colors should have resolved";
+      // EXACTLY 85: nine of ten runs pass, so the proportional score is 90 and
+      // only the cap can bring it here. `<= 85` would pass with the cap gone.
+      if (c.score !== 85)
+        return `one unreadable run in ten scored ${c.score}; the proportional 90 must be capped to 85`;
+      if (!/Lowest contrast/i.test(allFindings(r))) return "the measured ratio is not reported";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.4.3" && String(f.category ?? "") === "color_contrast",
+      );
+      return failing
+        ? null
+        : "contrast points lost with no 1.4.3 failure attributed to the category";
+    },
+  },
+  {
+    file: "synthetic-139-docx-contrast-good-twin.docx",
+    truth:
+      "The same notice in near-black (#1A1A1A) on white — about 16:1. color_contrast must score a clean 100, no 1.4.3 may be asserted, and it must never score below its flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Program Notice"),
+          COLORED_P("Applications are due by the fifteenth of March.", "1A1A1A"),
+          COLORED_P("Late applications cannot be accepted.", "1A1A1A"),
+        ].join(""),
+        { title: "Program Notice", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null) return "color_contrast was not assessed";
+      if (c.score !== 100) return `near-black on white scored ${c.score}, not 100`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.sc ?? "") === "1.4.3");
+      return failing ? "1.4.3 asserted against 16:1 text" : null;
+    },
+  },
+  {
+    file: "synthetic-140-docx-typed-bullets.docx",
+    truth:
+      "A ten-item list, nine built with Word's numbering and ONE typed by hand as an ordinary paragraph beginning with a bullet character. The proportional score would be 90, so the category's 85 cap is what decides the number: even a single hand-typed item leaves the list boundaries and item count unannounced, and may not leave the category in the A band. Both halves must hold — exactly 85, and WCAG 1.3.1 (Level A) named in the verdict. Remove the cap and this trap fails, which is the point: a fixture that already scores below 85 proves nothing about it.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Eligibility"),
+          ...Array.from({ length: 9 }, (_, i) => REAL_LIST_P(`Requirement number ${i + 1}`)),
+          TYPED_BULLET_P("A completed application form"),
+        ].join(""),
+        { title: "Eligibility", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      // EXACTLY 85: nine of ten items are real, so the proportional score is 90
+      // and only the cap can bring it here.
+      if (c.score !== 85)
+        return `one typed bullet in ten scored ${c.score}; the proportional 90 must be capped to 85`;
+      if (!/typed bullets or numbers/i.test(allFindings(r)))
+        return "the typed bullets are not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "list_structure",
+      );
+      return failing ? null : "list points lost with no 1.3.1 failure attributed to list_structure";
+    },
+  },
+  {
+    file: "synthetic-141-docx-real-list-twin.docx",
+    truth:
+      "The same list built with Word's numbering properties on every item. list_structure must score a clean 100, no 1.3.1 may be asserted against it, and it must never score below its flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Eligibility"),
+          REAL_LIST_P("Illinois residency"),
+          REAL_LIST_P("Proof of income"),
+          REAL_LIST_P("A current photo ID"),
+          REAL_LIST_P("A completed application form"),
+        ].join(""),
+        { title: "Eligibility", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      if (c.score !== 100) return `a list built with real numbering scored ${c.score}, not 100`;
+      return /typed bullets or numbers/i.test(allFindings(r))
+        ? "a real list was reported as typed bullets"
+        : null;
+    },
+  },
+  {
     file: "synthetic-136-xlsx-headerless-table.xlsx",
     truth:
       'A workbook with one defined Table (Insert -> Table) created with Excel\'s "my table has no headers" box left ticked: headerRowCount="0". The range is a real table with named columns of data, but no row is marked as its header, so nothing tells assistive technology which cells label the columns beneath them. table_markup loses 30 points per headerless table — exactly 70 — and the verdict must name WCAG 1.3.1 (Level A). Trap 127 has no defined table at all, so nothing in either battery exercised this deduction until now.',
@@ -936,6 +1059,16 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "table_markup",
   },
   {
+    bad: "synthetic-138-docx-low-contrast.docx",
+    good: "synthetic-139-docx-contrast-good-twin.docx",
+    category: "color_contrast",
+  },
+  {
+    bad: "synthetic-140-docx-typed-bullets.docx",
+    good: "synthetic-141-docx-real-list-twin.docx",
+    category: "list_structure",
+  },
+  {
     bad: "synthetic-101-docx-bold-fake-headings.docx",
     good: "synthetic-102-docx-styles-good-twin.docx",
     category: "heading_structure",
@@ -976,6 +1109,22 @@ type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
   "synthetic-130-docx-picture-headings-not-blank.docx": {
     label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
+    chip: "held",
+  },
+  "synthetic-138-docx-low-contrast.docx": {
+    label: "Word: body text in yellow on a white page",
+    chip: "caught",
+  },
+  "synthetic-139-docx-contrast-good-twin.docx": {
+    label: "Word: the same notice in near-black on white",
+    chip: "held",
+  },
+  "synthetic-140-docx-typed-bullets.docx": {
+    label: "Word: a list typed with bullet characters instead of list formatting",
+    chip: "caught",
+  },
+  "synthetic-141-docx-real-list-twin.docx": {
+    label: "Word: the same list built with Word's numbering",
     chip: "held",
   },
   "synthetic-136-xlsx-headerless-table.xlsx": {
