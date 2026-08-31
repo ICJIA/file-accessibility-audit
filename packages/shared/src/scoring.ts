@@ -225,7 +225,14 @@ export const WCAG_CATEGORY_MAP: Record<
   alt_text: [{ sc: "1.1.1", name: "Non-text Content", level: "A" }],
   bookmarks: [{ sc: "2.4.5", name: "Multiple Ways", level: "AA" }],
   table_markup: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
-  link_quality: [{ sc: "2.4.4", name: "Link Purpose (In Context)", level: "A" }],
+  // 4.1.2 added 2026-08-31: a link with NO text has no accessible name, which
+  // is the one link-text defect this tool scores. 2.4.4 stays because the
+  // category still REPORTS weak-but-present text (never scored — context can
+  // supply a link's purpose, and judging text alone is 2.4.9, Level AAA).
+  link_quality: [
+    { sc: "2.4.4", name: "Link Purpose (In Context)", level: "A" },
+    { sc: "4.1.2", name: "Name, Role, Value", level: "A" },
+  ],
   reading_order: [{ sc: "1.3.2", name: "Meaningful Sequence", level: "A" }],
   form_accessibility: [
     { sc: "1.3.1", name: "Info and Relationships", level: "A" },

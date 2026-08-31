@@ -1,5 +1,5 @@
 {
-  "count": 31,
+  "count": 34,
   "generated": "2026-08-31",
   "items": [
     {
@@ -91,6 +91,21 @@
     {
       "file": "synthetic-130-docx-picture-headings-not-blank.docx",
       "label": "Word: headings made of a letterhead picture and a symbol — not blank lines",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-142-docx-vague-link-text.docx",
+      "label": "Word: links reading “click here” and “read more”",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-143-docx-unnamed-link.docx",
+      "label": "Word: a link with no link text at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-144-docx-descriptive-links-twin.docx",
+      "label": "Word: the same page with both links described",
       "chip": "held"
     },
     {

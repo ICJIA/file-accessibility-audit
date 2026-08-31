@@ -373,20 +373,39 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
       false,
     );
   }
-  // Shared 2.4.4 doctrine (scoring/common.ts, calibrated in the PDF path):
-  // raw URLs SATISFY 2.4.4 and are advisory-only; empty/vague/too-short text
-  // is the actual violation. The old raw-URL penalty (plus an 85-point cap)
-  // scored an all-URL reference memo 0 as DOCX while its PDF twin scored 100.
-  const needsFix = a.links.filter((l) => classifyLinkText(l.text) === "needsFix");
+  // THE PDF PATH'S DOCTRINE, APPLIED AT LAST (2026-08-31). The 2026-08-29
+  // legal-only sweep stopped the PDF scorer penalising weak link TEXT — 2.4.4
+  // is satisfied by the text together with its context, which no text-only
+  // check can weigh — but the three Office scorers were not swept, under a
+  // comment in scoring/common.ts claiming they applied "the identical
+  // doctrine". They did not: a Word document with two "click here" links
+  // scored link_quality 0, Critical, capping the whole file at D, with the
+  // verdict naming NO criterion at all — against a public promise that every
+  // finding names the WCAG rule behind it. Neither corpus gate could see it:
+  // legal-basis needs a control document with weak link text (none had one)
+  // and best-practice-basis needs a failing criterion (there was none).
+  //
+  // Only an UNNAMED link is scored now: no text at all is a link with no
+  // accessible name, which WCAG 4.1.2 (Level A) forbids outright, with no
+  // context to weigh. Vague text is reported and never counted.
+  const unnamed = a.links.filter((l) => classifyLinkText(l.text) === "unnamed");
+  const vague = a.links.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
-  const score = Math.round(((a.links.length - needsFix.length) / a.links.length) * 100);
-  const findings = [`${a.links.length} link(s) found; ${needsFix.length} with unclear text.`];
-  if (needsFix.length > 0) {
+  const score = Math.round(((a.links.length - unnamed.length) / a.links.length) * 100);
+  const findings = [`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`];
+  if (unnamed.length > 0) {
     findings.push(
-      `Vague or empty link text: ${needsFix
+      `${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In Word: select the link → Insert → Link, and type a descriptive phrase in "Text to display".`,
+    );
+  }
+  if (vague.length > 0) {
+    findings.push(
+      `Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
         .slice(0, 5)
-        .map((l) => (l.text.trim() ? `"${l.text}"` : "(empty)"))
-        .join(", ")}. Use descriptive link text that makes sense on its own.`,
+        .map((l) => `"${l.text.trim()}"`)
+        .join(
+          ", ",
+        )}). WCAG 2.4.4 lets the surrounding sentence supply a link's purpose, which an automated check cannot weigh, so this never affects your grade — but a descriptive phrase reads better in a screen reader's list of links.`,
     );
   }
   if (rawUrls.length > 0) {

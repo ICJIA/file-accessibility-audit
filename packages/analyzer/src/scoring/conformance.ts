@@ -23,6 +23,7 @@
  *
  * The gate never says "conformant". By design — only a human review can.
  */
+import { classifyLinkText } from "./common.js";
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { DocxAnalysis } from "../docxService.js";
@@ -393,6 +394,26 @@ export function evaluateConformance(
       "link_quality",
       `${untaggedLinks} link(s) are not tagged — the link annotation is on the page, but no <Link> structure element wraps it, so assistive technology following the tag tree cannot identify it as a link or reach it. Wrap each one in a <Link> tag (Acrobat: Tags panel → Options → Find → Unmarked Links → Tag Element) or, in Word, move the link out of the text box or shape into the main text before re-exporting.`,
     );
+  }
+
+  // Same 4.1.2 rule the three Office gates carry: a link with NO text has no
+  // accessible name, and 4.1.2 (Level A) names links among the components that
+  // must have one. Distinct from the untagged-link rule above (that one is
+  // about the tag tree, this one about the name) and from vague text, which
+  // stays unscored because 2.4.4 lets context supply the purpose.
+  {
+    const unnamedLinks = (pdfjs.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the source document before re-exporting, or edit it in Acrobat.`,
+      );
+    }
   }
 
   // --- Rules 7c–7f + 5b, 6b, 9b (2026-08-29, the legal-only sweep) --------
@@ -993,6 +1014,29 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
+  // A link with NO TEXT AT ALL has no accessible name. WCAG 4.1.2 Name, Role,
+  // Value (Level A) names links explicitly among the user interface components
+  // whose "name and role can be programmatically determined", and unlike 2.4.4
+  // it offers no context escape hatch — a name is present or it is not. This
+  // is the ONE link-text defect an automated check can assert, which is why
+  // the scorers penalise it and report weak-but-present text instead.
+  // Added 2026-08-31: the scorers had been deducting for the whole class,
+  // including vague text, while this gate named no criterion for any of it.
+  {
+    const unnamedLinks = (analysis.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the "Text to display" field.`,
+      );
+    }
+  }
+
   // --- criteria not assessed automatically ----------------------------------
   const floatingCount = analysis.floatingObjectCount ?? 0;
   const notAssessed: NotAssessedCriterion[] = [
@@ -1115,6 +1159,29 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       "color_contrast",
       `${analysis.contrast.failing.length} text run(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or background color in PowerPoint.`,
     );
+  }
+
+  // A link with NO TEXT AT ALL has no accessible name. WCAG 4.1.2 Name, Role,
+  // Value (Level A) names links explicitly among the user interface components
+  // whose "name and role can be programmatically determined", and unlike 2.4.4
+  // it offers no context escape hatch — a name is present or it is not. This
+  // is the ONE link-text defect an automated check can assert, which is why
+  // the scorers penalise it and report weak-but-present text instead.
+  // Added 2026-08-31: the scorers had been deducting for the whole class,
+  // including vague text, while this gate named no criterion for any of it.
+  {
+    const unnamedLinks = (analysis.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the "Text to display" field.`,
+      );
+    }
   }
 
   // --- criteria not assessed automatically ----------------------------------
@@ -1241,6 +1308,29 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       "color_contrast",
       `${analysis.contrast.failing.length} cell style(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or fill color in Excel.`,
     );
+  }
+
+  // A link with NO TEXT AT ALL has no accessible name. WCAG 4.1.2 Name, Role,
+  // Value (Level A) names links explicitly among the user interface components
+  // whose "name and role can be programmatically determined", and unlike 2.4.4
+  // it offers no context escape hatch — a name is present or it is not. This
+  // is the ONE link-text defect an automated check can assert, which is why
+  // the scorers penalise it and report weak-but-present text instead.
+  // Added 2026-08-31: the scorers had been deducting for the whole class,
+  // including vague text, while this gate named no criterion for any of it.
+  {
+    const unnamedLinks = (analysis.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the "Text to display" field.`,
+      );
+    }
   }
 
   // --- criteria not assessed automatically ----------------------------------

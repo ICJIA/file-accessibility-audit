@@ -135,7 +135,13 @@ describe("scorePptx", () => {
     expect(text).toMatch(/not the first shape in reading order/);
   });
 
-  it("link_quality: raw URLs advisory-only, vague phrases penalized (PDF-parity doctrine)", () => {
+  it("link_quality: raw URLs AND vague phrases are advisory-only (PDF-parity doctrine)", () => {
+    // REPORTED, NOT SCORED (2026-08-31). The 2026-08-29 legal-only sweep set
+    // this rule in the PDF path and never reached the Office scorers: WCAG
+    // 2.4.4 (Level A) lets the sentence AROUND a link supply its purpose,
+    // which a text-only check cannot weigh, and judging the text alone is
+    // 2.4.9 — Level AAA, outside the legal minimum. A link with NO text is a
+    // different matter and is still scored (4.1.2); see the sibling test.
     const r = scorePptx(
       baseAnalysis({
         links: [
@@ -146,9 +152,22 @@ describe("scorePptx", () => {
       }),
     );
     const cat = r.categories.find((c) => c.id === "link_quality")!;
-    // raw URL satisfies 2.4.4 (advisory); "click here" is the real violation.
-    expect(cat.score).toBe(67);
+    expect(cat.score).toBe(100);
     expect(cat.findings.join(" ")).toContain("not scored against you");
+  });
+
+  it("link_quality: a link with NO text is scored", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        links: [
+          { text: "", url: "https://example.gov/y" },
+          { text: "Program overview", url: "https://example.gov/z" },
+        ],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "link_quality")!;
+    expect(cat.score).toBe(50);
+    expect(cat.findings.join(" ")).toContain("have no link text");
   });
 
   it("alt_text caps at 85 with any missing alt and is N/A when all images are decorative", () => {

@@ -73,7 +73,15 @@ const HEADING_STYLES_XML = `${XMLDECL}
 
 function docx(
   bodyXml: string,
-  opts: { title?: string | null; styles?: boolean; language?: string | null } = {},
+  opts: {
+    title?: string | null;
+    styles?: boolean;
+    language?: string | null;
+    /** Emits word/_rels/document.xml.rels so LINK()'s r:id values resolve to
+     *  real destinations — docxService reads link TEXT either way, but these
+     *  controls are also meant to open correctly in Word. */
+    hyperlinks?: Array<{ id: string; target: string }>;
+  } = {},
 ): Promise<Buffer> {
   return zip({
     "[Content_Types].xml": `${XMLDECL}
@@ -96,6 +104,14 @@ function docx(
       opts.title === undefined ? "Synthetic Office Control" : opts.title,
       opts.language === undefined ? "en-US" : opts.language,
     ),
+    ...(opts.hyperlinks && opts.hyperlinks.length > 0
+      ? {
+          "word/_rels/document.xml.rels": `${XMLDECL}
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${opts.hyperlinks.map((h) => `<Relationship Id="${h.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${h.target}" TargetMode="External"/>`).join("\n")}
+</Relationships>`,
+        }
+      : {}),
     "word/document.xml": `${XMLDECL}
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <w:body>${bodyXml}</w:body>
@@ -115,6 +131,11 @@ const TYPED_BULLET_P = (text: string) => `<w:p><w:r><w:t>\u2022 ${text}</w:t></w
  *  most often carry. */
 const REAL_LIST_P = (text: string) =>
   `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
+/** A hyperlink run. `text: ""` produces a link with NO accessible name — the
+ *  one link-text defect that is scored (WCAG 4.1.2); any other text is
+ *  reported at most. */
+const LINK = (id: string, text: string) =>
+  `<w:p><w:r><w:t>See </w:t></w:r><w:hyperlink r:id="${id}"><w:r><w:t>${text}</w:t></w:r></w:hyperlink><w:r><w:t> for details.</w:t></w:r></w:p>`;
 const P = (text: string) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`;
 const HEADING = (level: number, text: string) =>
   `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
@@ -672,6 +693,104 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-142-docx-vague-link-text.docx",
+    truth:
+      'Two links reading "click here" and "read more". THIS MUST NOT MOVE THE SCORE. WCAG 2.4.4 Link Purpose (Level A) is satisfied by the link text together with its programmatically determined context — the sentence around it — which no text-only check can weigh; judging the text alone is 2.4.9, Level AAA, outside the legal minimum. The PDF scorer adopted that rule in the 2026-08-29 legal-only sweep and the three Office scorers did not, so until 2026-08-31 this exact document scored link_quality 0, severity Critical, capping the whole file at D, with the verdict naming NO criterion at all — against the promise that every finding names the WCAG rule behind it. Neither corpus gate could see it: legal-basis needs a control document with weak link text (there was none, until this one) and best-practice-basis needs a failing criterion (there was none). link_quality must score 100, the advisory must still name the links, and no criterion may be asserted.',
+    build: () =>
+      docx(
+        [HEADING(1, "How to Apply"), LINK("rH1", "click here"), LINK("rH2", "read more")].join(""),
+        {
+          title: "How to Apply",
+          styles: true,
+          hyperlinks: [
+            { id: "rH1", target: "https://example.illinois.gov/apply" },
+            { id: "rH2", target: "https://example.illinois.gov/eligibility" },
+          ],
+        },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unscored";
+      if (c.score !== 100)
+        return `weak link TEXT took ${100 - c.score} points; 2.4.4 lets context supply a link's purpose, so it may only be reported`;
+      const f = allFindings(r);
+      if (!/Advisory — not scored against you: 2 link\(s\) use non-descriptive text/.test(f))
+        return "the weak link text is not reported at all — unscored must never mean unmentioned";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.filter((x) => String(x.category ?? "") === "link_quality");
+      return failing && failing.length > 0
+        ? `asserted ${failing.map((x) => x.sc).join(", ")} against link text a machine cannot judge`
+        : null;
+    },
+  },
+  {
+    file: "synthetic-143-docx-unnamed-link.docx",
+    truth:
+      "One link with NO link text at all beside one descriptive link. This IS scored: a link is a user interface component, and WCAG 4.1.2 Name, Role, Value (Level A) requires every one of them to carry a programmatically determinable name — with no text there is no name, and no surrounding sentence can supply one, which is what separates this from the vague-text case in trap 142. link_quality must lose points (one of two links, so 50) and the verdict must name 4.1.2.",
+    build: () =>
+      docx(
+        [HEADING(1, "How to Apply"), LINK("rH1", ""), LINK("rH2", "the eligibility rules")].join(
+          "",
+        ),
+        {
+          title: "How to Apply",
+          styles: true,
+          hyperlinks: [
+            { id: "rH1", target: "https://example.illinois.gov/apply" },
+            { id: "rH2", target: "https://example.illinois.gov/eligibility" },
+          ],
+        },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unscored";
+      if (c.score !== 50)
+        return `one unnamed link of two scored ${c.score}, not 50 — a link with no name is the one text defect that IS confirmable`;
+      if (!/have no link text/i.test(allFindings(r))) return "the unnamed link is not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (x) => String(x.sc ?? "") === "4.1.2" && String(x.category ?? "") === "link_quality",
+      );
+      return failing ? null : "points lost with no 4.1.2 failure attributed to link_quality";
+    },
+  },
+  {
+    file: "synthetic-144-docx-descriptive-links-twin.docx",
+    truth:
+      "The same page with both links given descriptive text. link_quality must score a clean 100, no criterion may be asserted, and it must never score below either flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "How to Apply"),
+          LINK("rH1", "the application form"),
+          LINK("rH2", "the eligibility rules"),
+        ].join(""),
+        {
+          title: "How to Apply",
+          styles: true,
+          hyperlinks: [
+            { id: "rH1", target: "https://example.illinois.gov/apply" },
+            { id: "rH2", target: "https://example.illinois.gov/eligibility" },
+          ],
+        },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unscored";
+      if (c.score !== 100) return `two descriptive links scored ${c.score}, not 100`;
+      const f = allFindings(r);
+      // Match the PROBLEM lines, not the census line, which always reads
+      // "N link(s) found; 0 with no link text at all".
+      if (/link\(s\) have no link text/i.test(f))
+        return "a described link was reported as having no link text";
+      return /Advisory — not scored against you: \d+ link\(s\) use non-descriptive/.test(f)
+        ? "descriptive links were reported as non-descriptive"
+        : null;
+    },
+  },
+  {
     file: "synthetic-138-docx-low-contrast.docx",
     truth:
       "Ten explicitly coloured runs, nine of them near-black and ONE in yellow (#FFFF00) on Word's default white page — about 1.07:1 against a WCAG minimum of 4.5:1. The proportional score would be 90, so the category's 85 cap is what decides the number: a single unreadable line may never leave the category in the A band. Both halves must hold — exactly 85, and WCAG 1.4.3 Contrast (Minimum), Level AA named in the verdict. Remove the cap and this trap fails, which is the whole point: a fixture that already scores below 85 proves nothing about it. The colours are EXPLICIT, so this is a resolved measurement, not the 'could not be evaluated' branch.",
@@ -1069,6 +1188,11 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "list_structure",
   },
   {
+    bad: "synthetic-143-docx-unnamed-link.docx",
+    good: "synthetic-144-docx-descriptive-links-twin.docx",
+    category: "link_quality",
+  },
+  {
     bad: "synthetic-101-docx-bold-fake-headings.docx",
     good: "synthetic-102-docx-styles-good-twin.docx",
     category: "heading_structure",
@@ -1109,6 +1233,18 @@ type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
   "synthetic-130-docx-picture-headings-not-blank.docx": {
     label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
+    chip: "held",
+  },
+  "synthetic-142-docx-vague-link-text.docx": {
+    label: "Word: links reading \u201cclick here\u201d and \u201cread more\u201d",
+    chip: "held",
+  },
+  "synthetic-143-docx-unnamed-link.docx": {
+    label: "Word: a link with no link text at all",
+    chip: "caught",
+  },
+  "synthetic-144-docx-descriptive-links-twin.docx": {
+    label: "Word: the same page with both links described",
     chip: "held",
   },
   "synthetic-138-docx-low-contrast.docx": {

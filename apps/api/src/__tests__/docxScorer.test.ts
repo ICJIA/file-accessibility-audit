@@ -160,7 +160,13 @@ describe("scoreDocx", () => {
     expect(cat.findings.join(" ")).toContain("not scored against you");
   });
 
-  it("link_quality: vague and empty link text is penalized", () => {
+  it("link_quality: vague link text is REPORTED, never scored", () => {
+    // REPORTED, NOT SCORED (2026-08-31). The 2026-08-29 legal-only sweep set
+    // this rule in the PDF path and never reached the Office scorers: WCAG
+    // 2.4.4 (Level A) lets the sentence AROUND a link supply its purpose,
+    // which a text-only check cannot weigh, and judging the text alone is
+    // 2.4.9 — Level AAA, outside the legal minimum. A link with NO text is a
+    // different matter and is still scored (4.1.2); see the sibling test.
     const r = scoreDocx(
       analysis({
         links: [
@@ -170,7 +176,28 @@ describe("scoreDocx", () => {
       }),
     );
     const cat = r.categories.find((c) => c.id === "link_quality")!;
+    expect(cat.score).toBe(100);
+    // Unscored must never mean unmentioned.
+    expect(cat.findings.join(" ")).toContain("not scored against you");
+    expect(cat.findings.join(" ")).toContain('"click here"');
+  });
+
+  it("link_quality: a link with NO text is scored, and names WCAG 4.1.2", () => {
+    // The one link-text defect an automated check can assert: 4.1.2 Name,
+    // Role, Value (Level A) names links among the components that must carry
+    // a programmatically determinable name, and no context can supply a name
+    // that is absent.
+    const r = scoreDocx(
+      analysis({
+        links: [
+          { text: "", url: "https://example.gov/a" },
+          { text: "Annual Report 2024", url: "https://example.gov/b" },
+        ],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "link_quality")!;
     expect(cat.score).toBe(50);
+    expect(cat.findings.join(" ")).toContain("have no link text");
   });
 
   it("fails an inaccessible document and grades it F", () => {

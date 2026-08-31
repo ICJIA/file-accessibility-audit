@@ -1573,6 +1573,54 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-142-docx-vague-link-text.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-143-docx-unnamed-link.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "50|Moderate",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-144-docx-descriptive-links-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-15-canva-empty-pairs.pdf": {
       "score": 79,
       "grade": "C",
