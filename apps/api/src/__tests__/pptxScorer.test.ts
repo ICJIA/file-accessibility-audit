@@ -115,15 +115,24 @@ describe("scorePptx", () => {
     expect(r.categories.find((c) => c.id === "reading_order")!.score).toBeNull();
   });
 
-  it("reading_order deducts for title-not-first and advises on shape-heavy slides", () => {
+  it("reading_order REPORTS title-not-first without scoring it, and advises on shape-heavy slides", () => {
+    // Un-scored 2026-08-31, completing the 2026-08-29 legal-only sweep. The
+    // PPTX conformance gate has always ruled the title-first heuristic is not
+    // a confirmed WCAG violation — the same sentence that un-scored the
+    // missing-title rule — so the score must follow the gate. Caught by
+    // legal-basis once trap 134 finally exercised the rule.
     const r = scorePptx(
       baseAnalysis({
         slides: [{ index: 1, title: "T", titleIsFirstShape: false, shapeCount: 12 }],
       }),
     );
     const cat = r.categories.find((c) => c.id === "reading_order")!;
-    expect(cat.score).toBe(85);
-    expect(cat.findings.join(" ")).toMatch(/12 shapes/);
+    expect(cat.score).toBe(100);
+    const text = cat.findings.join(" ");
+    expect(text).toMatch(/12 shapes/);
+    // Un-scored is not unreported: the slide is still named, with the prefix.
+    expect(text).toMatch(/Advisory — not scored: slide 1\b/);
+    expect(text).toMatch(/not the first shape in reading order/);
   });
 
   it("link_quality: raw URLs advisory-only, vague phrases penalized (PDF-parity doctrine)", () => {

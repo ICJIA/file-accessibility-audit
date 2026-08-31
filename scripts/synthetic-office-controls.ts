@@ -47,9 +47,14 @@ async function zip(files: Record<string, string | Buffer>): Promise<Buffer> {
   return z.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
-function corePropsXml(title: string | null): string {
+function corePropsXml(title: string | null, language: string | null = "en-US"): string {
+  // `language: null` omits <dc:language> entirely — a READABLE core.xml that
+  // simply declares no language, which is the case WCAG 3.1.1 is about. It
+  // must not be confused with an unparseable part: conformance.ts suppresses
+  // the 3.1.1 claim when the part could not be read, precisely so "said
+  // nothing" and "could not be read" never produce the same accusation.
   return `${XMLDECL}
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">${title === null ? "" : `<dc:title>${title}</dc:title>`}<dc:language>en-US</dc:language></cp:coreProperties>`;
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">${title === null ? "" : `<dc:title>${title}</dc:title>`}${language === null ? "" : `<dc:language>${language}</dc:language>`}</cp:coreProperties>`;
 }
 
 // Word resolves a heading's LEVEL from styles.xml, never from the styleId
@@ -68,7 +73,7 @@ const HEADING_STYLES_XML = `${XMLDECL}
 
 function docx(
   bodyXml: string,
-  opts: { title?: string | null; styles?: boolean } = {},
+  opts: { title?: string | null; styles?: boolean; language?: string | null } = {},
 ): Promise<Buffer> {
   return zip({
     "[Content_Types].xml": `${XMLDECL}
@@ -89,6 +94,7 @@ function docx(
 </Relationships>`,
     "docProps/core.xml": corePropsXml(
       opts.title === undefined ? "Synthetic Office Control" : opts.title,
+      opts.language === undefined ? "en-US" : opts.language,
     ),
     "word/document.xml": `${XMLDECL}
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -194,8 +200,18 @@ const SLIDE_BODY = (text: string) =>
 const SLIDE_PIC = (id: number, descr?: string) =>
   `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/><p:nvPr/></p:nvPicPr></p:pic>`;
 
+/** A defined Table (Insert -> Table in Excel), the thing xlsxService counts.
+ *  `headerRowCount: 0` is Excel's "my table has no headers": the range is a
+ *  table, but no row is marked as its header, so nothing tells assistive
+ *  technology which cells label the columns. */
+interface XlsxTable {
+  name: string;
+  ref: string;
+  headerRowCount: 0 | 1;
+}
+
 function xlsx(
-  sheets: { name: string; rows: string[][] }[],
+  sheets: { name: string; rows: string[][]; table?: XlsxTable }[],
   opts: { title?: string | null } = {},
 ): Promise<Buffer> {
   const files: Record<string, string> = {
@@ -205,6 +221,14 @@ function xlsx(
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
 ${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("\n")}
+${sheets
+  .map((sh, i) =>
+    sh.table
+      ? `<Override PartName="/xl/tables/table${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>`
+      : "",
+  )
+  .filter(Boolean)
+  .join("\n")}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
     "_rels/.rels": `${XMLDECL}
@@ -231,8 +255,19 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
           `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${String.fromCharCode(65 + ci)}${ri + 1}" t="inlineStr"><is><t>${v}</t></is></c>`).join("")}</row>`,
       )
       .join("");
+    // xlsxService finds tables by walking the SHEET's rels for a /table
+    // relationship, so the rels part is what makes the table real; <tableParts>
+    // is emitted too because that is what Excel writes.
     files[`xl/worksheets/sheet${i + 1}.xml`] = `${XMLDECL}
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`;
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
+    if (s.table) {
+      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = `${XMLDECL}
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>
+</Relationships>`;
+      files[`xl/tables/table${i + 1}.xml`] = `${XMLDECL}
+<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${i + 1}" name="${s.table.name}" displayName="${s.table.name}" ref="${s.table.ref}" headerRowCount="${s.table.headerRowCount}"/>`;
+    }
   });
   return zip(files);
 }
@@ -613,7 +648,168 @@ const SAMPLES: Sample[] = [
       // The scorer and the verdict must agree the category was assessed.
       if (c && c.score !== null && c.score < 100)
         return `lost points for headings that carry content (${c.score})`;
+      // Not merely unaccused: the picture heading must be USED. Its alt text
+      // becomes the heading's text, so the outline starts at level 1 with the
+      // masthead's description — proving the heading was counted as a heading
+      // rather than quietly dropped, which would make the outline read as
+      // starting one level down.
+      const f = allFindings(r);
+      if (!/County Health Department bulletin masthead/.test(f))
+        return "the described picture heading is missing from the outline — its alt text never became the heading's text";
       return null;
+    },
+  },
+  {
+    file: "synthetic-136-xlsx-headerless-table.xlsx",
+    truth:
+      'A workbook with one defined Table (Insert -> Table) created with Excel\'s "my table has no headers" box left ticked: headerRowCount="0". The range is a real table with named columns of data, but no row is marked as its header, so nothing tells assistive technology which cells label the columns beneath them. table_markup loses 30 points per headerless table — exactly 70 — and the verdict must name WCAG 1.3.1 (Level A). Trap 127 has no defined table at all, so nothing in either battery exercised this deduction until now.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "Enrollment",
+            rows: [
+              ["Program", "Participants"],
+              ["Job Training", "412"],
+              ["Housing Support", "268"],
+            ],
+            table: { name: "EnrollmentTable", ref: "A1:B3", headerRowCount: 0 },
+          },
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 70)
+        return `a single headerless defined table scored ${c.score}, not the 100 - 30 the rule defines`;
+      if (!/no header row/i.test(allFindings(r))) return "the headerless table is not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "table_markup",
+      );
+      return failing ? null : "30 points lost with no 1.3.1 failure attributed to table_markup";
+    },
+  },
+  {
+    file: "synthetic-137-xlsx-header-table-twin.xlsx",
+    truth:
+      'The same workbook with the table\'s header row marked (headerRowCount="1"). table_markup must score a clean 100, no 1.3.1 may be asserted against it, and it must never score below its flawed twin.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "Enrollment",
+            rows: [
+              ["Program", "Participants"],
+              ["Job Training", "412"],
+              ["Housing Support", "268"],
+            ],
+            table: { name: "EnrollmentTable", ref: "A1:B3", headerRowCount: 1 },
+          },
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `a table with a marked header row scored ${c.score}, not 100`;
+      return /no header row/i.test(allFindings(r))
+        ? "a table with a marked header row was reported as headerless"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-132-docx-no-language.docx",
+    truth:
+      "A titled Word document that declares NO language — core.xml is perfectly readable and simply carries no dc:language, and styles.xml declares no default either. title_language is worth 50 for the title and 50 for the language, so it must score exactly 50, and the verdict must name WCAG 3.1.1 Language of Page (Level A): without a declared language a screen reader applies the wrong pronunciation rules to the whole document. Scoring the half without naming the criterion would breach the legal-basis rule; naming it without scoring would file a Level A failure under 'not scored'.",
+    build: () =>
+      docx([HEADING(1, "Annual Report"), P(BODY_TEXT)].join(""), {
+        title: "Annual Report 2026",
+        styles: true,
+        language: null,
+      }),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 50)
+        return `a titled document with no language scored ${c.score}, not the 50 that a title alone earns`;
+      if (!/no document language/i.test(allFindings(r))) return "the missing language is not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "3.1.1" && String(f.category ?? "") === "title_language",
+      );
+      return failing ? null : "50 points lost with no 3.1.1 failure attributed to title_language";
+    },
+  },
+  {
+    file: "synthetic-133-docx-language-good-twin.docx",
+    truth:
+      "The same document with the document language declared. title_language must score a clean 100, no 3.1.1 may be asserted, and it must never score below its flawed twin.",
+    build: () =>
+      docx([HEADING(1, "Annual Report"), P(BODY_TEXT)].join(""), {
+        title: "Annual Report 2026",
+        styles: true,
+      }),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 100) return `a titled, language-declared document scored ${c.score}, not 100`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.sc ?? "") === "3.1.1");
+      return failing ? "3.1.1 asserted against a document that declares its language" : null;
+    },
+  },
+  {
+    file: "synthetic-134-pptx-title-not-first.pptx",
+    truth:
+      "A three-slide deck where slide 2 carries a real title placeholder that is NOT the first shape in the slide's tree — the body text is read out before the heading that was supposed to orient the listener. NOT SCORED since 2026-08-31: the PPTX conformance gate has always ruled the title-first heuristic is not a confirmed WCAG violation (1.3.2 asks that a correct sequence be programmatically DETERMINABLE, and the shape tree states it exactly), so reading_order must stay at 100 while the advisory names slide 2 with a not-scored prefix. This trap is the reason the rule was found: it deducted 15 points per slide for two days, which legal-basis catches the moment any document exercises it.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Quarterly Review") + SLIDE_BODY("Opening remarks."),
+          SLIDE_BODY("Enrollment rose 12 percent.") + SLIDE_TITLE("Enrollment"),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "Quarterly Review" },
+      ),
+    check: (r) => {
+      const c = cat("reading_order")(r);
+      if (!c || c.score === null) return "reading_order unscored";
+      if (c.score !== 100)
+        return `a title-order heuristic the conformance gate declines to call a WCAG failure took ${100 - c.score} points`;
+      const f = allFindings(r);
+      if (!/not the first shape in reading order/i.test(f))
+        return "the out-of-order slide is not reported at all";
+      if (!/Advisory — not scored: slide 2\b/.test(f))
+        return "the advisory does not name slide 2 with a not-scored prefix";
+      // Titled slides must not also be reported as missing their titles.
+      const st = cat("slide_titles")(r);
+      if (st && st.score !== null && st.score < 100)
+        return `slide_titles lost points (${st.score}) on a deck where every slide has a title`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-135-pptx-title-first-twin.pptx",
+    truth:
+      "The same deck with slide 2's title placeholder restored to the front of the shape tree. reading_order must score a clean 100, and must never score below its flawed twin.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Quarterly Review") + SLIDE_BODY("Opening remarks."),
+          SLIDE_TITLE("Enrollment") + SLIDE_BODY("Enrollment rose 12 percent."),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "Quarterly Review" },
+      ),
+    check: (r) => {
+      const c = cat("reading_order")(r);
+      if (!c || c.score === null) return "reading_order unscored";
+      return c.score === 100 ? null : `a title-first deck scored ${c.score}, not 100`;
     },
   },
   {
@@ -725,6 +921,21 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "heading_structure",
   },
   {
+    bad: "synthetic-132-docx-no-language.docx",
+    good: "synthetic-133-docx-language-good-twin.docx",
+    category: "title_language",
+  },
+  {
+    bad: "synthetic-134-pptx-title-not-first.pptx",
+    good: "synthetic-135-pptx-title-first-twin.pptx",
+    category: "reading_order",
+  },
+  {
+    bad: "synthetic-136-xlsx-headerless-table.xlsx",
+    good: "synthetic-137-xlsx-header-table-twin.xlsx",
+    category: "table_markup",
+  },
+  {
     bad: "synthetic-101-docx-bold-fake-headings.docx",
     good: "synthetic-102-docx-styles-good-twin.docx",
     category: "heading_structure",
@@ -765,6 +976,30 @@ type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
   "synthetic-130-docx-picture-headings-not-blank.docx": {
     label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
+    chip: "held",
+  },
+  "synthetic-136-xlsx-headerless-table.xlsx": {
+    label: "Excel: a defined table created with \u201cmy table has no headers\u201d ticked",
+    chip: "caught",
+  },
+  "synthetic-137-xlsx-header-table-twin.xlsx": {
+    label: "Excel: the same table with its header row marked",
+    chip: "held",
+  },
+  "synthetic-132-docx-no-language.docx": {
+    label: "Word: a titled document that declares no language at all",
+    chip: "caught",
+  },
+  "synthetic-133-docx-language-good-twin.docx": {
+    label: "Word: the same document with its language declared",
+    chip: "held",
+  },
+  "synthetic-134-pptx-title-not-first.pptx": {
+    label: "PowerPoint: a slide whose title is read after its body text",
+    chip: "caught",
+  },
+  "synthetic-135-pptx-title-first-twin.pptx": {
+    label: "PowerPoint: the same deck with every title read first",
     chip: "held",
   },
   "synthetic-131-docx-only-empty-headings.docx": {

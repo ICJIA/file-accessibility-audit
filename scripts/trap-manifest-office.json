@@ -1,5 +1,5 @@
 {
-  "count": 21,
+  "count": 27,
   "generated": "2026-08-31",
   "items": [
     {
@@ -91,6 +91,36 @@
     {
       "file": "synthetic-130-docx-picture-headings-not-blank.docx",
       "label": "Word: headings made of a letterhead picture and a symbol — not blank lines",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-136-xlsx-headerless-table.xlsx",
+      "label": "Excel: a defined table created with “my table has no headers” ticked",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-137-xlsx-header-table-twin.xlsx",
+      "label": "Excel: the same table with its header row marked",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-132-docx-no-language.docx",
+      "label": "Word: a titled document that declares no language at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-133-docx-language-good-twin.docx",
+      "label": "Word: the same document with its language declared",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-134-pptx-title-not-first.pptx",
+      "label": "PowerPoint: a slide whose title is read after its body text",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-135-pptx-title-first-twin.pptx",
+      "label": "PowerPoint: the same deck with every title read first",
       "chip": "held"
     },
     {

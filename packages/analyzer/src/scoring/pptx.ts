@@ -265,15 +265,32 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
   const titledOutOfOrder = titled.filter((s) => !s.titleIsFirstShape);
   const denseSlides = visible.filter((s) => s.shapeCount > 10);
 
-  const score = 100 - 15 * titledOutOfOrder.length;
+  // NOT SCORED (2026-08-31). The legal-only sweep of 2026-08-29 un-scored the
+  // sibling rule six functions above — a slide missing its title — because
+  // this file's own conformance gate rules it "not a confirmed WCAG violation
+  // on its own". That gate's doc comment says the SAME THING, in the same
+  // sentence, about this heuristic: "most notably a slide missing its own
+  // title (`slide_titles`) and the title-first reading-order heuristic
+  // (`reading_order`) are NOT gate failures". The sweep missed this one, so
+  // for two days the product deducted 15 points per slide for a defect it
+  // simultaneously declined to call a WCAG failure — the exact over-scoring
+  // the sweep existed to end, and what `legal-basis` caught the moment a trap
+  // document finally exercised the rule (synthetic-134).
+  //
+  // A title read second is genuinely worth fixing: it is why the advisory
+  // still names every slide. But 1.3.2 asks that a correct reading sequence
+  // be programmatically DETERMINABLE, and it is — the shape tree states it
+  // exactly. "Determinable but not ideal" is advice, not a violation.
+  // Reported loudly, counted never.
+  const score = 100;
   const findings: string[] = [];
 
   if (titledOutOfOrder.length > 0) {
     const nums = titledOutOfOrder.map((s) => s.index).join(", ");
     findings.push(
-      `Slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
+      `Advisory — not scored: slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
         titledOutOfOrder.length > 1 ? "have" : "has"
-      } a title that is not the first shape in reading order. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) and reorder shapes so the title reads first.`,
+      } a title that is not the first shape in reading order. A listener hears the body text before the heading that was meant to orient them. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) and reorder shapes so the title reads first.`,
     );
   }
 
