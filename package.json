@@ -30,7 +30,8 @@
     "resave-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/resave-invariance.ts",
     "prod-sentinels": "tsx --tsconfig scripts/tsconfig.json scripts/prod-sentinels.ts",
     "synthetic-office-controls": "tsx --tsconfig scripts/tsconfig.json scripts/synthetic-office-controls.ts",
-    "encoding-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/encoding-invariance.ts"
+    "encoding-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/encoding-invariance.ts",
+    "audit-corpus": "tsx --tsconfig scripts/tsconfig.json scripts/audit-corpus.ts"
   },
   "engines": {
     "node": ">=22"
