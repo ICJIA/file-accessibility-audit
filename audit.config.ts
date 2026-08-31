@@ -258,6 +258,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "wcag-21-named-everywhere-2026-08-31",
+    badge: "Changed",
+    text: "Reports now name WCAG 2.1 everywhere. That is the version ADA Title II and the Illinois IITAA both require, and the only version that has moved a grade here since the legal-only scoring change — but some labels and links still said 2.1's successor, so a report could state one standard and link to another. WCAG 2.2 still exists and What's new in WCAG 2.2 still explains what it adds; nothing it adds is counted. Two smaller additions: the font check now lists every font in the document and whether it is embedded, rather than only saying whether they all are; and every practice the checker could not examine now carries an icon explaining why it was not checked and what would settle it, beginning with the fact that nothing is wrong with your document.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    wcagRefs: [],
+    date: "August 31, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "empty-headings-scored-2026-08-31",
     badge: "Changed",
     text: "Word documents now lose points for heading styles applied to blank lines. A heading style on an empty line puts a section in the outline that has no content in it, so someone moving through the document by heading lands on silence — it is counted as a WCAG 1.3.1 failure, with its own fix step. The same defect in a PDF is still reported without being counted, because there the evidence is an estimate rather than a certainty, and the report says so on the row. Every practice that could not be checked now carries an information icon explaining why, and each explanation begins by saying that nothing is wrong with your document. Alongside these, an audit of every claim the reports make about the standards corrected the ADA Title II compliance dates everywhere they appeared: the Department of Justice extended them in April 2026, to April 26, 2027 for entities serving 50,000 people or more and April 26, 2028 for smaller ones and special districts.",

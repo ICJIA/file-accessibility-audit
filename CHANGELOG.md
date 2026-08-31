@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.145.0] - 2026-08-31
+
+### Changed — reports name WCAG 2.1, the version the law names
+
+- **Every label, criterion link and export now says WCAG 2.1.** It is the version ADA Title II and the Illinois IITAA both require, the only version that has moved a grade here since the legal-only scoring change, and the one this agency's readers actually hear. Until now a report's verdict could say "does not meet WCAG 2.1" while the links beside it opened pages for 2.1's successor — one standard stated, another linked. Seventeen statements of the standard were corrected, along with two quick-reference links whose address disagreed with their own label. **WCAG 2.2 still exists and is still explained** on *What's new in WCAG 2.2*; nothing it adds has ever been counted.
+- **One consequence, stated plainly.** On PDFs with interactive form fields, three criteria that exist only in WCAG 2.2 — Target Size (2.5.8), Redundant Entry (3.3.7) and Accessible Authentication (3.3.8) — no longer appear in the verdict as manual-review notes. They were never failures and they are not part of 2.1. All three are named on the *What's new in WCAG 2.2* page instead, so the advice is still there for anyone with a form to check.
+- **Two criterion listings were wrong, which matters more than a missing link.** The text-extractability card cited **1.4.5 Images of Text** — a criterion the same report lists among those it explicitly does *not* assess — while omitting **1.1.1 Non-text Content**, which it does check. Form accessibility omitted **3.3.2 Labels or Instructions**. Both corrected.
+
+### Added — the fonts by name, and an answer to "well, could it be checked?"
+
+- **The font check now lists every font in the document and whether it is embedded**, instead of only saying whether they all are. A communications team choosing typefaces needs the names, and an author fixing a failure needs to know *which* font is missing. The list was always computed; only the failing case ever showed it.
+- **Every practice the checker could not examine now carries an icon explaining why.** "Not checked" is the one status a reader can mistake for an accusation. Hovering or focusing the icon gives that practice's own reason, says whether re-running the audit would settle it or whether it needs a person, and begins by saying that nothing is wrong with the reader's document.
+- **Every WCAG criterion the reports name is now a link to the rule itself.** Nineteen practices named one without linking it. A guard added with them fails the build if a new practice ever names a criterion it does not link.
+
+### Fixed
+
+- **A heading made of a picture is a heading.** A masthead or banner image carries no text of its own, so a document whose headings were built that way reported "No headings were found" and its outline read as starting a level below where it does. The picture's description is what a screen reader announces there, so that is now the heading's text. A picture with *no* description is deliberately left alone — it is silent to a screen reader, but the image check already covers that, and charging it twice would be wrong.
+- **Four sentences that the version change had made untrue.** Switching the displayed standard to 2.1 stopped a per-document disclosure that four surfaces still promised. Each now says what actually happens.
+- **The evolution timeline on the trust page** stopped at v1.117 while the heading above it read 144. Three entries added, and the build now warns when the newest falls more than five releases behind.
+
+### Notes
+
+- Tests 3,390 (API 1,628 · Web 1,713 · CLI 49). Traps 130. Score ledger 174 rows, unmoved: the grade has never measured anything but WCAG 2.1, so naming it changed no document's result.
+
 ## [1.144.0] - 2026-08-31
 
 ### Changed — blank headings in Word are counted; the same defect in a PDF still is not, and the report says why
