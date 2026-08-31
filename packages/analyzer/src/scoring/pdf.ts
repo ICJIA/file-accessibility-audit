@@ -131,9 +131,14 @@ function buildCategories(
 
   applyProfileWeights(categories, mode);
   applyWcagCriteria(categories);
-  // A perfect category that still reported something says so (v1.149.0).
-  applyAdvisorySeverity(categories);
   appendSupplementaryFindings(qpdf, pdfjs, categories);
+  // A perfect category that still reported something says so (v1.149.0).
+  // MUST BE LAST. Shipped one line too early in v1.149.0 and therefore ran
+  // BEFORE appendSupplementaryFindings, so a reading order carrying two
+  // "Advisory — not scored" lines from that pass still read "No issues found"
+  // — the very thing this call exists to prevent. Anything that appends a
+  // finding has to happen above this line.
+  applyAdvisorySeverity(categories);
 
   return categories;
 }

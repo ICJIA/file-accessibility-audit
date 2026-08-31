@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.149.1] - 2026-08-31
+
+### Fixed
+
+- **Two gaps in yesterday's label fix, found on a real 23-page report the same day.** The release above stopped a category saying "No issues found" when it had reported something — but only caught some of them. On that report, **Link Quality** and **Reading Order** each scored 100, each reported a finding that is never counted, and both still read "No issues found". Two separate causes: the check ran one step too early in the pipeline, before the pass that adds several of those findings, so six control documents kept the wrong label; and it recognised only advisories written in one particular shape, missing two wordings the checker genuinely uses — including the raw-URL note, one of the most common findings there is. Both fixed. Nine more labels corrected across the control set, and **no score changed** again.
+- **A new battery-wide check, rather than another test document.** Every control document is now examined for exactly this contradiction: a category that scored a perfect 100 while carrying a finding the checker marks as never counted. It failed nothing on the current build, and reintroducing either bug makes it name the affected documents outright. The defect was never about a particular file — it was a label derived from a number — so the guard is written the same way: over all of them, and over every document added in future.
+
 ## [1.149.0] - 2026-08-31
 
 ### Fixed

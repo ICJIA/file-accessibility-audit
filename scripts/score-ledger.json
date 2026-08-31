@@ -29,8 +29,8 @@
         "bookmarks": "100|No scored issues",
         "table_markup": "75|Minor",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -45,7 +45,7 @@
         "bookmarks": "100|No issues found",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
@@ -61,7 +61,7 @@
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -80,8 +80,8 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -96,8 +96,8 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -128,7 +128,7 @@
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -144,8 +144,8 @@
         "bookmarks": "100|No issues found",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -161,7 +161,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -177,7 +177,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -193,7 +193,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -208,8 +208,8 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -224,7 +224,7 @@
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -288,7 +288,7 @@
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -336,7 +336,7 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "0|Critical",
         "form_accessibility": "null|none"
       }
@@ -352,8 +352,8 @@
         "bookmarks": "100|No issues found",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -368,7 +368,7 @@
         "bookmarks": "100|No issues found",
         "table_markup": "70|Minor",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -401,7 +401,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "98|Minor",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -417,7 +417,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "98|Minor",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -432,8 +432,8 @@
         "bookmarks": "null|none",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -448,8 +448,8 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -464,7 +464,7 @@
         "bookmarks": "null|none",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "null|none",
         "form_accessibility": "100|No issues found"
       }
@@ -525,7 +525,7 @@
         "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "color_contrast": "100|No issues found",
         "list_structure": "100|No issues found",
         "link_quality": "100|No issues found",
@@ -545,7 +545,7 @@
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -560,8 +560,8 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -577,7 +577,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -624,8 +624,8 @@
         "bookmarks": "100|No issues found",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -636,7 +636,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "sheet_names": "100|No issues found",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "alt_text": "null|none",
         "color_contrast": "100|No issues found",
         "link_quality": "null|none",
@@ -650,7 +650,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "sheet_names": "100|No issues found",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "alt_text": "null|none",
         "color_contrast": "100|No issues found",
         "link_quality": "null|none",
@@ -1248,7 +1248,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1299,7 +1299,7 @@
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
         "list_structure": "null|none",
         "link_quality": "null|none",
@@ -1537,7 +1537,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1840,7 +1840,7 @@
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
@@ -1905,7 +1905,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -2529,7 +2529,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -2849,7 +2849,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -2881,7 +2881,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -2945,7 +2945,7 @@
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },

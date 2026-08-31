@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.149.1",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: completing the label fix released hours earlier, after a reader found two places it had missed.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The release above stopped a category claiming nothing was found when it had reported something, and did it incompletely: on a 23-page report checked the same day, two categories scored 100, each reported a finding that is never counted, and both still carried the old label.",
+      },
+      {
+        kind: "p",
+        html: "Two separate causes. The check ran one step too early &mdash; before the pass that adds several of those findings &mdash; so six test documents kept the wrong label; and it recognised advisories written only in one particular shape, missing two wordings the checker genuinely uses, one of them among the most common findings it produces. Both corrected. Nine further labels changed across the 188 test documents, and again <strong>no score changed at all</strong>.",
+      },
+      {
+        kind: "p",
+        html: "The guard added for it is a check across every test document rather than one more example file: no category may score a perfect 100, claim no issues, and still carry a finding marked as never counted. Reinstating either fault makes it name the affected documents outright. The original defect was never about a particular file &mdash; it was a label derived from a number &mdash; so the guard is written the same way, and applies to every document added in future.",
+      },
+    ],
+  },
+  {
     version: "v1.149.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: a category label that said nothing was found when something had been reported.",
     body: [

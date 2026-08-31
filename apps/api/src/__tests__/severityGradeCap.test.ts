@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   capScoreBySeverity,
   worstSeverity,
@@ -453,5 +455,57 @@ describe("a perfect category that still reported something says so (v1.149.0)", 
     // an advisory a grade.
     expect(SEVERITY_GRADE_CAPS.map((c) => c.severity)).not.toContain("No scored issues");
     expect(capScoreBySeverity(100, [{ score: 100, severity: "No scored issues" }])).toBe(100);
+  });
+});
+
+describe("the advisory relabel catches every wording, and runs last (v1.149.1)", () => {
+  // Both bugs below shipped in v1.149.0 and were found on a real 23-page
+  // report the same day: Link Quality and Reading Order each carried an
+  // uncounted finding and still read "No issues found".
+  const cat = (findings: string[]) => ({ score: 100, severity: "No issues found", findings });
+
+  it("matches all five wordings the scorers actually use", () => {
+    // v1.149.0 anchored on the line's PREFIX, so the two that do not start
+    // the line were missed — including the raw-URL advisory, which is one of
+    // the most common findings there is.
+    const wordings = [
+      "Advisory — not scored: 8 note(s) have no /ID (Matterhorn 19-003).",
+      "PDF/UA only — not scored: 4 non-embedded font(s) may cause garbled text.",
+      "Advisory — not scored against you: 3 link(s) use non-descriptive text.",
+      "--- Raw URL Link Text (advisory — not penalized) ---",
+      "10 link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 and is not scored against you.",
+    ];
+    for (const w of wordings) {
+      const c = cat([w]);
+      applyAdvisorySeverity([c]);
+      expect(c.severity, w.slice(0, 40)).toBe("No scored issues");
+    }
+  });
+
+  it("still leaves ordinary findings alone", () => {
+    // The phrase is specific enough that no scored finding says it.
+    const c = cat(["PDF contains extractable text", "--- Font Embedding ---", "  22 embedded"]);
+    applyAdvisorySeverity([c]);
+    expect(c.severity).toBe("No issues found");
+  });
+
+  it("runs AFTER every pass that can append a finding", () => {
+    // An ordering property, so it is asserted on the source: v1.149.0 placed
+    // the call one line too early, before appendSupplementaryFindings, and a
+    // reading order carrying two "Advisory — not scored" lines from that pass
+    // kept the wrong label. No behavioural fixture expresses "this call is
+    // last" — only the order of the call sites does.
+    const src = readFileSync(
+      resolve(__dirname, "../../../../packages/analyzer/src/scoring/pdf.ts"),
+      "utf8",
+    );
+    const relabel = src.indexOf("applyAdvisorySeverity(categories)");
+    const supplementary = src.indexOf("appendSupplementaryFindings(");
+    expect(relabel).toBeGreaterThan(-1);
+    expect(supplementary).toBeGreaterThan(-1);
+    expect(
+      relabel,
+      "applyAdvisorySeverity must come AFTER appendSupplementaryFindings, or advisories added there are invisible to it",
+    ).toBeGreaterThan(supplementary);
   });
 });

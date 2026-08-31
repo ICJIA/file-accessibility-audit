@@ -1327,6 +1327,15 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.149.1 — 2026-08-31 · Two gaps in the release above, and a battery-wide guard (no new attack surface)
+
+No new attack surface. v1.149.0 relabelled a perfect category that still reported something, and did it incompletely — found within hours on a real 23-page report where **Link Quality** and **Reading Order** both scored 100, both carried an uncounted finding, and both still read "No issues found". Two independent causes, worth separating because they fail differently:
+
+1. **Ordering.** `applyAdvisorySeverity` sat one line above `appendSupplementaryFindings` in the PDF scorer, so every advisory that pass appends was invisible to it — six controls kept the wrong label. It now runs last, and a test asserts that ordering on the source, because no behavioural fixture can express "this call is last".
+2. **Coverage.** The matcher was anchored to the start of the line, catching `"Advisory — not scored:"` and `"PDF/UA only — not scored:"` but not `"--- Raw URL Link Text (advisory — not penalized) ---"` or `"… is not scored against you"` — the raw-URL advisory being among the most common findings the tool emits. It now matches the phrase rather than the prefix, with all five real wordings pinned by test.
+
+The corpus guard is deliberately **not** another trap document. Both batteries now assert, over every control: no category may score 100, read "No issues found", and carry a finding marked never-counted. Sabotage-verified — restoring the ordering bug makes it name all six affected controls by filename. Nine more labels moved across 188 documents; no score did. Tests 3,421.
+
 ### v1.149.0 — 2026-08-31 · A 100 that reported something no longer claims to be silent (no new attack surface)
 
 No new attack surface: no data path, input, or output changes. `SEVERITY_THRESHOLDS` derives a category's label from its score alone, and its own comment argues the case this release fixes — *"'No issues found' is intentionally reserved for a perfect 100 … labelling it issue-free would be inaccurate."* That reasoning stops one step short: some categories are **never scored at all**, so a 100 there does not mean silence. On a 41-page annual report, Bookmarks read `100 · A · No issues found` immediately above its own finding that the document has 41 pages and no bookmarks — correct arithmetic (2.4.5 Multiple Ways applies across a set of pages, not within one document) under a label that contradicted it.

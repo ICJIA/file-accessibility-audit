@@ -1420,6 +1420,42 @@ async function main() {
     `twin orderings: ${TWIN_ORDERINGS.length} pairs — flawed twin never outscored the correct one`,
   );
 
+  // ------------------------------------------------------------------
+  // BATTERY-WIDE INVARIANT (v1.149.1): a category that scored a perfect 100
+  // may not claim "No issues found" while carrying a finding the analyzer
+  // itself marks as reported-but-never-counted.
+  //
+  // Written as an invariant over every document rather than as one more trap,
+  // because the defect it guards was never about a particular file: it was a
+  // label derived from the score alone. It shipped twice in one day — first
+  // by looking only at the score (v1.149.0 fixed that), then by running the
+  // relabel one line too early, before appendSupplementaryFindings, so six
+  // controls carrying "Advisory — not scored" lines kept the wrong chip. A
+  // single trap document would have caught neither reliably; this catches
+  // both, on all every document, and on every document added after today.
+  // ------------------------------------------------------------------
+  {
+    let overstated = 0;
+    for (const [file, r] of resultsByFile) {
+      for (const c of r.categories ?? []) {
+        if (c.score !== 100 || c.severity !== "No issues found") continue;
+        const advisory = (c.findings ?? []).find((f: string) =>
+          /\bnot (scored|penali[sz]ed)\b/i.test(String(f)),
+        );
+        if (advisory) {
+          console.error(
+            `OVERSTATED  ${file}: ${c.id} scored 100 and reads "No issues found", but reports:\n            ${String(advisory).trim().slice(0, 140)}`,
+          );
+          overstated++;
+          hardFailures++;
+        }
+      }
+    }
+    console.log(
+      `advisory labels: every 100 that reported something says so (${overstated} overstatement(s))`,
+    );
+  }
+
   const missing = SAMPLES.filter((x) => !TRAP_MANIFEST[x.file]).map((x) => x.file);
   const extra = Object.keys(TRAP_MANIFEST).filter((f) => !SAMPLES.some((x) => x.file === f));
   if (missing.length || extra.length) {

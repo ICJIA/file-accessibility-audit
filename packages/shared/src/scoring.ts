@@ -400,11 +400,19 @@ export function gradeColor(grade: string | null | undefined): string {
   return (grade && GRADE_COLORS[grade]) || "#666";
 }
 
-/** Lines the analyzer marks as reported-but-never-counted. Deliberately
- *  conservative: it matches only the two prefixes the scorers actually emit,
- *  so a category is relabelled only when an advisory is certain. Missing one
- *  leaves today's wording; inventing one would be the overstatement again. */
-const NOT_SCORED_LINE = /^(advisory\b|pdf\/ua only\b)[^\n]{0,120}?not scored/i;
+/** Lines the analyzer marks as reported-but-never-counted.
+ *
+ *  ANCHORED TO THE PREFIX IN v1.149.0, AND THAT WAS TOO NARROW. The scorers
+ *  say this five ways, and two of them do not start the line:
+ *    "Advisory — not scored: …"            "PDF/UA only — not scored: …"
+ *    "Advisory — not scored against you: …"
+ *    "--- Raw URL Link Text (advisory — not penalized) ---"
+ *    "… This satisfies WCAG 2.4.4 … and is not scored against you …"
+ *  A 23-page report with ten raw-URL links therefore still read "No issues
+ *  found" on Link Quality. Matching the PHRASE rather than the prefix covers
+ *  every wording the scorers actually use; the phrase itself is specific
+ *  enough that no scored finding says it. */
+const NOT_SCORED_LINE = /\bnot (scored|penali[sz]ed)\b/i;
 
 export function hasUnscoredAdvisory(findings: readonly string[] | undefined): boolean {
   return (findings ?? []).some((f) => NOT_SCORED_LINE.test(String(f).trim()));
