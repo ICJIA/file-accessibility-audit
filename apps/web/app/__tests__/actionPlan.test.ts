@@ -912,3 +912,33 @@ describe("title_language step titles match what actually failed (v1.138.1)", () 
     expect(steps[0]!.title).toBe("Give the document a title and set its language");
   });
 });
+
+describe("heading_structure: blank headings get their own fix, not the fake-heading one (2026-08-31)", () => {
+  const cats = (findings: string[]) => [
+    { id: "heading_structure", label: "Heading Structure", score: 70, severity: "Minor", findings },
+  ];
+  const EMPTY =
+    "3 Heading-styled paragraph(s) contain no text — a heading style applied to a blank line, usually to make space.";
+  const FAKE =
+    "4 paragraph(s) are formatted to look like headings (bold/large text) but are not real Heading styles.";
+
+  it("tells the author to clear the blank headings — not to start using heading styles they already use", () => {
+    const step = buildActionPlan(cats([EMPTY]), "docx")[0]!;
+    expect(step.title).toMatch(/blank headings/i);
+    expect(step.why).not.toMatch(/merely bold or large/);
+    // Steps live on the route, not the step (PlanStep.routes[].steps).
+    expect(step.routes.flatMap((r: { steps: string[] }) => r.steps).join(" ")).toMatch(
+      /Navigation pane/,
+    );
+  });
+
+  it("keeps the fake-heading advice when a document has both — that is the larger defect", () => {
+    const step = buildActionPlan(cats([EMPTY, FAKE]), "docx")[0]!;
+    expect(step.title).toMatch(/real heading styles/i);
+  });
+
+  it("leaves every other heading document on the default copy", () => {
+    const step = buildActionPlan(cats([FAKE]), "docx")[0]!;
+    expect(step.title).toMatch(/real heading styles/i);
+  });
+});
