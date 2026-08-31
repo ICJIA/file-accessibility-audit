@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.148.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: a label that told readers a scored failure did not apply to their document.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: nothing here adds a data path, an input, or an output. It corrects what a report <em>says</em>, which for a compliance tool is the part that carries the risk.",
+      },
+      {
+        kind: "p",
+        html: "A reader reported an annual report showing nine &ldquo;not applicable&rdquo; labels in the best-practices list &mdash; five of them about headings &mdash; while the same report scored that document&rsquo;s heading structure <strong>zero</strong> and listed a WCAG 1.3.1 Level A failure against it. Headings were the single largest reason the file graded F, and the section read as though they were irrelevant to it. The text inside those rows had said the right thing since the standards audit two releases earlier; only the label above it was wrong, because the label could tell that a row did not apply but not why.",
+      },
+      {
+        kind: "p",
+        html: "Rows now carry the reason. One means there is genuinely nothing of that kind in the document and nothing was lost; the other means the practice applies, the document falls short, and the points are already gone. Only the second gets the new <strong>counted in your score</strong> label, shown in the same colour as the action plan it points to. The summary counts the two separately, because &ldquo;9 not applicable&rdquo; was the same misstatement in miniature.",
+      },
+      {
+        kind: "p",
+        html: "Three properties are enforced rather than intended, since this was a repair of an earlier partial repair. The reason is worked out in one place from a single shared sentence, so a new case cannot forget to set a flag it never sets by hand. A test forbids that sentence being written out anywhere else, which is exactly how the label and the text came apart the first time. And the rows about table headers &mdash; which needed to know whether the missing headers had actually cost points &mdash; are checked against the real score, with a test that they never claim a deduction that did not happen: the mirror of this fault, and the more damaging direction to get wrong.",
+      },
+    ],
+  },
+  {
     version: "v1.147.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: the first thing this site has ever kept in a visitor\u2019s own browser, and the navigation warning it made unnecessary.",
     body: [

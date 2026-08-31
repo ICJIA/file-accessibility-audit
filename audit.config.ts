@@ -258,6 +258,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "counted-in-your-score-2026-08-31",
+    badge: "Fixed",
+    text: "The best-practices list no longer says \u201cnot applicable\u201d about something that already cost you points. A reader spotted an annual report with no headings at all showing five \u201cnot applicable\u201d labels about headings \u2014 while the same report scored that document\u2019s heading structure zero and named the rule it broke. Rows like that now read \u201ccounted in your score\u201d and point at your action plan, in the same colour as the plan itself. \u201cNot applicable\u201d is kept for what it always meant: there is genuinely nothing of that kind in your document, and nothing was lost \u2014 no links to judge, no tables to check.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    wcagRefs: [],
+    date: "August 31, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "audit-survives-leaving-2026-08-31",
     badge: "Improved",
     text: "Your audit no longer disappears if you click away. Opening the status page, reloading, or following a link while a document was being checked used to cancel it and make you upload the file all over again. It does not any more: the check runs on our server rather than in your browser, and this page now remembers which one is yours, so coming back picks it up where it left off \u2014 and if it finished while you were gone, the report is simply waiting. A report you have already read is kept the same way for the rest of your visit. Because of that, the warning about leaving mid-audit now appears only when leaving really would lose something, such as a batch of several files. Everything remembered is kept in your own browser, cleared when you close the tab, and never sent anywhere; the data-retention page lists exactly what it is.",

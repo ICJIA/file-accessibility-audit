@@ -1,10 +1,10 @@
 {
   "//": "Hand-maintained numbers for build-brief.mjs. Update tests/traps at each release — both are printed in the CHANGELOG entry you just wrote. `cache` holds the last successful /status fetch so an offline build never blocks a commit.",
-  "tests": 3418,
+  "tests": 3424,
   "traps": 144,
   "cache": {
-    "audits_total": 12396,
-    "audits_30d": 8282,
+    "audits_total": 12397,
+    "audits_30d": 8283,
     "reaudited": 47,
     "reached_a": 9
   }

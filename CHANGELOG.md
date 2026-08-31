@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.148.0] - 2026-08-31
+
+### Fixed
+
+- **A defect that already cost you points no longer says "not applicable".** Reported from a real report: an annual report with no heading tags at all showed nine amber **NOT APPLICABLE** chips in the Best practices section — five of them about headings — while the same report scored that document's heading structure **0 out of 100** and named a WCAG 1.3.1 Level A failure. Headings were the single biggest reason the file graded F, and the section appeared to say they were irrelevant to it. The text inside those rows was already right ("that absence is counted in your score — see the action plan above"); only the label above it was wrong, because the label knew the row did not apply but not *why*. Two reasons now travel with every such row. **Not applicable** is kept for what it always meant: there is genuinely nothing of that kind in your document — no links to judge, no tables to check — and nothing was lost. **Counted in your score** is the other case: the practice does apply, the document falls short, and the points are already gone, so the row points at the action plan instead of repeating it. It is shown in the same colour as the plan it refers to, never the muted grey of a true "not applicable", and the summary counts the two separately — "9 not applicable" was the same untruth in miniature. On the reported file, seven rows now read *counted in your score* and the two that still read *not applicable* are the link rows, where the document really has no links.
+- **Table header rows say which case they are in.** "Your tables have no header cells, so there is no header scope to check" is true of a clean document and of a broken one, and it read the same in both. It now adds that the missing header cells are in your action plan — but only when they actually cost points, so the report can never claim a deduction that did not happen.
+
 ## [1.147.0] - 2026-08-31
 
 ### Added
