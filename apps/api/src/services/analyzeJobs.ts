@@ -20,6 +20,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import type { AnalysisResult } from "@file-audit/analyzer";
 import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 import type { AnalyzeStep, MappedAnalyzeError } from "./analyzeCore.js";
+import { ANALYZE_JOB } from "#config";
 
 export type JobStepState = "pending" | "running" | "done" | "skipped";
 
@@ -43,8 +44,10 @@ interface AnalyzeJob {
 // Bounds: a job lives until delivered or TTL; the cap is a DoS backstop far
 // above real concurrency (uploads are rate-limited and the analysis
 // semaphore admits two at a time).
-export const JOB_TTL_MS = 10 * 60 * 1000;
-export const JOB_HARD_TIMEOUT_MS = 5 * 60 * 1000;
+// Re-exported from the root config so the browser's resume window and the
+// server's sweep can never drift apart (see ANALYZE_JOB there).
+export const JOB_TTL_MS = ANALYZE_JOB.TTL_MS;
+export const JOB_HARD_TIMEOUT_MS = ANALYZE_JOB.HARD_TIMEOUT_MS;
 export const MAX_JOBS = 100;
 
 const jobs = new Map<string, AnalyzeJob>();

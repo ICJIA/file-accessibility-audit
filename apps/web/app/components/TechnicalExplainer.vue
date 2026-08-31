@@ -270,13 +270,33 @@
           you wait — the synchronous endpoint above remains unchanged for every other caller and as
           the page's automatic fallback.
         </p>
+        <p class="text-[var(--text-muted)] mb-3">
+          <strong>An audit survives leaving the page.</strong> A single-file upload runs as a
+          server-side job: the browser posts the file, gets back a job identifier and a one-time
+          key, and polls for progress. The audit therefore does not depend on the page staying open
+          &mdash; it runs to completion on the server whether or not anyone is watching, and the
+          finished report waits in memory until a page collects it or ten minutes pass. Since
+          v1.147.0 the page keeps that identifier and key in the browser&rsquo;s per-tab session
+          storage, so following the status link (a server route, so a real page load), reloading, or
+          clicking any in-app link no longer discards the work: on return the page rejoins the same
+          job and carries on, and a report that had already arrived is re-rendered from the copy the
+          browser kept. Nothing is uploaded twice. A batch still cannot survive leaving &mdash; its
+          queue holds the files themselves &mdash; so the warning before navigating away now appears
+          only when leaving would genuinely lose something.
+        </p>
         <p class="text-[var(--text-muted)] mt-3">
           Files the tool cannot audit — legacy binary Office formats (.doc, .xls, .ppt, .rtf), CSV
           exports, images — are refused up front with a specific explanation instead of a generic
           error, even when the file has been renamed (the format is detected from content, not the
           name). Service health and anonymous usage totals are published on the public
-          <a href="/status?html" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >status page</a
+          <a
+            href="/status?html"
+            :target="auditInProgress ? '_blank' : undefined"
+            :rel="auditInProgress ? 'noopener noreferrer' : undefined"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >status page<span v-if="auditInProgress" class="sr-only">
+              (opens in a new tab so your audit keeps running)</span
+            ></a
           >.
         </p>
 
@@ -2540,6 +2560,10 @@ pm2 restart ecosystem.config.cjs</pre>
 // green and left this sentence quietly wrong. Every count on a public page is
 // computed from its source or not stated at all.
 import { CATALOG } from "~/utils/bestPractices";
+
+// New tab only while leaving would destroy a running audit (this explainer is
+// rendered on the audit page itself, inside a collapsible).
+const auditInProgress = useAuditInProgress();
 import { PDF_PRACTICES } from "~/utils/bestPractices/pdf";
 
 const bpTotal = CATALOG.length;

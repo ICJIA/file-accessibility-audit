@@ -73,15 +73,29 @@ describe("uptime-monitor routes answer HEAD as well as GET", () => {
     expect(layout).not.toMatch(/:to="'\/status/);
   });
 
-  it("opens /status in the SAME tab", () => {
-    // It opened in a new tab originally, on the theory that clicking it
-    // mid-audit shouldn't discard an in-progress report. In practice it just
-    // littered tabs. The status page now renders its own link back to the
+  it("opens /status in the SAME tab on an ordinary visit", () => {
+    // It opened in a new tab UNCONDITIONALLY once, on the theory that clicking
+    // it mid-audit shouldn't discard an in-progress report. In practice it
+    // just littered tabs, and the status page renders its own link back to the
     // app, so the round trip works without target="_blank".
+    //
+    // Since v1.147.0 there is exactly one exception, and this test pins its
+    // shape: the target may be BOUND to `auditInProgress` — true only while an
+    // audit is running that leaving would genuinely destroy — and may never be
+    // a static attribute again, which is what brought the stray tabs.
     const layout = readFileSync(resolve(__dirname, "..", "layouts", "default.vue"), "utf-8");
-    const statusAnchor = layout.match(/<a[^>]*href="\/status\?html"[^>]*>/);
+    // `[^<>]*` deliberately: a lazy `[\s\S]*?` walks past earlier tags and
+    // matches an unrelated anchor, which made this assert about the wrong one.
+    const statusAnchor = layout.match(/<a[^<>]*href="\/status\?html"[^<>]*>/);
     expect(statusAnchor).not.toBeNull();
-    expect(statusAnchor![0]).not.toContain("target=");
+    const tag = statusAnchor![0];
+    expect(tag, "a static target brings back a stray tab on every visit").not.toMatch(/\starget="/);
+    if (tag.includes(":target")) {
+      expect(tag).toContain(`:target="auditInProgress ? '_blank' : undefined"`);
+      expect(tag, "a new tab needs noopener").toContain(
+        `:rel="auditInProgress ? 'noopener noreferrer' : undefined"`,
+      );
+    }
   });
 
   it("in-site links request the HTML view explicitly", () => {

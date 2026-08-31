@@ -119,6 +119,46 @@
         </ul>
       </div>
     </div>
+
+    <!-- v1.147.0. Everything above answers "what does the SERVER keep?". This
+         answers a question the page had never had to ask, because until now
+         the answer was "nothing": what does the visitor's own browser keep?
+         Naming it is the house rule — a page that only ever says what it does
+         not store invites the reader to assume the list is empty. -->
+    <div
+      class="mt-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-5"
+      data-testid="browser-storage-disclosure"
+    >
+      <h3 class="text-sm font-semibold uppercase tracking-wider text-[var(--text-heading)] mb-3">
+        What your own browser keeps (new in v1.147.0)
+      </h3>
+      <p class="text-xs text-[var(--text-secondary)] mb-3">
+        So that visiting the status page — or any other link — no longer throws away an audit in
+        progress, this site now remembers the current audit in your browser&rsquo;s
+        <strong>session storage</strong>. That is a per-tab store the browser empties when the tab
+        closes. It is written by the page you are on, it is never sent anywhere, and no other
+        website can read it.
+      </p>
+      <ul class="space-y-1.5 text-xs text-[var(--text-secondary)] list-disc list-inside">
+        <li>
+          While a document is being checked: the job&rsquo;s identifier and its one-time key, the
+          file&rsquo;s <strong>name</strong>, and its type. Not the file
+        </li>
+        <li>
+          Once the check finishes: the <strong>report itself</strong> — the same JSON the page is
+          displaying, so that leaving and coming back re-renders it instead of asking you to upload
+          the file again. Typically 75&ndash;100 KB
+        </li>
+        <li>
+          Cleared when: the tab closes, you start another audit, you clear the results, or the app
+          is updated to a new version
+        </li>
+        <li>
+          The uploaded file itself is never put there — it is not storable, and the server has
+          already deleted it (see the columns above)
+        </li>
+      </ul>
+    </div>
   </section>
 </template>
 

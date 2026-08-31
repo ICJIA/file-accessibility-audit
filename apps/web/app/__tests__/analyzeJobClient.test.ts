@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   analyzeWithProgress,
+  resumeWithProgress,
   AnalyzeJobUnsupportedError,
   type AnalyzeJobStatus,
 } from "../utils/analyzeJob";
@@ -138,5 +139,65 @@ describe("wiring — index.vue uses the job flow with the synchronous fallback",
     expect(index).toContain(':steps="processingSteps"');
     expect(index).toContain("jobErr?.jobUnsupported");
     expect(index).toContain('$fetch<AnalysisResult>("/api/analyze"');
+  });
+});
+
+describe("resuming a job after a page load (v1.147.0)", () => {
+  it("polls an existing job and returns its result — no re-upload", async () => {
+    // The whole point: the audit ran on the server the entire time. Rejoining
+    // must not POST the file again.
+    const calls: string[] = [];
+    const fetcher = (async (url: string) => {
+      calls.push(url);
+      return { done: true, steps: {}, result: { score: 88 } };
+    }) as never;
+    const result = await resumeWithProgress("job-9", "tok-9", fetcher, () => {}, { pollMs: 0 });
+    expect((result as unknown as { score: number }).score).toBe(88);
+    expect(calls).toEqual(["/api/analyze-job/job-9?t=tok-9"]);
+    expect(calls.some((u) => u.includes("POST") || u === "/api/analyze-job")).toBe(false);
+  });
+
+  it("reports a 404 as jobGone, not as an analysis failure", async () => {
+    // Swept after its TTL, already collected, or the API restarted. The
+    // visitor did nothing wrong and must not be shown an error card.
+    const fetcher = (async () => {
+      const err = new Error("Not Found") as Error & { status: number };
+      err.status = 404;
+      throw err;
+    }) as never;
+    await expect(
+      resumeWithProgress("gone", "tok", fetcher, () => {}, { pollMs: 0 }),
+    ).rejects.toMatchObject({ jobGone: true });
+  });
+
+  it("does NOT swallow a 404 on a freshly created job", async () => {
+    // Same status code, opposite meaning: a job we just created answering 404
+    // is a real fault and must surface as one.
+    let n = 0;
+    const fetcher = (async () => {
+      if (n++ === 0) return { jobId: "j", token: "t" };
+      const err = new Error("Not Found") as Error & { status: number };
+      err.status = 404;
+      throw err;
+    }) as never;
+    const file = { name: "a.pdf" } as File;
+    await expect(
+      analyzeWithProgress(file, fetcher, () => {}, { pollMs: 0 }),
+    ).rejects.not.toMatchObject({ jobGone: true });
+  });
+
+  it("hands the caller the job id and token the moment the upload is accepted", async () => {
+    // These two strings are the entire mechanism for surviving a page load.
+    const seen: Array<{ jobId: string; token: string }> = [];
+    let n = 0;
+    const fetcher = (async () => {
+      if (n++ === 0) return { jobId: "job-x", token: "tok-x" };
+      return { done: true, steps: {}, result: { score: 100 } };
+    }) as never;
+    await analyzeWithProgress({ name: "a.pdf" } as File, fetcher, () => {}, {
+      pollMs: 0,
+      onJobCreated: (j) => seen.push(j),
+    });
+    expect(seen).toEqual([{ jobId: "job-x", token: "tok-x" }]);
   });
 });

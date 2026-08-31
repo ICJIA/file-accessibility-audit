@@ -83,8 +83,14 @@ describe("the guard is installed on every path out", () => {
 describe("the flag tracks reality", () => {
   const index = read("pages", "index.vue");
 
-  it("is true for both a single audit and a batch", () => {
-    expect(index).toContain("auditInProgress.value = processing.value || batchProcessing.value");
+  it("is true for a batch, and for a single audit only when it cannot be rejoined", () => {
+    // NARROWED 2026-08-31 (was: `processing.value || batchProcessing.value`).
+    // A single-file upload now runs as a server-side job the page can rejoin
+    // after a real navigation, so warning about it would describe a loss that
+    // does not occur. A batch has no job to rejoin and still counts.
+    expect(index).toContain(
+      "auditInProgress.value =\n    (processing.value && !singleAuditResumable.value) || batchProcessing.value",
+    );
   });
 
   it("is cleared when the page unmounts", () => {
@@ -92,5 +98,62 @@ describe("the flag tracks reality", () => {
     // every later click on any link prompts — exactly the always-on nagging
     // this design exists to avoid.
     expect(index).toMatch(/onBeforeUnmount\(\(\) => \{\s*auditInProgress\.value = false;/);
+  });
+});
+
+describe("the flag narrowed to 'leaving would DESTROY this audit' (v1.147.0)", () => {
+  // Since single-file uploads run as a server-side job whose id and token the
+  // page stores, leaving and coming back rejoins the same audit. Warning in
+  // that case describes a consequence that does not happen — and a dialog
+  // that cries wolf is worse than no dialog.
+  it("index.vue excludes a resumable single-file audit from the flag", () => {
+    const page = readFileSync(resolve(__dirname, "../pages/index.vue"), "utf8");
+    expect(page).toMatch(
+      /auditInProgress\.value =\s*\(processing\.value && !singleAuditResumable\.value\) \|\| batchProcessing\.value/,
+    );
+  });
+
+  it("a batch still sets the flag — its queue really does die with the page", () => {
+    const page = readFileSync(resolve(__dirname, "../pages/index.vue"), "utf8");
+    const m = page.match(/auditInProgress\.value =[^;]+;/);
+    expect(m?.[0]).toContain("batchProcessing.value");
+    // and nothing may make the batch conditional on the single-file flag
+    expect(m?.[0]).toMatch(/\|\| batchProcessing\.value/);
+  });
+
+  it("the resumable flag is only ever set from a SUCCESSFUL store", () => {
+    // Assuming the write worked would silence the warning in exactly the tabs
+    // that still need it (blocked site data, full quota).
+    const page = readFileSync(resolve(__dirname, "../pages/index.vue"), "utf8");
+    expect(page).toMatch(/singleAuditResumable\.value = saveRunningAudit\(/);
+    // the synchronous fallback has no job to rejoin, so it must clear it
+    expect(page).toMatch(/jobUnsupported[\s\S]{0,400}singleAuditResumable\.value = false/);
+  });
+});
+
+describe("the Status link opens a new tab only when leaving would cost something", () => {
+  // It opened one unconditionally once, and was changed back because it "left
+  // a stray tab behind on every visit". Conditional pays that cost only when
+  // it buys something.
+  const files = [
+    ["../layouts/default.vue", "the header nav"],
+    ["../components/ServerStatusIndicator.vue", "the status dot"],
+  ] as const;
+
+  for (const [rel, what] of files) {
+    it(`${what}: target is bound to the flag, never hardcoded`, () => {
+      const src = readFileSync(resolve(__dirname, rel), "utf8");
+      expect(src).toContain(`:target="auditInProgress ? '_blank' : undefined"`);
+      expect(src).toContain(`:rel="auditInProgress ? 'noopener noreferrer' : undefined"`);
+      // A hardcoded target would bring the stray tab back on every visit.
+      expect(src).not.toMatch(/href="\/status\?html"[\s\S]{0,200}\btarget="_blank"/);
+    });
+  }
+
+  it("the header announces the new tab to screen readers", () => {
+    // An accessibility checker that opens unannounced tabs is exactly the one
+    // finding a reviewer would lead with.
+    const src = readFileSync(resolve(__dirname, "../layouts/default.vue"), "utf8");
+    expect(src).toMatch(/v-if="auditInProgress" class="sr-only"[\s\S]{0,80}opens in a new tab/);
   });
 });

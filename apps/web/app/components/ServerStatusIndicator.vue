@@ -1,4 +1,8 @@
 <script setup lang="ts">
+// New tab only while leaving would destroy a running audit — see
+// composables/useAuditInProgress.ts and layouts/default.vue for the reasoning.
+const auditInProgress = useAuditInProgress();
+
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 // Polling cadence
@@ -235,6 +239,8 @@ const tipIntro = computed(() => {
          in-site status link (v1.42.1). -->
     <a
       href="/status?html"
+      :target="auditInProgress ? '_blank' : undefined"
+      :rel="auditInProgress ? 'noopener noreferrer' : undefined"
       data-testid="server-status-link"
       :aria-describedby="tipId"
       class="inline-flex items-center gap-1.5 rounded px-1 -mx-1 cursor-pointer hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
