@@ -805,6 +805,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "ILHEALSFallWinter2022FINAL-untagged-original.pdf": {
+      "score": 50,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "50|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "0|Critical",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "0|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
     "ILHEALSFallWinter2022FINAL.pdf": {
       "score": 89,
       "grade": "B",
