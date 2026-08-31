@@ -381,7 +381,10 @@ describe("single-h1", () => {
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/3 H1/);
     // Deliberately no standard/Matterhorn citation — a style convention.
-    expect(practice("single-h1").standard).toBeUndefined();
+    // Was `.toBeUndefined()` until 2026-08-31: every practice now declares
+    // its legal basis, and this one's is that no criterion mentions H1
+    // counts at all (bestPracticesCore pins the requirement).
+    expect(practice("single-h1").standard).toMatch(/No WCAG 2\.1 criterion mentions H1 counts/);
     expect(practice("single-h1").links).toEqual([]);
   });
 

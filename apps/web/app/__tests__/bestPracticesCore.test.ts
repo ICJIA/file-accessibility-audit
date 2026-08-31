@@ -614,3 +614,33 @@ describe("a document in Word that PASSES WCAG still has best practices to meet",
     }
   });
 });
+
+describe("every practice states its legal basis (2026-08-31 WCAG audit, made permanent)", () => {
+  // The audit's durable half. A row in this section tells a public body that
+  // something does not affect their grade; it may not do that without saying,
+  // in the row itself, which standard it comes from and why it is not scored.
+  // Adding a practice now forces that question to be answered.
+  it("declares a non-empty `standard` on all of them", () => {
+    const missing = CATALOG.filter((p) => !p.standard || p.standard.trim().length < 40).map(
+      (p) => p.id,
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it("never names a Level A criterion in a bare, unexplained assertion", () => {
+    // Guards the exact drift the audit found: descriptive-link-text used to
+    // cite ONLY 2.4.9 (AAA), which read as "the law is silent here" when
+    // 2.4.4 (Level A) is on point and merely not machine-decidable.
+    // Objective rule rather than keyword matching: if a row invokes the legal
+    // standard, it owes the reader an explanation, not a verdict. Every
+    // current row that names Level A runs well past this.
+    for (const p of CATALOG) {
+      const std = p.standard ?? "";
+      if (!/Level A\b/.test(std)) continue;
+      expect(
+        std.length,
+        `${p.id} names a Level A criterion in ${std.length} characters — explain why it is not scored`,
+      ).toBeGreaterThanOrEqual(120);
+    }
+  });
+});

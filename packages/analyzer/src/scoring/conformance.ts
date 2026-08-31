@@ -907,6 +907,20 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
+  // 3b-ii. A Heading style on a blank line — structural markup used to make
+  //     space, announcing a section that is not there. W3C failure F43 for
+  //     1.3.1. Mirrors the deduction scoreDocxHeadings applies; the pair is
+  //     required, because only a named criterion may move a score.
+  if ((analysis.emptyHeadingCount ?? 0) > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "heading_structure",
+      `${analysis.emptyHeadingCount} Heading-styled paragraph(s) contain no text — a heading style used for spacing rather than to mark a section, so the outline announces a section that does not exist.`,
+    );
+  }
+
   // 3c. Manually typed bullets/numbers instead of Word's list formatting —
   //     the list structure exists visually but not programmatically (1.3.1;
   //     W3C technique H48 is the sufficient path). Mirrors the

@@ -179,9 +179,30 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       );
     }
   }
-  if ((a.emptyHeadingCount ?? 0) > 0) {
+  // SCORED since 2026-08-31 (user decision, after the WCAG audit of the
+  // best-practices catalog). A Heading style on a blank line is structural
+  // markup applied for a presentational purpose — spacing — announcing a
+  // section that does not exist. That is W3C failure F43 for WCAG 1.3.1
+  // (Level A), and conformance.ts records it as such: nothing here may move
+  // a score without naming the criterion it broke (the legal-basis gate).
+  //
+  // WHY WORD AND NOT PDF: this count is exact. docxService reads a Heading
+  // style with no text straight from the XML — no inference. The PDF twin
+  // (heading-content) rests on pdf.js text attribution, which has
+  // misattributed heading text before (v1.110.0), so it stays reported and
+  // unscored. Mainstream tooling splits on the underlying question — WAVE
+  // calls an empty heading a 1.3.1 error, axe-core calls it best practice —
+  // so the exactness of the evidence is what decides which side of the line
+  // this product can defend.
+  //
+  // CAPPED AT 30 POINTS, deliberately: the harm is real but it is noise, not
+  // lost information. 70 is the floor of the Minor band (shared/scoring.ts),
+  // so empty headings alone can never take this category past Minor.
+  const emptyHeadings = a.emptyHeadingCount ?? 0;
+  if (emptyHeadings > 0) {
+    score -= Math.min(30, emptyHeadings * 10);
     findings.push(
-      `Advisory — not scored: ${a.emptyHeadingCount} empty Heading-styled paragraph(s) (no text — often a spacing habit). They clutter the navigable outline; use paragraph spacing instead.`,
+      `${emptyHeadings} Heading-styled paragraph(s) contain no text — a heading style applied to a blank line, usually to make space. Someone navigating by heading lands on silence, and the outline shows a section that is not there. In Word: delete the blank line, or set it to Normal style and use paragraph spacing instead.`,
     );
   }
   if (fakes > 0) {

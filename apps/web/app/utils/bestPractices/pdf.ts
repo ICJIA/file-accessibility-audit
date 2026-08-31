@@ -267,7 +267,8 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "A document should use one heading convention throughout — either numbered tags (H1–H6) or generic ones, not a mix of both.",
     why: "A generic heading tag carries no level. Wherever one sits among numbered headings, the depth a screen reader would announce is missing at exactly that point, even though a heading tag is present.",
-    standard: "Matterhorn Protocol 14-002",
+    standard:
+      "Matterhorn Protocol 14-002 (PDF/UA). WCAG 2.1 has no analogue: every heading here is still exposed as a heading with a determinable level, which is all 1.3.1 asks. Picking one convention is a PDF/UA consistency rule.",
     links: links(matterhornLink("14")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -535,6 +536,8 @@ export const PDF_PRACTICES: BestPractice[] = [
       "Many style guides recommend a single H1 — the document title — with every section demoted to H2 and below, so the outline has one root.",
     why: "This is a style convention, not a rule: PDF/UA explicitly permits repeated H1s in a document with clear underlying structure, and no WCAG criterion requires just one. A single top-level heading simply gives the outline one clear starting point.",
     links: [],
+    standard:
+      "No WCAG 2.1 criterion mentions H1 counts, and PDF/UA permits repeated H1s. axe-core classes the equivalent HTML rule (page-has-heading-one) a best practice, not a WCAG rule.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1148,6 +1151,8 @@ export const PDF_PRACTICES: BestPractice[] = [
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
     why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
+    standard:
+      "Satisfies WCAG 2.4.4 Link Purpose (In Context), Level A — the URL is the destination, so the purpose is determinable from the link text itself. Preferring a short label over the address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1201,6 +1206,8 @@ export const PDF_PRACTICES: BestPractice[] = [
       "A document's tag structure can nest sections inside each other — not just list every tag in one flat sequence.",
     why: "A flat tree still gives assistive technology a reading order, so it is not a failure — but nesting mirrors the document's real sections, which makes a long document far easier to navigate section by section.",
     links: [],
+    standard:
+      "No criterion requires a nested structure tree. WCAG 1.3.2 Meaningful Sequence (Level A) asks that a correct reading sequence be programmatically determinable — a flat tree still provides one.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked("This report has no reading-order data for this document.", "not-run");
@@ -1491,7 +1498,8 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Each footnote or endnote tag should carry a unique /ID, and no two notes should share one.",
     why: "A unique /ID is what lets assistive technology link an in-text reference to its note and back again. Without one — or with a duplicate — that link cannot be made reliably.",
-    standard: "Matterhorn Protocol 19",
+    standard:
+      "Matterhorn Protocol 19 (PDF/UA clause 7.9). Not a WCAG 2.1 failure: the association between a reference and its note is normally carried by the matching visible numerals and by the link annotation, so the information is available in text — which satisfies 1.3.1.",
     links: links(matterhornLink("19")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {

@@ -1,5 +1,5 @@
 {
-  "count": 17,
+  "count": 19,
   "generated": "2026-08-31",
   "items": [
     {
@@ -82,6 +82,16 @@
       "label": "Word: passes WCAG 2.1, and still skips a heading level and merges a header cell",
       "chip": "held",
       "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-128-docx-empty-headings.docx",
+      "label": "Word: heading styles on blank lines, used as spacing",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-129-docx-empty-headings-good-twin.docx",
+      "label": "Word: the same document spaced with ordinary blank paragraphs",
+      "chip": "clean"
     },
     {
       "file": "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",
