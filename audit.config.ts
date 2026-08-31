@@ -123,7 +123,7 @@ export const ANALYTICS = {
 // ---------------------------------------------------------------------------
 // The operative reference standard the whole app displays and links to.
 //
-// We audit against WCAG 2.2 Level AA — a SUPERSET of the WCAG 2.1 AA that
+// We report against WCAG 2.1 Level AA — the standard named by the law. 2.2 is
 // IITAA 2.1 (§E205.4) and the ADA Title II rule actually require. Auditing to
 // 2.2 is stricter than the Illinois legal minimum; 2.2 is optional/forward-
 // looking under IITAA today. The automated checks are unchanged — every
@@ -336,7 +336,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "law-verdict-first-2026-08-29",
     badge: "Changed",
-    text: "Every report now opens by answering the compliance question directly: what the law requires, and whether this document meets it. WCAG 2.2 AA, ADA Title II and the Illinois IITAA get the headline; PDF/UA — the PDF industry's own standard, which is good practice and not law — sits underneath as a footnote, clearly marked as not counted in your score. We also audited every deduction the score is made of and removed two that no law requires: font embedding and nested tables. Both are still reported; neither affects your grade any more. Seven documents in our own test set scored slightly higher as a result, and none changed letter grade.",
+    text: "Every report now opens by answering the compliance question directly: what the law requires, and whether this document meets it. WCAG 2.1 AA, ADA Title II and the Illinois IITAA get the headline; PDF/UA — the PDF industry's own standard, which is good practice and not law — sits underneath as a footnote, clearly marked as not counted in your score. We also audited every deduction the score is made of and removed two that no law requires: font embedding and nested tables. Both are still reported; neither affects your grade any more. Seven documents in our own test set scored slightly higher as a result, and none changed letter grade.",
     linkText: "How this app is tested",
     linkTo: "/trust#all-tests",
     linkExternal: true,
@@ -346,7 +346,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "law-vs-pdfua-split-2026-08-29",
     badge: "Changed",
-    text: "Your grade now measures only what the law requires. Reports are split into two clearly labelled parts: what Illinois and federal law require (WCAG 2.2 AA, ADA Title II, IITAA) — which is what the score is made of — and, separately, what would additionally meet PDF/UA, the PDF industry's own standard, marked as not counted in your score. The clearest example is table header directions: where a table's headers run along a single edge, the relationship is already determinable and the law is satisfied, so a missing direction no longer costs you points; where headers run along two edges, it genuinely cannot be worked out, and that stays a real WCAG failure. Some documents will score slightly higher than before, for a defensible reason.",
+    text: "Your grade now measures only what the law requires. Reports are split into two clearly labelled parts: what Illinois and federal law require (WCAG 2.1 AA, ADA Title II, IITAA) — which is what the score is made of — and, separately, what would additionally meet PDF/UA, the PDF industry's own standard, marked as not counted in your score. The clearest example is table header directions: where a table's headers run along a single edge, the relationship is already determinable and the law is satisfied, so a missing direction no longer costs you points; where headers run along two edges, it genuinely cannot be worked out, and that stays a real WCAG failure. Some documents will score slightly higher than before, for a defensible reason.",
     linkText: "How this app is tested",
     linkTo: "/trust#all-tests",
     linkExternal: true,
@@ -1107,7 +1107,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "pptx-xlsx-support-2026-07",
     badge: "New",
-    text: "Now supporting Microsoft PowerPoint (.pptx) and Excel (.xlsx) files — upload a presentation or workbook for the same WCAG 2.2 AA accessibility audit as PDFs and Word documents, with findings and fix guidance tailored to each app.",
+    text: "Now supporting Microsoft PowerPoint (.pptx) and Excel (.xlsx) files — upload a presentation or workbook for the same WCAG 2.1 AA accessibility audit as PDFs and Word documents, with findings and fix guidance tailored to each app.",
     linkText: "",
     linkTo: "",
     /** Shown under the text so visitors can see the tool is actively maintained. */
@@ -1118,7 +1118,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "docx-support-2026-07",
     badge: "New",
-    text: "Now supporting Microsoft Word (.docx) files — upload a Word document for the same WCAG 2.2 AA accessibility audit as PDFs, with findings and fix guidance tailored to Word.",
+    text: "Now supporting Microsoft Word (.docx) files — upload a Word document for the same WCAG 2.1 AA accessibility audit as PDFs, with findings and fix guidance tailored to Word.",
     linkText: "",
     linkTo: "",
     /** Shown under the text so visitors can see the tool is actively maintained. */

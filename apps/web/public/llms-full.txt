@@ -6,7 +6,7 @@
 
 The ICJIA File Accessibility Audit is a web application that analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents for accessibility. The file format is detected from file content (magic bytes / package structure), never from the filename extension or a declared MIME type.
 
-Each document is scored under a single methodology: a weighted, partial-credit 0-100 score (A-F grade) across the WCAG-aligned categories that apply to its format, plus a separate binary WCAG 2.2 Level AA conformance verdict computed independently of the weighted score. The score shows how close a document is and what to fix first; the conformance verdict is the honest pass/fail answer, because WCAG conformance is all-or-nothing per success criterion (one image missing alt text fails 1.1.1 outright) and a partial-credit score cannot itself be a conformance claim. Neither is a legal compliance determination — pair the audit with a human accessibility review (e.g., PAC 2024, Adobe Acrobat's Accessibility Full Check, or each Office app's built-in Accessibility Checker) for a definitive determination.
+Each document is scored under a single methodology: a weighted, partial-credit 0-100 score (A-F grade) across the WCAG-aligned categories that apply to its format, plus a separate binary WCAG 2.1 Level AA conformance verdict computed independently of the weighted score. The score shows how close a document is and what to fix first; the conformance verdict is the honest pass/fail answer, because WCAG conformance is all-or-nothing per success criterion (one image missing alt text fails 1.1.1 outright) and a partial-credit score cannot itself be a conformance claim. Neither is a legal compliance determination — pair the audit with a human accessibility review (e.g., PAC 2024, Adobe Acrobat's Accessibility Full Check, or each Office app's built-in Accessibility Checker) for a definitive determination.
 
 PDF analysis uses two complementary parsers: QPDF (a subprocess) for the tag/structure tree, and pdfjs-dist (in-process) for text and metadata extraction. Word, PowerPoint, and Excel analysis parses the OOXML package (a ZIP of XML parts) directly in JavaScript with JSZip and fast-xml-parser — no external binary — inside a dedicated, interruptible child process, so a pathological Office file can be killed outright on timeout rather than merely abandoned. All four formats share the same concurrency semaphore (2 simultaneous analyses); a request beyond that limit queues or returns HTTP 503. No file content is retained — analysis is in-memory only.
 
@@ -27,7 +27,7 @@ Within that single score:
 
 - A category that doesn't apply to a given document (no tables, no images, no links, etc.) counts as passing and keeps its weight in the score's base, so a document is never penalized for lacking content it was never going to have — and a simple document's single fault is never magnified by a shrunken base (the pre-v1.58.3 renormalization did exactly that, and was removed). Only categories the tool could not assess (always-"Not Assessed" placeholders such as PDF color contrast) sit outside the weighted score.
 - A category can be null for one of two distinct reasons, both rendered as "N/A" in the score math but labeled differently in the report: **"Not Applicable"** means the document genuinely has none of that content (e.g., no tables to check); **"Not Assessed"** means the tool does not (or in some cases cannot yet) automatically evaluate that category for that format (e.g., PDF color contrast; Word reading order). See Category Details below for exactly which categories fall into "Not Assessed" per format.
-- The separate WCAG 2.2 conformance verdict has three possible states: confirmed automated failures (each tied to a specific WCAG success criterion and linked to its W3C "Understanding" page), "no automated WCAG failures detected" (never phrased as "conformant," since contrast and the semantic *correctness* of alt text/headings/reading order/tags require human judgment), or "incomplete" (the analyzer could not process the file — e.g., it's encrypted or corrupt — so no verdict could be determined).
+- The separate WCAG 2.1 conformance verdict has three possible states: confirmed automated failures (each tied to a specific WCAG success criterion and linked to its W3C "Understanding" page), "no automated WCAG failures detected" (never phrased as "conformant," since contrast and the semantic *correctness* of alt text/headings/reading order/tags require human judgment), or "incomplete" (the analyzer could not process the file — e.g., it's encrypted or corrupt — so no verdict could be determined).
 
 ---
 
@@ -139,9 +139,9 @@ Each category also carries an individual severity label, derived from that categ
 
 ## Standards Alignment
 
-- **WCAG 2.2 Level AA** — the default, operative standard (a strict superset of WCAG 2.1 AA; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can revert its displayed standard to WCAG 2.1 via the `WCAG_VERSION=2.1` environment variable.
+- **WCAG 2.1 Level AA** — the default, operative standard, and the version ADA Title II and the Illinois IITAA both name (WCAG 2.2 is a strict superset of it; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can revert its displayed standard to WCAG 2.1 via the `WCAG_VERSION=2.1` environment variable.
 - **ADA Title II** — the U.S. Department of Justice's digital accessibility rule for state and local government, requiring WCAG 2.1 AA. Compliance is due April 26, 2027 for entities with a population of 50,000 or more, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026).
-- **Illinois IITAA 2.1** (§E205.4) — the Illinois Information Technology Accessibility Act; frames final non-web document accessibility through WCAG 2.1 AA, the legal minimum this tool's default WCAG 2.2 auditing exceeds.
+- **Illinois IITAA 2.1** (§E205.4) — the Illinois Information Technology Accessibility Act; frames final non-web document accessibility through WCAG 2.1 AA, the standard this tool reports against by default.
 - **Section 508** — the U.S. federal accessibility standard, aligned with WCAG 2.0/2.1 AA.
 - **PDF/UA** (ISO 14289-1) — referenced only for PDF (see "PDF-only signals" above); not applicable to Word, PowerPoint, or Excel reports.
 
@@ -191,7 +191,7 @@ This is the schema of the downloadable **JSON export** (the "Export as JSON" act
     "notAssessed": [
       { "sc": "1.4.3", "name": "Contrast (Minimum)", "level": "AA", "reason": "...", "url": "..." }
     ],
-    "headline": "Does not meet WCAG 2.2 Level AA | No automated WCAG failures detected | WCAG verdict could not be determined"
+    "headline": "Does not meet WCAG 2.1 Level AA | No automated WCAG failures detected | WCAG verdict could not be determined"
   },
   "categories": [
     {
@@ -229,7 +229,7 @@ This is the schema of the downloadable **JSON export** (the "Export as JSON" act
     "description": "Structured context for LLMs",
     "prompt": "Pre-built prompt summarizing the audit",
     "standards": [
-      "WCAG 2.2 Level AA",
+      "WCAG 2.1 Level AA",
       "ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)",
       "Illinois IITAA 2.1 (§E205.4)",
       "Section 508",
