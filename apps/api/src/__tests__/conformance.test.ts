@@ -46,30 +46,36 @@ describe("conformance gate — WCAG 2.2", () => {
     expect(v.failures.every((f: any) => f.url.includes("/WCAG21/"))).toBe(true);
   });
 
-  it("adds form-relevant 2.2 criteria to notAssessed ONLY when displaying 2.2", async () => {
-    // The three form-relevant 2.2 additions — 2.5.8 Target Size, 3.3.7
-    // Redundant Entry, 3.3.8 Accessible Authentication — are manual-review
-    // notes, never failures. Under the 2.1 default (2026-08-31) they are out
-    // of scope by definition: 2.1 is the standard the report names, and a
-    // criterion that does not exist in it cannot be part of its verdict.
-    process.env.WCAG_VERSION = "2.2";
-    const withTwoTwo = (await loadGate())(
-      makeQpdf({ hasAcroForm: true, formFields: [{ hasTU: true }] }),
-      makePdfjs(),
-      cleanCategories,
-    );
-    const scs = withTwoTwo.notAssessed.map((n: any) => n.sc);
-    expect(scs).toEqual(expect.arrayContaining(["2.5.8", "3.3.7", "3.3.8"]));
-    expect(scs).not.toContain("2.5.7"); // not form-relevant
-
+  it("lists the form-relevant 2.2 criteria as ASPIRATIONAL notes, whichever version is displayed", async () => {
+    // Restored 2026-08-31 after being gated off by the 2.1 default. They are
+    // never failures and never touch the grade; each says in its own reason
+    // that it sits beyond the standard being measured, so a reader cannot
+    // mistake one for something the law asks of them. Removing them silently
+    // took useful advice away from exactly the documents that need it.
+    for (const version of ["2.1", "2.2"]) {
+      if (version === "2.2") process.env.WCAG_VERSION = "2.2";
+      else delete process.env.WCAG_VERSION;
+      const v = (await loadGate())(
+        makeQpdf({ hasAcroForm: true, formFields: [{ hasTU: true }] }),
+        makePdfjs(),
+        cleanCategories,
+      );
+      const scs = v.notAssessed.map((n: any) => n.sc);
+      expect(scs, version).toEqual(expect.arrayContaining(["2.5.8", "3.3.7", "3.3.8"]));
+      expect(scs, version).not.toContain("2.5.7"); // not form-relevant
+      // Never a failure, and never counted.
+      expect(
+        v.failures.map((f: any) => f.sc),
+        version,
+      ).not.toContain("2.5.8");
+      for (const sc of ["2.5.8", "3.3.7", "3.3.8"]) {
+        const entry = v.notAssessed.find((n: any) => n.sc === sc)!;
+        expect(entry.reason, `${version} ${sc}`).toMatch(
+          /[Bb]eyond the standard your grade measures/,
+        );
+      }
+    }
     delete process.env.WCAG_VERSION;
-    const withTwoOne = (await loadGate())(
-      makeQpdf({ hasAcroForm: true, formFields: [{ hasTU: true }] }),
-      makePdfjs(),
-      cleanCategories,
-    );
-    const scs21 = withTwoOne.notAssessed.map((n: any) => n.sc);
-    for (const sc of ["2.5.8", "3.3.7", "3.3.8"]) expect(scs21).not.toContain(sc);
   });
 
   it("does NOT add 2.2 form criteria when the PDF has no form fields", async () => {
@@ -82,7 +88,7 @@ describe("conformance gate — WCAG 2.2", () => {
     expect(scs).not.toContain("3.3.8");
   });
 
-  it("reverts to 2.1 URLs/headline and adds no 2.2 criteria when WCAG_VERSION=2.1", async () => {
+  it("uses 2.1 URLs and headline when WCAG_VERSION=2.1, keeping the aspirational notes", async () => {
     process.env.WCAG_VERSION = "2.1";
     const evaluate = await loadGate();
     const v = evaluate(
@@ -92,8 +98,14 @@ describe("conformance gate — WCAG 2.2", () => {
     );
     expect(v.headline).toContain("WCAG 2.1 Level AA");
     expect(v.failures.every((f: any) => f.url.includes("/WCAG21/"))).toBe(true);
+    // The 2.2 form notes are NOT version-gated any more (2026-08-31): they are
+    // aspirational either way, and each says so in its own reason. What the
+    // version controls is which standard the verdict NAMES and links.
     const scs = v.notAssessed.map((n: any) => n.sc);
-    expect(scs).not.toContain("3.3.8");
+    expect(scs).toContain("3.3.8");
+    expect(v.notAssessed.find((n: any) => n.sc === "3.3.8")!.reason).toMatch(
+      /beyond the standard your grade measures/i,
+    );
   });
 });
 

@@ -599,8 +599,9 @@
             rel="noopener noreferrer"
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >WCAG 2.2</a
-          >'s newer criteria, which are described there rather than counted here, and returns a
-          detailed report with actionable findings.
+          >'s newer criteria — flagged for manual review on documents with interactive forms, marked
+          as beyond the standard being measured, and never counted — and returns a detailed report
+          with actionable findings.
         </p>
       </div>
 

@@ -688,10 +688,18 @@ export function evaluateConformance(
 
   // New in WCAG 2.2: surface the form-relevant new A/AA criteria as
   // "not assessed — manual review" when this document has interactive form
-  // fields. Never as failures (no automated evidence). Skipped entirely when
-  // reverted to WCAG 2.1. Web-UI-only new criteria (focus, dragging, consistent
-  // help) are documented on the /wcag-2-2 page instead, not per-document.
-  if (WCAG.VERSION === "2.2" && qpdf.hasAcroForm) {
+  // fields. Never as failures (no automated evidence). Web-UI-only new
+  // criteria (focus, dragging, consistent help) are documented on the
+  // /wcag-2-2 page instead, not per-document.
+  //
+  // NO LONGER GATED ON WCAG.VERSION (user decision, 2026-08-31). When the
+  // displayed standard moved to 2.1 these notes vanished, which is defensible
+  // — they are not part of 2.1 — but it silently removed useful advice from
+  // exactly the documents that need it, and left four surfaces promising a
+  // disclosure that no longer happened. They are restored as ASPIRATIONAL:
+  // the reason says plainly that they sit beyond the standard being measured,
+  // so no reader can mistake one for something the law asks of them.
+  if (qpdf.hasAcroForm) {
     for (const c of WCAG_22_NEW_AA) {
       if (!c.pdfFormRelevant) continue;
       notAssessed.push({
@@ -699,7 +707,7 @@ export function evaluateConformance(
         name: c.name,
         level: c.level as "A" | "AA",
         reason:
-          "New in WCAG 2.2. Applies to interactive PDF form controls/processes; this tool does not assess it automatically — manual review required.",
+          "Beyond the standard your grade measures: this is new in WCAG 2.2, and WCAG 2.1 is what ADA Title II and the Illinois IITAA require. It applies to interactive form controls, so it is worth a look by hand if you are aiming past the legal minimum. Nothing here affects your grade or your compliance.",
         url: wcagUrl(c.sc),
       });
     }

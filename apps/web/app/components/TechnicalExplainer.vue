@@ -1386,10 +1386,13 @@
           2.2 is a strict superset of it: it adds nine success criteria (six at Level A/AA) and
           removes one (4.1.1 Parsing, obsolete). The automated checks are the same either way —
           every machine-checkable criterion is one carried forward from 2.1. The criteria 2.2 adds
-          are interactive and manual, so they are never reported as automated failures; they are
-          described on the
+          are interactive and manual, so they are never reported as automated failures. On a
+          document with interactive form fields the form-relevant ones (Target Size 2.5.8, Redundant
+          Entry 3.3.7, Accessible Authentication 3.3.8) are listed as
+          <em>&ldquo;not assessed &mdash; manual review&rdquo;</em>, each saying plainly that it
+          sits beyond the standard your grade measures. The rest are described on the
           <a href="/wcag-2-2" class="text-[var(--link)] underline">What&rsquo;s new in WCAG 2.2</a>
-          page rather than listed in each document&rsquo;s verdict.
+          page.
         </p>
         <p class="text-[var(--text-muted)]">
           For a plain-language manager summary, see

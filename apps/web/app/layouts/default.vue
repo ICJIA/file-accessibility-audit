@@ -258,12 +258,12 @@
                       rel="noopener noreferrer"
                       class="text-[var(--link)] hover:text-[var(--link-hover)]"
                       >WCAG 2.2</a
-                    >'s added criteria are documented on the What's new in WCAG 2.2 page rather than
-                    reported per document, and are never counted. A category that doesn't apply to a
-                    document (e.g., tables in a document with no tables) counts as passing and keeps
-                    its weight — a document is never penalized for content it doesn't have. Only a
-                    category the tool could not assess (color contrast on PDFs) sits outside the
-                    weighted score.
+                    >'s added criteria are flagged for manual review on documents with interactive
+                    forms — marked as beyond the standard being measured — and are never counted. A
+                    category that doesn't apply to a document (e.g., tables in a document with no
+                    tables) counts as passing and keeps its weight — a document is never penalized
+                    for content it doesn't have. Only a category the tool could not assess (color
+                    contrast on PDFs) sits outside the weighted score.
                   </p>
 
                   <div class="rounded-lg border border-[var(--border)] overflow-x-auto">

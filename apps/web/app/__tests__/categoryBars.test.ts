@@ -59,3 +59,49 @@ describe("CategoryBars", () => {
     expect(w.findAll("[data-testid='bar-row']").length).toBe(0);
   });
 });
+
+describe("every bar is measured against the same track (2026-08-31 bug report)", () => {
+  // Reported from a real report: a category scoring 94 drew a LONGER bar than
+  // the 100s above it. The fill is a percentage of the track, the track is
+  // flex-1, and the severity chip beside it was free-width — so "Minor" left a
+  // wider track than "No issues found", and 94% of the wider one beat 100% of
+  // the narrower. Stacked bars are only meaningful if the tracks match.
+  const rows = [
+    {
+      id: "text_extractability",
+      label: "Text Extractability",
+      score: 100,
+      grade: "A",
+      severity: "No issues found",
+    },
+    { id: "link_quality", label: "Link & URL Quality", score: 94, grade: "A", severity: "Minor" },
+    { id: "reading_order", label: "Reading Order", score: 100, grade: "A", severity: null },
+  ];
+  const mountBars = () => mount(CategoryBars, { props: { categories: rows as never } });
+
+  it("gives the severity column one fixed width, whatever the wording", () => {
+    const w = mountBars();
+    const cells = w.findAll('[data-testid="bar-row"]').map((r) => {
+      const spans = r.findAll("span");
+      return spans[spans.length - 1];
+    });
+    expect(cells.length).toBe(3);
+  });
+
+  it("renders a severity slot on EVERY row — including one with no severity", () => {
+    // A missing chip is a wider track, which is the same bug by another route.
+    const w = mountBars();
+    for (const row of w.findAll('[data-testid="bar-row"]')) {
+      const fixed = row.findAll("span").filter((s) => s.classes().includes("w-[6.5rem]"));
+      expect(fixed.length, row.attributes("aria-label")).toBe(1);
+    }
+  });
+
+  it("keeps the fill a plain percentage of its own track", () => {
+    const w = mountBars();
+    const widths = w.findAll('[data-testid="bar-fill"]').map((f) => f.attributes("style"));
+    expect(widths[0]).toContain("width: 100%");
+    expect(widths[1]).toContain("width: 94%");
+    expect(widths[2]).toContain("width: 100%");
+  });
+});

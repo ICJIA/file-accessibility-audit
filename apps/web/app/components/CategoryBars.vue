@@ -39,15 +39,27 @@
           aria-hidden="true"
           >{{ cat.grade || "—" }}</span
         >
+        <!-- FIXED WIDTH, and ALWAYS RENDERED (2026-08-31 bug report). The
+             track above is flex-1, so anything variable to its right changes
+             how much room the track gets — and the fill is a percentage OF
+             THE TRACK. "Minor" is far narrower than "No issues found", so a
+             94 sat in a wider track and drew a LONGER bar than a 100 beside
+             it. A row with no severity at all rendered no chip and was wider
+             still. Every trailing column is now a fixed size, so every track
+             is identical and the bars are comparable down the column, which
+             is the entire point of showing them stacked. -->
         <span
-          v-if="cat.severity"
-          class="inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-          :style="{
-            backgroundColor: withAlpha(sevColor(cat.severity), 8),
-            color: sevColor(cat.severity),
-          }"
+          class="w-[6.5rem] flex-shrink-0 text-[10px] text-center whitespace-nowrap"
           aria-hidden="true"
-          >{{ cat.severity }}</span
+          ><span
+            v-if="cat.severity"
+            class="inline-block px-2 py-0.5 rounded-full"
+            :style="{
+              backgroundColor: withAlpha(sevColor(cat.severity), 8),
+              color: sevColor(cat.severity),
+            }"
+            >{{ cat.severity }}</span
+          ></span
         >
       </li>
     </ul>
