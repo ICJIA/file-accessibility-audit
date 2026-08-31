@@ -102,30 +102,60 @@
         :data-status="row.status"
         class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)]"
       >
-        <button
-          type="button"
-          class="bp-row-header w-full flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
-          :aria-expanded="open.has(row.practice.id) ? 'true' : 'false'"
-          :aria-controls="`bp-body-${row.practice.id}`"
-          @click="toggle(row.practice.id)"
-        >
-          <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row.status)">{{
-            statusIcon(row.status)
-          }}</span>
-          <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
-            row.practice.label
-          }}</span>
-          <span
-            class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border"
-            :class="statusPillClass(row.status)"
-            >{{ statusLabel(row.status) }}</span
+        <!-- The header button and the "why not checked?" control are SIBLINGS,
+             never nested: a <button> inside a <button> is invalid HTML and
+             browsers recover from it unpredictably. -->
+        <div class="flex items-center">
+          <button
+            type="button"
+            class="bp-row-header flex-1 min-w-0 flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
+            :aria-expanded="open.has(row.practice.id) ? 'true' : 'false'"
+            :aria-controls="`bp-body-${row.practice.id}`"
+            @click="toggle(row.practice.id)"
           >
-          <span
-            class="text-xs text-[var(--link)] whitespace-nowrap w-[72px] text-right flex-shrink-0"
-            data-export-exclude
-            >{{ open.has(row.practice.id) ? "Hide" : "Show" }}</span
+            <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row.status)">{{
+              statusIcon(row.status)
+            }}</span>
+            <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
+              row.practice.label
+            }}</span>
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border"
+              :class="statusPillClass(row.status)"
+              >{{ statusLabel(row.status) }}</span
+            >
+            <span
+              class="text-xs text-[var(--link)] whitespace-nowrap w-[72px] text-right flex-shrink-0"
+              data-export-exclude
+              >{{ open.has(row.practice.id) ? "Hide" : "Show" }}</span
+            >
+          </button>
+
+          <!-- NOT CHECKED is the one status a reader can misread as an accusation
+             ("what did my document do wrong?"). It is never the document's
+             fault: either the checker only speaks up on trouble and stayed
+             quiet, or this report carries no data for that check. The icon
+             says which, on hover and on focus, without making the reader open
+             the row — and clicking it opens the row, where the same reason is
+             written out in full. -->
+          <AppTooltip
+            v-if="row.status === 'not-checked'"
+            v-slot="tip"
+            :text="notCheckedReason(row)"
           >
-        </button>
+            <button
+              type="button"
+              data-export-exclude
+              :data-not-checked-info="row.practice.id"
+              :aria-describedby="tip?.tooltipId"
+              :aria-label="`Why was &quot;${row.practice.label}&quot; not checked? Nothing is wrong with your document.`"
+              class="flex-shrink-0 mr-2 -ml-1 w-7 h-7 grid place-items-center rounded-full text-amber-300/90 hover:text-amber-200 hover:bg-amber-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 cursor-pointer"
+              @click="toggle(row.practice.id)"
+            >
+              <span aria-hidden="true" class="text-sm font-semibold">ⓘ</span>
+            </button>
+          </AppTooltip>
+        </div>
 
         <div
           v-show="open.has(row.practice.id)"
@@ -361,6 +391,21 @@ const summary = computed(() => summarizeBestPractices(rows.value));
  *  every such line; narrowing it to veraPDF alone dropped them from the
  *  Visual view. Shown verbatim — the analyzer's words, not a verdict. */
 const otherNotes = computed(() => uncoveredNotScored(props.result));
+
+/** What the ⓘ beside a NOT CHECKED pill says. Keyed on the SAME `reason`
+ *  field the body copy branches on, so the two can never drift apart, and
+ *  every branch opens by absolving the document — that is the whole point of
+ *  the control. Kept to one or two sentences: it is a tooltip, and the row
+ *  body carries the long form. */
+function notCheckedReason(row: EvaluatedPractice): string {
+  if (row.reason === "not-run") {
+    return "Nothing is wrong with your document. This report carries no data for this check, so it was never looked at either way — re-running the audit usually settles it.";
+  }
+  if (row.reason === "error") {
+    return "Nothing is wrong with your document. This check could not be completed for this report.";
+  }
+  return "Nothing is wrong with your document. The checker only speaks up when something looks wrong, so silence here is not a sign of trouble — it simply did not confirm this one either way. A person can usually confirm it in a minute.";
+}
 
 // No "N of 19" fraction anywhere — a denominator beside a status is read as
 // a grade in this product. Each chip stands alone. "worth doing" mirrors the

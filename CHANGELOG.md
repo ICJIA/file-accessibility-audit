@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.144.0] - 2026-08-31
+
+### Changed — blank headings in Word are counted; the same defect in a PDF still is not, and the report says why
+
+- **A heading style applied to a blank line now costs points in a Word document.** It puts a section in the outline that has no content in it: someone moving through the document by heading lands on silence, and the list of headings they navigate by has entries that lead nowhere. That is a WCAG 1.3.1 (Level A) failure — ten points each, capped at thirty so it can never make the heading category worse than Minor — and it comes with its own fix step, written for this defect rather than the opposite one. **The identical defect in a PDF is still reported without being counted**, because there the evidence is an estimate rather than a certainty, and that row now says plainly that checkers disagree about it. Where a rule is contested, the report says so instead of picking a side quietly.
+- **No document in the test corpus changed grade.** The rule is proven by two new trap documents — one carrying the defect, one with it corrected — and by a third that guards the mistake this change nearly shipped with.
+
+### Fixed — an audit of every claim the reports make, and one accusation that was false
+
+- **A Word document could be told it was failing the ADA about headings that were not blank at all.** A heading built from a picture — an agency letterhead or masthead — or from a symbol carries no text of its own, and the new count mistook that for an empty line. Worse, such a document reported grade A, "ready to publish", "no headings were found", "nothing needs fixing" **and** "one criterion failing" on the same screen. Fixed where it started: a heading holding a picture or a symbol is not a blank line, and the score and the verdict can no longer disagree about whether a category was examined at all. A trap document now holds it in place.
+- **The compliance dates for the ADA Title II rule were out of date everywhere they appeared.** The Department of Justice extended them in April 2026: **April 26, 2027** for public bodies serving 50,000 people or more, and **April 26, 2028** for smaller ones and special districts. Ten surfaces said the deadline had already passed, including the printable brief and the trust page.
+- **Five standards citations were wrong, and two of them would have been fatal to a reviewer.** A W3C technique was described as satisfying a requirement it is only advisory for — and the row linked to the page that said so. A help link named "WCAG 1.3.1: Labels for Form Fields", which is not the name of any success criterion, and it shipped inside every downloadable report. Also corrected: a checkpoint number that described a different practice, a clause said to require something it leaves open, an annotation clause off by one, and four techniques written for web pages now cited as the analogies they are.
+- **Three claims about other people's software were wrong or contradicted our own code.** The reports said no checker analyses colour contrast inside a PDF — one does. They called a missing-headings finding the kind of thing Acrobat reports as an error, while this project's own Acrobat-parity table correctly records that Acrobat has no such rule. And the security log described WCAG 2.2 as legally required; the law names 2.1.
+- **A best-practice row could print "this is optional" directly above its own evidence saying the opposite.** That answer no longer appears on rows that exist to point at the score, and the word "optional" — a claim about the law rather than about the grade — is gone from the section entirely.
+
+### Added — an ⓘ beside "not checked", and the gate that catches the opposite mistake
+
+- **Every "not checked" row now carries an ⓘ that says why — and that it is not your document's fault.** "Not checked" is the one status a reader can mistake for an accusation. Hovering or focusing the icon explains which of two things happened: the checker only speaks up when something looks wrong and stayed quiet, or this report carries no data for that check at all. Every wording opens the same way — nothing is wrong with your document — and clicking the icon opens the row, where the same reason is written out in full.
+
+- **`pnpm best-practice-basis`, running in CI.** The existing legal-basis gate catches over-scoring: points taken with no failing criterion behind them. Nothing caught the reverse — a real legal failure presented to a public body as optional — which is the more damaging error, because it tells an agency it is compliant when it is not. The new gate pairs every "worth doing" row against the criteria the same report attributes to that row's own category, and requires that a person has reviewed and recorded each pairing. Seven exist today, each with its written reason; anything new stops the build.
+- **The legal-basis gate now also catches a category reported as "not examined" that carries a confirmed failure.** It found a second, older instance the day it was widened: a document graded 100/A whose table category was reported unscored beside a Level A failure about that same table.
+
+### Notes
+
+- Tests 3,381 (API 1,625 · Web 1,707 · CLI 49). Traps 130 (110 PDF + 20 Office). Score ledger 174 rows, re-blessed for the new trap documents only — no existing document's grade moved.
+
 ## [1.143.0] - 2026-08-30
 
 ### Added — a Best practices section, with your document's own evidence

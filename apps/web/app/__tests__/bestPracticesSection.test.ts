@@ -508,3 +508,75 @@ describe("the grade answer never contradicts the row above it (2026-08-31 WCAG a
     expect(row.text()).not.toMatch(/\boptional\b/i);
   });
 });
+
+describe("NOT CHECKED carries an ⓘ that absolves the document (2026-08-31)", () => {
+  // NOT CHECKED is the one status a reader can misread as an accusation. The
+  // control exists to answer "what did my document do wrong?" with "nothing".
+  const silent = {
+    fileType: "pdf",
+    pageCount: 12,
+    categories: [
+      { id: "heading_structure", findings: ["Found 4 heading tags with logical hierarchy"] },
+    ],
+  };
+
+  it("puts the control on NOT CHECKED rows and nowhere else", () => {
+    const w = mountSection(silent);
+    for (const row of w.findAll("[data-practice]")) {
+      const id = row.attributes("data-practice");
+      const hasInfo = row.find(`[data-not-checked-info="${id}"]`).exists();
+      expect(hasInfo, `${id} (${row.attributes("data-status")})`).toBe(
+        row.attributes("data-status") === "not-checked",
+      );
+    }
+  });
+
+  it("never nests the control inside the row-header button — that is invalid HTML", () => {
+    const w = mountSection(silent);
+    const header = w.find("button.bp-row-header");
+    expect(header.exists()).toBe(true);
+    expect(header.find("button").exists()).toBe(false);
+  });
+
+  // AppTooltip is not resolvable in this environment, so read the text it is
+  // handed rather than what it would render: a stub that echoes the prop.
+  const TipStub = {
+    props: ["text"],
+    template: `<span :data-tip="text"><slot :tooltip-id="'tip-test'" /></span>`,
+  };
+  const withTips = (result: unknown) =>
+    mount(BestPracticesSection, {
+      props: { result },
+      global: { stubs: { AppTooltip: TipStub } },
+    });
+  const tipTexts = (w: ReturnType<typeof withTips>) =>
+    w.findAll("[data-tip]").map((n) => String(n.attributes("data-tip")));
+
+  it("says nothing is wrong with the document, whichever reason applies", () => {
+    const texts = tipTexts(withTips(silent));
+    expect(texts.length).toBeGreaterThan(0);
+    for (const text of texts) {
+      expect(text).toMatch(/Nothing is wrong with your document/);
+      // Never blames the file, and never implies a defect was found.
+      expect(text).not.toMatch(/\bfail(ed|ure)?\b|\bproblem\b|\bissue\b/i);
+    }
+  });
+
+  it("distinguishes 'we have no data' from 'the checker stayed quiet'", () => {
+    // The reason field the body copy already branches on must drive the
+    // tooltip too, or the two can drift apart. One fixture produces both:
+    // heading_structure is present (so heading rows are merely quiet) while
+    // every other category is absent (so those rows have no data at all).
+    // A result with NO categories is not a case — the section self-hides.
+    const texts = tipTexts(withTips(silent));
+    expect(texts.some((x) => /carries no data for this check/.test(x))).toBe(true);
+    expect(texts.some((x) => /only speaks up when something looks wrong/.test(x))).toBe(true);
+  });
+
+  it("is excluded from exports, like the other row chrome", () => {
+    const w = mountSection(silent);
+    const info = w.find("[data-not-checked-info]");
+    expect(info.attributes("data-export-exclude")).toBeDefined();
+    expect(info.attributes("aria-label")).toMatch(/Nothing is wrong with your document/);
+  });
+});
