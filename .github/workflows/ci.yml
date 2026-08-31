@@ -89,6 +89,17 @@ jobs:
       - name: Legal basis (every point lost names the law it broke)
         run: pnpm legal-basis
 
+      # Its converse (2026-08-31, after the WCAG audit of the Best practices
+      # catalog): nothing the law REQUIRES may be filed under "not scored".
+      # Where a best-practice row reads NOT MET on a document whose same
+      # category carries a failing WCAG criterion, a person must have
+      # recorded why the two are different defects. A new, unreviewed
+      # pairing fails the build. Under-scoring — telling an agency it is
+      # compliant when it is not — is the more damaging of the two errors,
+      # and until now nothing in CI could catch it.
+      - name: Best-practice basis (nothing required is filed as optional)
+        run: pnpm best-practice-basis
+
       # Byte layout must never change a grade: every trap is rewritten by
       # qpdf (new object order, new xref) and must grade identically, digit
       # for digit. Plus determinism: sentinel traps audited 5x (2 serial +

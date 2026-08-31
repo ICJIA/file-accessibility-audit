@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.143.0",
+  "version": "1.144.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,6 +26,7 @@
     "build-brief": "node scripts/build-brief.mjs",
     "score-ledger": "tsx --tsconfig scripts/tsconfig.json scripts/score-ledger.ts",
     "legal-basis": "tsx --tsconfig scripts/tsconfig.json scripts/legal-basis.ts",
+    "best-practice-basis": "tsx --tsconfig scripts/tsconfig.json scripts/best-practice-basis.ts",
     "resave-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/resave-invariance.ts",
     "prod-sentinels": "tsx --tsconfig scripts/tsconfig.json scripts/prod-sentinels.ts",
     "synthetic-office-controls": "tsx --tsconfig scripts/tsconfig.json scripts/synthetic-office-controls.ts",

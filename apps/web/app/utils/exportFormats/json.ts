@@ -117,9 +117,8 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
         `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for the source application.`,
       standards: [
         `WCAG ${branding.wcagVersion} Level AA`,
-        "ADA Title II (effective April 2026)",
+        "ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)",
         "Illinois IITAA 2.1 (§E205.4)",
-        "Section 508",
         // PDF/UA (ISO 14289-1) is a PDF-only ISO standard — the scorer never
         // computes PDF/UA signals for docx/pptx/xlsx ("pdfUa and adobeParity
         // are intentionally omitted — PDF-only signals", scorer.ts), so

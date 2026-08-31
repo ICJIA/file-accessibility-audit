@@ -142,7 +142,14 @@ const MAX_FAKE_HEADING_LINES = 15;
 function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   const total = a.headings.length;
   const fakes = a.fakeHeadings.length;
-  if (total === 0 && fakes === 0) {
+  // `emptyHeadings === 0` is load-bearing (2026-08-31): without it a document
+  // whose ONLY heading styles sit on blank lines returned score null — Not
+  // Assessed — while conformance.ts asserted a 1.3.1 failure about those very
+  // paragraphs. The report then read grade A, "No headings were found",
+  // "Nothing — this document passed every automated check", and "1 criterion
+  // failing" at once. Scorer and verdict must agree on whether this category
+  // was assessed at all.
+  if (total === 0 && fakes === 0 && (a.emptyHeadingCount ?? 0) === 0) {
     return docxCategory(
       "heading_structure",
       "Heading Structure",
@@ -179,9 +186,35 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       );
     }
   }
-  if ((a.emptyHeadingCount ?? 0) > 0) {
+  // SCORED since 2026-08-31 (user decision, after the WCAG audit of the
+  // best-practices catalog). A Heading style on a blank line is structural
+  // markup applied for a presentational purpose — spacing — announcing a
+  // section that does not exist — structure conveyed by presentation that
+  // does not represent a real relationship, which is WCAG 1.3.1 (Level A)
+  // itself. conformance.ts records that criterion: nothing here may move a
+  // score without naming the criterion it broke (the legal-basis gate).
+  // NOT cited as W3C failure F43, though it is the nearest analogue: F43 is
+  // written for HTML and all of its examples are heading markup applied to
+  // VISIBLE text for a visual effect. W3C publishes no failure technique for
+  // an empty heading, which is why the PDF twin stays hedged as contested.
+  //
+  // WHY WORD AND NOT PDF: this count is exact. docxService reads a Heading
+  // style with no text straight from the XML — no inference. The PDF twin
+  // (heading-content) rests on pdf.js text attribution, which has
+  // misattributed heading text before (v1.110.0), so it stays reported and
+  // unscored. Mainstream tooling splits on the underlying question — WAVE
+  // calls an empty heading a 1.3.1 error, axe-core calls it best practice —
+  // so the exactness of the evidence is what decides which side of the line
+  // this product can defend.
+  //
+  // CAPPED AT 30 POINTS, deliberately: the harm is real but it is noise, not
+  // lost information. 70 is the floor of the Minor band (shared/scoring.ts),
+  // so empty headings alone can never take this category past Minor.
+  const emptyHeadings = a.emptyHeadingCount ?? 0;
+  if (emptyHeadings > 0) {
+    score -= Math.min(30, emptyHeadings * 10);
     findings.push(
-      `Advisory — not scored: ${a.emptyHeadingCount} empty Heading-styled paragraph(s) (no text — often a spacing habit). They clutter the navigable outline; use paragraph spacing instead.`,
+      `${emptyHeadings} Heading-styled paragraph(s) contain no text — a heading style applied to a blank line, usually to make space. Someone navigating by heading lands on silence, and the outline shows a section that is not there. In Word: delete the blank line, or set it to Normal style and use paragraph spacing instead.`,
     );
   }
   if (fakes > 0) {
@@ -295,7 +328,7 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
   }
   if (layoutish > 0) {
     findings.push(
-      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — overwhelmingly a layout construct, so no header row is demanded and your grade is not affected. If it IS a data table, mark its header row (Table Layout → Repeat Header Rows) and give it a table style.`,
+      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, mark its header row (Table Layout → Repeat Header Rows) and give it a table style.`,
     );
   }
   // Nested tables: reported, never scored (2026-08-29 — same rule as the

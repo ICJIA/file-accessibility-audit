@@ -145,7 +145,8 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
     id: "14",
     name: "Headings",
     coverage: "engine",
-    summary: "Heading levels are real H1–H6 tags, nested without skips.",
+    summary:
+      "Headings are tagged as headings, and a document keeps to one convention — either numbered levels or generic <H> — rather than mixing them.",
   },
   {
     id: "15",

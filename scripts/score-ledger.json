@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-08-30",
+  "blessed": "2026-08-31",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "2009 MV Annual Report.pdf": {
@@ -1321,6 +1321,38 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-128-docx-empty-headings.docx": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "70|Minor",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-129-docx-empty-headings-good-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-13-bold-fake-headings.pdf": {
       "score": 69,
       "grade": "D",
@@ -1334,6 +1366,22 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-130-docx-picture-headings-not-blank.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
     },

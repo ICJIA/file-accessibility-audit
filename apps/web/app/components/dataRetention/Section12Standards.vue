@@ -19,8 +19,8 @@
         Word, and heading structure does not apply to a spreadsheet).
       </li>
       <li>
-        <strong>ADA Title II</strong> (U.S. federal law, effective April 2026 for state and local
-        government digital content) — informs the tool's diagnostic and remediation framing.
+        <strong>ADA Title II</strong> (U.S. federal law; compliance due April 26, 2027 for state and
+        local government digital content) — informs the tool's diagnostic and remediation framing.
       </li>
       <li>
         <strong>Illinois IITAA</strong> (Information Technology Accessibility Act) — the tool's

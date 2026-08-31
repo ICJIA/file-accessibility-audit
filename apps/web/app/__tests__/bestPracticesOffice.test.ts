@@ -48,7 +48,7 @@ const DOCX_NO_LINKS = "No hyperlinks were found.";
 
 // docx.ts:162 — pushed unconditionally inside `if (total > 0)`, before
 // every heading-structure advisory. Witnesses docx-first-heading-is-h1,
-// docx-heading-skips, docx-empty-headings.
+// docx-heading-skips.
 const DOCX_HEADING_WITNESS = "4 real heading(s) found.";
 
 // docx.ts:194 — headingOutlineLines(a.headings), pushed whenever total > 0:
@@ -80,8 +80,6 @@ const DOCX_HEADING_SKIPS =
   "Advisory — not scored: 2 place(s) skip a heading level (e.g. Heading 1 → Heading 3) — not a WCAG 2.1 failure, so your grade is not affected, but screen-reader users may wonder what they missed at the skipped level.";
 const DOCX_HEADING_SKIPS_ONE =
   "Advisory — not scored: 1 place(s) skip a heading level (e.g. Heading 1 → Heading 3) — not a WCAG 2.1 failure, so your grade is not affected, but screen-reader users may wonder what they missed at the skipped level.";
-const DOCX_EMPTY_HEADINGS =
-  "Advisory — not scored: 2 empty Heading-styled paragraph(s) (no text — often a spacing habit). They clutter the navigable outline; use paragraph spacing instead.";
 const DOCX_EMPTY_PARAGRAPH_RUNS =
   "Advisory — not scored: 3 run(s) of three or more consecutive empty paragraphs — blank lines used for spacing, each announced by a screen reader. Use paragraph spacing (Layout → Spacing) instead.";
 const DOCX_LAYOUT_GRIDS =
@@ -183,7 +181,6 @@ const XLSX_RAW_URL =
 const NOT_MET_TRIGGERS: Record<string, string[]> = {
   "docx-first-heading-is-h1": [DOCX_HEADING_WITNESS, DOCX_FIRST_HEADING_NOT_H1],
   "docx-heading-skips": [DOCX_HEADING_WITNESS, DOCX_HEADING_SKIPS],
-  "docx-empty-headings": [DOCX_HEADING_WITNESS, DOCX_EMPTY_HEADINGS],
   "docx-empty-paragraph-runs": [DOCX_TEXT_WITNESS, DOCX_EMPTY_PARAGRAPH_RUNS],
   "docx-layout-grids": [DOCX_TABLE_WITNESS, DOCX_LAYOUT_GRIDS],
   "docx-nested-tables": [DOCX_TABLE_WITNESS, DOCX_NESTED_TABLES],
@@ -260,30 +257,6 @@ describe("docx-heading-skips", () => {
 
   it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-heading-skips", []).status).toBe("not-checked");
-  });
-});
-
-describe("docx-empty-headings", () => {
-  it("is NOT MET, even with the witness line present", () => {
-    const r = run("docx-empty-headings", [DOCX_HEADING_WITNESS, DOCX_EMPTY_HEADINGS]);
-    expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/2 empty Heading-styled paragraphs/);
-  });
-
-  it("is NOT CHECKED — not NOT APPLICABLE — when no headings with text were found: empty heading-styled paragraphs are excluded before that line fires (docxService.ts:808, docx.ts:145-152)", () => {
-    const r = run("docx-empty-headings", [
-      "No headings were found. Short documents may not need them, but longer ones should use Heading styles.",
-    ]);
-    expect(r.status).toBe("not-checked");
-    expect(r.reason).toBeUndefined();
-  });
-
-  it("is MET when the witness is present with no empty-heading advisory", () => {
-    expect(run("docx-empty-headings", [DOCX_HEADING_WITNESS]).status).toBe("met");
-  });
-
-  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
-    expect(run("docx-empty-headings", []).status).toBe("not-checked");
   });
 });
 
@@ -813,8 +786,11 @@ describe("xlsx-raw-url-link-text", () => {
 });
 
 describe("every Office practice", () => {
-  it("has exactly the 19 catalogued practices", () => {
-    expect(OFFICE_PRACTICES.length).toBe(19);
+  it("has exactly the 18 catalogued practices", () => {
+    // 19 until 2026-08-31, when docx-empty-headings became a scored WCAG
+    // 1.3.1 (Level A) failure and left this catalog for the action plan.
+    expect(OFFICE_PRACTICES.length).toBe(18);
+    expect(OFFICE_PRACTICES.some((p) => p.id === "docx-empty-headings")).toBe(false);
   });
 
   it("gates each practice to its own format", () => {
@@ -988,16 +964,6 @@ describe("docx-layout-grids claims only what the analyzer examined", () => {
   });
 });
 
-describe("docx-empty-headings does not call the exact defect it is about 'not applicable'", () => {
-  it("'No headings were found' is NOT CHECKED — empty heading-styled paragraphs are excluded before that line fires", () => {
-    const r = run("docx-empty-headings", [
-      "No headings were found. Short documents may not need them, but longer ones should use Heading styles.",
-    ]);
-    expect(r.status).toBe("not-checked");
-    expect(r.evidence.join(" ")).toMatch(/could not be established/);
-  });
-});
-
 describe("xlsx-data-outside-tables MET claims the per-sheet flag, not every range", () => {
   it("says 'at least one defined Excel Table' per sheet and that ranges are not checked", () => {
     const r = run("xlsx-data-outside-tables", ["2 defined table(s) found."]);
@@ -1024,7 +990,9 @@ describe("advisorySince is declared on every witness-based Office practice", () 
       (p) =>
         !["xlsx-sheet-names", "pptx-slide-titles", "pptx-distinct-slide-titles"].includes(p.id),
     );
-    expect(witnessBased.length).toBe(16);
+    // 15 since 2026-08-31: docx-empty-headings left this catalog when it became
+    // a scored WCAG 1.3.1 failure.
+    expect(witnessBased.length).toBe(15);
     for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

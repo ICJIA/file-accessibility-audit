@@ -804,9 +804,22 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
       const text = textOf(p).trim();
       // An empty Heading-styled paragraph (spacing habit) is not a heading —
       // it would inflate the outline and could satisfy "starts at H1" with
-      // nothing. Counted for an advisory instead.
+      // nothing.
+      //
+      // GUARDED 2026-08-31, when this count began to carry a SCORED WCAG
+      // 1.3.1 finding. textOf() collects w:t only, so a heading built from a
+      // picture (an agency letterhead or banner) or from a symbol glyph has
+      // no text and was being counted as "a heading style applied to a blank
+      // line" — then accused of a Level A failure, with the fix telling the
+      // author to delete a line that is not blank. The blank-PARAGRAPH
+      // advisory further down this file already applied the drawing guard;
+      // the deduction inherited none of that discipline.
+      const carriesNonTextContent =
+        descendants(p, "drawing").length > 0 ||
+        descendants(p, "pict").length > 0 ||
+        descendants(p, "sym").length > 0;
       if (text) headings.push({ level, text });
-      else emptyHeadingCount++;
+      else if (!carriesNonTextContent) emptyHeadingCount++;
     } else if (isFakeHeading(p, headingStyles)) {
       fakeHeadings.push({ text: textOf(p).trim() });
     }

@@ -1137,7 +1137,7 @@ describe("scoreHeadingStructure edge cases", () => {
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
     // W3C's own guidance: skipped levels are not a WCAG failure. Reported as
-    // a PDF/UA-only item (Matterhorn 13-004), never scored.
+    // a PDF/UA-only item (Matterhorn 14 (Headings)), never scored.
     const cat = findCategory(result, "heading_structure");
     expect(cat.score).toBe(100);
     expect(cat.findings.some((f) => f.includes("skip"))).toBe(true);

@@ -222,7 +222,7 @@
     >
       <div class="h-px flex-1 bg-[var(--border)]"></div>
       <span class="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]"
-        >Everything the law requires is above &uarr;</span
+        >Everything WCAG 2.1 requires is above &uarr;</span
       >
       <div class="h-px flex-1 bg-[var(--border)]"></div>
     </div>

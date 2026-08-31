@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "empty-headings-scored-2026-08-31",
+    badge: "Changed",
+    text: "Word documents now lose points for heading styles applied to blank lines. A heading style on an empty line puts a section in the outline that has no content in it, so someone moving through the document by heading lands on silence — it is counted as a WCAG 1.3.1 failure, with its own fix step. The same defect in a PDF is still reported without being counted, because there the evidence is an estimate rather than a certainty, and the report says so on the row. Every practice that could not be checked now carries an information icon explaining why, and each explanation begins by saying that nothing is wrong with your document. Alongside these, an audit of every claim the reports make about the standards corrected the ADA Title II compliance dates everywhere they appeared: the Department of Justice extended them in April 2026, to April 26, 2027 for entities serving 50,000 people or more and April 26, 2028 for smaller ones and special districts.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 31, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "best-practices-section-2026-08-30",
     badge: "New",
     text: "Reports now include a Best practices section between the action plan and Above and beyond, in every view: the visual report, the detailed report, a shared report, and the printout. It lists every non-scored best practice for your file's format — 38 in all, across PDF, Word, PowerPoint, and Excel — and for each one shows whether your document meets it, the evidence found in your document itself, both ways to fix it, and a link to learn more. None of it touches your score: a row that says work is worth doing is never a failure. Three new test documents prove the point rather than just claim it — a PDF, a Word document, and an Excel workbook that each pass WCAG 2.1 completely, score 100/A, and still carry real best-practice work for the new section to report. Above and beyond now shows only what veraPDF itself found, and six advisory findings for Word and Excel documents that were rendering under the wrong heading now render under the right one.",

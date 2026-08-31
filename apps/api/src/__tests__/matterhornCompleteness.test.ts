@@ -290,7 +290,7 @@ describe("qpdfService — JavaScript, multimedia, and optional-content censuses"
     });
   });
 
-  it("audits optional-content configurations for /Name (20-001) and /AS (20-002)", () => {
+  it("audits optional-content configurations for /Name (20-001) and /AS (checkpoint 20)", () => {
     const result = parseJson({
       qpdf: [
         null,
@@ -444,7 +444,11 @@ describe("supplementary advisories — notes, RoleMap validity, behaviors", () =
     expect(text).toContain("JavaScript is present");
     expect(text).toContain("multimedia annotation");
     expect(text).toContain("20-001");
-    expect(text).toContain("20-002");
+    // The /AS sub-number is contested (a 2026-08-31 review put it at 20-003,
+    // and the protocol is not publicly fetchable to settle it), so the finding
+    // cites checkpoint 20 and names the defect instead.
+    expect(text).toContain("/AS auto-state");
+    expect(text).toContain("Matterhorn 20");
     expect(result.conformance.notAssessed.some((n) => n.sc === "1.2.2")).toBe(true);
   });
 

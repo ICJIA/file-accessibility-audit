@@ -15,7 +15,7 @@ const report = {
     {
       id: "heading_structure",
       findings: [
-        "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+        "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected.",
         "--- Heading Tree ---",
         "  H1 → H2 → H1 → H1",
       ],
@@ -257,5 +257,18 @@ describe("category help links on paper", () => {
     expect(html).toContain('href="https://helpx.adobe.com/acrobat/headings"');
     expect(html).toContain("Adobe: heading tags");
     expect(html).not.toContain("javascript:");
+  });
+});
+
+describe("the printed section makes no legal claim the catalog cannot support (2026-08-31)", () => {
+  it("never calls the whole list 'optional work'", () => {
+    // On paper there is no row to click into, so the intro is the only thing
+    // a reader has. "Optional work" reads as "the law does not ask for any of
+    // this" — untrue for the link-text practices, which are unscored because
+    // WCAG 2.4.4 (Level A) admits context an automated check cannot read.
+    const html = build();
+    expect(html).toContain("None of this affected the grade.");
+    expect(html).not.toMatch(/optional work/i);
+    expect(html).toMatch(/only a person can judge/i);
   });
 });

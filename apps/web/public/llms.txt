@@ -39,7 +39,7 @@ Approximate category weights by format:
 ## Standards alignment
 
 - WCAG 2.2 Level AA (a strict superset of WCAG 2.1 AA; every machine-checkable criterion carries forward unchanged from 2.1 into 2.2)
-- ADA Title II (effective April 2026)
+- ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)
 - Illinois IITAA 2.1 (§E205.4)
 - Section 508
 - PDF/UA (ISO 14289-1; ISO 14289-2 validated when a document declares PDF/UA-2) — PDF only, not applicable to Word/PowerPoint/Excel

@@ -780,6 +780,42 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
   },
 ];
 
+/**
+ * heading_structure has one findings-keyed variant: heading styles applied to
+ * BLANK LINES, used as spacing. Added 2026-08-31, when that defect began to
+ * score (W3C failure F43 for 1.3.1 Level A). The stock heading step says "use
+ * real heading styles… text that is merely bold or large is invisible" — which
+ * is the fix for the OPPOSITE defect. A document caught by this rule already
+ * uses real heading styles; telling its author to start using them, after
+ * docking their grade, is the kind of mismatch a reviewer screenshots.
+ *
+ * Deliberately does NOT fire when the document ALSO has fake headings: that is
+ * the larger defect (up to 40 points against this one's 30) and its advice is
+ * the one worth the reader's attention first. FIRST MATCH WINS, as with
+ * alt_text's variants.
+ */
+const HEADING_STRUCTURE_VARIANTS: Array<{
+  matches: (findings: string[]) => boolean;
+  entry: PlanCopyEntry;
+}> = [
+  {
+    matches: (f) =>
+      f.some((s) => s.includes("contain no text")) &&
+      !f.some((s) => s.includes("formatted to look like headings")),
+    entry: {
+      title: "Clear the blank headings used as spacing",
+      why: "A heading style on an empty line adds a section to the document's outline that has no content in it. Someone moving through the document by heading lands on silence, and the list of headings they navigate by has entries that lead nowhere.",
+      source: {
+        docx: [
+          "Turn on Word's Navigation pane (View → Navigation pane) — the blank entries in that list are the ones to fix",
+          "For each, either delete the empty line, or click it and set it back to Normal in the Styles gallery",
+          "If the blank line was there to make space, set the spacing on the paragraph instead: Layout → Spacing → Before / After",
+        ],
+      },
+    },
+  },
+];
+
 const FINDINGS_VARIANTS: Record<
   string,
   Array<{ matches: (findings: string[]) => boolean; entry: PlanCopyEntry }>
@@ -789,6 +825,7 @@ const FINDINGS_VARIANTS: Record<
   alt_text: ALT_TEXT_VARIANTS,
   link_quality: LINK_QUALITY_VARIANTS,
   table_markup: TABLE_MARKUP_VARIANTS,
+  heading_structure: HEADING_STRUCTURE_VARIANTS,
 };
 
 /**

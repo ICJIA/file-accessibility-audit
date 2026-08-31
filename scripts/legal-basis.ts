@@ -48,7 +48,25 @@ async function main() {
     const conf = (r as any).conformance;
     const failing = new Set((conf?.failures ?? []).map((x: any) => x.category));
     for (const c of r.categories as any[]) {
-      if (c.score === null || c.score >= 100) continue;
+      // A category the scorer reported as NOT ASSESSED (score null) may not
+      // carry a confirmed WCAG failure: the report would be saying "we did
+      // not assess this" and "this fails the law" about the same content.
+      // Added 2026-08-31 — this gate skipped null scores entirely, and a
+      // Word document that graded A while its verdict named a 1.3.1 Level A
+      // failure passed every check in CI.
+      if (c.score === null) {
+        if (failing.has(c.id)) {
+          violations.push({
+            file: path.basename(f),
+            cat: c.id,
+            score: -1,
+            firstFinding:
+              "NOT ASSESSED, yet the verdict names a failing criterion for this category",
+          });
+        }
+        continue;
+      }
+      if (c.score >= 100) continue;
       if (!failing.has(c.id)) {
         const first = (c.findings ?? []).find(
           (x: string) =>

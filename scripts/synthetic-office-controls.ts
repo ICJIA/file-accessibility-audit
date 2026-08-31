@@ -108,6 +108,17 @@ const BODY_TEXT =
   "This paragraph carries enough ordinary running prose to count as real document body text for the analyzer, with plain words continuing along in an unremarkable way.";
 
 const EMPTY_P = "<w:p/>";
+/** A Heading style on a blank line — no run, so docxService's textOf() is
+ *  empty and it lands in emptyHeadingCount rather than in `headings`. */
+const EMPTY_HEADING = (level: number) =>
+  `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr></w:p>`;
+/** A heading whose content is a described picture — the agency-letterhead
+ *  pattern — and one whose content is a symbol glyph. Neither has a w:t, so
+ *  both looked "blank" to the empty-heading count until it was guarded. */
+const IMAGE_HEADING = (level: number, id: number, descr: string) =>
+  `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="381000"/><wp:docPr id="${id}" name="Picture ${id}" descr="${descr}"/></wp:inline></w:drawing></w:r></w:p>`;
+const SYMBOL_HEADING = (level: number) =>
+  `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:sym w:font="Wingdings" w:char="F0E0"/></w:r></w:p>`;
 
 /** A real data table (borders + a marked header row) whose top row is one
  *  cell spanning both columns — the merged-header habit Word encourages. */
@@ -388,11 +399,11 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-109-pptx-untitled-slides.pptx",
     truth:
-      "Slides with no title placeholder. NOT a confirmed WCAG failure — a slide can carry its heading in a body placeholder, and this battery's own conformance gate has always declined to assert 1.3.1 here — so since the legal-only sweep (2026-08-29) it must score 100 while the advisory still names every untitled slide.",
+      "Slides with no title placeholder. NOT a confirmed WCAG 2.1 A/AA failure — no A/AA criterion requires a heading to EXIST (that is 2.4.10 Section Headings, Level AAA), and this battery's own conformance gate has always declined to assert 1.3.1 here — so since the legal-only sweep (2026-08-29) it must score 100 while the advisory still names every untitled slide.",
     build: () => pptx([SLIDE_BODY(BODY_TEXT), SLIDE_BODY(BODY_TEXT)]),
     check: (r) => {
       const t = allFindings(r);
-      if (!/Advisory — not scored:.*no title placeholder/is.test(t))
+      if (!/Advisory — not scored:.*no title\b/is.test(t))
         return "untitled slides not reported as advisory";
       const c = cat("slide_titles")(r);
       if (c && c.score !== null && c.score < 100)
@@ -537,6 +548,101 @@ const SAMPLES: Sample[] = [
       ]),
   },
   {
+    file: "synthetic-128-docx-empty-headings.docx",
+    truth:
+      "Three Heading-styled blank lines used as spacing, among real headings. SCORED since 2026-08-31: a heading style applied to a blank line announces a section that does not exist — W3C failure F43 for WCAG 1.3.1 (Level A) — so heading_structure must lose points AND the conformance verdict must name 1.3.1. Reporting it without scoring it, or scoring it without naming the criterion, both fail this trap.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Annual Program Report"),
+          P(BODY_TEXT),
+          EMPTY_HEADING(2),
+          HEADING(2, "Program Enrollment"),
+          P(BODY_TEXT),
+          EMPTY_HEADING(2),
+          EMPTY_HEADING(3),
+          HEADING(2, "Next Steps"),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Annual Program Report 2026", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      if (!c || c.score === null) return "heading_structure unscored";
+      if (c.score >= 100) return `empty headings did not move the score (got ${c.score})`;
+      if (c.score < 70)
+        return `empty headings cost more than the 30-point cap (got ${c.score}) — they may never take this category past Minor`;
+      if (!/contain no text/i.test(allFindings(r))) return "the empty headings are not named";
+      // Only a named criterion may move a score (the legal-basis rule).
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "heading_structure",
+      );
+      return failing ? null : "score moved with no 1.3.1 failure attributed to heading_structure";
+    },
+  },
+  {
+    file: "synthetic-130-docx-picture-headings-not-blank.docx",
+    truth:
+      "Headings whose content is a described picture (an agency letterhead) or a symbol glyph. Neither carries a w:t element, so both LOOK empty to a naive text check — and on 2026-08-31 the newly scored empty-heading rule accused exactly this document of a WCAG 1.3.1 failure while grading it A and reporting no headings at all. A heading holding real content must never be called a blank line: no accusation, and no points lost.",
+    build: () =>
+      docx(
+        [
+          IMAGE_HEADING(1, 1, "County Health Department bulletin masthead"),
+          P(BODY_TEXT),
+          HEADING(2, "Enrollment"),
+          P(BODY_TEXT),
+          SYMBOL_HEADING(2),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Agency Bulletin", styles: true },
+      ),
+    check: (r) => {
+      if (/contain no text/i.test(allFindings(r)))
+        return "a heading holding a picture or a symbol was called a blank line";
+      const fails =
+        (
+          r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+        ).conformance?.failures?.filter((f) => String(f.category ?? "") === "heading_structure") ??
+        [];
+      if (fails.length > 0)
+        return `accused of ${fails.length} heading failure(s) it did not commit`;
+      const c = cat("heading_structure")(r);
+      // The scorer and the verdict must agree the category was assessed.
+      if (c && c.score !== null && c.score < 100)
+        return `lost points for headings that carry content (${c.score})`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-129-docx-empty-headings-good-twin.docx",
+    truth:
+      "The same document with the blank Heading-styled lines removed — spacing done with ordinary empty paragraphs instead. The correct twin must score a clean 100 on heading structure, and must never score below its flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Annual Program Report"),
+          P(BODY_TEXT),
+          EMPTY_P,
+          HEADING(2, "Program Enrollment"),
+          P(BODY_TEXT),
+          EMPTY_P,
+          HEADING(2, "Next Steps"),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Annual Program Report 2026", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      if (!c || c.score === null) return "heading_structure unscored";
+      if (c.score !== 100) return `a document with no empty headings scored ${c.score}, not 100`;
+      return /contain no text/i.test(allFindings(r))
+        ? "accused of empty headings it does not have"
+        : null;
+    },
+  },
+  {
     file: "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",
     truth:
       "An Excel workbook that satisfies WCAG 2.1 outright — titled, every value extractable, no images and no headerless defined table to fault — and still carries best-practice work: both sheets keep Excel's default names, and the data sits in plain cell ranges with no defined Table anywhere. Neither is a WCAG 2.1 failure, so neither may move the score; both must still be reported with a not-scored prefix.",
@@ -570,6 +676,11 @@ const SAMPLES: Sample[] = [
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-128-docx-empty-headings.docx",
+    good: "synthetic-129-docx-empty-headings-good-twin.docx",
+    category: "heading_structure",
+  },
   {
     bad: "synthetic-101-docx-bold-fake-headings.docx",
     good: "synthetic-102-docx-styles-good-twin.docx",
@@ -609,6 +720,18 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
 
 type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-130-docx-picture-headings-not-blank.docx": {
+    label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
+    chip: "clean",
+  },
+  "synthetic-128-docx-empty-headings.docx": {
+    label: "Word: heading styles on blank lines, used as spacing",
+    chip: "held",
+  },
+  "synthetic-129-docx-empty-headings-good-twin.docx": {
+    label: "Word: the same document spaced with ordinary blank paragraphs",
+    chip: "clean",
+  },
   "synthetic-101-docx-bold-fake-headings.docx": {
     label: "Word: bold 16-point text instead of Heading styles",
     chip: "caught",

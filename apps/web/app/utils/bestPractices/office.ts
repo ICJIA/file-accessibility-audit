@@ -180,6 +180,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "A document's first heading-styled paragraph can be any level, but starting at Heading 1 gives the outline a single, top-level root.",
     why: "Someone navigating by heading builds a mental map of the document from its levels. If the outline starts partway down — at Heading 3, say — there is no top-level entry point, which reads as though an earlier section is missing.",
     links: [],
+    standard:
+      "No WCAG 2.1 criterion requires a document to start at Heading 1 or to have a single top-level heading. axe-core classes the equivalent rule a best practice.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -237,6 +239,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "Headings should step down one level at a time — Heading 1, then Heading 2, then Heading 3 — rather than jumping a level.",
     why: "A skipped level reads as a missing section to someone navigating by heading: they cannot tell whether they missed something or the document simply has a gap.",
     links: [],
+    standard:
+      "Not a WCAG 2.1 failure: the headings exist and their levels are programmatically determinable, which is what 1.3.1 asks. W3C publishes no failure technique for skipped levels, and axe-core classes heading-order a best practice.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -286,69 +290,11 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       );
     },
   },
-  {
-    id: "docx-empty-headings",
-    advisorySince: "2026-07-19",
-    formats: ["docx"],
-    categoryId: "heading_structure",
-    label: "No empty headings",
-    description:
-      "A paragraph styled as a heading should hold heading text — not sit empty, kept only for spacing.",
-    why: "A heading tag with no text is silence: a screen-reader user who jumps to it hears nothing, and it clutters the outline everyone navigates by.",
-    links: [],
-    detect(ctx) {
-      if (categoryAbsent(ctx)) {
-        return notChecked(
-          "This report contains no heading-structure data for this document.",
-          "not-run",
-        );
-      }
-      const line = matchAdvisory(ctx, "empty heading-styled paragraph");
-      if (line) {
-        const n = firstNumber(line);
-        return {
-          status: "not-met",
-          evidence: [
-            n !== null
-              ? `This document has ${n} empty Heading-styled paragraph${n === 1 ? "" : "s"} — a paragraph tagged as a heading with no text in it.`
-              : "This document has at least one empty Heading-styled paragraph — a paragraph tagged as a heading with no text in it.",
-            "Each one is announced as a heading with nothing to say, and it clutters the outline someone would navigate by.",
-          ],
-          fix: {
-            source:
-              "In Word, delete the empty heading-styled paragraphs and use paragraph spacing (Layout → Spacing) for blank space instead.",
-            app: OFFICE_FIX_APP,
-          },
-        };
-      }
-      if (matchMain(ctx, "no headings were found")) {
-        return {
-          // NOT not-applicable: docxService.ts:808 excludes EMPTY heading-styled
-          // paragraphs from `headings`, and docx.ts:145-152 returns this line
-          // before the emptyHeadingCount advisory (:182) is reached — so a
-          // document whose ONLY headings are empty lands here with exactly
-          // the defect this practice is about. The report cannot say.
-          status: "not-checked",
-          evidence: [
-            "This document has no headings with text in them. Whether it has empty heading-styled paragraphs could not be established from this report — worth a glance at the Styles pane.",
-          ],
-        };
-      }
-      // ORDER IS LOAD-BEARING: docx.ts:162's witness is pushed whenever
-      // total > 0, which is a SUFFICIENT (not necessary) condition for the
-      // empty-heading check (:182) to have run too — that check sits past
-      // the SAME early-return guard the witness does, just outside the
-      // `if (total > 0)` block. A document with empty headings carries both
-      // lines, so the advisory check above must win.
-      if (matchMain(ctx, "real heading(s) found")) {
-        return {
-          status: "met",
-          evidence: ["This document's headings were checked, and none of them is empty."],
-        };
-      }
-      return notChecked("This report contains no finding about empty headings in this document.");
-    },
-  },
+  // docx-empty-headings was HERE until 2026-08-31. It is now a SCORED
+  // WCAG 1.3.1 (Level A) failure — see scoring/docx.ts and conformance.ts —
+  // so it belongs in the action plan, not in a section that tells the reader
+  // nothing here affects the grade. The PDF twin (heading-content) stays
+  // unscored and hedged: its evidence is heuristic, this one's is exact.
   {
     id: "docx-empty-paragraph-runs",
     advisorySince: "2026-08-26",
@@ -359,6 +305,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "Blank space between sections should come from paragraph spacing, not three or more empty paragraphs typed in a row.",
     why: "A screen reader announces each blank paragraph individually while moving through the document — a long run of them is dead air someone has to sit through.",
     links: [],
+    standard:
+      "No WCAG 2.1 criterion is engaged. The nearest W3C failures cover something else: F33 and F34 are about whitespace used to fake columns or tables in plain text, and F32 is about whitespace inside a word. None addresses blank paragraphs used as vertical spacing.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -416,6 +364,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "A table-shaped grid with no table style, borders, shading, or header marks anywhere is usually a layout construct rather than a data table — worth a quick check that none of them actually holds data.",
     why: "A screen reader announces a real data table's header with each cell. A layout grid does not need one — but it is easy to build a genuine data table without ever applying a table style, which would leave it looking identical to a layout grid in the file.",
     links: [],
+    standard:
+      "A genuine layout table needs no header row — W3C failure F46 fails the reverse case, a layout table given header cells (F46 is written for HTML and is cited here by analogy; Word has no equivalent markup). Read this row with care: it is by construction the set this tool could NOT classify, so if one of these is really a data table, its missing header row IS a WCAG 1.3.1 (Level A) failure.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -535,6 +485,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     description: "A table should not contain another table nested inside one of its cells.",
     why: "A nested table — one table inside another — is genuinely difficult to navigate by keyboard or by screen reader, even where both are properly built.",
     links: [],
+    standard:
+      "No standard forbids nesting — a navigability recommendation only. Each table keeps its own programmatically determinable relationships, which is what WCAG 1.3.1 asks.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -587,6 +539,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     // merged cell. Microsoft's own checker flags them, and that is the whole
     // basis — say so in `why`, claim nothing more.
     links: [],
+    standard:
+      "No WCAG 2.1 criterion or failure technique forbids merged cells. H43 and H63 are SUFFICIENT techniques for associating headers, and they are written for HTML — Word has no scope or headers mechanism to fail against in the first place.",
     detect(ctx) {
       // categoryAbsent is checked separately from (and before) the "no
       // tables" line below: a missing category is a missing-DATA fact, never
@@ -649,6 +603,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "Blank space inside a table should come from cell padding or table spacing, not a row left entirely empty.",
     why: "A screen reader announces an empty row as an empty row while moving through the table — it is dead air someone has to sit through, row by row.",
     links: [],
+    standard:
+      "No WCAG 2.1 criterion is engaged: the cells of an empty row are still perceivable and announced. A tidiness recommendation.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -698,8 +654,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
+    standard:
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -757,7 +715,16 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Every slide has a title",
     description:
       "Each slide should carry a title in its title placeholder — PowerPoint's equivalent of a heading.",
-    why: "A slide's title placeholder is what lets a screen-reader user tell slides apart and jump straight to one, building a navigable outline of the whole deck. A slide can still carry its heading text in a body placeholder instead, which is why this is reported rather than counted.",
+    why: "A slide's title placeholder is what lets a screen-reader user tell slides apart and jump straight to one, building a navigable outline of the whole deck. No WCAG 2.1 A/AA criterion requires a heading to exist — that requirement is 2.4.10 Section Headings, Level AAA, which the ADA Title II rule does not adopt — which is why this is reported rather than counted.",
+    // The old reason given here ("a slide can carry its heading text in a
+    // body placeholder") was not accurate: a body placeholder carries no
+    // heading semantics at all, and its text never reaches the Outline view.
+    // The honest reason is the AAA one above. Note also the coverage gap
+    // this row cannot close: a slide showing a visually-styled heading in a
+    // floating text box IS a 1.3.1 Level A failure (W3C F2) — scored for
+    // Word (scoring/docx.ts:186-190), undetected for PowerPoint.
+    standard:
+      "No WCAG 2.1 A/AA criterion requires a slide to have a title; requiring section headings is 2.4.10 (Level AAA). A missing title becomes a WCAG 1.3.1 (Level A) failure only where the slide shows a visually-styled heading that is not marked up as one — a case this tool does not detect in PowerPoint.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -831,6 +798,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "Where two or more slides share the exact same title, a screen-reader user browsing the outline cannot tell them apart.",
     why: "A distinct, descriptive title on each slide is what lets someone using a screen reader tell slides apart while browsing the outline instead of opening each one to check.",
     links: [],
+    standard:
+      "WCAG 2.4.6 Headings and Labels (Level AA) requires headings to DESCRIBE topic or purpose — never to be unique. A deck can honestly hold two slides both titled Q3 Results.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -896,8 +865,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
+    standard:
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -957,6 +928,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       'A worksheet\'s name should describe its contents — not sit at an Excel default like "Sheet1".',
     why: "Sheet names are the workbook's navigation. A screen-reader user hears them announced when switching sheets, so a default name gives no clue what is on it.",
     links: [],
+    standard:
+      "No WCAG 2.1 A/AA criterion requires a descriptive sheet name. 2.4.6 Headings and Labels (Level AA) governs headings and labels that already exist; requiring descriptive names for sections is 2.4.10, Level AAA. Reasonable people read a sheet tab either way — this tool does not count it.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked("This report contains no sheet-name data for this workbook.", "not-run");
@@ -1011,6 +984,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "Sizable data laid out as a real Excel Table (with a header row) lets a screen reader announce the right column header while moving across cells — a plain range of typed cells carries no such structure.",
     why: "Whether a given range is really a data table is a judgment call a person has to make, which is why this is reported rather than counted — but where it is, a defined Table is what gives it structure a screen reader can use.",
     links: [],
+    standard:
+      "WCAG 1.3.1 (Level A) binds only where a range really is a data table with header semantics, and whether a given range is one is a human judgment. The mechanical half IS scored: a DEFINED Excel Table with its header row switched off loses points.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1085,6 +1060,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "A sizable block of worksheet data should sit inside a defined Excel Table rather than a plain range of cells.",
     why: "A screen reader can announce column headers while a reader moves across a defined Table's cells, but not across a plain, unstructured range sitting next to it.",
     links: [],
+    standard:
+      "As with defined tables: no criterion names the Excel Table feature, and whether a plain range is a data table stays a human call. A defined Table with its header row off is the scored case.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1199,6 +1176,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "A pivot table cannot be converted into a defined Excel Table, so its readability for a screen-reader user has to be checked by hand.",
     why: "A defined Table's header association does not apply to a pivot table's own layout — someone has to confirm by hand, for example with a screen reader, that a pivot reads sensibly from top to bottom.",
     links: [],
+    standard:
+      "Not a defect and no criterion applies — a prompt to review by hand, because a pivot table cannot be turned into an Excel Table.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1257,6 +1236,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "A sheet's data should begin at or near cell A1, not several empty rows or columns in.",
     why: "A screen reader lands at cell A1 when it opens a sheet. Empty leading rows or columns are dead space someone has to move through before reaching anything real.",
     links: [],
+    standard:
+      "No WCAG 2.1 criterion is engaged: leading blank rows or columns lose no information, structure, or relationship. A navigation convenience.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1322,6 +1303,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       "A merged cell spans more than one row or column, so the grid a screen reader walks no longer matches the grid a sighted reader sees.",
     why: "Someone listening to a sheet moves cell by cell. Where cells are merged, that can confuse navigation — whether it actually causes trouble depends on where the merge sits, which is why this is reported for review rather than counted.",
     links: [],
+    standard:
+      "No WCAG 2.1 criterion or failure technique forbids merged cells in a spreadsheet. Worth a look because merges can confuse screen-reader table navigation, but nothing in the standard is broken.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1381,8 +1364,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
+    standard:
+      "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(

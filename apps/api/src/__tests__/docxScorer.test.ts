@@ -115,11 +115,35 @@ describe("scoreDocx", () => {
     expect(cat.findings.join(" ")).toContain("Title");
   });
 
-  it("notes empty heading paragraphs as an advisory without deducting", () => {
-    const r = scoreDocx(analysis({ emptyHeadingCount: 2 }));
-    const cat = r.categories.find((c) => c.id === "heading_structure")!;
-    expect(cat.score).toBe(100);
-    expect(cat.findings.join(" ")).toMatch(/empty/i);
+  it("DEDUCTS for empty heading paragraphs — 10 points each, capped at 30 (user decision, 2026-08-31)", () => {
+    // Was advisory-only until the WCAG audit. A Heading style on a blank line
+    // is structural markup used for spacing, announcing a section that is not
+    // there — W3C failure F43 for 1.3.1 (Level A). Scored for Word because
+    // the count is exact (a heading style with no text, read from the XML);
+    // the PDF twin stays unscored because its evidence is heuristic.
+    expect(
+      scoreDocx(analysis({ emptyHeadingCount: 1 })).categories.find(
+        (c) => c.id === "heading_structure",
+      )!.score,
+    ).toBe(90);
+    const two = scoreDocx(analysis({ emptyHeadingCount: 2 })).categories.find(
+      (c) => c.id === "heading_structure",
+    )!;
+    expect(two.score).toBe(80);
+    expect(two.findings.join(" ")).toMatch(/contain no text/i);
+    expect(two.findings.join(" ")).not.toMatch(/not scored/i);
+  });
+
+  it("caps the empty-heading deduction at 30 so it can never take the category past Minor", () => {
+    // 70 is the floor of the Minor band (shared/scoring.ts). The harm is real
+    // but it is noise, not lost information — it may not read as Moderate.
+    for (const n of [3, 8, 40]) {
+      const cat = scoreDocx(analysis({ emptyHeadingCount: n })).categories.find(
+        (c) => c.id === "heading_structure",
+      )!;
+      expect(cat.score, `${n} empty headings`).toBe(70);
+      expect(cat.severity, `${n} empty headings`).toBe("Minor");
+    }
   });
 
   it("link_quality: raw-URL links are advisory only — never penalized (PDF-parity doctrine)", () => {

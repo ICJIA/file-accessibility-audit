@@ -1,0 +1,55 @@
+{
+  "//": "Reviewed co-occurrences: a Best-practice row reading NOT MET on a document whose SAME category carries a failing WCAG criterion. Each entry means a person confirmed the row is about a different defect than the failure. Regenerate with `pnpm best-practice-basis --bless` and fill in `reviewed` in the same commit.",
+  "blessed": "2026-08-31",
+  "pairs": [
+    {
+      "practice": "display-doc-title",
+      "category": "title_language",
+      "sc": "3.1.1",
+      "level": "A",
+      "reviewed": "Different defects. 3.1.1 Language of Page fails because the document declares no language (or a meaningless one); this row is about the DisplayDocTitle viewer preference. Neither touches the other: a file can declare en-US perfectly and still show its filename in the title bar."
+    },
+    {
+      "practice": "font-embedding",
+      "category": "text_extractability",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects. The 1.3.1 failure in text_extractability is untagged visible content or unmappable characters past the scored threshold; this row is about whether a font's glyph program ships inside the file. Assistive technology reads the encoding, not the embedded outlines, so embedding is a print-fidelity matter."
+    },
+    {
+      "practice": "footnote-ids",
+      "category": "reading_order",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects. The 1.3.1 failure in reading_order comes from list or structure defects the analyzer confirms; this row is about unique /ID values on <Note> elements, which PDF/UA 7.9 asks for and WCAG does not. The reference-to-note association is carried by the matching visible numerals and the link annotation."
+    },
+    {
+      "practice": "list-labels",
+      "category": "reading_order",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Same category, adjacent properties — deliberately separated. The scored 1.3.1 failure is a malformed list (missing <LBody>, so list structure is not determinable). This row is only about <Lbl>, the bullet or number marker, which ISO 32000 makes optional and whose absence leaves the list structure intact. Both can be true of one list; the row must not read as absolution for the list as a whole."
+    },
+    {
+      "practice": "raw-url-link-text",
+      "category": "link_quality",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects. The scored 1.3.1 failure in link_quality is a link with no tag around it, so no link relationship exists to expose; this row is about the wording of a link that IS tagged. A raw URL satisfies 2.4.4 Level A on its own terms."
+    },
+    {
+      "practice": "reading-order-fidelity",
+      "category": "reading_order",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects, and different questions. The scored 1.3.1 failure is a confirmed structure defect; this row is a heuristic comparison of tag order against draw order, which fails nothing by itself — a correctly remediated document routinely diverges from paint order on purpose."
+    },
+    {
+      "practice": "table-scope-simple",
+      "category": "table_markup",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects. The scored 1.3.1 failure is a COMPLEX table (headers on more than one edge, or spanned cells) with neither /Scope nor /Headers, which conformance.ts asserts explicitly. This row is about SIMPLE tables — headers along one edge, nothing spanned — where position alone makes the relationship determinable, so PDF/UA asks for /Scope and WCAG does not."
+    }
+  ]
+}

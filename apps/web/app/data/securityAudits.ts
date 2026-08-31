@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.144.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: an adversarial audit of every claim the reports make about the accessibility standards, carried out as a hostile reviewer looking for one error that would discredit the tool.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: nothing in this release adds a data path, an input, or an output. The changes are to what the reports <em>assert</em>, and to two automated gates that check those assertions. The audit was deliberately hostile &mdash; four independent reviews, each verifying against the primary sources rather than against this project&rsquo;s own notes &mdash; because a compliance tool that gets a citation wrong has no way to argue it got the document right.",
+      },
+      {
+        kind: "p",
+        html: "<strong>One accusation was false.</strong> A Word document whose headings were built from a picture (an agency letterhead) or a symbol could be told it was failing WCAG 1.3.1 about headings that were not blank at all &mdash; while the same report showed grade A and said nothing needed fixing. It was found by the audit, reproduced, and fixed at the point where the count is made; a trap document now holds it in place. <strong>The compliance dates for the ADA Title II rule were also out of date on ten surfaces:</strong> the Department of Justice extended them in April 2026, to April 26, 2027 for public bodies serving 50,000 people or more and April 26, 2028 for smaller ones and special districts.",
+      },
+      {
+        kind: "p",
+        html: "Five standards citations were corrected, including a technique described as satisfying a requirement it is only advisory for, and a help link naming a success criterion that does not exist &mdash; which had been shipping inside every downloadable report. Three statements about other software were wrong or contradicted this project&rsquo;s own code, and have been corrected or withdrawn. Checked and found accurate, and therefore left alone: every success-criterion number, name and conformance level in the reports, all of the links to the W3C explanations, the ISO clause map, and the published figures for the industry checklist.",
+      },
+      {
+        kind: "p",
+        html: "A reader-facing addition in the same release: every practice the checker could not examine now carries an information icon explaining why, and each explanation opens by saying that nothing is wrong with the reader&rsquo;s document &mdash; &ldquo;not checked&rdquo; is the one status that can be mistaken for an accusation. Two gates were widened as a result of the audit. A new check, run on every change, fails the build if a practice reported as optional sits beside a legal failure in the same category that nobody has reviewed &mdash; the reverse of the existing check, and the more damaging error of the two, because under-reporting tells an agency it is compliant when it is not. The existing check now also fails when a category reported as &ldquo;not examined&rdquo; carries a confirmed failure; it found a second, older instance of exactly that the day it was widened.",
+      },
+    ],
+  },
+  {
     version: "v1.143.0",
     meta: "Reviewed <strong>2026-08-30</strong> · scope: the new Best practices section &mdash; 38 non-scored checks across PDF, Word, PowerPoint, and Excel, each showing a document&rsquo;s own evidence.",
     body: [
@@ -385,7 +407,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     body: [
       {
         kind: "p",
-        html: "The first question a reviewer asks is &ldquo;does this file meet the law?&rdquo; &mdash; so every report now answers it first. Directly under the grade, in full width and large type: <strong>Required by law &mdash; WCAG 2.2 AA, ADA Title II, Illinois IITAA</strong>, with the verdict for this document and the plain statement that <strong>this, and only this, is what the grade measures</strong>. Beneath it, in a deliberately quiet footnote, sits PDF/UA readiness &mdash; the PDF industry&rsquo;s own standard, checked by an independent validator &mdash; marked <em>not counted in your score</em>. The previous release made that separation real; this one makes it impossible to miss.",
+        html: "The first question a reviewer asks is &ldquo;does this file meet the law?&rdquo; &mdash; so every report now answers it first. Directly under the grade, in full width and large type: <strong>Required by WCAG 2.1 &mdash; the standard ADA Title II and the Illinois IITAA name</strong>, with the verdict for this document and the plain statement that <strong>this, and only this, is what the grade measures</strong>. Beneath it, in a deliberately quiet footnote, sits PDF/UA readiness &mdash; the PDF industry&rsquo;s own standard, checked by an independent validator &mdash; marked <em>not counted in your score</em>. The previous release made that separation real; this one makes it impossible to miss.",
       },
       {
         kind: "p",
@@ -403,7 +425,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     body: [
       {
         kind: "p",
-        html: "Two different rulebooks apply to a PDF, and only one of them is the law. <strong>WCAG 2.2 AA, ADA Title II and the Illinois IITAA are legally required</strong>; <strong>PDF/UA is the PDF industry&rsquo;s own standard</strong> &mdash; excellent practice, not a legal obligation. This report was already built on the legal standard, but one deduction had drifted across the line, and the wording admitted it: a finding was described as &ldquo;a readiness gap rather than a confirmed failure&rdquo; while still costing points. That is now resolved. <strong>Your grade measures the law. PDF/UA work is listed beside it, clearly marked as not counted.</strong>",
+        html: "Two different rulebooks apply to a PDF, and only one of them is the law. <strong>ADA Title II and the Illinois IITAA both name WCAG 2.1 Level AA</strong>; <strong>PDF/UA is the PDF industry&rsquo;s own standard</strong> &mdash; excellent practice, not a legal obligation. This report was already built on the legal standard, but one deduction had drifted across the line, and the wording admitted it: a finding was described as &ldquo;a readiness gap rather than a confirmed failure&rdquo; while still costing points. That is now resolved. <strong>Your grade measures the law. PDF/UA work is listed beside it, clearly marked as not counted.</strong>",
       },
       {
         kind: "p",
