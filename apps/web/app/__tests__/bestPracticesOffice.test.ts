@@ -51,6 +51,12 @@ const DOCX_NO_LINKS = "No hyperlinks were found.";
 // docx-heading-skips, docx-empty-headings.
 const DOCX_HEADING_WITNESS = "4 real heading(s) found.";
 
+// docx.ts:194 — headingOutlineLines(a.headings), pushed whenever total > 0:
+// one indented line per heading carrying that heading's OWN text. It is
+// document-controlled, so it lives in `signals` and may never act as a
+// needle — but it is exactly the evidence an author asked to see.
+const DOCX_HEADING_OUTLINE = ["--- Heading Outline ---", '  H1 "Introduction"', '  H3 "Findings"'];
+
 // docx.ts:290 — the findings array initializer, pushed unconditionally
 // whenever a.tables.length > 0, before every table_markup advisory.
 // Witnesses docx-layout-grids, docx-nested-tables, docx-merged-cells,
@@ -895,5 +901,52 @@ describe("every Office practice", () => {
     // EXCEPT xlsx-defined-tables, which must not.
     const zeroWitnessOnly = run("xlsx-defined-tables", ["0 defined table(s) found."]);
     expect(zeroWitnessOnly.status).not.toBe("met");
+  });
+});
+
+describe("Word heading practices show the document's own outline — the evidence an author asked for", () => {
+  it("docx-heading-skips carries the outline on NOT MET", () => {
+    const r = run("docx-heading-skips", [
+      DOCX_HEADING_WITNESS,
+      DOCX_HEADING_SKIPS,
+      ...DOCX_HEADING_OUTLINE,
+    ]);
+    expect(r.status).toBe("not-met");
+    expect(r.block?.lines).toEqual(['H1 "Introduction"', 'H3 "Findings"']);
+  });
+
+  it("docx-heading-skips carries the outline on MET too", () => {
+    const r = run("docx-heading-skips", [DOCX_HEADING_WITNESS, ...DOCX_HEADING_OUTLINE]);
+    expect(r.status).toBe("met");
+    expect(r.block?.lines).toContain('H1 "Introduction"');
+  });
+
+  it("docx-first-heading-is-h1 carries the outline on NOT MET and MET", () => {
+    const notMet = run("docx-first-heading-is-h1", [
+      DOCX_HEADING_WITNESS,
+      DOCX_FIRST_HEADING_NOT_H1,
+      ...DOCX_HEADING_OUTLINE,
+    ]);
+    expect(notMet.status).toBe("not-met");
+    expect(notMet.block?.lines).toContain('H3 "Findings"');
+    const met = run("docx-first-heading-is-h1", [DOCX_HEADING_WITNESS, ...DOCX_HEADING_OUTLINE]);
+    expect(met.status).toBe("met");
+    expect(met.block?.lines).toContain('H1 "Introduction"');
+  });
+
+  it("the outline's own heading text can never forge a status", () => {
+    // A heading literally titled with the advisory's needle. It is indented
+    // signal text, so matchAdvisory (notScored ∪ main) must not see it.
+    const r = run("docx-heading-skips", [
+      DOCX_HEADING_WITNESS,
+      "--- Heading Outline ---",
+      '  H1 "Why we skip a heading level"',
+    ]);
+    expect(r.status).toBe("met");
+  });
+
+  it("no outline, no block — never an empty caption", () => {
+    const r = run("docx-heading-skips", [DOCX_HEADING_WITNESS, DOCX_HEADING_SKIPS]);
+    expect(r.block).toBeUndefined();
   });
 });

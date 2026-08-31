@@ -21,7 +21,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 ### Notes
 
-- Tests 3,324 (API 1,624 · Web 1,651 · CLI 49). Traps 127 (110 PDF + 17 Office) — three more than v1.142.0, the clean-but-improvable documents described above. No scores moved: the new traps are all clean documents, and this release narrows no scoring rule.
+- Tests 3,334 (API 1,624 · Web 1,661 · CLI 49). Traps 127 (110 PDF + 17 Office) — three more than v1.142.0, the clean-but-improvable documents described above. No scores moved: the new traps are all clean documents, and this release narrows no scoring rule.
 
 <details>
 <summary><strong>v1.142.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>

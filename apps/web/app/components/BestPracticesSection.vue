@@ -169,9 +169,11 @@
                  this report — there was no silence to interpret, and saying
                  otherwise would contradict this feature's own "silence is
                  never a pass" doctrine one line under the evidence that
-                 proves it. -->
+                 proves it. "error" (detect() threw, caught by
+                 evaluateBestPractices) gets NEITHER — its own evidence
+                 sentence already says the check could not complete. -->
             <p
-              v-if="row.status === 'not-checked' && row.reason !== 'not-run'"
+              v-if="row.status === 'not-checked' && (!row.reason || row.reason === 'silent')"
               class="text-sm text-[var(--text-secondary)] mt-1.5"
             >
               This checker did not confirm this one either way — it only speaks up when something
@@ -179,7 +181,7 @@
               confirm it in a minute.
             </p>
             <p
-              v-else-if="row.status === 'not-checked'"
+              v-else-if="row.status === 'not-checked' && row.reason === 'not-run'"
               class="text-sm text-[var(--text-secondary)] mt-1.5"
             >
               This report has no data for this check on this document, so it was not looked at
@@ -259,7 +261,7 @@
               {{ row.practice.standard }}
             </p>
             <ul v-if="row.links.length" class="mt-1 space-y-1 list-none p-0 m-0">
-              <li v-for="link in row.links" :key="link.url" class="text-sm">
+              <li v-for="link in row.links" :key="link.label + '|' + link.url" class="text-sm">
                 <a
                   :href="link.url"
                   target="_blank"
@@ -289,7 +291,7 @@ import type {
   BestPracticeStatus,
   EvaluatedPractice,
 } from "~/utils/bestPractices";
-import { safeLinks } from "~/utils/bestPractices/links";
+import { resolveRowLinks } from "~/utils/bestPractices/links";
 import { useWcag } from "~/composables/useWcag";
 
 const props = defineProps<{ result: unknown }>();
@@ -316,7 +318,7 @@ interface DisplayRow extends EvaluatedPractice {
 const rows = computed<DisplayRow[]>(() =>
   sortBestPractices(evaluateBestPractices(props.result)).map((r) => ({
     ...r,
-    links: practiceLinks(r.practice),
+    links: resolveRowLinks(r, wcag.understandingUrl),
   })),
 );
 
@@ -383,17 +385,6 @@ function statusLabel(status: BestPracticeStatus): string {
 }
 function statusPillClass(status: BestPracticeStatus): string {
   return STATUS_PILL_CLASS[status];
-}
-
-// Concatenated onto the practice's own links and passed through safeLinks()
-// TOGETHER — /report/[id] renders attacker-controlled stored JSON, and a
-// link is the one thing on the page a reader is invited to click.
-function practiceLinks(practice: BestPractice): BestPracticeLink[] {
-  const wcagLinks = (practice.wcagSlugs ?? []).map((s) => ({
-    label: s.label,
-    url: wcag.understandingUrl(s.slug),
-  }));
-  return safeLinks([...practice.links, ...wcagLinks]);
 }
 
 // Each catalog practice belongs to exactly one format family (pdf, or one of

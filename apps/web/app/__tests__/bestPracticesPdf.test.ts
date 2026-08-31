@@ -358,6 +358,22 @@ describe("single-h1", () => {
     expect(practice("single-h1").links).toEqual([]);
   });
 
+  it("shows the document's own heading sequence on the row that flags it — H1→H2→H1→H1 is THIS case", () => {
+    // The user's canonical example ("heading order: h1->h2->h1->h1") has no
+    // level gap, so heading-level-order reads MET and shows the tree there —
+    // but the row that actually flags the problem is this one. The tree has
+    // to appear here too, or the evidence sits three rows away from the
+    // sentence it explains.
+    const r = run("single-h1", [
+      H1_MULTI,
+      HEADING_OK,
+      "--- Heading Tree ---",
+      "  H1 → H2 → H1 → H1",
+    ]);
+    expect(r.status).toBe("not-met");
+    expect(r.block?.lines).toContain("H1 → H2 → H1 → H1");
+  });
+
   it("is NOT APPLICABLE when the document has no headings at all", () => {
     expect(run("single-h1", [NO_HEADINGS]).status).toBe("not-applicable");
   });
@@ -631,7 +647,14 @@ describe("nested-tables", () => {
   });
 
   it("is MET using the analyzer's own dedicated line — not the unrelated row-structure line", () => {
-    expect(run("nested-tables", [NO_NESTED_LINE]).status).toBe("met");
+    const r = run("nested-tables", [NO_NESTED_LINE]);
+    expect(r.status).toBe("met");
+    // The analyzer counts nesting over multi-column DATA tables only
+    // (scoring/pdf.ts:1742 filters dataTables; a single-column table is
+    // "layout, not scored" at :1561), so a nested table inside a layout
+    // table still yields this line. The sentence may claim only that.
+    expect(r.evidence.join(" ")).toMatch(/data tables/);
+    expect(r.evidence.join(" ")).not.toMatch(/No table in this document/);
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way", () => {

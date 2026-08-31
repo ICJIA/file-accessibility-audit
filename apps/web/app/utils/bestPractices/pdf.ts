@@ -396,6 +396,11 @@ export const PDF_PRACTICES: BestPractice[] = [
             `This document has ${count} H1 headings rather than one.`,
             "That is not a standards violation — it simply means the outline has more than one top-level entry point.",
           ],
+          // The user's canonical example — "heading order: h1->h2->h1->h1" —
+          // is exactly this case: no level GAP, so heading-level-order reads
+          // MET, and THIS is the row that flags it. The sequence belongs
+          // beside the sentence it explains, not three rows away.
+          block: headingTreeBlock(ctx),
           fix: {
             source:
               "In the source document, demote every H1 after the first to H2 (or lower), keeping one top-level heading for the document title.",
@@ -791,7 +796,15 @@ export const PDF_PRACTICES: BestPractice[] = [
       if (matchMain(ctx, "no nested tables detected")) {
         return {
           status: "met",
-          evidence: ["No table in this document contains another table nested inside it."],
+          // The analyzer counts nesting over multi-column DATA tables only
+          // (scoring/pdf.ts:1742 filters dataTables; a single-column table is
+          // "layout, not scored" at :1561 and skipped). A nested table inside
+          // a layout table therefore still yields "No nested tables detected".
+          // The sentence claims exactly what was measured — no more.
+          evidence: [
+            "None of this document's data tables contains another table nested inside it.",
+            "Single-column layout tables are not checked for nesting.",
+          ],
         };
       }
       return notChecked(

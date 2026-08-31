@@ -382,3 +382,34 @@ describe("BestPracticesSection", () => {
     expect(summary.text()).toContain("15");
   });
 });
+
+describe("category help links reach the row (spec §4's third link source)", () => {
+  const withHelp = {
+    ...pdfResult,
+    categories: [
+      {
+        ...pdfResult.categories[0],
+        helpLinks: [
+          { label: "Adobe: heading tags", url: "https://helpx.adobe.com/acrobat/headings" },
+          { label: "Evil", url: "javascript:alert(1)" },
+          // Identical to the Matterhorn link heading-level-order already
+          // carries — must render ONCE, not twice.
+          {
+            label: "Matterhorn 14 — Headings",
+            url: "https://pdfa.org/resource/the-matterhorn-protocol/",
+          },
+        ],
+      },
+    ],
+  };
+
+  it("renders a category help link under Read more, drops an unsafe one, and never repeats a link the practice already carries", () => {
+    const w = mountSection(withHelp);
+    const row = w.find('[data-practice="heading-level-order"]');
+    expect(row.exists()).toBe(true);
+    const html = row.html();
+    expect(html).toContain('href="https://helpx.adobe.com/acrobat/headings"');
+    expect(html).not.toContain("javascript:");
+    expect(html.match(/Matterhorn 14 — Headings/g)?.length ?? 0).toBe(1);
+  });
+});

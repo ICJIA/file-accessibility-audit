@@ -30,7 +30,7 @@ import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
 import { sortBestPractices } from "~/utils/bestPractices";
 import type { BestPracticeStatus, EvaluatedPractice } from "~/utils/bestPractices";
-import { safeLinks } from "~/utils/bestPractices/links";
+import { resolveRowLinks } from "~/utils/bestPractices/links";
 
 export interface PrintablePlanOptions {
   filename: string;
@@ -196,14 +196,14 @@ function isPdfPractice(practice: EvaluatedPractice["practice"]): boolean {
  *  static, but is escaped too rather than trusted as a special case.
  *
  *  `understandingUrl` resolves each practice's `wcagSlugs` the same way
- *  BestPracticesSection.vue's practiceLinks() does on screen — those slugs
+ *  BestPracticesSection.vue does on screen — both call resolveRowLinks() — those slugs
  *  are version-aware and can only be turned into a URL by the caller
  *  (useWcag() lives behind runtime config, unreachable from this
  *  module-scope catalog). Matters MORE on paper than on screen: the print
  *  stylesheet appends "(href)" after every link so it can be typed from the
  *  page, so a link this function drops is unrecoverable in a way a missing
- *  on-screen link is not. Absent (no resolver wired — some tests, possibly
- *  the remediation page), wcagSlugs links are skipped entirely rather than
+ *  on-screen link is not. Absent (no resolver wired — only some tests; every
+ *  PrintPlanButton caller passes one), wcagSlugs links are skipped entirely rather than
  *  rendering a broken href. */
 function renderBestPractice(
   r: EvaluatedPractice,
@@ -244,10 +244,7 @@ function renderBestPractice(
   // is the one thing on the page a reader is invited to click (or, here,
   // type out by hand), and an entry whose URL fails safeHttpUrl is DROPPED
   // rather than downgraded to plain text.
-  const wcagLinks = understandingUrl
-    ? (r.practice.wcagSlugs ?? []).map((s) => ({ label: s.label, url: understandingUrl(s.slug) }))
-    : [];
-  const allLinks = safeLinks([...r.practice.links, ...wcagLinks]);
+  const allLinks = resolveRowLinks(r, understandingUrl);
   const links = allLinks.length
     ? `<p class="bp-links">` +
       allLinks.map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.label)}</a>`).join(" · ") +

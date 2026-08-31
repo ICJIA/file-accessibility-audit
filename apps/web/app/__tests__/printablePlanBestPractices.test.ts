@@ -234,3 +234,28 @@ describe("printable plan — best practices' wcagSlugs links", () => {
     expect(html).not.toMatch(/href="[^"]*undefined/);
   });
 });
+
+describe("category help links on paper", () => {
+  it("prints a category help link and drops an unsafe one", () => {
+    const withHelp = {
+      ...report,
+      categories: [
+        {
+          ...report.categories[0],
+          helpLinks: [
+            { label: "Adobe: heading tags", url: "https://helpx.adobe.com/acrobat/headings" },
+            { label: "Evil", url: "javascript:alert(1)" },
+          ],
+        },
+      ],
+    };
+    const html = buildPrintablePlan({
+      filename: "x.pdf",
+      steps: [],
+      bestPractices: evaluateBestPractices(withHelp),
+    });
+    expect(html).toContain('href="https://helpx.adobe.com/acrobat/headings"');
+    expect(html).toContain("Adobe: heading tags");
+    expect(html).not.toContain("javascript:");
+  });
+});

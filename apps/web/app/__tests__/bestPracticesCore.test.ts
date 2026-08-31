@@ -9,8 +9,9 @@
  *      null, and the practices built on these primitives turn null into
  *      NOT CHECKED — never MET.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
+  type BestPractice,
   buildContext,
   matchNotScored,
   matchAny,
@@ -243,6 +244,73 @@ describe("evaluateBestPractices", () => {
       { fileType: 99, categories: [{ findings: [1] }] },
     ];
     for (const h of hostile) expect(() => evaluateBestPractices(h)).not.toThrow();
+  });
+});
+
+describe("evaluateBestPractices — category help links and a throwing practice", () => {
+  const withHelp = {
+    fileType: "pdf",
+    pageCount: 12,
+    categories: [
+      {
+        id: "heading_structure",
+        findings: ["Found 3 heading tags with logical hierarchy"],
+        // Spec §4's third link source: the vendor documentation each
+        // category already carries. Narrowed here to {label, url} string
+        // pairs; safeLinks decides at render time whether a URL may be shown.
+        helpLinks: [
+          { label: "Adobe: heading tags", url: "https://helpx.adobe.com/acrobat/headings" },
+          { label: "junk", url: 42 },
+          "not an object",
+          null,
+        ],
+      },
+    ],
+  };
+
+  it("carries the category's own helpLinks onto every practice in that category, narrowed to string pairs", () => {
+    const rows = evaluateBestPractices(withHelp);
+    const h = rows.find((r) => r.practice.id === "heading-level-order")!;
+    expect(h.categoryLinks).toEqual([
+      { label: "Adobe: heading tags", url: "https://helpx.adobe.com/acrobat/headings" },
+    ]);
+    // A practice in a DIFFERENT category gets nothing from this one.
+    const other = rows.find((r) => r.practice.id === "bookmarks")!;
+    expect(other.categoryLinks).toEqual([]);
+  });
+
+  it("never throws when a practice's detect() throws — that row reads NOT CHECKED with reason 'error', the rest are unaffected", () => {
+    // Spec §2: "the section as a whole is wrapped so one bad practice cannot
+    // take down the page." /report/[id] renders stored JSON through SSR; an
+    // uncaught throw here is a 500 on the shared-report page.
+    const bomb: BestPractice = {
+      id: "bomb",
+      formats: ["pdf"],
+      categoryId: "heading_structure",
+      label: "Bomb",
+      description: "x",
+      why: "y",
+      links: [],
+      detect() {
+        throw new Error("kaboom");
+      },
+    };
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      let rows: ReturnType<typeof evaluateBestPractices> = [];
+      expect(() => {
+        rows = evaluateBestPractices(withHelp, [...CATALOG, bomb]);
+      }).not.toThrow();
+      const b = rows.find((r) => r.practice.id === "bomb")!;
+      expect(b.status).toBe("not-checked");
+      expect(b.reason).toBe("error");
+      expect(rows.filter((r) => r.practice.id !== "bomb").every((r) => r.reason !== "error")).toBe(
+        true,
+      );
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

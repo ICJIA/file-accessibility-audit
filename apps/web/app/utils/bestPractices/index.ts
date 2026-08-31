@@ -10,7 +10,9 @@ import { OFFICE_PRACTICES } from "./office";
 import {
   buildContext,
   type BestPractice,
+  type BestPracticeLink,
   type BestPracticeResult,
+  type DetectContext,
   type BestPracticeStatus,
 } from "./types";
 import type { FileType } from "@file-audit/shared";
@@ -20,6 +22,11 @@ export const CATALOG: BestPractice[] = [...PDF_PRACTICES, ...OFFICE_PRACTICES];
 
 export interface EvaluatedPractice extends BestPracticeResult {
   practice: BestPractice;
+  /** The vendor documentation the report's own category carries
+   *  (CategoryResult.helpLinks), narrowed to {label, url} string pairs.
+   *  Spec §4's third link source. NOT URL-checked here — safeLinks does that
+   *  at render time, on both surfaces, through resolveRowLinks. */
+  categoryLinks: BestPracticeLink[];
 }
 
 export interface BestPracticeSummary {
@@ -32,7 +39,47 @@ export interface BestPracticeSummary {
 
 const FILE_TYPES: FileType[] = ["pdf", "docx", "pptx", "xlsx"];
 
-export function evaluateBestPractices(result: unknown): EvaluatedPractice[] {
+/** A category's helpLinks, narrowed to what a link needs and nothing more.
+ *  Everything else about a forged entry (extra keys, a non-string url) is
+ *  dropped here; whether the URL may be SHOWN is safeLinks's call, later. */
+function readHelpLinks(category: unknown): BestPracticeLink[] {
+  const cat =
+    category && typeof category === "object" ? (category as Record<string, unknown>) : null;
+  const raw = cat?.helpLinks;
+  if (!Array.isArray(raw)) return [];
+  const out: BestPracticeLink[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const { label, url } = entry as Record<string, unknown>;
+    if (typeof label === "string" && typeof url === "string") out.push({ label, url });
+  }
+  return out;
+}
+
+/** Spec §2: "the section as a whole is wrapped so one bad practice cannot
+ *  take down the page." Every detect() is written to narrow and never throw,
+ *  and the suite fuzzes them — but /report/[id] renders attacker-controlled
+ *  stored JSON through SSR, where an uncaught throw is a 500 for every
+ *  visitor. A throw becomes ONE grey row that says so, not a dead page. */
+function runDetect(practice: BestPractice, ctx: DetectContext): BestPracticeResult {
+  try {
+    return practice.detect(ctx);
+  } catch (err) {
+    console.error(`[bestPractices] ${practice.id}.detect() threw`, err);
+    return {
+      status: "not-checked",
+      evidence: ["This check could not be completed for this report."],
+      reason: "error",
+    };
+  }
+}
+
+/** `catalog` is injectable for tests only — production always evaluates the
+ *  full CATALOG. */
+export function evaluateBestPractices(
+  result: unknown,
+  catalog: BestPractice[] = CATALOG,
+): EvaluatedPractice[] {
   const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
   if (!r) return [];
 
@@ -54,10 +101,13 @@ export function evaluateBestPractices(result: unknown): EvaluatedPractice[] {
     }
   }
 
-  return CATALOG.filter((p) => p.formats.includes(ft)).map((practice) => {
-    const ctx = buildContext(byId.get(practice.categoryId), ft, pageCount);
-    return { practice, ...practice.detect(ctx) };
-  });
+  return catalog
+    .filter((p) => p.formats.includes(ft))
+    .map((practice) => {
+      const category = byId.get(practice.categoryId);
+      const ctx = buildContext(category, ft, pageCount);
+      return { practice, categoryLinks: readHelpLinks(category), ...runDetect(practice, ctx) };
+    });
 }
 
 // NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then

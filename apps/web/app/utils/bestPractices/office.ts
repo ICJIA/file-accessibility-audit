@@ -125,8 +125,10 @@ import {
   matchAdvisory,
   matchMain,
   type BestPractice,
+  signalLines,
   type BestPracticeResult,
   type DetectContext,
+  type EvidenceBlock,
 } from "./types";
 
 const notChecked = (why: string, reason?: "silent" | "not-run"): BestPracticeResult => ({
@@ -145,6 +147,20 @@ const notChecked = (why: string, reason?: "silent" | "not-run"): BestPracticeRes
  *  "No <thing> were/was found" line. Mirrors pdf.ts's categoryAbsent(). */
 function categoryAbsent(ctx: DetectContext): boolean {
   return !ctx.categoryPresent;
+}
+
+/** The heading outline the analyzer prints as a technical signal — one
+ *  indented line per heading, `H1 "Introduction"` / `H3 "Findings"`, with
+ *  the heading's own text — lifted next to the practice it is evidence for,
+ *  the way pdf.ts's headingTreeBlock lifts the PDF level flow. docx.ts:194
+ *  pushes it (common.ts headingOutlineLines) whenever total > 0.
+ *
+ *  Those lines carry document-controlled text and live in `signals`, so no
+ *  matcher here ever reads them — they are shown, never trusted. Absent
+ *  (older payloads, no headings) → no block, never an empty caption. */
+function docxHeadingOutlineBlock(ctx: DetectContext): EvidenceBlock | undefined {
+  const lines = signalLines(ctx, "Heading Outline");
+  return lines.length ? { caption: "Your headings, in document order", lines } : undefined;
 }
 
 const OFFICE_FIX_APP =
@@ -181,6 +197,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
               : "This document's first heading is not Heading 1.",
             "That gives the outline more than one possible starting point.",
           ],
+          block: docxHeadingOutlineBlock(ctx),
           fix: {
             source:
               "In Word, apply the Heading 1 style to the document's first heading-styled paragraph, or promote the outline so it begins there.",
@@ -203,6 +220,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: ["This document's headings were checked, and its outline starts at Heading 1."],
+          block: docxHeadingOutlineBlock(ctx),
         };
       }
       return notChecked("This report contains no finding about this document's first heading.");
@@ -235,6 +253,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
               : "This document has at least one place where the heading levels skip a step.",
             "Screen-reader users may wonder what they missed at the skipped level.",
           ],
+          block: docxHeadingOutlineBlock(ctx),
           fix: {
             source:
               "In Word, apply heading styles in order — do not jump from Heading 1 to Heading 3 — so each section steps down one level at a time.",
@@ -257,6 +276,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: ["This document's headings were checked, and none of the levels skip a step."],
+          block: docxHeadingOutlineBlock(ctx),
         };
       }
       return notChecked(

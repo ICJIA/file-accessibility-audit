@@ -56,7 +56,11 @@ export interface BestPracticeResult {
    *  category is absent from this report, so the check itself never ran —
    *  there was no silence to interpret. Omitted (undefined) means "silent";
    *  only a categoryAbsent() branch sets "not-run" explicitly. */
-  reason?: "silent" | "not-run";
+  reason?: "silent" | "not-run" | "error";
+  // "error": detect() threw and evaluateBestPractices caught it (spec §2:
+  // one bad practice must never take down the page — /report/[id] renders
+  // stored JSON through SSR). The row is NOT CHECKED; the component shows
+  // NEITHER reassurance sentence for it, because neither would be true.
 }
 
 export interface DetectContext {
