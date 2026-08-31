@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.147.0] - 2026-08-31
+
+### Added
+
+- **An audit now survives leaving the page.** Clicking **Status** in the header while a document was being checked — or reloading, or following any link and coming back — used to throw the audit away and ask you to upload the file again. It no longer does. The check itself never actually stopped: it runs on the server, and its finished report waits there for ten minutes until a page comes to collect it. What was missing was the browser's memory of *which* check was running, so that is what the page now keeps — in per-tab session storage that the browser empties when you close the tab. Come back and the page rejoins the same check and carries on; if it finished while you were away, the report is simply there. Nothing is uploaded twice. A report you have already read is kept the same way, so a trip to the status page and back re-renders it instead of starting over.
+
+### Changed
+
+- **The warning before leaving got narrower, not louder.** The prompt that said an audit "will be cancelled and its report discarded" was describing something that, for a single document, no longer happens — and a warning about a loss that does not occur is how people learn to click through warnings without reading them. It now appears only when leaving really would destroy something: a **batch** (whose queue holds the files themselves and cannot be restored), an older deployment without the job endpoints, or a browser where the audit could not be remembered at all — some privacy settings refuse the storage outright, and the page checks whether the write succeeded rather than assuming it did. For the ordinary case of one document, following a link is now simply safe, and nothing interrupts you.
+- **The Status link opens in a new tab only when that is worth doing.** It used to open one every time, which left a stray tab behind on every visit, so it was changed back. It now opens a new tab in exactly the cases above — where leaving would cost you the audit — and behaves normally the rest of the time. When it does, it says so to screen-reader users.
+
+### Documentation
+
+- **The data-retention page now says what your own browser keeps.** § 8 has always answered "what does the server store?"; it had never needed to answer "what does your browser store?", because the answer was nothing. It now names all of it: while a check runs, the job's identifier, its one-time key, and the file's *name*; once it finishes, the report itself, so it can be shown again without re-uploading. Never the file. Cleared when the tab closes, when another audit starts, or when the app is updated.
+
 ## [1.146.0] - 2026-08-31
 
 ### Changed

@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.147.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: the first thing this site has ever kept in a visitor\u2019s own browser, and the navigation warning it made unnecessary.",
+    body: [
+      {
+        kind: "p",
+        html: "This release stores something in your browser for the first time, so this entry is mostly about that. To stop a click on the <strong>Status</strong> link from throwing away an audit, the page now remembers the current audit in <strong>session storage</strong> &mdash; a per-tab store the browser empties when the tab is closed, readable only by this site, and never transmitted anywhere.",
+      },
+      {
+        kind: "p",
+        html: "What is kept, in full: while a document is being checked, the job&rsquo;s identifier, its one-time key, and the file&rsquo;s <em>name</em>; once the check finishes, the report itself, so that leaving and returning shows it again instead of asking for the file a second time. The uploaded file is never kept &mdash; it cannot be, and the server has already deleted it. The server&rsquo;s own behaviour is unchanged: a finished report waits in memory only until a page collects it, or ten minutes, whichever comes first. Section 8 of the data-retention page now names every one of these fields, because a page that only lists what it does <em>not</em> store invites a reader to assume the list is empty.",
+      },
+      {
+        kind: "p",
+        html: "Three properties are enforced rather than merely intended. Every access to that storage is guarded, because some privacy settings make it throw and a full quota rejects the write &mdash; a failure to remember simply returns the old behaviour and never breaks the audit. Every read is checked before anything is drawn: a report written by a different version of the app is discarded rather than rendered, as is a job older than the server keeps them, or any payload that is malformed. And returning to a job the server no longer has &mdash; already collected, expired, or lost to a restart &mdash; puts the upload form back quietly, rather than showing an error for something the visitor did not do.",
+      },
+      {
+        kind: "p",
+        html: "In the other direction, the warning shown before leaving a running audit was <em>narrowed</em>. It said the audit would be cancelled and its report discarded, which for a single document is no longer true. It now appears only when leaving would genuinely destroy work: a batch, an older deployment without the newer endpoints, or a browser that refused the storage. A warning that describes a loss which does not happen is how people learn to dismiss warnings without reading them.",
+      },
+    ],
+  },
+  {
     version: "v1.146.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: an audit of the test suite\u2019s own validity, and three scoring rules that took points without naming a rule.",
     body: [

@@ -258,6 +258,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "audit-survives-leaving-2026-08-31",
+    badge: "Improved",
+    text: "Your audit no longer disappears if you click away. Opening the status page, reloading, or following a link while a document was being checked used to cancel it and make you upload the file all over again. It does not any more: the check runs on our server rather than in your browser, and this page now remembers which one is yours, so coming back picks it up where it left off \u2014 and if it finished while you were gone, the report is simply waiting. A report you have already read is kept the same way for the rest of your visit. Because of that, the warning about leaving mid-audit now appears only when leaving really would lose something, such as a batch of several files. Everything remembered is kept in your own browser, cleared when you close the tab, and never sent anywhere; the data-retention page lists exactly what it is.",
+    linkText: "What your browser keeps (data retention, \u00a7 8)",
+    linkTo: "/data-retention#stored",
+    wcagRefs: [],
+    date: "August 31, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "deductions-name-the-rule-2026-08-31",
     badge: "Changed",
     text: "Three checks stopped taking points for things this tool could not tie to the law. The biggest affects Word, PowerPoint and Excel files with vague link text: a document with two \u201cclick here\u201d links used to lose its entire Link Quality score and be capped at a D, even though the rule behind it, WCAG 2.4.4, lets the sentence around a link supply its purpose \u2014 something no automated check can judge. Vague link text is still reported in full, with the links listed, but it no longer changes your grade. A link with no text at all does still count, because a link with no text has no name for a screen reader to announce, and WCAG 4.1.2 requires one. A PowerPoint slide whose title is not the first thing read on the slide is likewise now reported rather than counted. If one of these applies to your document, it may score higher than it did before.",

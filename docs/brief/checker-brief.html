@@ -170,9 +170,9 @@
     <div class="stamp"><span class="lbl">Every number below was pulled live from the running system on</span><span class="date">AUG 31, 2026</span></div>
     <div class="statrow">
       <div class="stat"><div class="n good mono">12,396</div><div class="l">check-ups run for internal and external agencies &mdash; the quick per-file check-up that has caught on beyond ICJIA: easier than SiteImprove, clearer than PAC. 8,282 in the last 30 days alone</div></div>
-      <div class="stat"><div class="n good mono">3,401</div><div class="l">self-checks the software runs on itself before anything goes live &mdash; all must pass, or nothing ships</div><a class="statlink" href="#all-tests">How it&rsquo;s tested &rarr;</a></div>
+      <div class="stat"><div class="n good mono">3,418</div><div class="l">self-checks the software runs on itself before anything goes live &mdash; all must pass, or nothing ships</div><a class="statlink" href="#all-tests">How it&rsquo;s tested &rarr;</a></div>
       <div class="stat"><div class="n act mono">144 / 144</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div><a class="statlink" href="#all-traps">See all 144 &rarr;</a></div>
-      <div class="stat"><div class="n ext mono">809</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
+      <div class="stat"><div class="n ext mono">812</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
     </div>
   </section>
 
@@ -283,7 +283,7 @@
         <a class="tm-close" href="#top">&#10005; Close &mdash; back to the page</a>
       </div>
       <div class="tm-grid">
-        <div class="trapm testm"><div class="name">every change</div><div class="what">3,401 self-checks &mdash; every promise the software has ever made, re-tested from the top</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">3,418 self-checks &mdash; every promise the software has ever made, re-tested from the top</div><span class="chip clean">EVERY CHANGE</span></div>
         <div class="trapm testm"><div class="name">every change</div><div class="what">The 144 trap documents &mdash; rebuilt from scratch and re-judged; every designed answer must come back right</div><span class="chip clean">EVERY CHANGE</span></div>
         <div class="trapm testm"><div class="name">every change</div><div class="what">The scoring invariant &mdash; the grade shown must always match the score computed; the one test that may never be removed</div><span class="chip clean">EVERY CHANGE</span></div>
         <div class="trapm testm"><div class="name">every change</div><div class="what">The golden score ledger &mdash; every control document&rsquo;s exact score and per-category verdict is pinned; no grade can move unless a person approves the movement in review</div><span class="chip clean">EVERY CHANGE</span></div>
@@ -393,14 +393,15 @@
 
   <section>
     <div class="kicker">the evolution &middot; march to august 2026</div>
-    <h2 class="display">Six months. 809 commits. 146 versions.</h2>
-    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>369 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 3,401 today. Every strange document an agency has thrown at it became a documented fix. All of it is public, on GitHub: <a href="https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">the full change log</a> and <a href="https://github.com/ICJIA/file-accessibility-audit/tags" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">every numbered version</a>, open for anyone to read.</p>
+    <h2 class="display">Six months. 812 commits. 147 versions.</h2>
+    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>372 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 3,418 today. Every strange document an agency has thrown at it became a documented fix. All of it is public, on GitHub: <a href="https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">the full change log</a> and <a href="https://github.com/ICJIA/file-accessibility-audit/tags" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">every numbered version</a>, open for anyone to read.</p>
     <!-- Newest first (user request 2026-08-28). KEEP THIS CURRENT: it is the
        page a sceptical reader scrolls to for "is this still maintained?", and
        a timeline that stops years before the version number in the heading
        answers that badly. Add an entry whenever a release changes what a
        reader can see or how a grade is reached; skip pure fixes and internal
        work. build-brief warns when the newest entry falls too far behind. --><div class="timeline">
+      <div class="tl"><div class="ver mono">v1.147</div><div class="rail"><div class="dot"></div></div><div class="body"><b>An audit survives leaving the page</b><span>Opening the status page or following a link while a document was being checked used to cancel it and demand the file again. The check actually runs on the server, so the page now remembers which one is yours and picks it back up on return &mdash; and the warning about leaving appears only when leaving would really lose something.</span></div></div>
       <div class="tl"><div class="ver mono">v1.146</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Stopped taking points it could not tie to the law</b><span>An audit of its own test suite found nine checks that could no longer fail for the reason they were written &mdash; and three scoring rules quietly escaping the rule that every deduction must name a WCAG criterion. A Word file with two &ldquo;click here&rdquo; links had been losing an entire category at the highest severity while the verdict named nothing. Weak link text is now reported and never counted; fourteen new trap documents make sure it stays that way.</span></div></div>
       <div class="tl"><div class="ver mono">v1.144</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Audited its own claims &mdash; and found them wanting</b><span>Four hostile reviews, checking every statement the reports make against the standards bodies&rsquo; own pages. They found a false accusation this checker had just shipped, compliance dates the Department of Justice had moved, and five wrong citations. All corrected, and two automatic checks widened so the same classes of error stop a release.</span></div></div>
       <div class="tl"><div class="ver mono">v1.143</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Says what is worth doing beyond the law</b><span>Every report now lists the practices that are not required but still help readers &mdash; with this document&rsquo;s own evidence for each, and a plain statement that none of it touched the grade.</span></div></div>
@@ -422,7 +423,7 @@
     <div class="checks">
       <div class="check"><div class="big">The recipe is public</div><p>Every line of code and every change is published on GitHub, for anyone to read &mdash; a kitchen that cooks with the door open.</p></div>
       <div class="check"><div class="big">Independent referee</div><p>veraPDF &mdash; the PDF industry's own validator &mdash; co-signs or contradicts every report.</p></div>
-      <div class="check"><div class="big">3,401 self-checks</div><p>Before anything new goes live, the software re-runs every promise it has ever made &mdash; all 3,401 must pass. A single failure stops the release cold: fix it, then run the full battery again from the top. A few of those promises, in plain words:</p><ul>
+      <div class="check"><div class="big">3,418 self-checks</div><p>Before anything new goes live, the software re-runs every promise it has ever made &mdash; all 3,418 must pass. A single failure stops the release cold: fix it, then run the full battery again from the top. A few of those promises, in plain words:</p><ul>
 <li>A scanned page with no readable text must score zero &mdash; no partial credit for a picture of words.</li>
 <li>A file with no tables must never be graded on tables.</li>
 <li>The grade on screen and the grade in the downloaded report must match, digit for digit.</li>
@@ -430,7 +431,7 @@
 <li>A re-saved copy of a document must receive the identical grade, digit for digit.</li>
 <li>All 144 trap documents must still be judged correctly, every release.</li>
 </ul></div>
-      <div class="check"><div class="big">Public paper trail</div><p>146 version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
+      <div class="check"><div class="big">Public paper trail</div><p>147 version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
       <div class="check"><div class="big">The best analysis tools</div><p>Inside it runs qpdf and veraPDF &mdash; the accessibility field&rsquo;s own best-of-breed analysis tools, used every day by professional remediators and certified specialists worldwide &mdash; and it checks all 31 points of the Matterhorn Protocol, the PDF industry&rsquo;s official test model. One person assembled them; the world builds and checks them.</p></div>
       <div class="check"><div class="big">Free &amp; open source</div><p>No license, no subscription, no per-seat fee &mdash; run as many check-ups as you like, from any agency. And the whole thing is open source: the code can be read, copied, run on your own servers, and checked line by line. There is nothing to buy, and nothing hidden to sell.</p></div>
     </div>
