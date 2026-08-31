@@ -1188,7 +1188,12 @@ export const PDF_PRACTICES: BestPractice[] = [
             count !== null
               ? `${count} link${count === 1 ? "" : "s"} in this document ${count === 1 ? "uses" : "use"} the raw web address as ${count === 1 ? "its" : "their"} visible text.`
               : "Some links in this document use the raw web address as their visible text.",
-            "This already satisfies the destination-is-determinable rule — a descriptive label is a readability nicety, not a fix for a failure.",
+            // Hedged to match the row's own `standard` (2026-08-31): a short,
+            // readable address does make the destination determinable; a long
+            // or parameterised one may not, and this tool does not judge which
+            // is which. The analyzer's own link copy elsewhere tells readers a
+            // long URL "is not useful" — the two must not disagree.
+            "A readable address makes the destination determinable on its own; a long or parameterised one may not, so glance at the list below. Either way this is a readability improvement, not a fix for a failure.",
           ],
           block: blockFrom(ctx, "Raw URL Link Text", "Links using their raw web address as text"),
           fix: {
