@@ -83,6 +83,27 @@ function onTrustBodyClick(e: MouseEvent) {
   --tp-act-dim: rgba(103, 232, 249, 0.1);
   line-height: 1.5;
 }
+
+/* LIGHT MODE (2026-08-31). The structural colours above map to the app's own
+   theme variables and follow it correctly. The four ACCENTS did not: they are
+   the brief's palette, chosen for its near-black ground, and on the light
+   surface they measured 1.38 to 2.65 against a 4.5 requirement — 128 contrast
+   failures on this page alone, every one invisible until someone used the
+   theme toggle. Same hues, darkened until each clears AA on the lightest
+   surface the content sits on (#f9fafb). The -dim tints stay as they are:
+   they are backgrounds, and a 10-12% wash reads as near-white either way. */
+html.light .trust-page {
+  /* Darkened AGAINST THEIR OWN TINT, not against the page. Every chip and
+     label here sits on a 12% wash of its own colour (#e7faf3, #feeeee,
+     #fff7e5, #edfcfe), and some — the verdict captions — are drawn at 85%
+     opacity on top of that. Computed against the page background instead,
+     the first attempt landed at 4.33-4.44 and read as passing: the same
+     compositing mistake that hid three failing pills on the status page. */
+  --tp-good: #196549;
+  --tp-bad: #8b3f3f;
+  --tp-ext: #705510;
+  --tp-act: #2c626a;
+}
 .trust-page .wrap {
   max-width: 100%;
   margin: 0 auto;
@@ -473,17 +494,17 @@ function onTrustBodyClick(e: MouseEvent) {
   gap: 14px;
   margin-top: 30px;
 }
-.trust-page .versus .dis h4 {
+.trust-page .versus .dis h3 {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 14px 0 6px;
 }
-.trust-page .versus .dis h4.pro {
+.trust-page .versus .dis h3.pro {
   color: var(--tp-good);
 }
-.trust-page .versus .dis h4.con {
+.trust-page .versus .dis h3.con {
   color: var(--tp-muted);
 }
 .trust-page .versus .dis ul {

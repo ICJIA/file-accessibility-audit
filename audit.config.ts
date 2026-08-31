@@ -258,9 +258,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "light-mode-contrast-2026-08-31",
+    badge: "Fixed",
+    text: "Light mode had never been tested, and it was hard to read. This app opens in dark mode, so every automatic check it runs on itself had only ever looked at the dark version \u2014 including the checks behind the claim that both were fine. Switching the default and re-testing found 136 places where text was too faint against its background, most of them on the data-retention page, and one on this page at roughly a quarter of the required contrast. All are fixed, and every page now passes in both appearances. Publishing the number rather than quietly correcting it seemed the only consistent thing to do, given that faint text is one of the things this tool checks other people's documents for.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+  },
+  {
     id: "counted-in-your-score-2026-08-31",
     badge: "Fixed",
-    text: "The best-practices list no longer says \u201cnot applicable\u201d about something that already cost you points. A reader spotted an annual report with no headings at all showing five \u201cnot applicable\u201d labels about headings \u2014 while the same report scored that document\u2019s heading structure zero and named the rule it broke. Rows like that now read \u201ccounted in your score\u201d and point at your action plan, in the same colour as the plan itself. \u201cNot applicable\u201d is kept for what it always meant: there is genuinely nothing of that kind in your document, and nothing was lost \u2014 no links to judge, no tables to check.",
+    text: "The best-practices list no longer says \u201cnot applicable\u201d about something that already cost you points. A reader spotted an annual report with no headings at all showing five \u201cnot applicable\u201d labels about headings \u2014 while the same report scored that document\u2019s heading structure zero and named the rule it broke. That label was the wrong fix, and it was withdrawn the same afternoon: rows about something already graded are now simply gone from the list. Best practices shows only what is genuinely extra credit \u2014 work worth doing that no rule requires \u2014 so nothing in it repeats a point already made in your action plan.",
     linkText: "How this app is tested",
     linkTo: "/trust#all-tests",
     linkExternal: true,

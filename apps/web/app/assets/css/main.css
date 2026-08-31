@@ -305,3 +305,145 @@ body {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   LIGHT MODE: the fixed dark palette
+   ---------------------------------------------------------------------------
+   Everything below is one bug with two halves, found by running contrastcap
+   against the app with DEFAULT_COLOR_MODE flipped to light: 135 failures on
+   /data-retention, 1 on the landing page, and a theme nobody had measured
+   because the app ships dark and the toggle is easy to miss.
+
+   HALF ONE - foregrounds. The code-block legend (sky = structure and SQL
+   keywords, emerald = tools and success, amber = deletes and guards, purple =
+   types and events) is written with Tailwind's -200, -300 and -400 shades,
+   which are built for a dark ground. On the light surface they measure 1.19
+   to 1.86 against a 4.5 requirement. Same hues at a weight that works on
+   light: one override per shade rather than 243 edits, so the legend stays a
+   legend and no component needs to know which theme it is in.
+
+   HALF TWO - the surfaces under them. Every dark surface in this app is a
+   TINT (bg-emerald-950/40, not bg-emerald-950), so in light mode it
+   composites over a near-white page into something muddy: /40 emerald lands
+   on #96a8a4, where even emerald-800 only reaches 3.90. Darkening the text
+   alone cannot fix a pill whose own background is wrong, so the tints are
+   remapped to light tints of the same hue. Weak tints (<= 20%) take the -50
+   step, strong ones (>= 30%) take -100.
+
+   All six take the -800 step, not -700. The deciding case is not the page
+   background but the mid-tone tints these colours sit inside: a 30%
+   bg-emerald-500 composites to #b3e6d6, where emerald-700 measures 3.97.
+   There are 31 such tint classes across 13 hues, so the headroom belongs in
+   the text rather than in an enumeration of every tint. At -800 the worst
+   same-hue tint measures 5.35 to 6.95.
+
+   Not a bug, do not "fix": the No AI banner's headline reads 3.16 against the
+   darkest corner of its own gradient. It is 36px at weight 900 - large text,
+   3.0 required - and contrastcap's worse number for it samples the glyph's
+   own antialiased edge, not the ground.
+   --------------------------------------------------------------------------- */
+html.light {
+  /* blue-600 measured 3.62 on the tinted card grounds links actually sit on. */
+  --link: #1d4ed8;
+}
+
+/* The legend, at light-mode weights. */
+html.light .text-sky-200,
+html.light .text-sky-300,
+html.light .text-sky-400 {
+  color: #075985;
+}
+html.light .text-purple-200,
+html.light .text-purple-300,
+html.light .text-purple-400 {
+  color: #6b21a8;
+}
+html.light .text-emerald-200,
+html.light .text-emerald-300,
+html.light .text-emerald-400 {
+  color: #065f46;
+}
+html.light .text-amber-200,
+html.light .text-amber-300,
+html.light .text-amber-400 {
+  color: #78350f;
+}
+html.light .text-red-200,
+html.light .text-red-300,
+html.light .text-red-400 {
+  color: #991b1b;
+}
+html.light .text-blue-200,
+html.light .text-blue-300,
+html.light .text-blue-400 {
+  color: #1e40af;
+}
+
+/* Dark tints composite muddy over a light page; same hue, light step. */
+html.light .bg-emerald-950\/10 {
+  background-color: #ecfdf5;
+}
+html.light .bg-emerald-950\/15 {
+  background-color: #ecfdf5;
+}
+html.light .bg-emerald-950\/20 {
+  background-color: #ecfdf5;
+}
+html.light .bg-emerald-950\/30 {
+  background-color: #d1fae5;
+}
+html.light .bg-emerald-950\/40 {
+  background-color: #d1fae5;
+}
+html.light .bg-emerald-900\/40 {
+  background-color: #d1fae5;
+}
+html.light .bg-emerald-900\/50 {
+  background-color: #d1fae5;
+}
+html.light .bg-red-950\/15 {
+  background-color: #fef2f2;
+}
+html.light .bg-red-950\/20 {
+  background-color: #fef2f2;
+}
+html.light .bg-red-950\/40 {
+  background-color: #fee2e2;
+}
+html.light .bg-red-900\/50 {
+  background-color: #fee2e2;
+}
+html.light .bg-blue-950\/15 {
+  background-color: #eff6ff;
+}
+html.light .bg-blue-950\/20 {
+  background-color: #eff6ff;
+}
+html.light .bg-blue-950\/40 {
+  background-color: #dbeafe;
+}
+html.light .bg-amber-950\/10 {
+  background-color: #fffbeb;
+}
+html.light .bg-amber-950\/15 {
+  background-color: #fffbeb;
+}
+html.light .bg-amber-950\/20 {
+  background-color: #fffbeb;
+}
+html.light .bg-amber-950\/30 {
+  background-color: #fef3c7;
+}
+html.light .bg-amber-950\/40 {
+  background-color: #fef3c7;
+}
+html.light .bg-sky-950\/20 {
+  background-color: #f0f9ff;
+}
+
+html.light .from-red-950\/30 {
+  --tw-gradient-from: #fee2e2;
+}
+html.light .to-red-950\/10 {
+  --tw-gradient-to: #fef2f2;
+}

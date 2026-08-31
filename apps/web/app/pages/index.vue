@@ -684,7 +684,7 @@
             href="https://github.com/opendataloader-project/opendataloader-pdf"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >OpenDataLoader</a
           >
           →
@@ -692,7 +692,7 @@
             href="https://verapdf.org/"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >veraPDF</a
           >
           pipeline. Output never regresses any score profile, and manual review is still recommended
@@ -743,7 +743,9 @@
           services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
           veraPDF) is entirely open source — no per-document fees, no SDK licensing. Page views are
           counted by ICJIA's own self-hosted, cookie-free
-          <NuxtLink to="/data-retention" class="text-[var(--link)] hover:text-[var(--link-hover)]"
+          <NuxtLink
+            to="/data-retention"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >Plausible</NuxtLink
           >
           — never document data.
@@ -762,7 +764,7 @@
             href="https://github.com/ICJIA/file-accessibility-audit"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >GitHub</a
           >
           — fork it, audit it, run it on your own infrastructure. Underlying tools use Apache 2.0 /

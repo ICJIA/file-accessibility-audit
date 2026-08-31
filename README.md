@@ -1105,29 +1105,37 @@ Beyond the unit suites, nine corpus-level gates verify the **auditing itself** �
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 
-The web interface itself meets **WCAG 2.2 Level AA** standards. Measured against production on **2026-08-07** (desktop, Lighthouse via `lightcap`):
+The web interface itself meets **WCAG 2.1 Level AA** — the version both applicable laws name, and the version this tool grades documents against.
 
-| Category | Score |
-| --- | :--: |
-| Accessibility | **100** |
-| Best Practices | **100** |
-| SEO | **100** |
-| Performance | **97** (CLS 0.104 fixed in v1.61.0 — re-measure) |
+Measured **2026-08-31** across all six pages, in **both themes**, with three independent tools (`lightcap`, `axecap`, `contrastcap`):
 
-The previous "95+ on Lighthouse accessibility" claim predated the v1.54 report redesign and had never been re-run — it was understating the real figure, which is the less common way for a stale number to be wrong, but stale either way.
+| Page | Lighthouse a11y | axe-core AA | Contrast (AA) |
+| --- | :--: | :--: | :--: |
+| `/` | **100** | 0 violations | 0 failures |
+| `/trust` | **100** | 0 violations | 0 failures |
+| `/data-retention` | **100** | 0 violations | 0 failures |
+| `/technical-details` | **100** | 0 violations | 0 failures |
+| `/wcag-2-2` | **100** | 0 violations | 0 failures |
+| `/announcements` | **100** | 0 violations | 0 failures |
 
-That run surfaced one genuine failure, now fixed: the announcement banner's "See all updates" link carried the accessible name *"See all previous announcements"*, so the visible words appeared nowhere in the accessible name — a **WCAG 2.5.3 Label in Name** violation, which breaks speech input, on an accessibility tool. The remaining Performance gap is a CLS of 0.104 from header and results-region layout shifts; tracked, not yet fixed.
+**Light mode had never been measured, and it was broken.** The table above is the state after v1.151.0; before it, a contrast sweep of light mode found **136 failures** — 135 on `/data-retention` alone, plus one on the landing page at **1.18:1** against a 4.5 requirement. The cause was systemic rather than incidental: the code-block colour legend (sky = structure and SQL, emerald = tools and success, amber = deletes and guards, purple = types and events) is written with Tailwind's `-200`/`-300`/`-400` shades, which are built for a dark ground and measure 1.19–1.86 on a light one. 243 uses across ~20 files. The dark *surfaces* under them were the other half: every one is a tint (`bg-emerald-950/40`, not `bg-emerald-950`), so in light mode each composites over a near-white page into something muddy — 40% emerald lands on `#96a8a4`, where even emerald-800 reaches only 3.90.
+
+The fix is one override per shade under `html.light` rather than 243 edits, plus a remap of the tint backgrounds, so the legend stays a legend and no component needs to know which theme it is in. See `apps/web/app/assets/css/main.css`.
+
+This is worth stating plainly: **the README claimed light-mode contrast compliance for months, and no one had run the measurement.** The claim below now describes what was actually measured, on the date it was measured.
+
+Earlier measurements, kept for the record. The **2026-08-07** run (dark mode only, Lighthouse via `lightcap`) scored Accessibility, Best Practices and SEO at 100 and Performance at 97, and it surfaced one genuine failure, since fixed: the announcement banner's "See all updates" link carried the accessible name *"See all previous announcements"*, so the visible words appeared nowhere in the accessible name — a **WCAG 2.5.3 Label in Name** violation, which breaks speech input, on an accessibility tool. Before that, a "95+ on Lighthouse accessibility" claim predated the v1.54 report redesign and had never been re-run; it *understated* the real figure, which is the less common way for a number to be stale, but stale either way. Performance is not re-measured above — that table is accessibility-only — and the last known gap was a CLS of 0.104 from header and results-region layout shifts; tracked, not yet fixed.
 
 **What's enforced:**
 
 | Requirement                 | Implementation                                                                                                                                                                        |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Color contrast**          | All text meets 4.5:1 minimum ratio in both dark and light modes. CSS custom properties ensure correct contrast for every theme. `text-neutral-500` and `text-neutral-600` are banned. |
+| **Color contrast**          | Measured 2026-08-31 at 4.5:1 or better in both themes, on all six pages (see the table above — this was an unverified claim until then). Light mode overrides the fixed Tailwind shades under `html.light`. `text-neutral-500` and `text-neutral-600` are banned. |
 | **Semantic landmarks**      | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages.                                                                                 |
 | **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`.                                                                          |
 | **Keyboard accessibility**  | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers.                                                                                       |
 | **Click targets**           | Expand/collapse buttons span full width (WCAG 2.5.8).                                                                                                                                 |
-| **Heading order**           | Valid heading hierarchy (h1 → h2 → h3) on all pages.                                                                                                                                  |
+| **Heading order**           | Valid heading hierarchy on all pages. `/trust` skipped h2 → h4 in the tool-comparison block until v1.151.0; Lighthouse scored it 98 and axe stayed silent, because `heading-order` is an axe *best-practice* rule with no `wcag2a` tag. |
 
 The `accessibility.test.ts` (35 tests) and `color-mode.test.ts` (51 tests) suites guard against regressions:
 
@@ -1136,7 +1144,9 @@ The `accessibility.test.ts` (35 tests) and `color-mode.test.ts` (51 tests) suite
 - **Landmark verification** — confirms `<main>`, `<header>`, `<footer>`, `<nav>` exist in layouts and pages
 - **Component-level checks** — keyboard-accessible controls, caveat text, link attributes, no low-opacity text
 
-**Manual audits:** Full browser-based accessibility audits (axe-core, Lighthouse) are not part of the automated test suite. Run these manually against a running dev or production build using the [axe DevTools extension](https://www.deque.com/axe/devtools/) or Chrome DevTools Lighthouse panel.
+**Manual audits:** Full browser-based accessibility audits are not part of the automated test suite — which is precisely how light mode stayed broken while every gate was green. Run them against a running build with `lightcap` (Lighthouse), `axecap` (axe-core) and `contrastcap`, **and run them in both themes**: flip `BRANDING.DEFAULT_COLOR_MODE` in `audit.config.ts` to `"light"`, re-check, and revert.
+
+One caveat on reading contrast output: over a gradient, `contrastcap` falls back to pixel-sampling and can report a glyph's own antialiased edge as its background — the tell is a reported background that is a lighter blend of the foreground, or identical to it (a ratio of exactly 1.00 on text that plainly renders). Nine such artifacts remain on `/data-retention` and 28 on `/trust`; all were recomputed by hand against the real composited grounds and measure 5.21–13.54:1. They appear identically in both themes.
 
 ## Deployment
 
@@ -1327,6 +1337,18 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.151.0 — 2026-08-31 · The app's own light mode, measured for the first time (no new attack surface)
+
+No new attack surface: presentation only — no data path, input, output, dependency or endpoint changed. Every edit is CSS, four `underline` classes, and one heading level.
+
+The finding is a process failure more than a code one. `BRANDING.DEFAULT_COLOR_MODE` is `"dark"`, so every automated gate, every Lighthouse run and every accessibility claim in this file had only ever exercised one of the two themes the app ships. Flipping the default and re-running `contrastcap` produced **136 failures**: 135 on `/data-retention`, one on the landing page at **1.18:1**. The README had asserted "all text meets 4.5:1 in both dark and light modes" throughout, which was never measured.
+
+Two systemic causes, both fixed in `main.css` rather than at 243 call sites. The code-block colour legend uses Tailwind `-200`/`-300`/`-400` shades, which are built for a dark ground and measure 1.19–1.86 on a light one. The panels beneath them are all *tints* (`bg-emerald-950/40`, never `bg-emerald-950`), so on a near-white page they composite muddy — 40% emerald lands on `#96a8a4`, where even emerald-800 reaches 3.90. Foregrounds take the `-800` step, chosen against the worst same-hue tint (5.35–6.95) rather than against the page background, because there are 31 tint classes across 13 hues and the headroom belongs in the text. Tints are remapped to the matching light step.
+
+Also fixed: four landing-page links distinguished from surrounding text by colour alone (**WCAG 1.4.1, Level A** — the *previous* colour failed it too, at 1.99:1, so darkening for readability alone would have deepened an existing failure; they are underlined now), and a skipped heading level on `/trust` (h2 → h4), which Lighthouse scored 98 for while axe-core stayed silent, since `heading-order` carries no `wcag2a` tag.
+
+Verified after the change on all six pages in **both** themes: Lighthouse accessibility **100**, axe-core AA **0 violations**, contrast **0 failures**. The residual `contrastcap` items on `/data-retention` (9) and `/trust` (28) are gradient pixel-sampling artifacts — each reports a background that is a lighter blend of its own foreground, several reporting a ratio of exactly 1.00 on text that plainly renders; all were recomputed by hand at 5.21–13.54:1, and they appear identically in dark mode. Tests 3,431; traps 149; no score moved.
 
 ### v1.150.0 — 2026-08-31 · PowerPoint fake headings: closing the last under-reporting gap (no new attack surface)
 

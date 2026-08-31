@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.151.0",
+    meta: "Reviewed <strong>2026-08-31</strong> &middot; scope: the site&rsquo;s own light mode, which had never been measured.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: presentation only. Nothing about how files are handled, stored or deleted changed &mdash; the edits are colour definitions, four underlines and one heading level.",
+      },
+      {
+        kind: "p",
+        html: "This site ships in dark mode, and the theme switch is easy to miss. Every automated check it runs on itself had therefore only ever looked at one of the two appearances it offers. Setting the default to light and re-running the contrast checks found <strong>136 failures</strong> &mdash; 135 of them on this page, and one on the home page where text sat at a ratio of 1.18 against a required 4.5. For a tool that grades other people&rsquo;s documents on exactly this, the honest thing is to publish the number rather than quietly correct it.",
+      },
+      {
+        kind: "p",
+        html: "It was one decision made twice, not 136 mistakes. The colours used for code and structure were chosen for a dark background and are close to invisible on a light one, and the panels behind them are see-through tints that turn muddy when the page beneath is white. Both are now corrected in a single place for the whole site, so the colour scheme stays consistent and no individual part of the page has to know which appearance is in use.",
+      },
+      {
+        kind: "p",
+        html: "Two older faults surfaced in the same pass and are fixed: four links on the home page were told apart from the text around them by colour alone, and are now underlined like every other link on the site; and this project&rsquo;s trust page skipped a heading level, the same fault it reports in documents it checks. Afterwards, all six pages were re-checked in both appearances with three independent tools: a perfect accessibility score on each, with no violations and no contrast failures.",
+      },
+    ],
+  },
+  {
     version: "v1.150.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: a real accessibility failure PowerPoint files could contain that the checker never reported.",
     body: [

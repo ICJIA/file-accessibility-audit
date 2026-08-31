@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.151.0] - 2026-08-31
+
+### Fixed
+
+- **Light mode was broken, and nothing here had ever measured it.** The app ships dark and the theme toggle is easy to miss, so every accessibility gate, every Lighthouse run and every claim in the README had only ever described one of the two themes. A contrast sweep with the default flipped to light found **136 failures** — 135 of them on the data-retention page, and one on the landing page at **1.18:1** against a 4.5 requirement. On a tool that grades other people's documents for contrast, this is the least comfortable place to have an unmeasured claim, which is the reason for stating the number plainly rather than quietly correcting it.
+- **The cause was one decision made twice, not 136 separate mistakes.** The colour legend used for code and structure (sky for SQL and structure, emerald for tools and success, amber for deletes and guards, purple for types and events) is written with Tailwind shades built for a dark background; on a light one they measure 1.19 to 1.86. That is 243 uses across about twenty files. The surfaces beneath them were the other half: every dark panel in the app is a *tint* rather than a solid colour, so in light mode each one blends into the near-white page and turns muddy — a 40 percent emerald panel lands on a grey-green that even the darkest usable green cannot sit on legibly. Both halves are now corrected in one place, as a light-mode override of each shade and each tint, so the legend stays intact and no individual component needs to know which theme it is in.
+- **Four links on the landing page were told apart from the text around them by colour alone** — WCAG 1.4.1, Level A. They are underlined now, like every other in-text link in the app. This one predates the work above: the older link colour failed the same criterion at 1.99:1, so darkening the colour for readability would have deepened a failure that was already there. Underlining fixes both at once.
+- **The trust page skipped a heading level**, jumping from a section heading straight to the tool-comparison sub-headings. Lighthouse scored the page 98 for it; axe-core said nothing, because it classes heading order as a best practice rather than a WCAG failure — a distinction this project applies to other people's documents and had not applied to its own page. Now h2 to h3, and the page scores 100.
+
+### Changed
+
+- **Both themes are now measured on every page, with three tools.** All six pages score 100 on Lighthouse accessibility, zero axe-core violations at AA, and zero contrast failures, in dark mode and light. The README records the date, the tools and the numbers, and says which claim had gone unverified — along with how to re-run it in light mode, since that is the step whose absence caused this.
+
 ## [1.150.0] - 2026-08-31
 
 ### Added
