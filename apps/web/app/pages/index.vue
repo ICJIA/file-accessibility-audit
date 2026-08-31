@@ -554,6 +554,7 @@
       :stage="processingStage"
       :rotate="processingRotate"
       :file-type="processingFileType"
+      :filename="processingFilename"
       :steps="processingSteps"
     />
 
@@ -866,6 +867,9 @@ const processingStage = ref("");
 // audits keep narrating their own real milestones via processingStage.
 const processingRotate = ref(false);
 const processingFileType = ref<"pdf" | "docx" | "pptx" | "xlsx" | null>(null);
+// The file the overlay is currently working on, so the spinner can say which
+// document it belongs to. Cleared with the other processing state.
+const processingFilename = ref<string | null>(null);
 // v1.100.0: REAL per-pass step rows from the job endpoints. Null until the
 // first status poll answers, so the overlay opens in rotate mode and
 // upgrades to observed states the moment they exist.
@@ -1009,6 +1013,7 @@ async function analyzeFile(file: File) {
   try {
     processingRotate.value = true;
     processingFileType.value = fileTypeFromName(file.name);
+    processingFilename.value = file.name;
     processingSteps.value = null;
     processingStage.value = "";
 
@@ -1041,6 +1046,7 @@ async function analyzeFile(file: File) {
     processing.value = false;
     processingRotate.value = false;
     processingFileType.value = null;
+    processingFilename.value = null;
     processingSteps.value = null;
   }
 }
