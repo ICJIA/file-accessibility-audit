@@ -121,20 +121,19 @@ const libraries = computed(() =>
       </a>
     </div>
     <p v-if="isDocx" class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
-      Eight categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (WCAG 2.2 AA
-      is a superset of the WCAG 2.1 AA required by <strong>IITAA 2.1 §E205.4</strong>
-      and ADA Title II) — the rules that govern non-web document accessibility in Illinois. Checks
-      the tool can't yet automate for Word (reading order, form fields) are always reported as Not
-      Assessed and sit outside the weighted score; a category that simply doesn't apply to a given
-      document (no tables, no images) counts as passing, so a document is never penalized for
-      content it doesn't have. Unlike PDF, color contrast is checked directly here, because Word
-      stores explicit and theme colors. This score is the compliance benchmark for publication.
+      Eight categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (the standard
+      <strong>IITAA 2.1 §E205.4</strong> and ADA Title II both require) — the rules that govern
+      non-web document accessibility in Illinois. Checks the tool can't yet automate for Word
+      (reading order, form fields) are always reported as Not Assessed and sit outside the weighted
+      score; a category that simply doesn't apply to a given document (no tables, no images) counts
+      as passing, so a document is never penalized for content it doesn't have. Unlike PDF, color
+      contrast is checked directly here, because Word stores explicit and theme colors. This score
+      is the compliance benchmark for publication.
     </p>
     <p v-else-if="isPptx" class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
-      Nine categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (WCAG 2.2 AA
-      is a superset of the WCAG 2.1 AA required by <strong>IITAA 2.1 §E205.4</strong> and ADA Title
-      II) — the rules that govern non-web document accessibility in Illinois. PowerPoint-specific
-      checks include
+      Nine categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (the standard
+      <strong>IITAA 2.1 §E205.4</strong> and ADA Title II both require) — the rules that govern
+      non-web document accessibility in Illinois. PowerPoint-specific checks include
       <strong>slide titles</strong>
       (every slide needs a unique title placeholder — Microsoft's highest-severity PowerPoint rule)
       and a title-first
@@ -147,10 +146,10 @@ const libraries = computed(() =>
       publication.
     </p>
     <p v-else-if="isXlsx" class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
-      Seven categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (WCAG 2.2 AA
-      is a superset of the WCAG 2.1 AA required by <strong>IITAA 2.1 §E205.4</strong> and ADA Title
-      II) — the rules that govern non-web document accessibility in Illinois. Excel-specific checks
-      include <strong>sheet names</strong> (no default "Sheet1" tabs on visible sheets) and
+      Seven categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (the standard
+      <strong>IITAA 2.1 §E205.4</strong> and ADA Title II both require) — the rules that govern
+      non-web document accessibility in Illinois. Excel-specific checks include
+      <strong>sheet names</strong> (no default "Sheet1" tabs on visible sheets) and
       <strong>table markup</strong>
       (data in real table objects with header rows; merged cells are flagged as advisories). Excel
       stores no document-language property, so the language half of Title &amp; Language is reported
@@ -163,8 +162,8 @@ const libraries = computed(() =>
     </p>
     <p v-else class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
       Nine categories are weighed against
-      <strong>WCAG {{ wcag.version }} AA</strong> (WCAG 2.2 AA is a superset of the WCAG 2.1 AA
-      required by <strong>IITAA 2.1 §E205.4</strong> and ADA Title II) — the rules that govern
+      <strong>WCAG {{ wcag.version }} AA</strong> (the standard
+      <strong>IITAA 2.1 §E205.4</strong> and ADA Title II both require) — the rules that govern
       non-web document accessibility in Illinois. A category that doesn't apply (e.g. tables in a
       document with no tables) counts as passing and keeps its weight — a document is never
       penalized for content it doesn't have, and a simple document's one fault is never magnified by

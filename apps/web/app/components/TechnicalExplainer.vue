@@ -34,11 +34,11 @@
         <p class="text-[var(--text-muted)] mb-3">
           The tool evaluates documents against
           <a
-            href="https://www.w3.org/WAI/WCAG22/quickref/"
+            href="https://www.w3.org/WAI/WCAG21/quickref/"
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--link)] hover:text-[var(--link-hover)]"
-            >WCAG 2.2 Level AA</a
+            >WCAG 2.1 Level AA</a
           >
           (the international standard for web content accessibility) and
           <a
@@ -781,7 +781,7 @@
         <h3 class="font-semibold text-[var(--text-heading)] mb-2">How Scores Are Calculated</h3>
         <p class="text-[var(--text-muted)] mb-3">
           For a <strong>PDF</strong>, the scorer weighs nine accessibility categories anchored to
-          <strong>WCAG 2.2 AA</strong> and <strong>IITAA 2.1 §E205.4</strong> — the rules that
+          <strong>WCAG 2.1 AA</strong> and <strong>IITAA 2.1 §E205.4</strong> — the rules that
           govern non-web document accessibility in Illinois. Each category receives a score from 0
           to 100 (or N/A if the category doesn't apply to the document). The overall score is a
           <strong>weighted average</strong> across the categories. A category that
@@ -896,7 +896,7 @@
           <p class="font-medium text-[var(--text-secondary)]">About this score</p>
           <p class="text-xs text-[var(--text-muted)]">
             This is a <strong>WCAG-based</strong> evaluation. It aligns with
-            <strong>WCAG 2.2 Level AA</strong>, <strong>ADA Title II</strong>, and Illinois
+            <strong>WCAG 2.1 Level AA</strong>, <strong>ADA Title II</strong>, and Illinois
             <strong>IITAA 2.1 §E205.4</strong> — the rules that govern non-web document
             accessibility in Illinois. The scorer emphasizes
             <strong>programmatically determinable</strong> structure (real headings, real
@@ -939,7 +939,7 @@
           <p class="text-xs text-[var(--text-muted)]">
             The nine-category table above is the PDF model. Word, PowerPoint, and Excel files are
             scored the same way — a weighted average of 0–100 category scores, grounded in the same
-            WCAG 2.2 AA criteria — but each format uses its own adapted category set, because not
+            WCAG 2.1 AA criteria — but each format uses its own adapted category set, because not
             every PDF category has an OOXML equivalent:
           </p>
           <ul class="text-xs text-[var(--text-muted)] list-disc list-inside space-y-1">
@@ -1381,14 +1381,15 @@
       <div>
         <h3 class="font-semibold text-[var(--text-heading)] mb-2">WCAG 2.2 Alignment</h3>
         <p class="text-[var(--text-muted)] mb-3">
-          This tool reports against <strong>WCAG 2.2 Level AA</strong>. WCAG 2.2 AA is a strict
-          superset of the WCAG 2.1 AA that IITAA 2.1 (§E205.4) and ADA Title II require. WCAG 2.2
-          adds nine success criteria (six at Level A/AA) and removes one (4.1.1 Parsing, obsolete).
-          The automated checks are unchanged — every machine-checkable criterion carried forward
-          from 2.1. The new 2.2 criteria are interactive/manual; we never report them as automated
-          failures. For documents with interactive form fields, the form-relevant new criteria
-          (Target Size 2.5.8, Redundant Entry 3.3.7, Accessible Authentication 3.3.8) are listed in
-          the verdict as <em>"not assessed — manual review"</em>.
+          This tool reports against <strong>WCAG 2.1 Level AA</strong> — the version IITAA 2.1
+          (§E205.4) and ADA Title II both require, and the version every verdict here names. WCAG
+          2.2 is a strict superset of it: it adds nine success criteria (six at Level A/AA) and
+          removes one (4.1.1 Parsing, obsolete). The automated checks are the same either way —
+          every machine-checkable criterion is one carried forward from 2.1. The criteria 2.2 adds
+          are interactive and manual, so they are never reported as automated failures; they are
+          described on the
+          <a href="/wcag-2-2" class="text-[var(--link)] underline">What&rsquo;s new in WCAG 2.2</a>
+          page rather than listed in each document&rsquo;s verdict.
         </p>
         <p class="text-[var(--text-muted)]">
           For a plain-language manager summary, see

@@ -82,8 +82,8 @@ export function resolveRowLinks(
   // standard — "Level A and AA are what ADA Title II and the IITAA name" —
   // and a label reading "WCAG 2.4.4 … Level A" that opens a /WCAG22/ page
   // invites the obvious question about which version the tool is actually
-  // talking about. The runtime `understandingUrl` follows WCAG.VERSION (2.2,
-  // the superset this tool tests against), which is right everywhere else and
+  // talking about. The runtime `understandingUrl` follows WCAG.VERSION, which is 2.1
+  // by default and may be set to 2.2, which is right everywhere else and
   // wrong here. Standing rule, 2026-08-31: name a criterion, link the rule —
   // and link the version the copy names.
   const wcagLinks = (row.practice.wcagSlugs ?? []).map((s) => ({

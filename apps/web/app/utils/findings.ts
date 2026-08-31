@@ -99,7 +99,7 @@ export interface CardFindings {
   signalCount: number;
   acrobat: string[];
   /** Items the report shows but deliberately does NOT score: PDF/UA readiness
-   *  work that the law (WCAG 2.2 AA / ADA Title II / IITAA) does not require.
+   *  work that the law (WCAG 2.1 AA / ADA Title II / IITAA) does not require.
    *  Split out so a reader can see at a glance which findings moved the grade
    *  and which are optional — and so an agency can say truthfully "this file
    *  meets the legal standard" while still being shown the extra work. */

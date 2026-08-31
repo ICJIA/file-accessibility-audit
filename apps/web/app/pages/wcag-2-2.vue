@@ -37,8 +37,8 @@ useHead({
         <strong>ADA Title II</strong> rule both require <strong>WCAG 2.1 Level AA</strong> — that is
         the legal minimum and it is <strong>mandatory</strong>.
         <strong>WCAG 2.2 is not yet referenced by IITAA</strong>, so conforming to 2.2 is
-        <strong>optional and forward-looking</strong>. We audit against 2.2 anyway because it is a
-        strict superset of 2.1 and we expect the standards to follow.
+        <strong>optional and forward-looking</strong>. We grade against 2.1 &mdash; the bar the law
+        sets &mdash; and recognise 2.2 as where the standards are heading.
       </p>
     </div>
 
@@ -127,13 +127,14 @@ useHead({
     <p class="text-[var(--text-secondary)] leading-relaxed mb-3">
       For ordinary documents (reports, memos, forms you only read), moving from 2.1 to 2.2 changes
       nothing about what this tool checks — the automated checks are identical. We display "WCAG
-      2.2" to signal we're holding documents to the newest bar, and we surface the form-relevant new
-      rules as <em>"not assessed — manual review"</em> when a PDF has interactive form fields,
-      rather than pretending we tested them.
+      2.1" because that is the version the law names, and the rules 2.2 adds are described on this
+      page rather than listed in each document's verdict — they are interactive and manual, and we
+      will not pretend we tested them.
     </p>
     <p class="text-[var(--text-secondary)] leading-relaxed mb-8">
-      If your organization needs to report strictly against the legal minimum, the audit can be
-      switched back to WCAG 2.1 — ask your administrator.
+      The audit reports against WCAG 2.1 by default, so what you see is already the legal minimum.
+      An administrator can switch the display to WCAG 2.2 if your organization wants to report
+      against the newer bar.
     </p>
 
     <div class="flex flex-wrap gap-3">
@@ -142,7 +143,7 @@ useHead({
         target="_blank"
         rel="noopener noreferrer"
         class="text-sm text-[var(--link)] hover:text-[var(--link-hover)] underline"
-        >WCAG {{ wcag.version }} Quick Reference</a
+        >WCAG 2.2 Quick Reference</a
       >
       <a
         href="https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/"

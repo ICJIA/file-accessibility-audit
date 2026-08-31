@@ -49,7 +49,7 @@ describe("technical-details ⇄ audit-page collapsible: one content source", () 
     expect(explainer).toContain("Weighted sum = (100×20 + 75×15 + 55×15");
     expect(explainer).toContain("capped at 79 · grade C");
     // …the WCAG 2.2-vs-legal-2.1 alignment section…
-    expect(explainer).toContain("strict\n          superset of the WCAG 2.1 AA");
+    expect(explainer).toContain("WCAG\n          2.2 is a strict superset of it");
     expect(explainer).toMatch(/WCAG 2\.1 AA remains the legal minimum/);
     // …and the toolchain license table.
     expect(explainer).toContain("The Open-Source Toolchain at a Glance");

@@ -258,11 +258,12 @@
                       rel="noopener noreferrer"
                       class="text-[var(--link)] hover:text-[var(--link-hover)]"
                       >WCAG 2.2</a
-                    >'s added criteria — disclosed for manual review, never counted. A category that
-                    doesn't apply to a document (e.g., tables in a document with no tables) counts
-                    as passing and keeps its weight — a document is never penalized for content it
-                    doesn't have. Only a category the tool could not assess (color contrast on PDFs)
-                    sits outside the weighted score.
+                    >'s added criteria are documented on the What's new in WCAG 2.2 page rather than
+                    reported per document, and are never counted. A category that doesn't apply to a
+                    document (e.g., tables in a document with no tables) counts as passing and keeps
+                    its weight — a document is never penalized for content it doesn't have. Only a
+                    category the tool could not assess (color contrast on PDFs) sits outside the
+                    weighted score.
                   </p>
 
                   <div class="rounded-lg border border-[var(--border)] overflow-x-auto">
@@ -388,12 +389,11 @@
                   </div>
 
                   <p class="text-[var(--text-muted)] text-xs leading-relaxed">
-                    Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the WCAG
-                    2.1 AA required by ADA Title II and the Illinois IITAA 2.1 standard (the legal
-                    minimum; WCAG 2.2 is stricter and optional/forward-looking). The
-                    highest-weighted categories reflect the most fundamental barriers to access — if
-                    a document has no extractable text, no other accessibility feature can
-                    compensate.
+                    Scoring aligns with WCAG 2.1 Level AA success criteria — the standard ADA Title
+                    II and the Illinois IITAA 2.1 both require. WCAG 2.2 adds criteria on top of
+                    2.1; none of them is counted here. The highest-weighted categories reflect the
+                    most fundamental barriers to access — if a document has no extractable text, no
+                    other accessibility feature can compensate.
                   </p>
                 </div>
               </div>
@@ -551,25 +551,25 @@ const rubricCategories = [
     id: "text_extractability",
     label: "Text Extractability",
     rationale:
-      "WCAG 2.1/2.2 SC 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.",
+      "WCAG 2.1 SC 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.",
   },
   {
     id: "title_language",
     label: "Title & Language",
     rationale:
-      "WCAG 2.1/2.2 SC 2.4.2 & 3.1.1 — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II.",
+      "WCAG 2.1 SC 2.4.2 & 3.1.1 — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II.",
   },
   {
     id: "heading_structure",
     label: "Heading Structure",
     rationale:
-      "WCAG 2.1/2.2 SC 1.3.1 & 2.4.6 — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles.",
+      "WCAG 2.1 SC 1.3.1 & 2.4.6 — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles.",
   },
   {
     id: "alt_text",
     label: "Alt Text on Images",
     rationale:
-      "WCAG 2.1/2.2 SC 1.1.1 — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows.",
+      "WCAG 2.1 SC 1.1.1 — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows.",
   },
   {
     id: "reading_order",
@@ -581,7 +581,7 @@ const rubricCategories = [
     id: "table_markup",
     label: "Table Markup",
     rationale:
-      "WCAG 2.1/2.2 SC 1.3.1 — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to.",
+      "WCAG 2.1 SC 1.3.1 — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to.",
   },
   {
     id: "link_quality",
@@ -617,7 +617,7 @@ const grades = GRADE_THRESHOLDS.map((t, i) => ({
 }));
 
 const referenceLinks = [
-  { label: "WCAG 2.2 Quick Reference", url: "https://www.w3.org/WAI/WCAG22/quickref/" },
+  { label: "WCAG 2.1 Quick Reference", url: "https://www.w3.org/WAI/WCAG21/quickref/" },
   {
     label: "What's New in WCAG 2.2 (W3C)",
     url: "https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/",

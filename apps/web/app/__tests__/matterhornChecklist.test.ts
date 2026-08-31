@@ -300,7 +300,11 @@ describe("MatterhornChecklist.vue — the law linkage (v1.97.0, user request)", 
     expect(text).toContain("ADA Title II");
     expect(text).toContain("IITAA 2.1");
     expect(text).toContain("WCAG 2.1 AA");
-    expect(text).toMatch(/WCAG\s*2\.2 AA, a superset/);
+    // The "(this tool audits against WCAG 2.2 AA, a superset…)" parenthetical
+    // was removed on 2026-08-31 when 2.1 became the standard the reports name:
+    // the sentence before it already says both laws name WCAG 2.1 AA, so the
+    // aside had become a redundant contradiction.
+    expect(text).not.toMatch(/audits against WCAG\s*2\.2/);
     expect(text).toMatch(/Matterhorn is the PDF world's translation/);
     expect(text).toMatch(/PAC, Acrobat, veraPDF/);
   });

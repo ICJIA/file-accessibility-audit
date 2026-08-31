@@ -360,7 +360,7 @@ function fmt(n: number): string {
           >
             <li>
               <strong class="text-[var(--text-heading)]">Your grade is the headline.</strong> WCAG
-              2.2 AA measures whether real people using assistive tech can actually use this
+              2.1 AA measures whether real people using assistive tech can actually use this
               document — that's the measure that matters most for real-world use.
             </li>
             <li>
