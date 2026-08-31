@@ -241,6 +241,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "Not a WCAG 2.1 failure: the headings exist and their levels are programmatically determinable, which is what 1.3.1 asks. W3C publishes no failure technique for skipped levels, and axe-core classes heading-order a best practice.",
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -366,6 +369,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "A genuine layout table needs no header row — W3C failure F46 fails the reverse case, a layout table given header cells (F46 is written for HTML and is cited here by analogy; Word has no equivalent markup). Read this row with care: it is by construction the set this tool could NOT classify, so if one of these is really a data table, its missing header row IS a WCAG 1.3.1 (Level A) failure.",
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -487,6 +493,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "No standard forbids nesting — a navigability recommendation only. Each table keeps its own programmatically determinable relationships, which is what WCAG 1.3.1 asks.",
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -658,6 +667,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+    wcagSlugs: [
+      { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — Level AAA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -726,6 +739,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     standard:
       "No WCAG 2.1 A/AA criterion requires a slide to have a title; requiring section headings is 2.4.10 (Level AAA). A missing title becomes a WCAG 1.3.1 (Level A) failure only where the slide shows a visually-styled heading that is not marked up as one — a case this tool does not detect in PowerPoint.",
     links: [],
+    wcagSlugs: [
+      { slug: "section-headings", label: "WCAG 2.4.10: Section Headings — Level AAA" },
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -800,6 +817,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "WCAG 2.4.6 Headings and Labels (Level AA) requires headings to DESCRIBE topic or purpose — never to be unique. A deck can honestly hold two slides both titled Q3 Results.",
+    wcagSlugs: [
+      { slug: "headings-and-labels", label: "WCAG 2.4.6: Headings and Labels — Level AA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -869,6 +889,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+    wcagSlugs: [
+      { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — Level AAA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -930,6 +954,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "No WCAG 2.1 A/AA criterion requires a descriptive sheet name. 2.4.6 Headings and Labels (Level AA) governs headings and labels that already exist; requiring descriptive names for sections is 2.4.10, Level AAA. Reasonable people read a sheet tab either way — this tool does not count it.",
+    wcagSlugs: [
+      { slug: "headings-and-labels", label: "WCAG 2.4.6: Headings and Labels — Level AA" },
+      { slug: "section-headings", label: "WCAG 2.4.10: Section Headings — Level AAA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked("This report contains no sheet-name data for this workbook.", "not-run");
@@ -986,6 +1014,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "WCAG 1.3.1 (Level A) binds only where a range really is a data table with header semantics, and whether a given range is one is a human judgment. The mechanical half IS scored: a DEFINED Excel Table with its header row switched off loses points.",
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1368,6 +1399,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+    wcagSlugs: [
+      { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — Level AAA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(

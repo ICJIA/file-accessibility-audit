@@ -199,6 +199,50 @@ describe("docx custom heading styles (outlineLvl / basedOn)", () => {
     expect(r.headings).toEqual([{ level: 1, text: "Real" }]);
     expect(r.emptyHeadingCount).toBe(1);
   });
+
+  // A heading whose content is a picture — an agency masthead or banner — has
+  // no <w:t> of its own. Until 2026-08-31 it counted as neither a heading nor
+  // an empty one, so a document built that way reported "No headings were
+  // found" and its outline read as starting a level down.
+  const pictureHeading = (level: number, id: number, descr?: string) =>
+    `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="381000"/><wp:docPr id="${id}" name="Picture ${id}"${
+      descr === undefined ? "" : ` descr="${descr}"`
+    }/></wp:inline></w:drawing></w:r></w:p>`;
+
+  it("treats a DESCRIBED picture heading as a heading, using its alt text", async () => {
+    // A screen reader announces the alt text when it lands there, so the alt
+    // text is what that heading says.
+    const buf = await buildDocx({
+      body:
+        pictureHeading(1, 1, "County Health Bulletin") + styledParagraph("Heading2", "Enrollment"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.headings).toEqual([
+      { level: 1, text: "County Health Bulletin" },
+      { level: 2, text: "Enrollment" },
+    ]);
+    expect(r.emptyHeadingCount).toBe(0);
+  });
+
+  it("leaves an UNDESCRIBED picture heading to the alt-text check — never counted as a blank line", async () => {
+    // It is silent to a screen reader, but the alt-text category already owns
+    // that defect; counting it here too would charge the same fault twice, and
+    // calling it "a heading style on a blank line" would be false.
+    const buf = await buildDocx({
+      body: pictureHeading(1, 1) + styledParagraph("Heading2", "Enrollment"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.headings).toEqual([{ level: 2, text: "Enrollment" }]);
+    expect(r.emptyHeadingCount).toBe(0);
+  });
+
+  it("ignores a picture marked decorative, which carries no announceable name", async () => {
+    const decorative = `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="381000"/><wp:docPr id="9" name="Picture 9" descr="Divider"><adec:decorative xmlns:adec="http://schemas.microsoft.com/office/drawing/2017/decorative" val="1"/></wp:docPr></wp:inline></w:drawing></w:r></w:p>`;
+    const r = await analyzeDocx(
+      await buildDocx({ body: decorative + styledParagraph("Heading2", "Enrollment") }),
+    );
+    expect(r.headings).toEqual([{ level: 2, text: "Enrollment" }]);
+  });
 });
 
 describe("docx AlternateContent (text boxes serialize Choice + Fallback)", () => {

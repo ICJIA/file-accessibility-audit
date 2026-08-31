@@ -68,20 +68,44 @@ export interface RowLinkSource {
   categoryLinks?: BestPracticeLink[];
 }
 
+/** The Understanding base for the LEGAL standard. Deliberately fixed at 2.1
+ *  rather than following WCAG.VERSION: see resolveRowLinks. */
+const WCAG21_UNDERSTANDING = "https://www.w3.org/WAI/WCAG21/Understanding/";
+
 export function resolveRowLinks(
   row: RowLinkSource,
   understandingUrl?: (slug: string) => string,
 ): BestPracticeLink[] {
   // Absent resolver (some tests) → the wcag half is skipped entirely rather
   // than rendering a broken href; nothing else is affected.
-  const wcagLinks = understandingUrl
-    ? (row.practice.wcagSlugs ?? []).map((s) => ({ label: s.label, url: understandingUrl(s.slug) }))
-    : [];
+  // WCAG 2.1, NOT the runtime version. These rows argue about the LEGAL
+  // standard — "Level A and AA are what ADA Title II and the IITAA name" —
+  // and a label reading "WCAG 2.4.4 … Level A" that opens a /WCAG22/ page
+  // invites the obvious question about which version the tool is actually
+  // talking about. The runtime `understandingUrl` follows WCAG.VERSION (2.2,
+  // the superset this tool tests against), which is right everywhere else and
+  // wrong here. Standing rule, 2026-08-31: name a criterion, link the rule —
+  // and link the version the copy names.
+  const wcagLinks = (row.practice.wcagSlugs ?? []).map((s) => ({
+    label: s.label,
+    url: `${WCAG21_UNDERSTANDING}${s.slug}.html`,
+  }));
+  void understandingUrl;
+  // Dedupe by CRITERION as well as by exact label+url: a category's own help
+  // links often name the same criterion in different words ("WCAG 2.4.4: Link
+  // Purpose (In Context)" beside "WCAG 2.4.4: Link Purpose (In Context) —
+  // Level A"), which rendered the same rule twice in one Read more list.
   const seen = new Set<string>();
+  const seenCriteria = new Set<string>();
   return safeLinks([...row.practice.links, ...wcagLinks, ...(row.categoryLinks ?? [])]).filter(
     (l) => {
       const key = `${l.label}|${l.url}`;
       if (seen.has(key)) return false;
+      const sc = /\bWCAG (\d\.\d\.\d+)/.exec(l.label)?.[1];
+      if (sc) {
+        if (seenCriteria.has(sc)) return false;
+        seenCriteria.add(sc);
+      }
       seen.add(key);
       return true;
     },

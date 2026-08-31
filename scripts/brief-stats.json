@@ -3,8 +3,8 @@
   "tests": 3381,
   "traps": 130,
   "cache": {
-    "audits_total": 12374,
-    "audits_30d": 8260,
+    "audits_total": 12378,
+    "audits_30d": 8264,
     "reaudited": 43,
     "reached_a": 9
   }

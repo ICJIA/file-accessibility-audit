@@ -258,6 +258,11 @@ export const ANNOUNCEMENTS = [
     linkText: "How this app is tested",
     linkTo: "/trust#all-tests",
     linkExternal: true,
+    // STANDING RULE (user, 2026-08-31): whenever copy names a WCAG success
+    // criterion, the reader must be able to reach the rule itself. An
+    // announcement's `text` renders as plain text, so the reference travels
+    // beside it as data and both surfaces render it as a link.
+    wcagRefs: [{ sc: "1.3.1", name: "Info and Relationships", slug: "info-and-relationships" }],
     date: "August 31, 2026",
     requiresWcagVersion: null as "2.1" | "2.2" | null,
   },

@@ -49,6 +49,20 @@
         class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
         >{{ current.linkText }}</NuxtLink
       >
+      <!-- Every WCAG criterion this entry names, as a link to the rule
+           itself (standing rule, 2026-08-31): naming a criterion without a
+           way to read it asks the reader to take our word for the law. -->
+      <template v-for="ref in current.wcagRefs ?? []" :key="ref.sc"
+        >{{ " "
+        }}<a
+          :href="wcag.understandingUrl(ref.slug)"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+          >WCAG {{ ref.sc }}: {{ ref.name }}</a
+        ></template
+      >
+
       <span class="mt-1 block text-xs text-[var(--text-muted)]">
         <template v-if="current.date">Updated {{ current.date }} · </template>
         <!-- /announcements is a Vue page, so no `external` needed here.
@@ -99,8 +113,12 @@ const announcements = (pub.announcements ?? []) as Array<{
   linkExternal?: boolean;
   date?: string;
   requiresWcagVersion?: string | null;
+  /** WCAG criteria this entry names, rendered as links to the rules. */
+  wcagRefs?: Array<{ sc: string; name: string; slug: string }>;
 }>;
 const wcagVersion = String(pub.wcagVersion ?? "2.2");
+// Understanding-page URLs for any criterion an entry names.
+const wcag = useWcag();
 
 // runtimeConfig.public is static after hydration, so this is computed once at
 // setup — no reactive wrapper needed. Newest = index 0; filter out entries

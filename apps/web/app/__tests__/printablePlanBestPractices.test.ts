@@ -210,28 +210,34 @@ describe("printable plan — best practices' wcagSlugs links", () => {
       categories: [{ id: "bookmarks", findings: [] }],
     });
 
-  it("resolves a wcagSlugs practice's Understanding link when understandingUrl is supplied", () => {
+  it("links the criterion to the WCAG 2.1 Understanding page, whatever the caller passes", () => {
+    // Pinned to 2.1 since 2026-08-31: these rows argue about the LEGAL
+    // standard, and a label reading "Level A" that opens a /WCAG22/ page
+    // invites the obvious question about which version is meant. The
+    // runtime resolver follows WCAG.VERSION (2.2, the superset this tool
+    // tests against) and is correct everywhere except here.
     const html = buildPrintablePlan({
       filename: "report.pdf",
       steps: [],
       bestPractices: bookmarksRows(),
       understandingUrl: (slug) => `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
     });
-    expect(html).toContain('href="https://www.w3.org/WAI/WCAG22/Understanding/multiple-ways.html"');
+    expect(html).toContain('href="https://www.w3.org/WAI/WCAG21/Understanding/multiple-ways.html"');
+    expect(html).not.toContain("WCAG22/Understanding/multiple-ways");
     expect(html).toContain("WCAG 2.4.5: Multiple Ways");
   });
 
-  it("renders no broken link — or the bare label — when understandingUrl is not supplied", () => {
+  it("links it on paper too, with no resolver supplied", () => {
+    // The URL no longer depends on a resolver reaching this call site, so a
+    // printout can never lose the rule. Previously the whole link was
+    // dropped when `understandingUrl` was absent.
     const html = buildPrintablePlan({
       filename: "report.pdf",
       steps: [],
       bestPractices: bookmarksRows(),
     });
-    // Dropped entirely, not downgraded to plain text: a link on paper is
-    // typed from the printed "(href)", so a label with no href would read
-    // as a promise the page cannot keep.
-    expect(html).not.toContain("WCAG 2.4.5: Multiple Ways");
-    expect(html).not.toMatch(/href="[^"]*undefined/);
+    expect(html).toContain('href="https://www.w3.org/WAI/WCAG21/Understanding/multiple-ways.html"');
+    expect(html).toContain("WCAG 2.4.5: Multiple Ways");
   });
 });
 

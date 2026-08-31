@@ -818,7 +818,28 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
         descendants(p, "drawing").length > 0 ||
         descendants(p, "pict").length > 0 ||
         descendants(p, "sym").length > 0;
+      // A heading whose content is a DESCRIBED picture — an agency masthead
+      // or a banner — is a real heading: a screen reader announces the alt
+      // text when it lands there, so the alt text IS the heading's text.
+      // Counting it as no heading at all (2026-08-31) made a document of
+      // picture headings report "No headings were found" and read as though
+      // its outline began a level down. An UNdescribed picture heading is
+      // left alone deliberately: it is silent to a screen reader, but the
+      // alt-text category already owns that defect and must not be
+      // double-counted here.
+      const describedPictureHeading = (): string | null => {
+        if (text || descendants(p, "drawing").length === 0) return null;
+        for (const drawing of descendants(p, "drawing")) {
+          for (const docPr of descendants(drawing, "docPr")) {
+            const { altText, decorative } = drawingAltText(docPr);
+            if (altText && !decorative) return altText.trim();
+          }
+        }
+        return null;
+      };
+      const pictureHeadingText = describedPictureHeading();
       if (text) headings.push({ level, text });
+      else if (pictureHeadingText) headings.push({ level, text: pictureHeadingText });
       else if (!carriesNonTextContent) emptyHeadingCount++;
     } else if (isFakeHeading(p, headingStyles)) {
       fakeHeadings.push({ text: textOf(p).trim() });

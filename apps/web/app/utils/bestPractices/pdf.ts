@@ -160,6 +160,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "Matterhorn Protocol 14 (Headings) · W3C technique G141, which is ADVISORY for 1.3.1 and sufficient only for 2.4.10 Section Headings, a Level AAA criterion outside the legal standard. Skipping a heading level is not a WCAG 2.1 A/AA failure: the levels are present and programmatically determinable, which is what 1.3.1 asks.",
     links: links(matterhornLink("14"), techniqueLink("G141")),
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+      { slug: "section-headings", label: "WCAG 2.4.10: Section Headings — Level AAA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -276,6 +280,9 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "PDF/UA (ISO 14289) clause 7.4.4 — a document must keep to one convention, numbered heading levels or generic <H> tags, and not mix the two. WCAG 2.1 has no analogue: every heading here is still exposed as a heading with a determinable level, which is all 1.3.1 asks. Picking one convention is a PDF/UA consistency rule.",
     links: links(matterhornLink("14")),
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -466,6 +473,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "Contested. WebAIM's WAVE reports an empty heading as an Error and maps it to 1.3.1 (Level A); a heading with no text also describes no topic or purpose under 2.4.6 (Level AA). Other checkers disagree — axe-core classes it a best practice. W3C publishes no failure technique for an empty heading either way. This tool does not score it, because its heading-text census is heuristic — do not read that as settled: have a person confirm any empty heading.",
     links: [],
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+      { slug: "headings-and-labels", label: "WCAG 2.4.6: Headings and Labels — Level AA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -878,6 +889,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "PDF/UA (ISO 14289) clause 7.1. WCAG's own PDF technique for 2.4.2 (PDF18) sets this flag too, and some evaluators record a 2.4.2 (Level A) failure when the viewer shows the filename. This tool does not count it, because 2.4.2 asks that the document have a title — and it does.",
     links: [],
+    wcagSlugs: [{ slug: "page-titled", label: "WCAG 2.4.2: Page Titled — Level A" }],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1187,6 +1199,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
+    wcagSlugs: [
+      { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — Level AAA" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1247,6 +1263,9 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: [],
     standard:
       "No criterion requires a nested structure tree. WCAG 1.3.2 Meaningful Sequence (Level A) asks that, WHERE the sequence in which content is presented affects its meaning, a correct reading sequence can be programmatically determined — and a flat tree still provides one.",
+    wcagSlugs: [
+      { slug: "meaningful-sequence", label: "WCAG 1.3.2: Meaningful Sequence — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked("This report has no reading-order data for this document.", "not-run");
@@ -1315,6 +1334,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "Matterhorn Protocol 10 · A larger share of unmappable text is a WCAG 1.1.1 (Level A) failure and IS scored — only a small share is left unscored here.",
     links: links(matterhornLink("10")),
+    wcagSlugs: [{ slug: "non-text-content", label: "WCAG 1.1.1: Non-text Content — Level A" }],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1392,6 +1412,9 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "Matterhorn Protocol 01 · Above a small amount, untagged visible text is a WCAG 1.3.1 (Level A) failure and IS scored — only a very small amount is left unscored here.",
     links: links(matterhornLink("01")),
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked(
@@ -1540,6 +1563,9 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard:
       "Matterhorn Protocol 19 (PDF/UA clause 7.9). Not a WCAG 2.1 failure: the association between a reference and its note is normally carried by the matching visible numerals and by the link annotation, so the information is available in text — which satisfies 1.3.1.",
     links: links(matterhornLink("19")),
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
         return notChecked("This report has no reading-order data for this document.", "not-run");

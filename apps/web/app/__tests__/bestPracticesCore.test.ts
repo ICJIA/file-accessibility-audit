@@ -644,3 +644,32 @@ describe("every practice states its legal basis (2026-08-31 WCAG audit, made per
     }
   });
 });
+
+describe("naming a WCAG criterion means linking it (standing rule, 2026-08-31)", () => {
+  // "Please remember to always link to the WCAG guidelines whenever a WCAG
+  // rule is referenced." Copy that names a success criterion without a way to
+  // reach it asks a public body to take this tool's word for what the law
+  // says. ISO 14289 clauses (7.4.4), Matterhorn conditions (14-007) and W3C
+  // technique ids (G141, F43) are deliberately out of scope — the rule is
+  // about success criteria, which are what the law adopts.
+  const CRITERION = /\b([1-4]\.\d\.\d+)\b/g;
+
+  it("every criterion a practice names in its `standard` is also in `wcagSlugs`", () => {
+    const gaps: string[] = [];
+    for (const p of CATALOG) {
+      const named = [...new Set([...(p.standard ?? "").matchAll(CRITERION)].map((m) => m[1]))];
+      const linked = (p.wcagSlugs ?? []).map((x) => x.label.replace(/^WCAG /, "").split(":")[0]);
+      for (const sc of named) if (!linked.includes(sc)) gaps.push(`${p.id} names ${sc}`);
+    }
+    expect(gaps).toEqual([]);
+  });
+
+  it("every wcagSlugs label carries its criterion number, so the link says what it is", () => {
+    for (const p of CATALOG) {
+      for (const ref of p.wcagSlugs ?? []) {
+        expect(ref.label, p.id).toMatch(/^WCAG [1-4]\.\d\.\d+: /);
+        expect(ref.slug, p.id).toMatch(/^[a-z0-9-]+$/);
+      }
+    }
+  });
+});
