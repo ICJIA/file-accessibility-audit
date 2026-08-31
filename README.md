@@ -1,18 +1,18 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.108.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2843%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.145.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-3400%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
-A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility — and **(optionally) auto-remediates** PDFs — against [WCAG 2.2 AA](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/), the legal minimum under [IITAA 2.1 §E205.4](https://dhs.illinois.gov/accessibility/iitaa/iitaa-standards.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. To revert to WCAG 2.1 labels: set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; web UI on rebuild).
+A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility — and **(optionally) auto-remediates** PDFs — against [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/) (the legal minimum under [IITAA 2.1 §E205.4](https://dhs.illinois.gov/accessibility/iitaa/iitaa-standards.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. WCAG 2.1 is the displayed standard; to display WCAG 2.2 instead set `WCAG_VERSION=2.2` and redeploy (API reverts on restart; web UI on rebuild).
 
 ## What it does
 
 | | Feature | Detail |
 |---|---------|--------|
-| **9** | WCAG categories audited | Each document (PDF, Word, PowerPoint, or Excel) scored across the WCAG-aligned categories that apply to its format (up to 9) — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.2 conformance verdict**. |
+| **9** | WCAG categories audited | Each document (PDF, Word, PowerPoint, or Excel) scored across the WCAG-aligned categories that apply to its format (up to 9) — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.1 conformance verdict**. |
 | **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses the score. Manual review still recommended for IITAA compliance. |
 | **PDF/UA** | Standards aligned | WCAG 2.2 AA (superset of 2.1 AA), ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts), Illinois IITAA 2.1, PDF/UA-1 via veraPDF — PDF/UA-2 validated when a document declares it (v1.94.0). Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
 | **31** | Matterhorn checkpoints disclosed | The landing page lists all 31 checkpoints of the [Matterhorn Protocol](https://pdfa.org/resource/the-matterhorn-protocol/) — the PDF Association's PDF/UA test model, the same one PAC implements — and which layer checks each: the audit engine, the [veraPDF](https://verapdf.org/) passes that run alongside every PDF audit (PDF/UA conformance, plus its machine-testable WCAG 2.2 profile since v1.97.0), or human review (47 of its 136 failure conditions are machine-uncheckable by any tool). When veraPDF cannot run, PDF reports say **"Did not run"** instead of hiding the panel (v1.91.0). The checklist opens with a scope note (v1.101.0): Matterhorn applies to PDFs only — Word/PowerPoint/Excel files are still fully checked, under their own per-format audits. |
@@ -20,6 +20,7 @@ A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xl
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF/Office SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
 | **5** | Files per batch | Upload up to 5 files (PDF, Word, PowerPoint, or Excel) at once; per-file remediation for PDFs. `POST /api/analyze-url` for programmatic auditing of public documents. |
+| **37** | Best practices reported | A separate report section lists every non-scored best practice for the file's format — 19 for PDF, 18 for Office — each showing whether **this** document meets it, the evidence found in the document itself, both fix routes, and a link to the rule. Nothing in it is scored, and the section says so. |
 | **4** | Export formats | Text / HTML / Markdown / JSON report exports. 1-year shareable links — no account needed (the tool has none). |
 
 Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/archive/pdf-remediation-integration-plan.md](docs/archive/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/archive/pdf-remediation-alt-text-walkthrough-spec.md](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md).
@@ -121,7 +122,7 @@ Every audit produces **two distinct things**, and the distinction is deliberate:
 
 **A 0–100 score (A–F grade).** A weighted, partial-credit *prioritised-readiness* metric across the WCAG-aligned categories scored for the file's format — 9 for PDF and PowerPoint, 8 for Word, 7 for Excel, plus always-"Not Assessed" rows for checks the tool doesn't yet automate — it shows how close a document is and what to fix first. The score counts only **WCAG 2.1 Level A/AA** criteria — the legal standard under **Illinois IITAA 2.1 §E205.4** and **ADA Title II** (enforced mechanically by the `wcag21Purity` tests and the `legal-basis` CI gate). The audit's disclosure checklist additionally covers **WCAG 2.2 AA** (a strict superset); the criteria 2.2 added are interactive/manual and are shown separately as "not assessed — manual review", never counted.
 
-**A WCAG 2.2 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
+**A WCAG 2.1 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
 
 #### The score is capped by the worst finding (v1.58.0, corrected in v1.58.2)
 
@@ -192,13 +193,13 @@ Nine categories, weighted by WCAG conformance level and user impact. A category 
 
 | Category | Weight | WCAG 2.1/2.2 SC | Why it matters |
 | --- | :--: | --- | --- |
-| Text Extractability | 20% | 1.1.1, 1.3.1 (A) | The most fundamental requirement — a scanned image with no real text gives a screen reader nothing to read. Non-embedded fonts used for visible text cap this category at 85 (fonts that never display visible text — remediation leftovers, whitespace-only runs — are exempt, matching Adobe Preflight). |
+| Text Extractability | 20% | 1.1.1, 1.3.1 (A) | The most fundamental requirement — a scanned image with no real text gives a screen reader nothing to read. Fonts that display visible text but are not embedded are REPORTED, NEVER SCORED — no WCAG 2.1 criterion requires embedding, so it cannot move this category; PDF/UA (ISO 14289 clause 7.21) does require it, so it appears as a PDF/UA-only item (fonts that never display visible text — remediation leftovers, whitespace-only runs — are exempt, matching Adobe Preflight). |
 | Title & Language | 15% | 2.4.2, 3.1.1 (A) | The document title is the first thing a screen reader announces; the language tag controls pronunciation. |
 | Heading Structure | 15% | 1.3.1 (A), 2.4.6 (AA) | Headings (H1–H6) are how screen reader users navigate and skim. |
 | Alt Text on Images | 15% | 1.1.1 (A) | Every informative image needs a text alternative. |
 | Table Markup | 10% | 1.3.1 (A) | Without header cells (TH), screen readers read table data as a flat, context-free stream. |
 | Reading Order | 10% | 1.3.2 (A) | The tag tree must define a logical reading sequence — out-of-order content makes a document unusable, so this Level-A category is weighted accordingly. |
-| Bookmarks | 5% | 2.4.5 (AA) | For documents over 10 pages, bookmarks provide a navigable table of contents. No criterion strictly requires them in a single document (2.4.5 is scoped to sets of pages; W3C's PDF2 technique relates bookmarks to it), but Acrobat's own checker flags long documents without them, so their absence is a moderate readiness issue weighted below the Level-A categories. |
+| Bookmarks | 5% | 2.4.5 (AA) | For documents over 10 pages, bookmarks provide a navigable table of contents. No criterion strictly requires them in a single document (2.4.5 is scoped to sets of pages; W3C's PDF2 technique relates bookmarks to it), but Acrobat's own checker flags long documents without them, so their absence is reported as a clearly labelled advisory and NEVER scored — the category returns 100 either way (under 10 pages the row is Not Applicable). The 5% weight applies only when some other bookmark defect is found. |
 | Link Quality | 5% | 2.4.4 (A) | Raw URLs and vague phrases ("click here", "read more") are meaningless read aloud. Link text is read from each `<Link>` tag (not from whatever text happens to sit under the link's rectangle), and a link annotation no tag claims is reported as **untagged** — a screen reader following the tags never meets it — counted against the score and asserted as a 1.3.1 failure. |
 | Form Accessibility | 5% | 1.3.1, 3.3.2, 4.1.2 (A) | Unlabeled form fields are unusable with assistive technology. |
 | Color Contrast | not scored | 1.4.3 (AA) | Rendered-PDF contrast analysis is not yet implemented, so this row applies to PDF only — surfaced as **"Not assessed"** — never as a pass — so a PDF report never implies contrast was checked. Word, PowerPoint, and Excel documents store explicit and theme-based colors (plus Excel's legacy indexed palette), so contrast *is* computed and scored directly for those formats (theme resolution since v1.95.0). |
@@ -217,6 +218,10 @@ The published category → success-criteria map also appears on the in-app Techn
 Since v1.106.0 the **Visual view carries it too** — most authors never open the Detailed view, so the action plan gains its own step answering the question the report otherwise provokes ("what images? I never added one") before it asks for anything. That step also has to override a rule: a report's own per-document Acrobat block normally beats the dictionary copy, and here that block opens with *"Add alternate text — Acrobat detects all figures and walks through them"*, the exact move the step exists to prevent. A variant lead-in now sits ahead of it (`acrobatLead`), keeping the block's still-valid advice for real photos underneath.
 
 The detector reads image dimensions from qpdf's object graph rather than pdf.js — pdf.js resolves image objects lazily while *rendering*, so an operator-list walk never learns their size (measured: the counter read 0 on a file with three such images). It recognises the shape of a line of type: wider than 4:1, between 8 and 120 pixels tall, at least 40 wide. Every bound excludes something real — near-square logos and photographs, hairline rules, wide decorative colour bands, and spacer slivers — and a width-grouping rule drops pictures that were sliced into identical horizontal bands, after a control file's state seal came out as six 392-pixel strips that all matched the shape test. Across the 27 control PDFs this fires on four. Hand-inspection found **three true positives and one false positive**: a fact sheet's section title and a form's header really are lettering-as-artwork, while a chart's solid callout-box background is not (its text extracts fine). The finding is therefore worded as something to check, never as a failure it declares. It is **evidence, not proof**, so the finding asks the reader to confirm, never asserts a WCAG failure, and never moves the score — the calibration suite passes unchanged.
+
+### Empty headings: scored for Word, reported for PDF
+
+A Heading style applied to a **blank line** — used to make space — puts a section in the outline with no content in it. Someone moving through the document by heading lands on silence. In a **Word** document that is a scored [WCAG 1.3.1](https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html) (Level A) failure: 10 points each, capped at 30, so it can never take Heading Structure past Minor. In a **PDF** the identical defect is reported and **not** scored, because there the evidence is an estimate (pdf.js text attribution) rather than a certainty (a heading style with no text, read straight from the XML). The PDF row says plainly that checkers disagree about it. A heading whose content is a **described picture** — an agency masthead — counts as a heading, using its alt text; an undescribed one is left to the alt-text check rather than charged twice.
 
 ### Grade Scale
 
@@ -249,7 +254,7 @@ Each category receives a severity based on its individual score:
 - [PDF/UA (ISO 14289-1)](https://pdfa.org/resource/pdfua-in-a-nutshell/)
 - [Matterhorn Protocol 1.1 (PDF Association)](https://pdfa.org/resource/the-matterhorn-protocol/) — 31 checkpoints / 136 failure conditions; the landing page's checkpoint-by-checkpoint coverage disclosure is measured against it
 
-Scoring counts only WCAG 2.1 Level A/AA success criteria — the standard ADA Title II and the Illinois IITAA 2.1 require. The audit also checks documents against WCAG 2.2 AA (a strict superset) for the manual-review disclosure list; nothing 2.2 added is ever counted in a score. ADA Title II digital accessibility compliance is due April 26, 2027 for public entities serving 50,000 or more people, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026). All scoring constants live in `audit.config.ts`. To revert the displayed standard to 2.1, set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; the web UI reverts on rebuild).
+Scoring counts only WCAG 2.1 Level A/AA success criteria — the standard ADA Title II and the Illinois IITAA 2.1 require. The audit also checks documents against WCAG 2.2 AA (a strict superset) for the manual-review disclosure list; nothing 2.2 added is ever counted in a score. ADA Title II digital accessibility compliance is due April 26, 2027 for public entities serving 50,000 or more people, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026). All scoring constants live in `audit.config.ts`. WCAG 2.1 is the displayed standard. To display 2.2 instead, set `WCAG_VERSION=2.2` and redeploy (API reverts on restart; the web UI reverts on rebuild).
 
 ## Batch Upload
 
@@ -475,7 +480,7 @@ The first sweep after deploy materialises the whole window from the rows still i
 
 Since v1.54.0 every report — the live result and shared report pages alike — renders in one of two views, switched by a full-width **Visual / Detailed** chooser above the report. Every report opens on the Visual view for everyone, every time (v1.61.1) — the choice deliberately does not persist, because the action plan lives in the Visual view and a sticky "Detailed" once hid it from the person who needed it.
 
-- **Visual view (default)** — an infographic-style layout written for non-technical document authors: an oversized grade circle with the score and a plain-English verdict that leads with the blocker when there is one ("Not ready to publish — 2 critical issues") and otherwise pairs the grade word with the outlook ("Excellent — ready to publish"), color-coded severity count tiles, a one-line WCAG 2.2 AA verdict strip, an **About this document** card (the stored document metadata — source application, dates, author — with a line naming which app the fix steps target and why; the Detailed view's Document Metadata panel carries the same line), and a numbered **action plan** ordered by severity. One step is open at a time; each carries big severity-colored step numbers, a plain-language "why it matters," fix routes for the source document (Word / PowerPoint / Excel — or InDesign, when the PDF's stored Creator metadata says InDesign made it) and — for PDFs — an Acrobat route that prefers the report's own document-specific steps, and WCAG criterion chips linking into the evidence, plus a version note naming the exact Word/Acrobat/InDesign versions the steps were verified against (with an IDS contact line for mismatched menus). "Where the score comes from" bars carry the score table's full data (score, grade, severity per category, not-scored reasons), and a single **Full technical report** expander holds the WCAG criteria detail, executive summary, audit-scope caveat, detailed findings with evidence, PDF/UA checks, methodology, and document metadata.
+- **Visual view (default)** — an infographic-style layout written for non-technical document authors: an oversized grade circle with the score and a plain-English verdict that leads with the blocker when there is one ("Not ready to publish — 2 critical issues") and otherwise pairs the grade word with the outlook ("Excellent — ready to publish"), color-coded severity count tiles, a two-standards strip naming the WCAG 2.1 verdict, an **About this document** card (the stored document metadata — source application, dates, author — with a line naming which app the fix steps target and why; the Detailed view's Document Metadata panel carries the same line), and a numbered **action plan** ordered by severity. One step is open at a time; each carries big severity-colored step numbers, a plain-language "why it matters," fix routes for the source document (Word / PowerPoint / Excel — or InDesign, when the PDF's stored Creator metadata says InDesign made it) and — for PDFs — an Acrobat route that prefers the report's own document-specific steps, and WCAG criterion chips linking into the evidence, plus a version note naming the exact Word/Acrobat/InDesign versions the steps were verified against (with an IDS contact line for mismatched menus). "Where the score comes from" bars carry the score table's full data (score, grade, severity per category, not-scored reasons), and a single **Full technical report** expander holds the WCAG criteria detail, executive summary, audit-scope caveat, detailed findings with evidence, PDF/UA checks, methodology, and document metadata.
 - **Detailed view** — the classic report, byte-identical to v1.53.0: score card with the conformance panel, issues summary, PDF/UA panels, methodology, and the full category detail.
 
 Since v1.91.0 the **PDF/UA-1 machine-check panel (veraPDF) renders for every PDF report** — the live result, both report views, and stored shared reports. When veraPDF did not run (binary not configured, or its bounded JVM queue was saturated) the panel says **"PDF/UA-1 machine checks (veraPDF): Did not run"** with a plain statement that not run means not checked, never passed — previously the panel silently disappeared, so a PDF report looked complete while the machine-checkable Matterhorn conditions went unexamined. A stored PDF report from before the field existed shows the same disclosure. The API attaches `pdfUaVerdict` with `available: false` in that case (previously the field was omitted), and `rebuild.sh`'s post-deploy smoke checks now probe the veraPDF engine via `/status?format=json` so a deploy that lost the binary is loud at deploy time rather than discovered one report at a time.
@@ -487,6 +492,10 @@ Data parity between the views is a tested invariant: every fact visible in one v
 ![The Visual report view for an 18-page PDF that scored 62/100, grade D. A large glowing orange circle dominates the page with the letter D inside it, above the score "62/100" and the publication verdict (captured before v1.56.0, when the verdict read "Poor — not ready to publish"; it now leads with the blocker: "Not ready to publish — 2 critical issues"). Below are three severity tiles — 2 Critical in red, 0 Moderate muted, 3 Minor in blue — then a red strip reading "Does not meet WCAG 2.2 Level AA · 3 criteria failing — details below". The action plan begins beneath: "5 fixes, in order. № 1–2 block publication — start there, then re-upload to verify", with step 1 "Give the document a title and set its language" open, showing a green "Easiest — fix the source document" route and the start of an Acrobat route.](docs/images/report-visual-view-1.png)
 
 ![Continuation of the same Visual report: collapsed action-plan steps 2 through 5, each with a large solid severity-colored numbered circle — red for the Critical "Describe images with alt text", blue for the Minor steps — and a severity chip plus "Show how" affordance. Below, the "Where the score comes from" section lists every scored category with a grade-colored horizontal bar, numeric score, grade letter badge, and severity chip, followed by "Not scored" explanations for Color Contrast and Form Accessibility and the collapsed "Full technical report" expander.](docs/images/report-visual-view-2.png)
+
+While a document is being analysed, the waiting screen names **the file it is working on**, above the spinner and first in reading order — "Analyzing your document" is true of any document, and a person who switched tabs had no way to tell which one this was. Multi-file uploads name every file in the batch queue.
+
+In **Where the score comes from**, every bar is drawn as a percentage of an identical track: the score, grade and severity columns beside it are all fixed-width, including an always-present severity slot. Before that, a narrow severity chip ("Minor") left a wider track than a long one ("No issues found"), so a category scoring 94 could draw a **longer** bar than one scoring 100.
 
 ## Report Exports
 
@@ -504,7 +513,7 @@ Reports can also be shared via **shareable links** that expire after 1 year. In 
 - **Export buttons** — download the report as Text, HTML, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your Document" button linking back to the live tool
 - **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.2 and ADA Title II references, and a link to the full scoring rubric
-- **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.2 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
+- **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.1 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — for PDFs, a recommendation to verify with Adobe Acrobat and make the source document accessible before export; for Word, PowerPoint, and Excel files, a pointer to run the file's own built-in Microsoft Accessibility Checker directly on the source document
 
@@ -700,9 +709,11 @@ file-accessibility-audit/
 │   ├── test.ts                      # `pnpm test` — api/web/cli suites in parallel, one summary
 │   ├── rebrand.ts                   # Regenerate static branding files (pnpm rebrand)
 │   ├── synthetic-controls.ts        # 110-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
-│   ├── synthetic-office-controls.ts # 17-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
+│   ├── synthetic-office-controls.ts # 20-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
 │   ├── score-ledger.ts              # Golden score ledger verify/--bless (CI gate) ↔ score-ledger.json
 │   ├── resave-invariance.ts         # qpdf re-save must grade identically + determinism (CI gate)
+│   ├── legal-basis.ts               # No deduction without a failing WCAG criterion (CI gate)
+│   ├── best-practice-basis.ts       # Its converse: nothing the law requires filed as "not scored" (CI gate) ↔ best-practice-basis.json
 │   ├── prod-sentinels.ts            # Post-deploy: designed-answer uploads against the live site
 │   ├── verify-controls.ts           # Invariant sweep across the local corpus
 │   └── build-brief.mjs              # Regenerates the /trust page + emailable brief with live numbers
@@ -728,7 +739,7 @@ file-accessibility-audit/
 | Access       | No accounts or sign-in — public endpoints, per-IP rate limits (+ optional `API_PRIVILEGED_TOKEN` fleet service token) |
 | Analytics    | Self-hosted [Plausible](https://plausible.io/privacy-focused-web-analytics) on ICJIA's own DigitalOcean droplet (`plausible.icjia.cloud`) — cookie-free, no cross-site tracking, no commercial provider; the CSP's only allowed external origin (`ANALYTICS` in `audit.config.ts`) |
 | CLI          | Runs via tsx (no build step) — depends on `@file-audit/analyzer` for QPDF + pdfjs-dist |
-| Tooling      | ESLint + Prettier + editorconfig / GitHub Actions CI (lint → typecheck → build → test) |
+| Tooling      | ESLint + Prettier + editorconfig / GitHub Actions CI (lint → format → typecheck → build → test → the seven corpus gates) |
 | Deployment   | DigitalOcean → Laravel Forge → PM2 → nginx                                         |
 
 ## Configuration
@@ -820,7 +831,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,395 tests** across 204 test files (API 1,628 · Web 1,718 · CLI 49) — plus the **accuracy gates**, nine corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,400 tests** across 202 test files (API 1,628 · Web 1,723 · CLI 49) — plus the **accuracy gates**, nine corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -852,18 +863,18 @@ Beyond the unit suites, nine corpus-level gates verify the **auditing itself** �
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1351 passed (80 files)
-  ✔ Web      1134 passed (79 files)
+  ✔ API      1628 passed (100 files)
+  ✔ Web      1723 passed (96 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2534 tests passed across 165 files
+  ✔ 3400 tests passed across 202 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1410 tests)
+### API Tests (1,628 tests)
 
 <details>
-<summary><strong>Per-file coverage</strong> — 85 test files — click to expand</summary>
+<summary><strong>Per-file coverage</strong> — 100 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -955,10 +966,10 @@ Beyond the unit suites, nine corpus-level gates verify the **auditing itself** �
 
 </details>
 
-### Web Tests (1143 tests)
+### Web Tests (1,723 tests)
 
 <details>
-<summary><strong>Per-file coverage</strong> — 82 test files — click to expand</summary>
+<summary><strong>Per-file coverage</strong> — 96 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1277,7 +1288,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 | Threat                         | Mitigation                                                                                                                                                       |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Bypassing the 3-file limit** | The limit is UX (frontend). The real server-side gates are the per-caller analyze rate limit (`RATE_LIMITS.analyze`) and the global per-IP catch-all (`RATE_LIMITS.global`); a client sending more requests just hits those faster, and the 2-slot analysis semaphore caps actual concurrent work regardless. |
+| **Bypassing the 5-file limit** | The limit is UX (frontend). The real server-side gates are the per-caller analyze rate limit (`RATE_LIMITS.analyze`) and the global per-IP catch-all (`RATE_LIMITS.global`); a client sending more requests just hits those faster, and the 2-slot analysis semaphore caps actual concurrent work regardless. |
 | **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 25 MB = 50 MB (unchanged from single-file mode).   |
 | **Filename / document-text XSS** | Filenames and all PDF-, Word-, PowerPoint-, and Excel-derived text (title, alt text, link text, headings) render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data, and HTML exports run every string **and** numeric/grade field through a shared `escapeHtml` helper (verified in the 2026-06-10 and 2026-07-01 audits). Server also sanitizes filenames before storage. |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
