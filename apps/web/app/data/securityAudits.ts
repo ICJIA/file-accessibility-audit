@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.145.1",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: the filename shown while a document is analysed, and the last metadata still naming the older standard.",
+    body: [
+      {
+        kind: "p",
+        html: "The waiting screen now shows the name of the document being analysed. That name is the one string on that screen a visitor controls &mdash; it arrives from their own file picker &mdash; so it is rendered as text through the framework&rsquo;s escaping, never as markup, and a test feeds it a deliberately hostile filename and asserts that no element is created from it. Long names wrap rather than overflow. No new data is stored, sent, or logged: the name was already in the browser, and is simply displayed.",
+      },
+      {
+        kind: "p",
+        html: "Also corrected: the page description search engines and AI assistants quote, and the machine-readable descriptions of this tool, still advertised WCAG 2.2 as the operative standard after the reports themselves had moved to WCAG 2.1. No new attack surface; the change is what those files claim.",
+      },
+    ],
+  },
+  {
     version: "v1.145.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: the copy and citation sweep that made WCAG 2.1 the standard every report names, plus two criterion listings that were wrong.",
     body: [

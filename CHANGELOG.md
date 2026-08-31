@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.145.1] - 2026-08-31
+
+### Added
+
+- **The document being analysed is now named above the spinner.** "Analyzing your document" is true of any document — someone who started an audit, switched tabs and came back had nothing on screen telling them which one this was. The filename now leads the waiting screen, in the heading colour, and leads in reading order too, so it is also the first thing a screen reader announces. URL audits have no file, so the line simply does not appear; multi-file uploads already named every file in their queue.
+
+### Fixed
+
+- **The last places that still advertised the older standard.** The page description search engines and AI assistants quote said "an instant WCAG 2.2 AA score", and the machine-readable descriptions of this tool (`llms.txt`, `llms-full.txt`) called the conformance verdict a WCAG 2.2 verdict and listed 2.2 as the operative standard. Reports themselves have named WCAG 2.1 since the previous release; this is the metadata catching up. Four archive announcements that described the audit in the present tense as a "WCAG 2.2 AA accessibility audit" were corrected too — the events they record are unchanged.
+
+### Notes
+
+- Tests 3,395 (API 1,628 · Web 1,718 · CLI 49). veraPDF's vendored validation profile, the WCAG 2.2 criteria data, and the sentences that exist to explain what 2.2 adds all still say 2.2, correctly.
+
 ## [1.145.0] - 2026-08-31
 
 ### Changed — reports name WCAG 2.1, the version the law names

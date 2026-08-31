@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,390 tests** across 204 test files (API 1,628 · Web 1,713 · CLI 49) — plus the **accuracy gates**, nine corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,395 tests** across 204 test files (API 1,628 · Web 1,718 · CLI 49) — plus the **accuracy gates**, nine corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1288,6 +1288,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.145.1 — 2026-08-31 · Filename on the waiting screen; the last metadata naming the older standard (no new attack surface)
+
+The document being analysed is now named above the spinner. That filename is the one string on that screen a visitor controls — it comes from their own file picker — so it renders as text through Vue's interpolation, never `v-html`; a test feeds it a hostile name and asserts on the **DOM** (zero `script`, zero `img` elements) rather than on the serialized string, since `html()` prints the `title` attribute's raw `<`, which is harmless inside a quoted attribute. Long names wrap with `break-all`. Nothing new is stored, sent or logged — the name was already in the browser. Wiring is pinned by source inspection: removing the page's assignment or unwiring the prop left every component test green, the failure mode this repo has shipped twice. Also corrected: the meta description and JSON-LD that search engines and AI assistants quote, plus `llms.txt` and `llms-full.txt`, still advertised WCAG 2.2 as the operative standard after the reports moved to 2.1. Tests 3,395.
 
 ### v1.145.0 — 2026-08-31 · WCAG 2.1 named everywhere; two criterion listings corrected (no new attack surface)
 
