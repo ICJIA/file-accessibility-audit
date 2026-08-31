@@ -2,13 +2,13 @@
 
 > Automated accessibility scoring tool for PDF, Word, PowerPoint, and Excel files, built by the Illinois Criminal Justice Information Authority.
 
-This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents for accessibility and produces a detailed audit report: a weighted 0-100 score (A-F grade) plus a separate, binary WCAG 2.2 Level AA conformance verdict, scored against WCAG 2.2 Level AA, ADA Title II, and Illinois IITAA 2.1 requirements.
+This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents for accessibility and produces a detailed audit report: a weighted 0-100 score (A-F grade) plus a separate, binary WCAG 2.1 Level AA conformance verdict, scored against WCAG 2.1 Level AA, ADA Title II, and Illinois IITAA 2.1 requirements.
 
 ## What it does
 
 - Accepts a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file upload (up to 25 MB) — the format is detected from file content, not the extension
 - Analyzes the document across the WCAG-aligned categories that apply to its format — up to 9, depending on format (PDF 9, PowerPoint 9, Word 8, Excel 7 scored categories; each format also shows a couple of always-"Not Assessed" placeholder categories for checks it doesn't yet automate)
-- Returns one overall score (0-100), letter grade (A-F), and per-category findings — plus a separate binary WCAG 2.2 conformance verdict (confirmed automated failures with links to the W3C standard, or "no automated WCAG failures detected" — never a blanket "conformant")
+- Returns one overall score (0-100), letter grade (A-F), and per-category findings — plus a separate binary WCAG 2.1 conformance verdict (confirmed automated failures with links to the W3C standard, or "no automated WCAG failures detected" — never a blanket "conformant")
 - Color contrast is machine-checked directly for Word, PowerPoint, and Excel — explicit colors, theme-based colors, and Excel's legacy indexed palette are all resolved (theme resolution for Word/Excel since v1.95.0); PDF contrast analysis is not yet implemented and always shows as "Not Assessed"
 - Runs the open-source veraPDF PDF/UA validator alongside every PDF audit (PDF/UA-1, or PDF/UA-2 when the document declares it — since v1.94.0); since v1.97.0 veraPDF also runs a second pass against its machine-testable WCAG 2.2 profile — an independent second opinion whose rules include PDF text contrast — shown as its own informational panel, never affecting the score (the machine-checkable subset of the Matterhorn Protocol's 31 checkpoints); the report discloses "Did not run" when that check could not run, and the landing page lists all 31 checkpoints with which layer checks each (audit engine, veraPDF, or human review)
 - Every PDF report includes a collapsible per-document Matterhorn view: the report's findings regrouped under the 31 checkpoints, each labeled in words (issues found / no machine-detected issues / needs human review / not machine-checked) — never a tally or pass/fail stamp, and never part of the score
@@ -19,7 +19,7 @@ This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and 
 
 ## Scoring model
 
-Every audit produces one weighted 0-100 score (A-F grade) — a single scoring methodology, not a choice between multiple profiles. A category that doesn't apply to a document (e.g., no tables) counts as passing and keeps its weight — a document is never penalized for content it doesn't have; only checks the tool could not assess (the always-"Not Assessed" placeholders below) sit outside the weighted score. Separately, a binary WCAG 2.2 Level AA conformance verdict reports confirmed automated failures, each linked to its W3C "Understanding" page. Cite the score for tracking remediation progress; cite the conformance verdict for the pass/fail compliance question. Neither replaces review by a human accessibility specialist.
+Every audit produces one weighted 0-100 score (A-F grade) — a single scoring methodology, not a choice between multiple profiles. A category that doesn't apply to a document (e.g., no tables) counts as passing and keeps its weight — a document is never penalized for content it doesn't have; only checks the tool could not assess (the always-"Not Assessed" placeholders below) sit outside the weighted score. Separately, a binary WCAG 2.1 Level AA conformance verdict reports confirmed automated failures, each linked to its W3C "Understanding" page. Cite the score for tracking remediation progress; cite the conformance verdict for the pass/fail compliance question. Neither replaces review by a human accessibility specialist.
 
 Approximate category weights by format:
 
@@ -38,7 +38,7 @@ Approximate category weights by format:
 
 ## Standards alignment
 
-- WCAG 2.2 Level AA (a strict superset of WCAG 2.1 AA; every machine-checkable criterion carries forward unchanged from 2.1 into 2.2)
+- WCAG 2.1 Level AA — the standard ADA Title II and the Illinois IITAA name, and the only one that moves a score here. WCAG 2.2 is a strict superset of it; nothing it adds is counted.
 - ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)
 - Illinois IITAA 2.1 (§E205.4)
 - Section 508

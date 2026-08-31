@@ -20,7 +20,7 @@ const orgUrl = BRANDING.ORG_URL;
 // Kept under 160 characters — search results and share previews truncate
 // beyond that (MetaPeek flagged the previous 217-char version, 2026-08-28).
 const appDesc =
-  "Free accessibility checker for PDF, Word, PowerPoint, and Excel: an instant WCAG 2.2 AA score with fix-it guidance for ADA Title II and Illinois IITAA.";
+  "Free accessibility checker for PDF, Word, PowerPoint, and Excel: an instant WCAG 2.1 AA score with fix-it guidance for ADA Title II and Illinois IITAA.";
 const datePublished = "2025-03-06";
 
 // Derived from the last commit's date at build time, so this can't silently
@@ -90,10 +90,10 @@ export default defineNuxtConfig({
         url: orgUrl,
       },
       featureList: [
-        "PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility scoring across WCAG 2.2 Level AA categories",
+        "PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility scoring across WCAG 2.1 Level AA categories",
         "Instant A-F grading with severity levels",
         "Detailed findings with remediation guidance",
-        "WCAG 2.2 / 2.1 AA, ADA Title II, and Illinois IITAA compliance checking",
+        "WCAG 2.1 AA, ADA Title II, and Illinois IITAA compliance checking",
         "Export reports as text, HTML, Markdown, or JSON",
         "Shareable report links",
         "Machine-readable JSON with WCAG mappings for LLM consumption",
@@ -135,7 +135,7 @@ export default defineNuxtConfig({
         { name: "author", content: orgName },
         {
           name: "keywords",
-          content: "document accessibility, WCAG 2.2, ADA Title II, IITAA, accessibility audit",
+          content: "document accessibility, WCAG 2.1, ADA Title II, IITAA, accessibility audit",
         },
       ],
       link: [
