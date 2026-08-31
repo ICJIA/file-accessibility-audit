@@ -10,7 +10,6 @@
  *   docs/brief/checker-brief.html   (standalone, opens anywhere)
  *   docs/brief/checker-brief.docx   (via pandoc; verified free of field codes)
  *   apps/web/app/data/trustBody.ts (the SAME content, rendered by /trust in-app)
- *   ~/Downloads/checker-brief.{html,docx}  (copies, when Downloads exists)
  *
  * RUN THIS BEFORE EVERY RELEASE COMMIT (user rule, 2026-08-28): the brief's
  * whole credibility is the big date stamp saying its numbers are at most a
@@ -354,19 +353,10 @@ const sitemap =
   "\n</urlset>\n";
 fs.writeFileSync(path.join(ROOT, "apps", "web", "public", "sitemap.xml"), sitemap);
 
-// --- convenience copies ---
-const dl = path.join(os.homedir(), "Downloads");
-if (fs.existsSync(dl)) {
-  fs.copyFileSync(path.join(BRIEF, "checker-brief.html"), path.join(dl, "checker-brief.html"));
-  fs.copyFileSync(path.join(BRIEF, "checker-brief.docx"), path.join(dl, "checker-brief.docx"));
-}
-
 console.log(`brief regenerated — stamped ${dateBig}`);
 console.log(
   `  audits ${SUBS.AUDITS_TOTAL} (30d ${SUBS.AUDITS_30D}) · tests ${SUBS.TESTS} · traps ${SUBS.TRAPS} · ` +
     `commits ${SUBS.COMMITS} (${SUBS.COMMITS_30D}/30d) · ${SUBS.WEEKS} weeks · v-count ${SUBS.VERSIONS}`,
 );
-console.log(
-  `  docs/brief/checker-brief.{html,docx}${fs.existsSync(dl) ? " + ~/Downloads copies" : ""}`,
-);
+console.log("  docs/brief/checker-brief.{html,docx}");
 console.log("  reminder: republish the claude.ai artifact from docs/brief/checker-brief.html");
