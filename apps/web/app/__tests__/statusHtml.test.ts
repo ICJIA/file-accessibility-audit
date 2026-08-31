@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { GRADE_THRESHOLDS, formatBytes } from "@file-audit/shared";
 import {
   renderStatusHtml,
@@ -1059,4 +1061,65 @@ describe("renderDocumentProgress — the remediation-loop card (v1.89.0)", () =>
     expect(cardFor(page, "prog-h")).toContain('<details class="card">');
     expect(page).toContain('<summary><h2 id="prog-h">');
   });
+});
+
+describe("every status pill clears WCAG 1.4.3 AA in both colour schemes (2026-08-31)", () => {
+  // axe found ONE failing pill on the live page — the one it happened to be
+  // rendering. All three light-scheme pills were short: 4.19, 4.05 and 4.22
+  // against the 4.5 that AA requires. Computed here against the COMPOSITED
+  // background, because each pill sits on a 10-15% tint of its own colour
+  // rather than on the page, and measuring against the page overstates it.
+  const srel = (c: number) => {
+    const x = c / 255;
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = ([r, g, b]: number[]) => 0.2126 * srel(r!) + 0.7152 * srel(g!) + 0.0722 * srel(b!);
+  const hex = (h: string) => {
+    const s = h.replace("#", "");
+    return [0, 2, 4].map((i) => parseInt(s.slice(i, i + 2), 16));
+  };
+  const over = (rgba: number[], bg: number[]) => {
+    const a = rgba[3]!;
+    return [0, 1, 2].map((i) => Math.round(rgba[i]! * a + bg[i]! * (1 - a)));
+  };
+  const ratio = (fg: number[], bg: number[]) => {
+    const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+
+  const css = readFileSync(resolve(__dirname, "../../server/utils/statusHtml.ts"), "utf8");
+
+  const cases = [
+    { scheme: "dark", page: "#0b0f19", tint: 0.15, names: ["ok", "warn", "down"] as const },
+    { scheme: "light", page: "#f6f8fa", tint: 0.1, names: ["ok", "warn", "down"] as const },
+  ];
+
+  for (const { scheme, page, tint, names } of cases) {
+    for (const name of names) {
+      it(`${scheme}: .pill.${name} reaches 4.5:1 against its own tinted background`, () => {
+        // Pull the DECLARED colours out of the stylesheet rather than
+        // restating them here, so editing the CSS is what this test measures.
+        // Plain string scanning, not a built RegExp: the colours live in one
+        // long template literal and the escaping is easier to get wrong than
+        // the assertion is to write.
+        const rules = css
+          .split(`.pill.${name}{background:rgba(`)
+          .slice(1)
+          .map((chunk) => {
+            const rgb = chunk.slice(0, chunk.indexOf(")")).split(",").map(Number);
+            const colour = /color:(#[0-9a-f]{6})/.exec(chunk)?.[1];
+            return { rgb, colour };
+          })
+          .filter((x): x is { rgb: number[]; colour: string } => !!x.colour);
+        expect(rules.length, `no .pill.${name} rule found`).toBeGreaterThan(0);
+        // The dark rule is declared first; the light-scheme override last.
+        const rule = scheme === "dark" ? rules[0]! : rules[rules.length - 1]!;
+        const r = ratio(hex(rule.colour), over([...rule.rgb, tint], hex(page)));
+        expect(
+          Number(r.toFixed(2)),
+          `${scheme} .pill.${name} ${rule.colour} measures ${r.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+  }
 });

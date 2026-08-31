@@ -941,6 +941,13 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
 .v.num{color:#ffa657}
 .v.bool{color:#d2a8ff}
 .v.null{color:#6e7681}
+/* Light-scheme pill colours were darkened 2026-08-31: at #1a7f37 / #9a6700 /
+   #d1242f they measured 4.19, 4.05 and 4.22 against their own tinted
+   backgrounds over #f6f8fa — all three below the 4.5 that WCAG 1.4.3 AA asks
+   for. axe flagged only the pill the page happened to be rendering; the other
+   two were equally short. Now 4.77 each. Computed against the COMPOSITED
+   background, since every pill sits on a 10% tint of its own colour, not on
+   the page. */
 @media (prefers-color-scheme:light){
  :root{color-scheme:light}
  body{background:#f6f8fa;color:#1f2328}
@@ -960,9 +967,9 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  .none{color:#6e7781}
  .caveat code{background:#eaeef2;color:#1f2328}
  .strip .meta,details.card>summary .peek{color:#57606a}
- .pill.ok{background:rgba(26,127,55,.1);color:#1a7f37;border-color:rgba(26,127,55,.4)}
- .pill.warn{background:rgba(154,103,0,.1);color:#9a6700;border-color:rgba(154,103,0,.45)}
- .pill.down{background:rgba(209,36,47,.1);color:#d1242f;border-color:rgba(209,36,47,.45)}
+ .pill.ok{background:rgba(26,127,55,.1);color:#187533;border-color:rgba(26,127,55,.4)}
+ .pill.warn{background:rgba(154,103,0,.1);color:#8b5d00;border-color:rgba(154,103,0,.45)}
+ .pill.down{background:rgba(209,36,47,.1);color:#c2212c;border-color:rgba(209,36,47,.45)}
  .strip .deg{color:#9a6700}
  .caveat a{color:#0969da}
  .caveat a:focus-visible{outline-color:#0969da}
