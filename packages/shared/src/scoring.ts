@@ -135,6 +135,16 @@ export const GRADE_THRESHOLDS = [
 // issue-free would be inaccurate; 70–99 is "Minor". The document-level WCAG
 // verdict is carried by the separate conformance gate, never by this label.
 //
+// A 100 IS NOT ALWAYS SILENT (v1.149.0). Some categories are never scored at
+// all — bookmarks is the clearest: no WCAG 2.1 criterion requires them inside
+// a single document, so a 41-page report with none still scores 100. Its card
+// then read "No issues found" directly above its own finding saying the
+// document has 41 pages and no bookmarks, and beside a best-practices row
+// calling them worth doing. The number was right and the label overstated it,
+// which is this comment's own argument used against it. `applyAdvisorySeverity`
+// relabels exactly that case "No scored issues" — nothing was counted, and
+// something was still reported.
+//
 // SAFE TO CHANGE:
 // - `min` thresholds: Yes — adjusts when a category flips between severities.
 // - `severity` labels: Carefully — these appear in API responses and may be
@@ -269,6 +279,8 @@ export const GRADE_COLORS: Record<string, string> = Object.fromEntries(
 export const SEVERITY_COLORS: Record<string, string> = {
   Pass: "#22c55e",
   "No issues found": "#22c55e",
+  // Same green: nothing was counted against the document in either case.
+  "No scored issues": "#22c55e",
   Minor: "#3b82f6",
   Moderate: "#eab308",
   Critical: "#ef4444",
@@ -314,6 +326,7 @@ export const GRADE_COLORS_LIGHT: Record<string, string> = {
 export const SEVERITY_COLORS_LIGHT: Record<string, string> = {
   Pass: "#15803d",
   "No issues found": "#15803d",
+  "No scored issues": "#15803d",
   Minor: "#1d4ed8",
   Moderate: "#946005",
   Critical: "#b91c1c",
@@ -385,6 +398,29 @@ export function severityForScore(score: number | null): string | null {
 
 export function gradeColor(grade: string | null | undefined): string {
   return (grade && GRADE_COLORS[grade]) || "#666";
+}
+
+/** Lines the analyzer marks as reported-but-never-counted. Deliberately
+ *  conservative: it matches only the two prefixes the scorers actually emit,
+ *  so a category is relabelled only when an advisory is certain. Missing one
+ *  leaves today's wording; inventing one would be the overstatement again. */
+const NOT_SCORED_LINE = /^(advisory\b|pdf\/ua only\b)[^\n]{0,120}?not scored/i;
+
+export function hasUnscoredAdvisory(findings: readonly string[] | undefined): boolean {
+  return (findings ?? []).some((f) => NOT_SCORED_LINE.test(String(f).trim()));
+}
+
+/** "No issues found" → "No scored issues" for a perfect category that still
+ *  reported something. Runs as a post-pass over finished categories so it
+ *  catches the severities the scorers hardcode as well as the computed ones. */
+export function applyAdvisorySeverity(
+  categories: Array<{ score?: number | null; severity?: string | null; findings?: string[] }>,
+): void {
+  for (const c of categories) {
+    if (c.score === 100 && c.severity === "No issues found" && hasUnscoredAdvisory(c.findings)) {
+      c.severity = "No scored issues";
+    }
+  }
 }
 
 export function severityColor(severity: string | null | undefined): string {

@@ -12,6 +12,7 @@ import {
   classifyLinkText,
   clamp100,
   aggregateScore,
+  applyAdvisorySeverity,
   applyWcagCriteria,
   type ScoringResult,
 } from "./common.js";
@@ -551,6 +552,8 @@ function buildPptxCategories(a: PptxAnalysis): CategoryResult[] {
     scorePptxForms(),
   ];
   applyWcagCriteria(categories);
+  // A perfect category that still reported something says so (v1.149.0).
+  applyAdvisorySeverity(categories);
   return categories;
 }
 

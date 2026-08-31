@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.149.0] - 2026-08-31
+
+### Fixed
+
+- **A category that scored 100 no longer says "No issues found" when it reported something.** A reader checking a 41-page annual report noticed Bookmarks reading **100 · A · No issues found** directly above its own finding — that the document has 41 pages and no bookmarks — and beside a best-practices row calling bookmarks worth doing. The 100 is right: no WCAG 2.1 criterion requires bookmarks inside a single document, so nothing was counted against the file. The label was what overstated it. Those categories now read **"No scored issues"**: nothing was counted, and something was still reported. "No issues found" keeps its old meaning for a category that genuinely had nothing to say. **No score changes** — 119 category labels move across the control corpus, and not one number.
+- Two other places this was hiding: a document whose title is set but whose viewer-title preference is off (the largest group, 79 controls), and a reading order carrying an unmapped custom tag — both scored 100 while reporting a real, uncounted finding.
+- The severity column on the score-breakdown bars was widened slightly, because the new label measures 99 pixels in a 104-pixel track. It fits, but five pixels is luck with one font rather than margin, and every bar shares that track.
+
 ## [1.148.3] - 2026-08-31
 
 ### Fixed

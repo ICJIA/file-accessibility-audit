@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.149.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: a category label that said nothing was found when something had been reported.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: no data path, input, or output changes. A reader checking a 41-page annual report found the Bookmarks category reading &ldquo;100 &middot; A &middot; No issues found&rdquo; directly above its own finding that the document has 41 pages and no bookmarks. The score was right &mdash; no WCAG 2.1 rule requires bookmarks inside a single document, so nothing was counted against the file &mdash; and the label was what overstated it.",
+      },
+      {
+        kind: "p",
+        html: "Categories in that position now read <strong>&ldquo;No scored issues&rdquo;</strong>: nothing counted, something still reported. &ldquo;No issues found&rdquo; keeps its meaning where a category genuinely had nothing to say. Across the 188 control documents, 119 labels changed and <strong>no score changed at all</strong> &mdash; the arithmetic of every grade is untouched, which is the property that had to hold.",
+      },
+      {
+        kind: "p",
+        html: "One risk was specifically guarded: the table that caps a document&rsquo;s grade by its worst finding lists only the three problem severities, and a test now asserts the new label can never appear there. Had it leaked in, every document carrying a harmless advisory would quietly have lost a grade.",
+      },
+    ],
+  },
+  {
     version: "v1.148.3",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: presentation of the figures on the trust page.",
     body: [

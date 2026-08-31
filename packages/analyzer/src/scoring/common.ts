@@ -12,7 +12,7 @@ import {
   SCORING_PROFILES,
   WCAG_CATEGORY_MAP,
 } from "#config";
-import { capScoreBySeverity } from "@file-audit/shared";
+import { applyAdvisorySeverity, capScoreBySeverity } from "@file-audit/shared";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 import type { AdobeParityResult } from "./adobeParity.js";
 import type { ConformanceVerdict } from "./conformance.js";
@@ -220,6 +220,11 @@ export const clamp100 = (n: number): number => Math.max(0, Math.min(100, Math.ro
 
 // Attach the published WCAG 2.1 success-criteria mapping to each category so
 // the methodology is auditable per-category and the UI can show it inline.
+/** Re-exported so the four scorers import their post-passes from one place;
+ *  the logic lives in @file-audit/shared beside the severity thresholds it
+ *  overrides. */
+export { applyAdvisorySeverity };
+
 export function applyWcagCriteria(categories: CategoryResult[]): void {
   for (const category of categories) {
     const criteria = WCAG_CATEGORY_MAP[category.id];

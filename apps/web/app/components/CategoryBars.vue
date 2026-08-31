@@ -47,9 +47,14 @@
              it. A row with no severity at all rendered no chip and was wider
              still. Every trailing column is now a fixed size, so every track
              is identical and the bars are comparable down the column, which
-             is the entire point of showing them stacked. -->
+             is the entire point of showing them stacked.
+
+             7rem, not 6.5: "No scored issues" (v1.149.0) measures 99px in a
+             104px track — it fits, but five pixels is not margin, it is luck
+             with one font. Widening the shared track keeps every bar
+             comparable and costs nothing. -->
         <span
-          class="w-[6.5rem] flex-shrink-0 text-[10px] text-center whitespace-nowrap"
+          class="w-[7rem] flex-shrink-0 text-[10px] text-center whitespace-nowrap"
           aria-hidden="true"
           ><span
             v-if="cat.severity"

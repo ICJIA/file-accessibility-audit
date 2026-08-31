@@ -6,6 +6,7 @@ import {
   maxScoreForGrade,
   gradeForScore,
   SEVERITY_GRADE_CAPS,
+  applyAdvisorySeverity,
 } from "@file-audit/shared";
 import { regradeStoredReport } from "@file-audit/analyzer";
 
@@ -389,5 +390,68 @@ describe("the four documents that caused this change", () => {
     for (const d of [notesPdf, minutesPdf]) {
       expect(["D", "F"]).toContain(grade(d));
     }
+  });
+});
+
+describe("a perfect category that still reported something says so (v1.149.0)", () => {
+  // Reported from a real 41-page annual report: Bookmarks read
+  // "100 · A · No issues found" directly above its own finding saying the
+  // document has 41 pages and no bookmarks, and beside a best-practices row
+  // calling them worth doing. The 100 is correct — no WCAG 2.1 criterion
+  // requires bookmarks inside one document — but the label overstated it.
+  // SEVERITY_THRESHOLDS' own comment makes the argument: "labelling it
+  // issue-free would be inaccurate".
+  const cat = (over: Record<string, unknown> = {}) => ({
+    score: 100,
+    severity: "No issues found",
+    findings: [] as string[],
+    ...over,
+  });
+
+  it("relabels a 100 that carries an advisory", () => {
+    const rows = [
+      cat({
+        findings: [
+          "Advisory — not scored: this document has 41 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document.",
+        ],
+      }),
+      cat({
+        findings: [
+          "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off.",
+        ],
+      }),
+    ];
+    applyAdvisorySeverity(rows);
+    for (const r of rows) expect(r.severity).toBe("No scored issues");
+  });
+
+  it("leaves a genuinely silent 100 alone", () => {
+    // The label still means what it says where nothing was reported at all.
+    const rows = [
+      cat(),
+      cat({
+        findings: ["PDF contains extractable text", "--- Font Embedding ---", "  22 embedded"],
+      }),
+    ];
+    applyAdvisorySeverity(rows);
+    for (const r of rows) expect(r.severity).toBe("No issues found");
+  });
+
+  it("never touches a category that lost points, or one never assessed", () => {
+    // Only the top band can overstate this way; a Minor/Moderate/Critical
+    // label already tells the reader something was found.
+    const docked = { score: 85, severity: "Minor", findings: ["Advisory — not scored: x"] };
+    const absent = { score: null, severity: null, findings: ["Advisory — not scored: x"] };
+    applyAdvisorySeverity([docked, absent]);
+    expect(docked.severity).toBe("Minor");
+    expect(absent.severity).toBeNull();
+  });
+
+  it("does not cap a score — the new label is still a clean pass", () => {
+    // SEVERITY_GRADE_CAPS lists only Critical/Moderate/Minor. If the new label
+    // ever leaked into that table it would silently cost every document with
+    // an advisory a grade.
+    expect(SEVERITY_GRADE_CAPS.map((c) => c.severity)).not.toContain("No scored issues");
+    expect(capScoreBySeverity(100, [{ score: 100, severity: "No scored issues" }])).toBe(100);
   });
 });

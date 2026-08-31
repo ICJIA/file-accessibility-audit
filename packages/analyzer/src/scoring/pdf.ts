@@ -13,6 +13,7 @@ import {
   getGrade,
   getSeverity,
   aggregateScore,
+  applyAdvisorySeverity,
   applyWcagCriteria,
   classifyLinkText,
   structTreeIsContentFree,
@@ -130,6 +131,8 @@ function buildCategories(
 
   applyProfileWeights(categories, mode);
   applyWcagCriteria(categories);
+  // A perfect category that still reported something says so (v1.149.0).
+  applyAdvisorySeverity(categories);
   appendSupplementaryFindings(qpdf, pdfjs, categories);
 
   return categories;

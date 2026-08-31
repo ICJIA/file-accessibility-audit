@@ -12,6 +12,7 @@ import {
   classifyLinkText,
   clamp100,
   aggregateScore,
+  applyAdvisorySeverity,
   applyWcagCriteria,
   headingOutlineLines,
   truncateHeadingText,
@@ -567,6 +568,8 @@ function buildDocxCategories(a: DocxAnalysis): CategoryResult[] {
     scoreDocxForms(a),
   ];
   applyWcagCriteria(categories);
+  // A perfect category that still reported something says so (v1.149.0).
+  applyAdvisorySeverity(categories);
   return categories;
 }
 

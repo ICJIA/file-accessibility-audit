@@ -22,11 +22,11 @@
       "score": 79,
       "grade": "C",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
         "alt_text": "50|Moderate",
-        "bookmarks": "100|No issues found",
+        "bookmarks": "100|No scored issues",
         "table_markup": "75|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
@@ -62,7 +62,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -105,7 +105,7 @@
       "score": 63,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "42|Moderate",
@@ -113,7 +113,7 @@
         "table_markup": "90|Minor",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -121,7 +121,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -129,7 +129,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -217,7 +217,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -225,7 +225,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -241,7 +241,7 @@
         "table_markup": "45|Moderate",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -253,11 +253,11 @@
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "0|Critical",
-        "bookmarks": "100|No issues found",
+        "bookmarks": "100|No scored issues",
         "table_markup": "45|Moderate",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -265,7 +265,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
@@ -281,7 +281,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -289,7 +289,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -299,7 +299,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "100|No scored issues",
         "alt_text": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "100|No issues found",
@@ -361,15 +361,15 @@
       "score": 67,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "100|No scored issues",
         "alt_text": "2|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "70|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -384,7 +384,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "list_structure": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
@@ -393,7 +393,7 @@
       "score": 89,
       "grade": "B",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "75|Minor",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
@@ -409,7 +409,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -510,7 +510,7 @@
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
@@ -606,11 +606,11 @@
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "null|none",
-        "form_accessibility": "100|No issues found"
+        "form_accessibility": "100|No scored issues"
       }
     },
     "icjia-PHA-2025-report.pdf": {
@@ -679,7 +679,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "slide_titles": "100|No issues found",
+        "slide_titles": "100|No scored issues",
         "alt_text": "85|Minor",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
@@ -710,7 +710,7 @@
       "grade": "F",
       "categories": {
         "text_extractability": "0|Critical",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -726,7 +726,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "33|Critical",
         "bookmarks": "null|none",
@@ -749,7 +749,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -758,7 +758,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -774,7 +774,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -790,8 +790,8 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -806,7 +806,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "25|Critical",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -822,7 +822,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -838,7 +838,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -999,7 +999,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "slide_titles": "100|No issues found",
+        "slide_titles": "100|No scored issues",
         "alt_text": "null|none",
         "reading_order": "null|none",
         "table_markup": "null|none",
@@ -1014,14 +1014,14 @@
       "grade": "B",
       "categories": {
         "text_extractability": "85|Minor",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1079,7 +1079,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "100|No scored issues",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -1184,7 +1184,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -1220,7 +1220,7 @@
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
@@ -1231,7 +1231,7 @@
       "score": 100,
       "grade": "A",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
@@ -1252,7 +1252,7 @@
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
-        "table_markup": "100|No issues found",
+        "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
@@ -1280,10 +1280,10 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No scored issues",
         "alt_text": "100|No issues found",
-        "bookmarks": "100|No issues found",
+        "bookmarks": "100|No scored issues",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -1295,9 +1295,9 @@
       "score": 100,
       "grade": "A",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
@@ -1313,8 +1313,8 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
-        "table_markup": "100|No issues found",
+        "sheet_names": "100|No scored issues",
+        "table_markup": "100|No scored issues",
         "alt_text": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -1358,7 +1358,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1441,7 +1441,7 @@
         "title_language": "100|No issues found",
         "slide_titles": "100|No issues found",
         "alt_text": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "list_structure": "null|none",
@@ -1530,7 +1530,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1584,7 +1584,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "list_structure": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
@@ -1626,7 +1626,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1642,14 +1642,14 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "0|Critical"
       }
     },
@@ -1658,7 +1658,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1674,7 +1674,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -1690,8 +1690,8 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1706,8 +1706,8 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1722,8 +1722,8 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1745,7 +1745,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1754,14 +1754,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1786,7 +1786,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1802,7 +1802,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1818,7 +1818,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1834,7 +1834,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1850,13 +1850,13 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
@@ -1865,15 +1865,15 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "text_extractability": "100|No scored issues",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1882,8 +1882,8 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
-        "heading_structure": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No scored issues",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1898,7 +1898,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1914,14 +1914,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1930,14 +1930,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1946,14 +1946,14 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1962,14 +1962,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1978,14 +1978,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1994,7 +1994,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2010,14 +2010,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -2042,10 +2042,10 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
-        "bookmarks": "100|No issues found",
+        "bookmarks": "100|No scored issues",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -2058,7 +2058,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "100|No issues found",
@@ -2074,7 +2074,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2090,7 +2090,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2106,7 +2106,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2122,7 +2122,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2138,7 +2138,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2154,7 +2154,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2170,7 +2170,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "85|Minor",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2202,7 +2202,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2234,7 +2234,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "7|Critical",
         "bookmarks": "null|none",
@@ -2266,7 +2266,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2282,13 +2282,13 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "100|No issues found",
+        "link_quality": "100|No scored issues",
         "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
@@ -2330,7 +2330,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2346,7 +2346,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2362,7 +2362,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "50|Moderate",
         "bookmarks": "null|none",
@@ -2378,7 +2378,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2394,7 +2394,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2410,7 +2410,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2426,10 +2426,10 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
-        "bookmarks": "100|No issues found",
+        "bookmarks": "100|No scored issues",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -2458,7 +2458,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2506,7 +2506,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2522,7 +2522,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2538,7 +2538,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2570,7 +2570,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2586,7 +2586,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2602,7 +2602,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2618,14 +2618,14 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No issues found",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -2650,7 +2650,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2666,7 +2666,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2682,7 +2682,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2698,7 +2698,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2729,8 +2729,8 @@
       "score": 100,
       "grade": "A",
       "categories": {
-        "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "text_extractability": "100|No scored issues",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2746,7 +2746,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2778,7 +2778,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2794,7 +2794,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2810,7 +2810,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2826,7 +2826,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2842,7 +2842,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2874,7 +2874,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2890,7 +2890,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2906,7 +2906,7 @@
       "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2954,7 +2954,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "85|Minor",
-        "title_language": "100|No issues found",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",

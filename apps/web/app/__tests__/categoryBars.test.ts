@@ -94,7 +94,7 @@ describe("every bar is measured against the same track (2026-08-31 bug report)",
     expect(cells.length).toBe(3);
     for (const [i, cell] of cells.entries()) {
       const cls = [...cell.classList];
-      expect(cls, `row ${i} severity cell`).toContain("w-[6.5rem]");
+      expect(cls, `row ${i} severity cell`).toContain("w-[7rem]");
       expect(cls, `row ${i} severity cell`).toContain("flex-shrink-0");
     }
     // One width for all of them: "No issues found", "Minor" and the empty slot
@@ -109,7 +109,7 @@ describe("every bar is measured against the same track (2026-08-31 bug report)",
     // A missing chip is a wider track, which is the same bug by another route.
     const w = mountBars();
     for (const row of w.findAll('[data-testid="bar-row"]')) {
-      const fixed = row.findAll("span").filter((s) => s.classes().includes("w-[6.5rem]"));
+      const fixed = row.findAll("span").filter((s) => s.classes().includes("w-[7rem]"));
       expect(fixed.length, row.attributes("aria-label")).toBe(1);
     }
   });
