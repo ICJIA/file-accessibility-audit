@@ -2577,9 +2577,10 @@ describe("help links and How-to-fix accuracy", () => {
   // links to W3C "Understanding" pages must use the same version base as
   // the conformance gate, not a hardcoded 2.1.
   it("links W3C Understanding pages for the active WCAG version", () => {
-    // Mirrors the WCAG version flag (defaults to 2.2; WCAG_VERSION=2.1
-    // reverts) so the suite stays green under either setting.
-    const expected = process.env.WCAG_VERSION === "2.1" ? "/WCAG21/" : "/WCAG22/";
+    // Mirrors the WCAG version flag. The DEFAULT is 2.1 since 2026-08-31 —
+    // the standard ADA Title II and the IITAA name, and the one this agency's
+    // readers hear; WCAG_VERSION=2.2 displays the newer one instead.
+    const expected = process.env.WCAG_VERSION === "2.2" ? "/WCAG22/" : "/WCAG21/";
     const result = scoreDocument(makeQpdf(), makePdfjs());
     for (const cat of result.categories) {
       for (const link of cat.helpLinks) {

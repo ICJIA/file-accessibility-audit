@@ -158,7 +158,7 @@ export function profileLabel(_mode: ScoringMode): string {
 }
 
 export function profileDescription(_mode: ScoringMode, wcagVersion?: string): string {
-  const ver = wcagVersion ?? "2.2";
+  const ver = wcagVersion ?? "2.1";
   return `WCAG-based scoring methodology. Anchored to WCAG ${ver} Level AA and Illinois IITAA 2.1 §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure.`;
 }
 

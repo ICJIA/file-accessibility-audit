@@ -147,7 +147,13 @@ export const ANALYTICS = {
 
 export const WCAG = {
   /** Operative version. Defaults to "2.2"; only "2.1" reverts. */
-  VERSION: (process.env.WCAG_VERSION === "2.1" ? "2.1" : "2.2") as "2.1" | "2.2",
+  // 2.1 IS THE BAR (user decision, 2026-08-31). ADA Title II and the Illinois
+  // IITAA both name WCAG 2.1 Level AA, the grade has measured only 2.1 since
+  // v1.130, and 2.1 is the version this agency's readers actually hear. The
+  // tool still recognises 2.2 — it is a strict superset, and /wcag-2-2
+  // documents what it adds — but the standard the reports NAME is now the one
+  // the law names. Set WCAG_VERSION=2.2 to display the newer version instead.
+  VERSION: (process.env.WCAG_VERSION === "2.2" ? "2.2" : "2.1") as "2.1" | "2.2",
   LEVEL: "AA" as const,
   /** "Understanding" page base URL, version-keyed. Carried-forward criteria
    *  keep identical slugs across 2.1 and 2.2. */

@@ -24,10 +24,15 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         slug: "info-and-relationships",
       },
       {
-        id: "1.4.5",
-        name: "Images of Text",
-        level: "AA",
-        slug: "images-of-text",
+        // 1.1.1, not 1.4.5 (corrected 2026-08-31). conformance.ts:125 lists
+        // 1.4.5 Images of Text among the criteria this tool explicitly does
+        // NOT assess — "not reliably determinable" — so the card was citing a
+        // rule the same report says it never checked, while omitting the one
+        // it does. packages/shared/src/scoring.ts has always had this right.
+        id: "1.1.1",
+        name: "Non-text Content",
+        level: "A",
+        slug: "non-text-content",
       },
     ],
     principle: "Perceivable",
@@ -152,6 +157,15 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         name: "Info and Relationships",
         level: "A",
         slug: "info-and-relationships",
+      },
+      {
+        // Added 2026-08-31: shared/scoring.ts, the README rubric and the
+        // analyzer's own help link all carry 3.3.2 for this category — the
+        // criterion whose subject IS form labels. Only this map omitted it.
+        id: "3.3.2",
+        name: "Labels or Instructions",
+        level: "A",
+        slug: "labels-or-instructions",
       },
       {
         id: "4.1.2",

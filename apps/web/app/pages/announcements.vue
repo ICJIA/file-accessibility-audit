@@ -22,7 +22,7 @@ interface Announcement {
 }
 
 const pub = useRuntimeConfig().public;
-const wcagVersion = String(pub.wcagVersion ?? "2.2");
+const wcagVersion = String(pub.wcagVersion ?? "2.1");
 // Understanding-page URLs for any criterion an entry names.
 const wcag = useWcag();
 const siteUrl = String(pub.siteUrl ?? "");

@@ -116,7 +116,7 @@ const announcements = (pub.announcements ?? []) as Array<{
   /** WCAG criteria this entry names, rendered as links to the rules. */
   wcagRefs?: Array<{ sc: string; name: string; slug: string }>;
 }>;
-const wcagVersion = String(pub.wcagVersion ?? "2.2");
+const wcagVersion = String(pub.wcagVersion ?? "2.1");
 // Understanding-page URLs for any criterion an entry names.
 const wcag = useWcag();
 

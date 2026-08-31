@@ -18,7 +18,7 @@ export function buildAiAnalysis(
   result: ReportResult,
   branding?: Pick<BrandingInfo, "wcagVersion">,
 ): string {
-  const wcagVersion = branding?.wcagVersion ?? "2.2";
+  const wcagVersion = branding?.wcagVersion ?? "2.1";
   const lines: string[] = [];
   const scoreProfiles = getScoreProfiles(result, wcagVersion);
   const remediationProfile = scoreProfiles.find((profile) => profile.mode === "remediation");

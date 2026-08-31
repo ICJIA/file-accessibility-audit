@@ -34,7 +34,7 @@ export function useReportExport() {
   const branding: BrandingInfo = {
     appName: config.public.appName as string,
     siteUrl: config.public.siteUrl as string,
-    wcagVersion: String(config.public.wcagVersion ?? "2.2"),
+    wcagVersion: String(config.public.wcagVersion ?? "2.1"),
     wcagUnderstandingBase: String(
       config.public.wcagUnderstandingBase ?? "https://www.w3.org/WAI/WCAG22/Understanding/",
     ),

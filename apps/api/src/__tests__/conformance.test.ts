@@ -34,28 +34,42 @@ describe("conformance gate — WCAG 2.2", () => {
     else process.env.WCAG_VERSION = orig;
   });
 
-  it("uses WCAG22 Understanding URLs; the fail headline names WCAG 2.1", async () => {
-    delete process.env.WCAG_VERSION; // default 2.2
+  it("uses WCAG21 Understanding URLs by default; the fail headline names WCAG 2.1", async () => {
+    delete process.env.WCAG_VERSION; // default 2.1 since 2026-08-31
     const evaluate = await loadGate();
     const v = evaluate(makeQpdf({ hasStructTree: false }), makePdfjs(), cleanCategories);
     // The fail headline names WCAG 2.1 regardless of the audit basis — the
     // failing criteria are 2.1 criteria (wcag21Purity), and 2.1 is the
     // standard the law cites. The Understanding URLs keep the audit basis.
     expect(v.headline).toContain("does not meet WCAG 2.1 Level AA");
-    expect(v.failures.some((f: any) => f.url.includes("/WCAG22/"))).toBe(true);
+    // Headline and links now agree: both name the standard the law names.
+    expect(v.failures.every((f: any) => f.url.includes("/WCAG21/"))).toBe(true);
   });
 
-  it("adds form-relevant 2.2 criteria to notAssessed when the PDF has form fields", async () => {
-    delete process.env.WCAG_VERSION;
-    const evaluate = await loadGate();
-    const v = evaluate(
+  it("adds form-relevant 2.2 criteria to notAssessed ONLY when displaying 2.2", async () => {
+    // The three form-relevant 2.2 additions — 2.5.8 Target Size, 3.3.7
+    // Redundant Entry, 3.3.8 Accessible Authentication — are manual-review
+    // notes, never failures. Under the 2.1 default (2026-08-31) they are out
+    // of scope by definition: 2.1 is the standard the report names, and a
+    // criterion that does not exist in it cannot be part of its verdict.
+    process.env.WCAG_VERSION = "2.2";
+    const withTwoTwo = (await loadGate())(
       makeQpdf({ hasAcroForm: true, formFields: [{ hasTU: true }] }),
       makePdfjs(),
       cleanCategories,
     );
-    const scs = v.notAssessed.map((n: any) => n.sc);
+    const scs = withTwoTwo.notAssessed.map((n: any) => n.sc);
     expect(scs).toEqual(expect.arrayContaining(["2.5.8", "3.3.7", "3.3.8"]));
     expect(scs).not.toContain("2.5.7"); // not form-relevant
+
+    delete process.env.WCAG_VERSION;
+    const withTwoOne = (await loadGate())(
+      makeQpdf({ hasAcroForm: true, formFields: [{ hasTU: true }] }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    const scs21 = withTwoOne.notAssessed.map((n: any) => n.sc);
+    for (const sc of ["2.5.8", "3.3.7", "3.3.8"]) expect(scs21).not.toContain(sc);
   });
 
   it("does NOT add 2.2 form criteria when the PDF has no form fields", async () => {
