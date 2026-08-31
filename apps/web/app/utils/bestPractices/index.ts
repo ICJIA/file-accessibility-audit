@@ -15,6 +15,7 @@ import {
   type DetectContext,
   type BestPracticeStatus,
 } from "./types";
+import { SCORED_IN_PLAN } from "./types";
 import type { FileType } from "@file-audit/shared";
 
 export * from "./types";
@@ -33,6 +34,12 @@ export interface BestPracticeSummary {
   met: number;
   notMet: number;
   notApplicable: number;
+  /** The subset of notApplicable whose defect is already SCORED — the row
+   *  defers to the action plan rather than repeating it. Counted separately
+   *  because the summary chips read as a description of the document, and
+   *  "9 not applicable" on a file whose headings score 0/Critical tells the
+   *  same untruth the row chips did before v1.148.0. */
+  notApplicableScored: number;
   notChecked: number;
   total: number;
 }
@@ -106,6 +113,29 @@ function eraGate(
   };
 }
 
+/**
+ * Tell the two kinds of NOT APPLICABLE apart, in the one place every row
+ * passes through.
+ *
+ * "There are no links in this document" and "your tables have no header cells,
+ * which already cost you points" are opposite messages that shared a single
+ * amber chip until v1.148.0. A document with no headings at all rendered five
+ * NOT APPLICABLE rows above a heading category scoring 0/Critical with WCAG
+ * 1.3.1 failing — and a reader who trusts the chip concludes headings are
+ * irrelevant to their file.
+ *
+ * Derived HERE rather than set at each of the forty-odd not-applicable
+ * branches, because a new divert would otherwise have to remember a flag, and
+ * the one that forgot would be invisible. SCORED_IN_PLAN is the marker: it is
+ * a constant precisely so this test and the sentence the reader sees cannot
+ * drift apart, and a guard test forbids the literal sentence elsewhere.
+ */
+function classifyNotApplicable(res: BestPracticeResult): BestPracticeResult {
+  if (res.status !== "not-applicable") return res;
+  const scored = res.evidence.some((line) => line.includes(SCORED_IN_PLAN));
+  return { ...res, naReason: scored ? "scored" : "absent" };
+}
+
 export function evaluateBestPractices(
   result: unknown,
   catalog: BestPractice[] = CATALOG,
@@ -140,7 +170,7 @@ export function evaluateBestPractices(
       return {
         practice,
         categoryLinks: readHelpLinks(category),
-        ...eraGate(practice, ctx, runDetect(practice, ctx)),
+        ...classifyNotApplicable(eraGate(practice, ctx, runDetect(practice, ctx))),
       };
     });
 }
@@ -173,14 +203,17 @@ export function summarizeBestPractices(rows: EvaluatedPractice[]): BestPracticeS
     met: 0,
     notMet: 0,
     notApplicable: 0,
+    notApplicableScored: 0,
     notChecked: 0,
     total: rows.length,
   };
   for (const r of rows) {
     if (r.status === "met") s.met++;
     else if (r.status === "not-met") s.notMet++;
-    else if (r.status === "not-applicable") s.notApplicable++;
-    else s.notChecked++;
+    else if (r.status === "not-applicable") {
+      s.notApplicable++;
+      if (r.naReason === "scored") s.notApplicableScored++;
+    } else s.notChecked++;
   }
   return s;
 }

@@ -130,6 +130,7 @@ import {
   type DetectContext,
   type EvidenceBlock,
 } from "./types";
+import { SCORED_IN_PLAN } from "./types";
 
 const notChecked = (why: string, reason?: "silent" | "not-run"): BestPracticeResult => ({
   status: "not-checked",
@@ -473,7 +474,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has a data table with no header row. That is counted in your score — see the action plan above, not this section.",
+            `This document has a data table with no header row. That is ${SCORED_IN_PLAN}`,
           ],
         };
       }

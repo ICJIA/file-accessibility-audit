@@ -113,16 +113,16 @@
             :aria-controls="`bp-body-${row.practice.id}`"
             @click="toggle(row.practice.id)"
           >
-            <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row.status)">{{
-              statusIcon(row.status)
+            <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row)">{{
+              statusIcon(row)
             }}</span>
             <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
               row.practice.label
             }}</span>
             <span
               class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border"
-              :class="statusPillClass(row.status)"
-              >{{ statusLabel(row.status) }}</span
+              :class="statusPillClass(row)"
+              >{{ statusLabel(row) }}</span
             >
             <span
               class="text-xs text-[var(--link)] whitespace-nowrap w-[72px] text-right flex-shrink-0"
@@ -419,7 +419,27 @@ function notCheckedReason(row: EvaluatedPractice): string {
 const summaryChips = computed(() => [
   { key: "not-met", count: summary.value.notMet, label: "worth doing" },
   { key: "met", count: summary.value.met, label: "met" },
-  { key: "not-applicable", count: summary.value.notApplicable, label: "not applicable" },
+  // Split since v1.148.0: "9 not applicable" on a document whose headings
+  // score 0/Critical told the same untruth the row chips did. The scored ones
+  // are work the reader has; only the remainder genuinely does not apply.
+  // Only when it applies. The other four chips are a fixed vocabulary a
+  // reader learns; a fifth reading "0 counted in your score" on every clean
+  // document would be noise, and this one is meaningful precisely because it
+  // is unusual.
+  ...(summary.value.notApplicableScored > 0
+    ? [
+        {
+          key: "not-applicable-scored",
+          count: summary.value.notApplicableScored,
+          label: "counted in your score",
+        },
+      ]
+    : []),
+  {
+    key: "not-applicable",
+    count: summary.value.notApplicable - summary.value.notApplicableScored,
+    label: "not applicable",
+  },
   { key: "not-checked", count: summary.value.notChecked, label: "not checked" },
 ]);
 
@@ -463,17 +483,34 @@ const STATUS_PILL_CLASS: Record<BestPracticeStatus, string> = {
     "border-[var(--border-subtle)] bg-[var(--surface-raised)] text-[var(--text-muted)]",
   "not-checked": "border-amber-500/40 bg-amber-500/10 text-amber-400",
 };
-function statusIcon(status: BestPracticeStatus): string {
-  return STATUS_ICON[status];
+// A NOT APPLICABLE row means one of two opposite things, and until v1.148.0
+// both wore the same muted chip. "absent" is the honest one: there are no
+// links, no tables — nothing of this kind exists and nothing was lost.
+// "scored" is the reverse: the practice DOES apply, the document fails it,
+// and it already cost points, so the row defers to the action plan instead of
+// repeating it. A file with no headings at all showed five NOT APPLICABLE
+// chips above a heading category scoring 0/Critical with WCAG 1.3.1 failing —
+// which reads, reasonably, as "headings are irrelevant to my document".
+//
+// Sky, matching WORTH DOING and the action plan it points at: this is work
+// the reader has, not a row they can skip. Never the muted grey of a true N/A.
+type Row = { status: BestPracticeStatus; naReason?: "scored" | "absent" };
+const isScoredDivert = (row: Row): boolean =>
+  row.status === "not-applicable" && row.naReason === "scored";
+
+function statusIcon(row: Row): string {
+  return isScoredDivert(row) ? "→" : STATUS_ICON[row.status];
 }
-function statusIconClass(status: BestPracticeStatus): string {
-  return STATUS_ICON_CLASS[status];
+function statusIconClass(row: Row): string {
+  return isScoredDivert(row) ? "text-sky-400" : STATUS_ICON_CLASS[row.status];
 }
-function statusLabel(status: BestPracticeStatus): string {
-  return STATUS_LABEL[status];
+function statusLabel(row: Row): string {
+  return isScoredDivert(row) ? "COUNTED IN YOUR SCORE" : STATUS_LABEL[row.status];
 }
-function statusPillClass(status: BestPracticeStatus): string {
-  return STATUS_PILL_CLASS[status];
+function statusPillClass(row: Row): string {
+  return isScoredDivert(row)
+    ? "border-sky-500/40 bg-sky-500/10 text-sky-400"
+    : STATUS_PILL_CLASS[row.status];
 }
 
 // Each catalog practice belongs to exactly one format family (pdf, or one of

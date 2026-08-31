@@ -10,6 +10,8 @@
  *      NOT CHECKED — never MET.
  */
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   type BestPractice,
   buildContext,
@@ -652,5 +654,97 @@ describe("naming a WCAG criterion means linking it (standing rule, 2026-08-31)",
         expect(ref.slug, p.id).toMatch(/^[a-z0-9-]+$/);
       }
     }
+  });
+});
+
+describe("the two kinds of NOT APPLICABLE are told apart (v1.148.0)", () => {
+  // A real FY21 annual report with no heading tags at all rendered NINE
+  // NOT APPLICABLE rows — five about headings, above a heading_structure
+  // scoring 0/Critical with WCAG 1.3.1 Level A failing. The row text said
+  // "counted in your score"; the chip above it said the opposite, and a
+  // reader who trusts the chip concludes headings do not apply to their file.
+  const report = (categories: Array<{ id: string; findings: string[] }>) => ({
+    fileType: "pdf",
+    pageCount: 12,
+    categories,
+  });
+
+  it("marks a divert to the action plan as `scored`", () => {
+    const rows = evaluateBestPractices(
+      report([
+        { id: "heading_structure", findings: ["No heading tags found in the document structure"] },
+      ]),
+    );
+    const headingRows = rows.filter(
+      (r) => r.practice.categoryId === "heading_structure" && r.status === "not-applicable",
+    );
+    expect(headingRows.length).toBeGreaterThan(0);
+    for (const r of headingRows) expect(r.naReason, r.practice.id).toBe("scored");
+  });
+
+  it("marks a genuine absence as `absent` — nothing of this kind exists", () => {
+    const rows = evaluateBestPractices(
+      report([{ id: "link_quality", findings: ["No links found in this document"] }]),
+    );
+    const naLinkRows = rows.filter(
+      (r) => r.practice.categoryId === "link_quality" && r.status === "not-applicable",
+    );
+    expect(naLinkRows.length).toBeGreaterThan(0);
+    for (const r of naLinkRows) expect(r.naReason, r.practice.id).toBe("absent");
+  });
+
+  it("does NOT claim a deduction that did not happen", () => {
+    // The mirror of the bug, and worse: telling a reader their clean tables
+    // cost them points. The pointer is gated on the category's actual score.
+    const clean = evaluateBestPractices({
+      fileType: "pdf",
+      pageCount: 12,
+      categories: [{ id: "table_markup", score: 100, findings: ["Scope attributes: n/a"] }],
+    });
+    for (const r of clean.filter((x) => x.practice.id.startsWith("table-scope"))) {
+      expect(r.naReason, r.practice.id).not.toBe("scored");
+      expect(r.evidence.join(" "), r.practice.id).not.toContain("counted in your score");
+    }
+    const docked = evaluateBestPractices({
+      fileType: "pdf",
+      pageCount: 12,
+      categories: [{ id: "table_markup", score: 45, findings: ["Scope attributes: n/a"] }],
+    });
+    const scoredRows = docked.filter(
+      (x) => x.practice.id.startsWith("table-scope") && x.status === "not-applicable",
+    );
+    expect(scoredRows.length).toBeGreaterThan(0);
+    for (const r of scoredRows) expect(r.naReason, r.practice.id).toBe("scored");
+  });
+
+  it("SCORED_IN_PLAN is the only definition of that sentence", () => {
+    // The flag is derived from this exact string. If a catalog file spells it
+    // out again, the copy and the chip drift and the bug returns silently.
+    for (const f of ["pdf.ts", "office.ts"]) {
+      const src = readFileSync(resolve(__dirname, "../utils/bestPractices", f), "utf8");
+      expect(src, `${f} spells out the divert instead of using SCORED_IN_PLAN`).not.toContain(
+        "counted in your score \u2014 see the action plan above, not this section.",
+      );
+    }
+  });
+
+  it("summarize counts the scored diverts separately", () => {
+    const rows = [
+      { practice: { id: "a" }, status: "not-applicable", naReason: "scored", evidence: [] },
+      { practice: { id: "b" }, status: "not-applicable", naReason: "absent", evidence: [] },
+    ] as never;
+    const sum = summarizeBestPractices(rows);
+    expect(sum.notApplicable).toBe(2);
+    expect(sum.notApplicableScored).toBe(1);
+  });
+
+  it("the on-screen chip never says NOT APPLICABLE for a scored divert", () => {
+    const src = readFileSync(resolve(__dirname, "../components/BestPracticesSection.vue"), "utf8");
+    expect(src).toContain(
+      'isScoredDivert(row) ? "COUNTED IN YOUR SCORE" : STATUS_LABEL[row.status]',
+    );
+    // and the printed twin must agree
+    const plan = readFileSync(resolve(__dirname, "../utils/printablePlan.ts"), "utf8");
+    expect(plan).toContain('"Counted in your score"');
   });
 });
