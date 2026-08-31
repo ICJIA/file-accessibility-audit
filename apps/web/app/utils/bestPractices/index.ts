@@ -15,7 +15,6 @@ import {
   type DetectContext,
   type BestPracticeStatus,
 } from "./types";
-import { SCORED_IN_PLAN } from "./types";
 import type { FileType } from "@file-audit/shared";
 
 export * from "./types";
@@ -108,28 +107,41 @@ function eraGate(
 }
 
 /**
- * A row whose OWN subject is a scored failure does not belong in this section.
+ * THE SECTION IS EXTRA CREDIT, AND NOTHING ELSE (user's rule, 2026-08-31).
  *
- * The user's ruling, 2026-08-31: "best practices should only be things above
- * and beyond WCAG 2.1. If it's already counted, then it doesn't need to be
- * labelled as a best practice — since it's already scored." A two-axis table
- * with no /Scope, an empty bookmark outline, characters outside the tag tree:
- * each is a WCAG failure the action plan already lists, and repeating it here
- * under any label invites the reader to think it is optional.
+ *   "Best practices should only be things above and beyond WCAG 2.1. If it's
+ *    already counted, then it doesn't need to be labelled as a best practice."
  *
- * Dropped rather than relabelled. Two labels were tried in one afternoon and
- * both misled: NOT APPLICABLE said the defect did not apply to a document it
- * had just cost points, and COUNTED IN YOUR SCORE — sitting beside a practice
- * NAME — said that practice was scored, which for most of them is the
- * opposite of true. The section is now exactly what it claims to be, and
- * needs no qualifier at all.
+ *   "If something is marked 'not checked' in the best practice — but WAS
+ *    checked in the actual WCAG score — then don't list it. It's
+ *    super-confusing."
  *
- * The sibling case is NOT dropped: a practice that is genuinely above and
- * beyond but could not be judged, because a scored failure got there first,
- * stays as NOT CHECKED (BLOCKED_BY_PLAN) — that is what happened to it.
+ *   "Best practices should only list stuff that MIGHT BE GOOD — not stuff
+ *    that's already been checked. Reduce the visual noise. Extra credit — the
+ *    student that wants to go above and beyond, past what's already graded."
+ *
+ * So only two statuses survive: NOT MET (what a reader could still do) and
+ * MET (what this document already gets right). Everything else was noise
+ * dressed as information, and every attempt to word it made things worse —
+ * NOT APPLICABLE said a scored defect did not apply; COUNTED IN YOUR SCORE,
+ * sitting beside a practice NAME, said that practice was scored when most of
+ * them can never be; NOT CHECKED sat beside a category the same page had just
+ * scored 0 and named 1.3.1 against. Three labels in one afternoon, each wrong
+ * in a different direction, because the section was being asked to describe
+ * things that belong in the action plan.
+ *
+ * A row that cannot be judged is not extra credit a student could attempt, so
+ * it is not listed. A defect the grade already counted is not extra credit
+ * either — it is the grade. What is left is a short list of things worth
+ * doing and things already done, which is what the heading has always
+ * promised.
+ *
+ * The catalog still evaluates every practice: detect() reports what it found,
+ * and this decides what is worth a reader's attention. Sabotage-tested both
+ * ways — a scored defect must never reappear here under any label.
  */
-function isScoredDefect(res: BestPracticeResult): boolean {
-  return res.evidence.some((line) => line.includes(SCORED_IN_PLAN));
+function isExtraCredit(row: { status: BestPracticeStatus }): boolean {
+  return row.status === "met" || row.status === "not-met";
 }
 
 export function evaluateBestPractices(
@@ -169,7 +181,7 @@ export function evaluateBestPractices(
         ...eraGate(practice, ctx, runDetect(practice, ctx)),
       };
     })
-    .filter((row) => !isScoredDefect(row));
+    .filter(isExtraCredit);
 }
 
 // NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then

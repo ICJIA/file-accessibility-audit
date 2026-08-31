@@ -130,31 +130,6 @@
               >{{ open.has(row.practice.id) ? "Hide" : "Show" }}</span
             >
           </button>
-
-          <!-- NOT CHECKED is the one status a reader can misread as an accusation
-             ("what did my document do wrong?"). It is never the document's
-             fault: either the checker only speaks up on trouble and stayed
-             quiet, or this report carries no data for that check. The icon
-             says which, on hover and on focus, without making the reader open
-             the row — and clicking it opens the row, where the same reason is
-             written out in full. -->
-          <AppTooltip
-            v-if="row.status === 'not-checked'"
-            v-slot="tip"
-            :text="notCheckedReason(row)"
-          >
-            <button
-              type="button"
-              data-export-exclude
-              :data-not-checked-info="row.practice.id"
-              :aria-describedby="tip?.tooltipId"
-              :aria-label="`Why was &quot;${row.practice.label}&quot; not checked? Nothing is wrong with your document.`"
-              class="flex-shrink-0 mr-2 -ml-1 w-7 h-7 grid place-items-center rounded-full text-amber-300/90 hover:text-amber-200 hover:bg-amber-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 cursor-pointer"
-              @click="toggle(row.practice.id)"
-            >
-              <span aria-hidden="true" class="text-sm font-semibold">ⓘ</span>
-            </button>
-          </AppTooltip>
         </div>
 
         <div
@@ -397,31 +372,6 @@ const otherNotes = computed(() => uncoveredNotScored(props.result));
  *  every branch opens by absolving the document — that is the whole point of
  *  the control. Kept to one or two sentences: it is a tooltip, and the row
  *  body carries the long form. */
-function notCheckedReason(row: EvaluatedPractice): string {
-  // The row's own first line already says WHICH check had nothing to go on
-  // ("no finding about this document's H1 count"). What it never answered is
-  // the question every reader actually has — "well, can it be checked?" —
-  // so each branch now says why not, and what would settle it. Keyed on the
-  // SAME `reason` field the body copy branches on, so the two cannot drift.
-  const specific = (row.evidence[0] ?? "").trim();
-  // BLOCKED is the one branch that must NOT end with the reassurance. The
-  // check could not run because something in this document IS wrong and has
-  // already cost points — a document with no heading tags has no level order
-  // to read. "Nothing is wrong with your document" there would be the same
-  // false comfort the old NOT APPLICABLE chip gave (v1.148.1).
-  if (row.reason === "blocked") {
-    return `${specific} It is worth doing once that is fixed, and it is not counted against you either way — nothing in this section is.`
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-  const why =
-    row.reason === "not-run"
-      ? "That data is not in this report at all — usually because the audit ran before this check existed, or the document had nothing of that kind in it to examine. Re-running the audit will settle it."
-      : row.reason === "error"
-        ? "The check itself could not finish on this report. Re-running the audit usually clears that."
-        : "This checker speaks up about this one only when something looks wrong, so it cannot confirm the opposite on its own. A person can usually confirm it in a minute.";
-  return `${specific} ${why} Nothing is wrong with your document.`.replace(/\s+/g, " ").trim();
-}
 
 // No "N of 19" fraction anywhere — a denominator beside a status is read as
 // a grade in this product. Each chip stands alone. "worth doing" mirrors the
@@ -429,8 +379,6 @@ function notCheckedReason(row: EvaluatedPractice): string {
 const summaryChips = computed(() => [
   { key: "not-met", count: summary.value.notMet, label: "worth doing" },
   { key: "met", count: summary.value.met, label: "met" },
-  { key: "not-applicable", count: summary.value.notApplicable, label: "not applicable" },
-  { key: "not-checked", count: summary.value.notChecked, label: "not checked" },
 ]);
 
 // Independent open state per row — unlike the plan's exclusive accordion, a

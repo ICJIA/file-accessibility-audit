@@ -782,13 +782,22 @@
           Between the action plan and &ldquo;Above and beyond&rdquo; sits a
           <strong>Best practices</strong> section &mdash; {{ bpTotal }} non-scored practices in all,
           {{ bpPdf }} for PDF and {{ bpOffice }} across Word, PowerPoint and Excel. Each row shows
-          whether <em>this</em> document meets it, the evidence found in the document itself (the
-          heading order it actually has, the fonts it actually carries), both routes to fix it, and
-          a link to the rule. Nothing in the section touches the grade, and the section says so; a
-          row marked &ldquo;not checked&rdquo; explains why it could not be checked and what would
-          settle it, beginning with the fact that nothing is wrong with the reader's document. Where
-          a practice's defect <em>is</em> scored past some threshold, the row says so and points
-          back at the action plan rather than calling the same fault optional.
+          the evidence found in the document itself (the heading order it actually has, the fonts it
+          actually carries), both routes to fix it, and a link to the rule. Nothing in the section
+          touches the grade, and the section says so.
+        </p>
+        <p class="text-[var(--text-muted)] mb-3">
+          <strong>It is extra credit, and only extra credit</strong> (v1.148.2). A report lists a
+          practice only when it has something a reader can act on or take credit for &mdash;
+          <em>worth doing</em>, or <em>met</em>. Anything the grade already dealt with is left out:
+          a defect that cost points belongs in the action plan, and a practice the checker could not
+          judge <em>because</em> a scored failure got in the way (heading level order, on a document
+          with no heading tags at all) is not something anyone could go and do. Three labels were
+          tried on those rows in one afternoon &mdash; &ldquo;not applicable&rdquo; on a defect that
+          had just cost points, &ldquo;counted in your score&rdquo; beside practices that are never
+          scored, &ldquo;not checked&rdquo; beside a category the same page had scored zero &mdash;
+          and each read as a contradiction, because the section was being asked to describe things
+          that belong elsewhere. Listing fewer rows needs no label at all.
         </p>
         <p class="text-[var(--text-muted)] mb-3">
           Both views end with <strong>&ldquo;Still worth checking by hand&rdquo;</strong>, which

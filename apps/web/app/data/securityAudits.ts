@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.148.2",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: narrowing the best-practices section to what a reader can actually act on.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: this narrows what a report displays. The best-practices section now lists a practice only when there is something to act on or take credit for, and nothing that repeats or contradicts the graded half of the report.",
+      },
+      {
+        kind: "p",
+        html: "Worth recording plainly, because it is the third entry about the same few rows in one day: three labels were shipped and withdrawn in a single afternoon, each wrong in a different direction, and every one was caught by a reader looking at a real report rather than by a test. The lesson is not about wording. A section defined as &ldquo;above and beyond the standard&rdquo; cannot describe things the standard already handled, under any label &mdash; so those rows are no longer described at all. The tests that guard this were rewritten to check that such a row is ABSENT rather than to check what it says, which is the only form of the check that cannot be satisfied by better phrasing.",
+      },
+    ],
+  },
+  {
     version: "v1.148.1",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: correcting the label shipped an hour earlier, after a reader caught it claiming the opposite.",
     body: [

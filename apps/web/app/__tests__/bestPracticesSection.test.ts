@@ -19,11 +19,32 @@ const pdfResult = {
       label: "Heading Structure",
       findings: [
         "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected.",
+        "Found 6 heading tags, 3 of them H1.",
         "--- Heading Tree ---",
         "  H1 → H2 → H1 → H1",
         "  Heading hierarchy skip: H1 → H3 (skipped H2)",
       ],
     },
+    // Since v1.148.2 the section lists ONLY met/not-met rows, so a fixture
+    // needs categories that actually resolve — otherwise the tests below have
+    // nothing to look at. These give a single-h1 MET, a display-doc-title MET
+    // (it carries a standard with no links), and a not-met bookmarks row.
+    {
+      id: "title_language",
+      label: "Title",
+      findings: [
+        "PDF/UA only — not scored: the DisplayDocTitle viewer preference is off, so viewers show the filename instead of the title.",
+      ],
+    },
+    {
+      id: "bookmarks",
+      label: "Bookmarks",
+      findings: [
+        "PDF/UA only — not scored: this 40-page document has 40 pages and no bookmarks, which makes it harder to navigate.",
+      ],
+    },
+    // A MET row, so the ordering test has both statuses to order.
+    { id: "table_markup", label: "Tables", findings: ["No nested tables detected."] },
   ],
 };
 
@@ -80,9 +101,14 @@ describe("BestPracticesSection", () => {
         },
       ],
     });
+    // Two statuses reach the section since v1.148.2, and only two: what a
+    // reader could still do, and what they already did. A NOT CHECKED or NOT
+    // APPLICABLE row appearing here would be the noise this section was
+    // trimmed to remove.
     expect(w.find('[data-status="met"]').exists()).toBe(true);
-    expect(w.find('[data-status="not-checked"]').exists()).toBe(true);
-    expect(w.text()).toMatch(/not checked/i);
+    expect(w.find('[data-status="not-checked"]').exists()).toBe(false);
+    expect(w.find('[data-status="not-applicable"]').exists()).toBe(false);
+    expect(w.text()).toMatch(/MET/);
   });
 
   it("expands and collapses a row", async () => {
@@ -131,11 +157,13 @@ describe("BestPracticesSection", () => {
     expect(cls).not.toMatch(/amber/);
   });
 
-  it("orders rows NOT MET first and NOT CHECKED last (inverting STATUS_ORDER must fail)", () => {
+  it("orders rows NOT MET first and MET last (inverting STATUS_ORDER must fail)", () => {
+    // Only two statuses reach the section since v1.148.2 — what a reader
+    // could still do comes before what they already did.
     const w = mountSection(pdfResult);
     const rows = w.findAll("[data-practice]");
     expect(rows[0]!.attributes("data-status")).toBe("not-met");
-    expect(rows[rows.length - 1]!.attributes("data-status")).toBe("not-checked");
+    expect(rows[rows.length - 1]!.attributes("data-status")).toBe("met");
   });
 
   it("the summary never renders a fraction — a denominator beside a status reads as a grade", () => {
@@ -155,38 +183,13 @@ describe("BestPracticesSection", () => {
   it("holds two rows open at once — not an exclusive accordion", async () => {
     const w = mountSection(pdfResult);
     const btn1 = w.find('[data-practice="heading-level-order"] button');
-    const btn2 = w.find('[data-practice="single-h1"] button');
+    const btn2 = w.find('[data-practice="bookmarks"] button');
     await btn1.trigger("click");
     await btn2.trigger("click");
     expect(btn1.attributes("aria-expanded")).toBe("true");
     expect(btn2.attributes("aria-expanded")).toBe("true");
     expect(w.find("#bp-body-heading-level-order").isVisible()).toBe(true);
-    expect(w.find("#bp-body-single-h1").isVisible()).toBe(true);
-  });
-
-  it("a not-checked row offers no How to fix — but may still cite the standard it belongs to", () => {
-    // Renamed and narrowed 2026-08-31. The old name claimed a rule the
-    // component never had: the "Read more" block is gated on
-    // `standard || links`, not on status, and a NOT CHECKED display-doc-title
-    // row has always rendered it. heading-content merely happened to carry
-    // neither — until the WCAG audit gave it a contested-status citation.
-    // What IS guaranteed is that a check which did not run offers no fix.
-    const w = mountSection({
-      fileType: "pdf",
-      pageCount: 2,
-      categories: [
-        { id: "heading_structure", findings: ["Found 3 heading tags with logical hierarchy"] },
-        {
-          id: "text_extractability",
-          findings: [
-            "All fonts are embedded — text will render correctly regardless of the user's installed fonts",
-          ],
-        },
-      ],
-    });
-    const row = w.find('[data-practice="heading-content"]');
-    expect(row.attributes("data-status")).toBe("not-checked");
-    expect(row.text()).not.toContain("How to fix");
+    expect(w.find("#bp-body-bookmarks").isVisible()).toBe(true);
   });
 
   it("drops a WCAG Understanding link whose resolved URL is not http(s) — safeLinks on the wcag half", () => {
@@ -204,42 +207,6 @@ describe("BestPracticesSection", () => {
     } finally {
       (globalThis as any).useRuntimeConfig = original;
     }
-  });
-
-  it("the intro never claims every check ran — it sits above rows admitting they have no data", () => {
-    // Fix round 3: the intro used to say "was checked against this
-    // document" — a universal claim directly above a NOT CHECKED chip and
-    // rows saying a check has no data at all (reason: "not-run").
-    const html = mountSection(pdfResult).html();
-    expect(html).not.toMatch(/was checked against this document/i);
-    expect(html).toMatch(/none of this affected your grade/i);
-  });
-
-  it("distinguishes a not-run NOT CHECKED row from a silent one — no false reassurance", () => {
-    // table-scope-simple's category (table_markup) is absent from pdfResult
-    // — its detect() hits categoryAbsent() and must not claim the check ran
-    // and stayed quiet, because it never ran at all.
-    const w = mountSection(pdfResult);
-    const notRun = w.find('[data-practice="table-scope-simple"]');
-    expect(notRun.attributes("data-status")).toBe("not-checked");
-    expect(notRun.text()).toContain("was not looked at either way");
-    expect(notRun.text()).not.toContain("staying silent here is not a sign of trouble");
-  });
-
-  it("a silent NOT CHECKED row (category present, nothing to report) keeps the original reassurance", () => {
-    const w = mountSection({
-      fileType: "pdf",
-      pageCount: 2,
-      categories: [
-        { id: "heading_structure", findings: ["Found 3 heading tags with logical hierarchy"] },
-      ],
-    });
-    // single-h1's category (heading_structure) IS present; it has no MET
-    // branch and no categoryAbsent() gate, so an ordinary silent fallback.
-    const silent = w.find('[data-practice="single-h1"]');
-    expect(silent.attributes("data-status")).toBe("not-checked");
-    expect(silent.text()).toContain("staying silent here is not a sign of trouble");
-    expect(silent.text()).not.toContain("was not looked at either way");
   });
 
   it("Office fix.app renders as a plain note, never under a contradicting 'exported file' heading", () => {
@@ -371,20 +338,28 @@ describe("BestPracticesSection", () => {
     ],
   };
 
-  it("the headline invariant: a flawless PDF is 15 met · 0 not met · 4 not checked, never 19 met", () => {
+  it("the headline invariant: a flawless PDF shows 15 met, never 19 — the four it cannot vouch for are not listed", () => {
+    // Silence is not a pass. Four practices have no witness in this fixture,
+    // so the checker cannot claim them — and since v1.148.2 a row it cannot
+    // claim is not shown at all rather than shown as NOT CHECKED. The
+    // invariant that matters is unchanged: the section must never read 19 met.
     const w = mountSection(flawlessPdf);
-    const neverMet = ["heading-content", "single-h1", "character-mapping", "content-in-tag-tree"];
-    for (const id of neverMet) {
-      expect(w.find(`[data-practice="${id}"]`).attributes("data-status")).toBe("not-checked");
+    const cannotVouchFor = [
+      "heading-content",
+      "single-h1",
+      "character-mapping",
+      "content-in-tag-tree",
+    ];
+    for (const id of cannotVouchFor) {
+      expect(w.find(`[data-practice="${id}"]`).exists(), id).toBe(false);
     }
     // list-labels DOES reach MET here — the fixture includes its witness
     // (a well-formed list with <Lbl> present) and no <Lbl> advisory.
     expect(w.find('[data-practice="list-labels"]').attributes("data-status")).toBe("met");
-    expect(w.findAll('[data-status="not-checked"]').length).toBe(4);
+    expect(w.findAll('[data-status="not-checked"]').length).toBe(0);
     expect(w.findAll('[data-status="met"]').length).toBe(15);
     expect(w.findAll('[data-status="not-met"]').length).toBe(0);
     const summary = w.find('[data-testid="best-practices-summary"]');
-    expect(summary.text()).toContain("4");
     expect(summary.text()).toContain("15");
   });
 });
@@ -428,13 +403,14 @@ describe("the era gate reaches the component through analyzedAt", () => {
       { id: "heading_structure", findings: ["Found 4 heading tags with logical hierarchy"] },
     ],
   };
-  it("a witness-based MET reads NOT CHECKED for a payload older than its advisory, MET otherwise", () => {
+  it("a witness-based MET is not shown at all for a payload older than its advisory, MET otherwise", () => {
+    // The gate turns it into NOT CHECKED and the section then leaves it out
+    // (v1.148.2). Together: a stored report from before the check existed can
+    // never take the credit, and never explains itself in a row either.
     const old = mount(BestPracticesSection, {
       props: { result: withHierarchy, analyzedAt: "2026-08-01T00:00:00Z" },
     });
-    expect(old.find('[data-practice="heading-convention"]').attributes("data-status")).toBe(
-      "not-checked",
-    );
+    expect(old.find('[data-practice="heading-convention"]').exists()).toBe(false);
     const fresh = mountSection(withHierarchy);
     expect(fresh.find('[data-practice="heading-convention"]').attributes("data-status")).toBe(
       "met",
@@ -510,82 +486,5 @@ describe("the grade answer never contradicts the row above it (2026-08-31 WCAG a
     // catalog holds practices (vague link text) that WCAG 2.4.4 Level A
     // does reach — it is unscored because context is not machine-readable.
     expect(row.text()).not.toMatch(/\boptional\b/i);
-  });
-});
-
-describe("NOT CHECKED carries an ⓘ that absolves the document (2026-08-31)", () => {
-  // NOT CHECKED is the one status a reader can misread as an accusation. The
-  // control exists to answer "what did my document do wrong?" with "nothing".
-  const silent = {
-    fileType: "pdf",
-    pageCount: 12,
-    categories: [
-      { id: "heading_structure", findings: ["Found 4 heading tags with logical hierarchy"] },
-    ],
-  };
-
-  it("puts the control on NOT CHECKED rows and nowhere else", () => {
-    const w = mountSection(silent);
-    for (const row of w.findAll("[data-practice]")) {
-      const id = row.attributes("data-practice");
-      const hasInfo = row.find(`[data-not-checked-info="${id}"]`).exists();
-      expect(hasInfo, `${id} (${row.attributes("data-status")})`).toBe(
-        row.attributes("data-status") === "not-checked",
-      );
-    }
-  });
-
-  it("never nests the control inside the row-header button — that is invalid HTML", () => {
-    const w = mountSection(silent);
-    const header = w.find("button.bp-row-header");
-    expect(header.exists()).toBe(true);
-    expect(header.find("button").exists()).toBe(false);
-  });
-
-  // AppTooltip is not resolvable in this environment, so read the text it is
-  // handed rather than what it would render: a stub that echoes the prop.
-  const TipStub = {
-    props: ["text"],
-    template: `<span :data-tip="text"><slot :tooltip-id="'tip-test'" /></span>`,
-  };
-  const withTips = (result: unknown) =>
-    mount(BestPracticesSection, {
-      props: { result },
-      global: { stubs: { AppTooltip: TipStub } },
-    });
-  const tipTexts = (w: ReturnType<typeof withTips>) =>
-    w.findAll("[data-tip]").map((n) => String(n.attributes("data-tip")));
-
-  it("says nothing is wrong with the document, whichever reason applies", () => {
-    const texts = tipTexts(withTips(silent));
-    expect(texts.length).toBeGreaterThan(0);
-    for (const text of texts) {
-      expect(text).toMatch(/Nothing is wrong with your document/);
-      // Never blames the file, and never implies a defect was found.
-      expect(text).not.toMatch(/\bfail(ed|ure)?\b|\bproblem\b|\bissue\b/i);
-    }
-  });
-
-  it("distinguishes 'we have no data' from 'the checker stayed quiet'", () => {
-    // The reason field the body copy already branches on must drive the
-    // tooltip too, or the two can drift apart. One fixture produces both:
-    // heading_structure is present (so heading rows are merely quiet) while
-    // every other category is absent (so those rows have no data at all).
-    // A result with NO categories is not a case — the section self-hides.
-    const texts = tipTexts(withTips(silent));
-    // Each branch must say WHY it was not checked and what would settle it —
-    // "can it be checked?" is the question a NOT CHECKED row provokes.
-    expect(texts.some((x) => /not in this report at all/.test(x))).toBe(true);
-    expect(texts.some((x) => /Re-running the audit will settle it/.test(x))).toBe(true);
-    expect(texts.some((x) => /cannot confirm the opposite on its own/.test(x))).toBe(true);
-    // And each carries the practice-specific sentence, not just boilerplate.
-    expect(texts.some((x) => /no finding about/i.test(x))).toBe(true);
-  });
-
-  it("is excluded from exports, like the other row chrome", () => {
-    const w = mountSection(silent);
-    const info = w.find("[data-not-checked-info]");
-    expect(info.attributes("data-export-exclude")).toBeDefined();
-    expect(info.attributes("aria-label")).toMatch(/Nothing is wrong with your document/);
   });
 });

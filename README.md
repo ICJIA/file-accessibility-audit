@@ -256,6 +256,21 @@ Each category receives a severity based on its individual score:
 
 Scoring counts only WCAG 2.1 Level A/AA success criteria — the standard ADA Title II and the Illinois IITAA 2.1 require. The audit also checks documents against WCAG 2.2 AA (a strict superset) for the manual-review disclosure list; nothing 2.2 added is ever counted in a score. ADA Title II digital accessibility compliance is due April 26, 2027 for public entities serving 50,000 or more people, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026). All scoring constants live in `audit.config.ts`. WCAG 2.1 is the displayed standard. To display 2.2 instead, set `WCAG_VERSION=2.2` and redeploy (API reverts on restart; the web UI reverts on rebuild).
 
+## Best Practices Are Extra Credit Only
+
+The **Best practices** section lists a practice only when the reader can act on it or take credit for it — **worth doing** or **met**. Nothing else appears.
+
+Everything the grade already handled is excluded, in both of the ways that happens: a row whose own defect is a scored WCAG failure (a two-axis table with no `/Scope`, an empty bookmark outline) belongs in the action plan, and a practice the checker could not judge *because* a scored failure blocked it (heading level order, on a document with no heading tags at all) is not extra credit anyone could attempt. `evaluateBestPractices` filters to `met`/`not-met`; `detect()` still evaluates every practice, and still reports what it found.
+
+This replaced three labels tried in a single afternoon, each wrong in a different direction: **NOT APPLICABLE** on a defect that had just cost points; **COUNTED IN YOUR SCORE** beside practice names that are never scored (skipping heading levels is Matterhorn 14, and the analyzer's own finding says "not a WCAG 2.1 failure, so your grade is not affected"); **NOT CHECKED** beside a category the same page had scored 0 and named 1.3.1 against. All three were attempts to *describe* rows that belonged elsewhere. Not listing them needs no label and cannot mislead.
+
+Consequences worth knowing:
+
+- **The section shrinks, sometimes a lot.** A 57/F annual report went from 19 rows to 6.
+- **A clean document can still show rows** — `met` rows are credit for things done right that the grade never asked for.
+- **The ⓘ "why wasn't this checked" control is gone**, along with the not-checked and not-applicable rows it explained.
+- **A stale witness never claims credit**: the era gate turns an out-of-date MET into `not-checked`, which the filter then drops entirely.
+
 ## Leaving the Page Mid-Audit
 
 A single-file audit runs as a **server-side job**, not as work owned by the browser tab: `POST /api/analyze-job` returns a job id and a one-time key, the pipeline runs to completion on the server whether or not anyone is watching, and the finished report waits in memory until a page collects it or `ANALYZE_JOB.TTL_MS` (10 minutes) passes.
@@ -1311,6 +1326,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.148.2 — 2026-08-31 · Best practices trimmed to extra credit only (no new attack surface)
+
+No new attack surface; this narrows what a report displays. `evaluateBestPractices` now returns only `met` and `not-met` rows, so the section contains exactly what its heading promises and nothing that duplicates or contradicts the scored half of the report. Two classes of row leave: one whose own defect is a scored WCAG failure (it is in the action plan), and one the checker could not judge because a scored failure blocked it (it is not something a reader could act on). `detect()` still evaluates every practice — this is a display decision made in one place, and the `best-practice-basis` corpus gate, which walks NOT MET rows, is unaffected.
+
+Recorded because the path here is the useful part: three labels were shipped and withdrawn in a single afternoon, each wrong in a different direction, and every one was caught by a reader looking at a real report rather than by a test. **NOT APPLICABLE** on a document whose headings scored 0/Critical with WCAG 1.3.1 failing. **COUNTED IN YOUR SCORE** beside "Heading level order", a practice that is never scored — the analyzer's own finding text says "not a WCAG 2.1 failure, so your grade is not affected". **NOT CHECKED** beside a category the same page had just scored and named a failing criterion against. The lesson is not about wording: a section defined as "above and beyond the standard" cannot describe things the standard already handled, under any label. The guard tests were rewritten to pin absence rather than wording, and removing the filter turns five of them red. Tests 3,412.
 
 ### v1.148.1 — 2026-08-31 · The label correction on the release above (no new attack surface)
 

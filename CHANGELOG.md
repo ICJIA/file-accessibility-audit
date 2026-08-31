@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.148.2] - 2026-08-31
+
+### Changed
+
+- **Best practices is extra credit, and now contains only extra credit.** A reader put it plainly: *"Best practices should only list stuff that might be good — not stuff that's already been checked. Reduce the visual noise. Extra credit — the student that wants to go above and beyond, past what's already graded."* The section now lists a practice only when there is something to act on or take credit for — **worth doing**, or **met** — and nothing else. Everything the grade already dealt with is left out, in both of the ways that happens: a row whose own defect is a scored WCAG failure belongs in the action plan, and a practice that could not be judged *because* a scored failure got in the way is not something anyone could go and do. On the annual report that prompted this, the section went from nineteen rows to six.
+- **Three labels are gone, and no fourth was invented.** Those rows were called "not applicable" (on a defect that had just cost points), then "counted in your score" (beside practices that are never scored — skipping heading levels is a PDF/UA concern, and this tool's own report says so), then "not checked" (beside a category the same page had scored zero and named a failing rule against). Each read as a contradiction, because the section was being asked to describe things that belong in the action plan. Listing fewer rows needs no label at all.
+- **The ⓘ explaining why a check did not run has gone with them**, since the rows it explained are no longer listed. The four benign "we only speak up on trouble" cases are simply not shown; the action plan and the manual-review section are unchanged, and neither ever depended on them.
+
 ## [1.148.1] - 2026-08-31
 
 ### Fixed

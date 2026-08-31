@@ -198,10 +198,16 @@ describe("evaluateBestPractices", () => {
   };
 
   it("returns only the practices for the report's own format", () => {
+    // Filtered to extra credit since v1.148.2, so this is a subset of the PDF
+    // catalog — never a row from another format, and never more than exist.
     const rows = evaluateBestPractices(pdfReport);
-    expect(rows.length).toBe(CATALOG.filter((p) => p.formats.includes("pdf")).length);
+    const pdfCatalog = CATALOG.filter((p) => p.formats.includes("pdf")).length;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThanOrEqual(pdfCatalog);
     expect(rows.every((r) => r.practice.formats.includes("pdf"))).toBe(true);
     expect(rows.some((r) => r.practice.id.startsWith("docx-"))).toBe(false);
+    // Only the two statuses a reader can act on or take credit for.
+    expect(rows.every((r) => r.status === "met" || r.status === "not-met")).toBe(true);
   });
 
   it("evaluates each practice against its own category", () => {
@@ -239,7 +245,16 @@ describe("evaluateBestPractices — category help links and a throwing practice"
     categories: [
       {
         id: "heading_structure",
-        findings: ["Found 3 heading tags with logical hierarchy"],
+        // Findings chosen so the heading rows resolve to MET/NOT MET and
+        // therefore survive the extra-credit filter (v1.148.2) — this test is
+        // about link plumbing, not about which status a row lands on.
+        findings: [
+          "Found 3 heading tags with logical hierarchy",
+          "--- Heading Outline ---",
+          '  H1 "Title"',
+          '  H2 "Section"',
+          '  H1 "Second"',
+        ],
         // Spec §4's third link source: the vendor documentation each
         // category already carries. Narrowed here to {label, url} string
         // pairs; safeLinks decides at render time whether a URL may be shown.
@@ -260,11 +275,12 @@ describe("evaluateBestPractices — category help links and a throwing practice"
       { label: "Adobe: heading tags", url: "https://helpx.adobe.com/acrobat/headings" },
     ]);
     // A practice in a DIFFERENT category gets nothing from this one.
-    const other = rows.find((r) => r.practice.id === "bookmarks")!;
-    expect(other.categoryLinks).toEqual([]);
+    // A practice in a DIFFERENT category gets nothing from this one.
+    const other = rows.find((r) => r.practice.categoryId !== "heading_structure");
+    expect(other?.categoryLinks ?? []).toEqual([]);
   });
 
-  it("never throws when a practice's detect() throws — that row reads NOT CHECKED with reason 'error', the rest are unaffected", () => {
+  it("never throws when a practice's detect() throws — the page survives and the row is simply absent", () => {
     // Spec §2: "the section as a whole is wrapped so one bad practice cannot
     // take down the page." /report/[id] renders stored JSON through SSR; an
     // uncaught throw here is a 500 on the shared-report page.
@@ -286,9 +302,10 @@ describe("evaluateBestPractices — category help links and a throwing practice"
       expect(() => {
         rows = evaluateBestPractices(withHelp, [...CATALOG, bomb]);
       }).not.toThrow();
-      const b = rows.find((r) => r.practice.id === "bomb")!;
-      expect(b.status).toBe("not-checked");
-      expect(b.reason).toBe("error");
+      // A row that could not be evaluated is not extra credit a reader could
+      // attempt, so it is not listed at all (v1.148.2). What must hold is that
+      // it never takes the page down with it.
+      expect(rows.find((r) => r.practice.id === "bomb")).toBeUndefined();
       expect(rows.filter((r) => r.practice.id !== "bomb").every((r) => r.reason !== "error")).toBe(
         true,
       );
@@ -309,13 +326,12 @@ describe("the era gate — a witness cannot vouch for a payload older than its a
     pageCount: 3,
     categories: [{ id: "table_markup", findings: ["3 table(s) found."] }],
   };
-  it("turns a witness-based MET into NOT CHECKED when the payload predates the advisory", () => {
+  it("never shows a witness-based MET on a payload that predates the advisory", () => {
+    // The gate turns it into NOT CHECKED, and since v1.148.2 a not-checked row
+    // is not listed at all. Both together are the guarantee that matters: a
+    // stored report from before the check existed can never claim the credit.
     const rows = evaluateBestPractices(julyWord, undefined, { analyzedAt: "2026-07-05T10:00:00Z" });
-    const r = rows.find((x) => x.practice.id === "docx-merged-cells")!;
-    expect(r.status).toBe("not-checked");
-    expect(r.reason).toBe("not-run");
-    expect(r.evidence.join(" ")).toMatch(/before this check existed/);
-    expect(r.evidence.join(" ")).toMatch(/2026-08-26/);
+    expect(rows.find((x) => x.practice.id === "docx-merged-cells")).toBeUndefined();
   });
   it("leaves the MET alone once the payload is new enough, and for a live analysis with no date", () => {
     expect(
@@ -362,7 +378,7 @@ describe("the era gate — a witness cannot vouch for a payload older than its a
     const gated = evaluateBestPractices(july, undefined, { analyzedAt: "2026-08-01" }).find(
       (x) => x.practice.id === "nested-structure-tree",
     )!;
-    expect(gated.status).toBe("not-checked");
+    expect(gated === undefined).toBe(true);
     expect(
       evaluateBestPractices(july).find((x) => x.practice.id === "nested-structure-tree")!.status,
     ).toBe("met");
@@ -444,7 +460,7 @@ describe("sortBestPractices", () => {
   it("moves an actionable row ahead of catalog entries declared before it", () => {
     // "bookmarks" is declared in bestPractices/pdf.ts well after the five
     // heading_structure practices — in raw catalog order it would print
-    // behind six "not-checked" rows. A real not-met bookmarks result must
+    // behind them. A real not-met bookmarks result must
     // still land first once sorted, proving this isn't a coincidence of
     // "heading-level-order" (the catalog's actual first entry) happening to
     // already be the not-met one in other fixtures.
@@ -452,6 +468,19 @@ describe("sortBestPractices", () => {
       fileType: "pdf",
       pageCount: 40,
       categories: [
+        // Heading practices are declared FIRST in the catalog, so they must
+        // survive the extra-credit filter for this test to prove anything —
+        // a clean outline makes them MET (v1.148.2).
+        {
+          id: "heading_structure",
+          findings: [
+            "Found 3 heading tags with logical hierarchy",
+            "--- Heading Outline ---",
+            '  H1 "Title"',
+            '  H2 "Section"',
+            '  H3 "Detail"',
+          ],
+        },
         {
           id: "bookmarks",
           findings: [
@@ -686,11 +715,14 @@ describe("this section holds only things above and beyond WCAG 2.1 (v1.148.1)", 
     for (const r of rows) expect(r.evidence.join(" "), r.practice.id).not.toContain(SCORED_IN_PLAN);
   });
 
-  it("keeps a blocked practice as NOT CHECKED — it is above and beyond, it just could not be judged", () => {
-    // Skipped heading levels are PDF/UA, never WCAG 2.1: the analyzer says so
-    // itself ("not a WCAG 2.1 failure, so your grade is not affected"). What
-    // is scored on a document like this is the ABSENCE of headings — a
-    // different thing wearing the same row, and the reason it cannot be read.
+  it("drops a practice it could not judge because a scored failure got there first", () => {
+    // The user, on seeing NOT CHECKED beside heading rows in a report that had
+    // just scored heading_structure 0 and named 1.3.1: "if something is marked
+    // 'not checked' in the best practice — but WAS checked in the actual WCAG
+    // score — then don't list it. It's super-confusing." They are right: the
+    // page contradicted itself. Skipped heading levels really are above and
+    // beyond (the analyzer says so: "not a WCAG 2.1 failure"), but that is an
+    // argument for leaving the row out, not for labelling it a fourth way.
     const rows = evaluateBestPractices(
       report([
         {
@@ -700,18 +732,18 @@ describe("this section holds only things above and beyond WCAG 2.1 (v1.148.1)", 
         },
       ]),
     );
-    const order = rows.find((r) => r.practice.id === "heading-level-order");
-    expect(order?.status).toBe("not-checked");
-    expect(order?.reason).toBe("blocked");
-    expect(order?.evidence.join(" ")).toContain("no heading tags at all");
-  });
-
-  it("a blocked row is never told nothing is wrong with the document", () => {
-    // The false comfort the old NOT APPLICABLE chip gave. Something IS wrong
-    // here and it has already cost points.
-    const src = readFileSync(resolve(__dirname, "../components/BestPracticesSection.vue"), "utf8");
-    const blocked = src.slice(src.indexOf('if (row.reason === "blocked")'));
-    expect(blocked.slice(0, 400)).not.toContain("Nothing is wrong with your document");
+    for (const id of [
+      "heading-level-order",
+      "heading-convention",
+      "heading-numbered-levels",
+      "heading-content",
+      "single-h1",
+    ]) {
+      expect(
+        rows.find((r) => r.practice.id === id),
+        `${id} is still listed, on a document whose headings the report scored`,
+      ).toBeUndefined();
+    }
   });
 
   it("neither marker sentence is ever written out by hand", () => {

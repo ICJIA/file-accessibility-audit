@@ -253,6 +253,18 @@ describe("PrintPlanButton", () => {
           fileType: "pdf",
           categories: [
             { id: "not_in_manual_checks_dictionary", score: 100, severity: "No issues found" },
+            // Scores a clean 100 (so it adds no fix step) while carrying a
+            // not-scored advisory, which is exactly one best-practice row —
+            // the only thing left for the button to print. Since v1.148.2 a
+            // category with nothing to say yields no rows at all.
+            {
+              id: "bookmarks",
+              score: 100,
+              severity: "No issues found",
+              findings: [
+                "PDF/UA only — not scored: this 40-page document has 40 pages and no bookmarks, which makes it harder to navigate.",
+              ],
+            },
           ],
         },
       },

@@ -20,6 +20,15 @@ const report = {
         "  H1 → H2 → H1 → H1",
       ],
     },
+    // display-doc-title must land NOT MET to reach the printout at all
+    // (v1.148.2 lists only met/not-met), and it is the practice this file
+    // uses to prove a citation with no links still prints.
+    {
+      id: "title_language",
+      findings: [
+        "PDF/UA only — not scored: the DisplayDocTitle viewer preference is off, so viewers show the filename instead of the title.",
+      ],
+    },
   ],
 };
 
@@ -207,7 +216,16 @@ describe("printable plan — best practices' wcagSlugs links", () => {
     evaluateBestPractices({
       fileType: "pdf",
       pageCount: 40,
-      categories: [{ id: "bookmarks", findings: [] }],
+      // Needs a finding that lands NOT MET — since v1.148.2 only met/not-met
+      // rows reach the printout, so an empty category yields nothing to print.
+      categories: [
+        {
+          id: "bookmarks",
+          findings: [
+            "PDF/UA only — not scored: this 40-page document has 40 pages and no bookmarks, which makes it harder to navigate.",
+          ],
+        },
+      ],
     });
 
   it("links the criterion to the WCAG 2.1 Understanding page, whatever the caller passes", () => {
