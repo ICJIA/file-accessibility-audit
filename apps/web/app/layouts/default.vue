@@ -359,7 +359,7 @@
                       <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
                         <span
                           class="text-xs px-2 py-0.5 rounded-full w-20 text-center"
-                          :style="{ backgroundColor: withAlpha(s.color, 8), color: s.color }"
+                          :style="{ backgroundColor: tint8(s.color), color: s.color }"
                           >{{ s.label }}</span
                         >
                         <span class="text-[var(--text-muted)]">{{ s.description }}</span>
@@ -545,7 +545,7 @@
 // ordinary case and for an audit the page can rejoin.
 const auditInProgress = useAuditInProgress();
 
-import { SCORING_PROFILES, GRADE_THRESHOLDS, SEVERITY_COLORS, withAlpha } from "@file-audit/shared";
+import { SCORING_PROFILES, GRADE_THRESHOLDS } from "@file-audit/shared";
 
 const config = useRuntimeConfig();
 const goAnalyze = inject<() => void>("goAnalyze");
@@ -624,12 +624,28 @@ const rubricCategories = [
   .filter((c) => c.weight > 0)
   .sort((a, b) => b.weight - a.weight);
 
+/* The grade and severity swatches below bind a CSS VARIABLE, not the hex on
+   the shared constant. Those constants (GRADE_THRESHOLDS.color,
+   SEVERITY_COLORS) are the DARK palette, and they are also what the report
+   exports embed, where the background is always white — so they cannot simply
+   be changed here. Bound inline they beat every stylesheet, which is why the
+   `html.light` overrides of --grade-* and --sev-* could not reach them: in
+   light mode the rubric drew its A at 2.18:1 and its C at 1.84:1.
+   `var(--grade-a)` lets the browser resolve the right shade per theme, and the
+   light values were already defined in main.css waiting to be used.
+
+   Found by opening this modal in light mode, not by the contrast sweep —
+   a closed modal is not in the DOM, so no page-level scan can see it. */
 const grades = GRADE_THRESHOLDS.map((t, i) => ({
   grade: t.grade,
   min: t.min,
   max: i === 0 ? 100 : GRADE_THRESHOLDS[i - 1]!.min - 1,
-  color: t.color,
+  color: `var(--grade-${t.grade.toLowerCase()})`,
 }));
+
+/** An 8% wash of a colour that may be a CSS variable, so it follows the theme
+ *  the same way the text on top of it does. `withAlpha` takes a hex and cannot. */
+const tint8 = (c: string) => `color-mix(in srgb, ${c} 8%, transparent)`;
 
 const referenceLinks = [
   { label: "WCAG 2.1 Quick Reference", url: "https://www.w3.org/WAI/WCAG21/quickref/" },
@@ -654,22 +670,22 @@ const referenceLinks = [
 const severities = [
   {
     label: "Pass",
-    color: SEVERITY_COLORS.Pass!,
+    color: "var(--sev-pass)",
     description: "Category score of 100 — no machine-detectable issues found.",
   },
   {
     label: "Minor",
-    color: SEVERITY_COLORS.Minor!,
+    color: "var(--sev-minor)",
     description: "Category score 70–99. Small improvements recommended.",
   },
   {
     label: "Moderate",
-    color: SEVERITY_COLORS.Moderate!,
+    color: "var(--sev-moderate)",
     description: "Category score 40–69. Should be addressed before publishing.",
   },
   {
     label: "Critical",
-    color: SEVERITY_COLORS.Critical!,
+    color: "var(--sev-critical)",
     description: "Category score 0–39. Must be fixed — represents a significant barrier to access.",
   },
 ];

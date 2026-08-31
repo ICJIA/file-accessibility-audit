@@ -92,6 +92,26 @@ function onTrustBodyClick(e: MouseEvent) {
    theme toggle. Same hues, darkened until each clears AA on the lightest
    surface the content sits on (#f9fafb). The -dim tints stay as they are:
    they are backgrounds, and a 10-12% wash reads as near-white either way. */
+/* LIGHT MODE, part two (2026-08-31): the trap/test modals.
+   Everything inside these overlays follows the theme — .trapm cards are
+   var(--panel), the text is var(--muted) and var(--text) — but the overlay
+   itself and its sticky header were the only two hardcoded colours in the
+   whole trust palette: rgba(6,8,10,.96) and .97. In light mode that produced
+   a modal split down the middle, a near-black sheet full of white cards.
+
+   Only the in-app twin gets this. The standalone brief at
+   docs/brief/checker-brief.html is a self-contained document with its own
+   dark :root and no theme to follow, so the template keeps the dark values
+   and this override lives here — the same split the .trust-page twin exists
+   for. Values match the app's own light surfaces, at the same opacities. */
+html.light .trust-page .trapmodal:target {
+  background: rgba(249, 250, 251, 0.96);
+}
+
+html.light .trust-page .tm-head {
+  background: rgba(249, 250, 251, 0.97);
+}
+
 html.light .trust-page {
   /* Darkened AGAINST THEIR OWN TINT, not against the page. Every chip and
      label here sits on a 12% wash of its own colour (#e7faf3, #feeeee,

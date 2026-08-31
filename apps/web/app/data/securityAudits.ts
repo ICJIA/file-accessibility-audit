@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.151.1",
+    meta: "Reviewed <strong>2026-08-31</strong> &middot; scope: the pop-up panels, which the previous review could not see.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: presentation only. Nothing about how files are handled, stored or deleted changed.",
+      },
+      {
+        kind: "p",
+        html: "The review published hours earlier checked all six pages with three separate tools and found nothing left to fix. A reader&rsquo;s screenshot showed otherwise: the pop-up panels on the trust page opened as a dark sheet filled with white cards. The reason none of the tools caught it is worth recording &mdash; <strong>a panel that has not been opened is not part of the page yet</strong>, so no whole-page scan can measure anything that sits behind a click.",
+      },
+      {
+        kind: "p",
+        html: "Opening them and measuring inside found three faults. The panels themselves kept two fixed dark colours while everything inside followed the theme, which is what produced the split. The panel explaining how grades are awarded wrote its colours directly onto the text, which overrides any theme, so in light mode it drew its A and its C at roughly half the required contrast &mdash; while explaining what a good grade means. And two of the severity labels were a fraction under the requirement in dark mode as well, which had been true for some time.",
+      },
+      {
+        kind: "p",
+        html: "All are fixed and re-measured in both appearances, this time by compositing each colour over the surface it actually sits on rather than the page behind it.",
+      },
+    ],
+  },
+  {
     version: "v1.151.0",
     meta: "Reviewed <strong>2026-08-31</strong> &middot; scope: the site&rsquo;s own light mode, which had never been measured.",
     body: [

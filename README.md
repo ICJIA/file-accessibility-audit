@@ -1338,6 +1338,18 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.151.1 — 2026-08-31 · What a page-level contrast sweep cannot see (no new attack surface)
+
+No new attack surface: presentation only. Two CSS rules, one style binding, two hex values.
+
+**The finding is about method.** v1.151.0 checked all six pages with three tools in both themes and reported zero failures. A screenshot arrived minutes later showing the trust page's modals rendering as a near-black overlay full of white cards. **A closed modal is not in the DOM**, so no page-level scan — `contrastcap`, `axecap` or Lighthouse — can see anything behind a click. Everything below was found by opening the modals and measuring inside them.
+
+- **`.trapmodal:target` and `.tm-head`** were the only two hardcoded colours in the whole trust palette (`rgba(6,8,10,.96)`/`.97`); the `.trapm` cards beneath them use `var(--panel)` and had followed the theme correctly, which is exactly what produced the split. Fixed under `html.light .trust-page`, covering both `#all-traps` and `#all-tests`. The standalone brief keeps the dark values: it has its own dark `:root` and no theme to follow.
+- **The Scoring Rubric modal bound colour inline** (`:style="{ color: g.color }"` from `GRADE_THRESHOLDS`/`SEVERITY_COLORS`, the *dark* palette). Inline styles outrank every stylesheet, so the `html.light` overrides of `--grade-*` and `--sev-*` — which already existed with correct light values — could never apply. In light mode the rubric drew its A at **2.18:1** and its C at **1.84:1** while explaining what a good grade means. Now bound to `var(--grade-a)`/`var(--sev-pass)` so the browser resolves per theme: **4.80–6.70** light, unchanged dark. The shared constants are untouched, because the report exports embed them and always render on white.
+- **`--sev-minor` and `--sev-critical` were 4.45 and 4.48 in dark mode** — pre-existing, and only visible when measured against the pill's own 8% tint rather than the page. Raised to the `-400` shades: **6.24** and **5.89**. These four variables are read in exactly one place, so the change is confined to this modal.
+
+Verified by compositing each colour over its real surface via canvas, which resolves `oklch()` and `color-mix()` correctly — a naive parser reads `oklch(0.208 0.042 265.755)` as an RGB triple and invents failures. Nine swatches, both themes, all passing. Tests 3,431; no score moved.
+
 ### v1.151.0 — 2026-08-31 · The app's own light mode, measured for the first time (no new attack surface)
 
 No new attack surface: presentation only — no data path, input, output, dependency or endpoint changed. Every edit is CSS, four `underline` classes, and one heading level.

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.151.1] - 2026-08-31
+
+### Fixed
+
+- **The modals were half dark, half light.** Reported from a real screenshot minutes after the release above: the trap-inventory and how-it-is-tested overlays on the trust page opened as a near-black sheet full of white cards. The cards inside follow the theme, because they are drawn from the app's own surface colours; the overlay and its sticky header were the only two hardcoded colours in that entire palette, and nothing in the previous release could reach them. Both now follow the theme. The standalone brief document keeps its dark values deliberately — it is a self-contained file with no theme to follow.
+- **The Scoring Rubric explains grades in colours that failed the grade.** The A through F letters and the Pass/Minor/Moderate/Critical pills were drawn with colours written directly onto the element, which beat every stylesheet, so the light-mode palette that already existed could never apply. In light mode the A measured 2.18 to 1 and the C 1.84, against a requirement of 4.5. They now name the theme's own colour and let the browser pick, which is what the rest of the app does; 4.80 to 6.70 in light, unchanged in dark.
+- **Two severity pills were fractionally short in dark mode as well** — 4.45 and 4.48 against 4.5, pre-dating all of this work and measured against the pill's own tinted background rather than the page behind it. Now 6.24 and 5.89.
+- **A stale claim in two more places.** The landing-page banner was corrected in the release above; the same withdrawn wording also sat in the trust page's own timeline, describing a label that lasted one afternoon. Corrected, and the timeline now records this release.
+
+### Changed
+
+- **Why a page-level contrast sweep did not catch any of this: a closed modal is not in the page.** The previous release checked six pages with three tools and found nothing, because every one of these defects lives behind a click. They were found by opening the modals and measuring inside them, compositing each colour over the surface it actually sits on rather than the page background — the same mistake, in the measuring rather than the styling, that hid three failing pills on the status page earlier.
+
 ## [1.151.0] - 2026-08-31
 
 ### Fixed
