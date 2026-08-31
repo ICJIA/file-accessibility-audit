@@ -258,6 +258,23 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "deductions-name-the-rule-2026-08-31",
+    badge: "Changed",
+    text: "Three checks stopped taking points for things this tool could not tie to the law. The biggest affects Word, PowerPoint and Excel files with vague link text: a document with two \u201cclick here\u201d links used to lose its entire Link Quality score and be capped at a D, even though the rule behind it, WCAG 2.4.4, lets the sentence around a link supply its purpose \u2014 something no automated check can judge. Vague link text is still reported in full, with the links listed, but it no longer changes your grade. A link with no text at all does still count, because a link with no text has no name for a screen reader to announce, and WCAG 4.1.2 requires one. A PowerPoint slide whose title is not the first thing read on the slide is likewise now reported rather than counted. If one of these applies to your document, it may score higher than it did before.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    // STANDING RULE (user, 2026-08-31): copy that names a criterion must let
+    // the reader reach the rule. Announcements render as plain text, so the
+    // references travel beside the text as data and both surfaces link them.
+    wcagRefs: [
+      { sc: "2.4.4", name: "Link Purpose (In Context)", slug: "link-purpose-in-context" },
+      { sc: "4.1.2", name: "Name, Role, Value", slug: "name-role-value" },
+    ],
+    date: "August 31, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "wcag-21-named-everywhere-2026-08-31",
     badge: "Changed",
     text: "Reports now name WCAG 2.1 everywhere. That is the version ADA Title II and the Illinois IITAA both require, and the only version that has moved a grade here since the legal-only scoring change — but some labels and links still said 2.1's successor, so a report could state one standard and link to another. WCAG 2.2 still exists and What's new in WCAG 2.2 still explains what it adds; nothing it adds is counted. Two smaller additions: the font check now lists every font in the document and whether it is embedded, rather than only saying whether they all are; and every practice the checker could not examine now carries an icon explaining why it was not checked and what would settle it, beginning with the fact that nothing is wrong with your document.",

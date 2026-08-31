@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.146.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: an audit of the test suite\u2019s own validity, and three scoring rules that took points without naming a rule.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: nothing in this release adds a data path, an input, or an output. It changes what can move a grade, and what the build is able to prove about itself.",
+      },
+      {
+        kind: "p",
+        html: "The review asked a single question of every automated check in this repository &mdash; can it still fail for the reason it was written? &mdash; and <strong>nine could not</strong>. The most serious guarded the promise that only WCAG 2.1 moves a grade, and did it by searching the scoring source for a piece of text rather than by running the code. The text it searched for never appears there, so the check passed no matter what the code did, and would have survived the exact change it existed to prevent. It now evaluates a real verdict under both settings of the standard, and was confirmed by making that change and watching it fail. A second had been pinned to the wrong version of WCAG since the switch to 2.1, hiding any drift across a quarter of the report tests. A third promised to check a column width and checked only that three rows existed.",
+      },
+      {
+        kind: "p",
+        html: "The repository&rsquo;s own build scripts were never type-checked, and carried three real type errors. Two of them reached the published trust brief: it displayed 130 test documents beneath a summary that counted 128, and advertised one <em>caught</em> defect as having &ldquo;passed clean&rdquo;. The scripts are type-checked in the build now, and the brief refuses to build unless its three counts add up to the number of documents it shows.",
+      },
+      {
+        kind: "p",
+        html: "Three scoring rules were taking points that the report could not tie to any WCAG criterion &mdash; the accuracy gate that exists to catch exactly this could not see them, because no test document in the corpus exercised them. The largest: a Word document with two &ldquo;click here&rdquo; links lost its entire Link Quality score at the highest severity, capping the file at a D, while the verdict named no rule at all. Weak link text is now reported in full and never counted, matching the reasoning already applied to PDFs &mdash; <strong>WCAG 2.4.4</strong> (Level A) lets the sentence around a link supply its purpose, which no automated check can weigh. A link with <em>no text at all</em> is still counted, and now cites <strong>WCAG 4.1.2 Name, Role, Value</strong> (Level A), which no context can satisfy. Fourteen new test documents pin these rules, each verified by breaking the rule it guards, confirming the failure, and restoring the file byte for byte.",
+      },
+    ],
+  },
+  {
     version: "v1.145.1",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: the filename shown while a document is analysed, and the last metadata still naming the older standard.",
     body: [

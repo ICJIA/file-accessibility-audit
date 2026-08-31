@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.146.0] - 2026-08-31
+
+### Changed
+
+- **Three rules stopped taking points for things the report could not tie to the law.** Every deduction this tool makes is supposed to name the WCAG criterion behind it — that is the promise on the trust page, and a gate in the build enforces it. A review of the test suite found three rules escaping that gate for the same reason: no control document in the corpus exercised them, so the gate had nothing to walk. **Weak link text** ("click here", "read more") is the largest. A Word document with two such links scored zero on Link Quality, severity Critical, which capped the whole file at a D — while the verdict named no criterion at all. WCAG 2.4.4 (Level A) lets the sentence around a link supply its purpose, which no automated text-only check can weigh; judging the text alone is a Level AAA rule. The PDF checker adopted that reasoning in the scoring change of two days ago and the Word, PowerPoint and Excel checkers were never updated. They are now: weak link text is reported in full and never counted. **A link with no text at all is still counted**, and now says why — a link is a user interface control, and WCAG 4.1.2 Name, Role, Value (Level A) requires every one of them to carry a name software can read. There is no surrounding sentence that can supply a name which is absent, which is what makes this the one link-text defect a machine may assert. **A PowerPoint slide whose title is not the first shape** no longer costs 15 points either; the file's own conformance gate had always ruled that heuristic "not a confirmed WCAG violation", and the slide is still named, under the same "not scored" heading its sibling rule uses. No existing control document's grade moved.
+
+### Added
+
+- **Fourteen new trap documents, and the two rules they caught.** The corpus grew from 130 designed-defect documents to 144. Each new one pins a scored rule that nothing exercised before: a Word file whose only headings are blank lines, one that declares no language, one with a link and no link text, a page of "click here" links that must *not* be scored, yellow text on white, a hand-typed bullet list, a PowerPoint slide whose title reads second, and an Excel table built with "my table has no headers" ticked — each with a correct twin that must never score lower. Two of them found the live defects above within seconds of existing. Every one was verified by breaking the rule it guards and confirming the trap fails, then restoring the code byte for byte.
+
+### Fixed
+
+- **Nine checks that could no longer fail for the reason they were written.** A test that always passes is worse than no test, because it reads as coverage. The worst guarded this tool's central promise — that only WCAG 2.1 moves a grade — by searching the scoring source for the text "2.5.8"; that string never appears there, so the check passed no matter what the code did. It now runs a real document through the verdict under both settings of the standard. Another had been quietly pinned to the wrong version of WCAG since the switch to 2.1, hiding any drift in a quarter of the report tests. A third asserted "one fixed width" while checking only that three rows existed — which is how a 94 came to draw a longer bar than a 100. The build's own scripts were never type-checked and carried three real errors, two of which reached the published trust brief: it displayed 130 test documents while its summary counted 128, and advertised one caught defect as having "passed clean". Scripts are type-checked now, and the brief refuses to build unless its three counts add up to the number of documents shown.
+- **A guard added the day before had nothing testing it.** The check that stops a Word document being graded A while its verdict names a Level A failure could be deleted with the entire suite and all nine build gates still passing. It now has a document of its own, and the accuracy gate written for that exact contradiction fires on it.
+
 ## [1.145.1] - 2026-08-31
 
 ### Added
