@@ -18,12 +18,7 @@ import {
   signalLines,
   firstNumber,
 } from "../utils/bestPractices/types";
-import {
-  matterhornLink,
-  techniqueLink,
-  understandingLink,
-  safeLinks,
-} from "../utils/bestPractices/links";
+import { matterhornLink, techniqueLink, safeLinks } from "../utils/bestPractices/links";
 import {
   CATALOG,
   evaluateBestPractices,
@@ -156,27 +151,13 @@ describe("link resolution", () => {
   it("builds a W3C technique link", () => {
     const l = techniqueLink("G141");
     expect(l.label).toBe("WCAG technique G141");
-    expect(l.url).toBe("https://www.w3.org/WAI/WCAG22/Techniques/general/G141");
+    expect(l.url).toBe("https://www.w3.org/WAI/WCAG21/Techniques/general/G141");
   });
 
   it("builds a W3C technique link for PDF-class codes", () => {
     const l = techniqueLink("PDF17");
     expect(l.label).toBe("WCAG technique PDF17");
-    expect(l.url).toBe("https://www.w3.org/WAI/WCAG22/Techniques/pdf/PDF17");
-  });
-
-  it("builds an Understanding link through the injected version-aware builder", () => {
-    const l = understandingLink(
-      "info-and-relationships",
-      "Understanding 1.3.1",
-      (s) => `https://www.w3.org/WAI/WCAG22/Understanding/${s}.html`,
-    );
-    expect(l!.url).toBe("https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html");
-  });
-
-  it("returns null when the slug is empty", () => {
-    const l = understandingLink("", "x", (s) => s);
-    expect(l).toBeNull();
+    expect(l.url).toBe("https://www.w3.org/WAI/WCAG21/Techniques/pdf/PDF17");
   });
 
   it("drops links whose URL is not http(s) — the shared page's data is stored JSON", () => {

@@ -60,15 +60,15 @@ jobs:
       # A violated truth is a DEFECT — in a sample or in the checker — and
       # fails the build, the same way it caught the whitespace-only-/Alt bug.
       # Needs qpdf (installed above); veraPDF is optional and skipped here.
-      - name: Trap battery (100 synthetic PDF controls + twin orderings)
+      - name: Trap battery (synthetic PDF controls + twin orderings)
         run: pnpm synthetic-controls
 
-      # The other three formats: 15 hand-built .docx/.pptx/.xlsx traps with
+      # The other three formats: hand-built .docx/.pptx/.xlsx traps with
       # designed truths (bold-instead-of-Heading-1, alt panels never opened,
       # unmarked header rows, "Sheet1"), plus their done-right twins and the
       # same twin-ordering rule — the flawed twin must never outscore the
       # correct one.
-      - name: Trap battery (15 synthetic Office controls)
+      - name: Trap battery (synthetic Office controls)
         run: pnpm synthetic-office-controls
 
       # The golden score ledger: every control's exact score, grade, and

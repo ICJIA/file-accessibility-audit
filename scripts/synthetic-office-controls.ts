@@ -550,7 +550,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-128-docx-empty-headings.docx",
     truth:
-      "Three Heading-styled blank lines used as spacing, among real headings. SCORED since 2026-08-31: a heading style applied to a blank line announces a section that does not exist — W3C failure F43 for WCAG 1.3.1 (Level A) — so heading_structure must lose points AND the conformance verdict must name 1.3.1. Reporting it without scoring it, or scoring it without naming the criterion, both fail this trap.",
+      "Three Heading-styled blank lines used as spacing, among real headings. SCORED since 2026-08-31: a heading style applied to a blank line announces a section that does not exist — structure conveyed by presentation that represents no real relationship, which is WCAG 1.3.1 (Level A) itself. heading_structure must lose points AND the conformance verdict must name 1.3.1. Reporting it without scoring it, or scoring it without naming the criterion, both fail this trap. (Deliberately NOT cited as W3C failure F43: every F43 example is heading markup on VISIBLE text, and W3C publishes no failure technique for an empty heading — the scorer says so in its own comment, and this truth must not contradict it.)",
     build: () =>
       docx(
         [
@@ -570,8 +570,9 @@ const SAMPLES: Sample[] = [
       const c = cat("heading_structure")(r);
       if (!c || c.score === null) return "heading_structure unscored";
       if (c.score >= 100) return `empty headings did not move the score (got ${c.score})`;
-      if (c.score < 70)
-        return `empty headings cost more than the 30-point cap (got ${c.score}) — they may never take this category past Minor`;
+      // Not a proof of the 30-point cap: three empty headings cost exactly 30
+      // with or without it. The cap is covered at n=3/8/40 in docxScorer.test.
+      if (c.score < 70) return `three empty headings cost more than 30 points (got ${c.score})`;
       if (!/contain no text/i.test(allFindings(r))) return "the empty headings are not named";
       // Only a named criterion may move a score (the legal-basis rule).
       const failing = (
@@ -612,6 +613,43 @@ const SAMPLES: Sample[] = [
       // The scorer and the verdict must agree the category was assessed.
       if (c && c.score !== null && c.score < 100)
         return `lost points for headings that carry content (${c.score})`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-131-docx-only-empty-headings.docx",
+    truth:
+      'A Word document whose ONLY Heading-styled paragraphs are blank lines — no real heading anywhere. This is the document that produced the 2026-08-31 contradiction: the scorer\'s early return fired on `no headings found` and reported heading_structure as NOT ASSESSED, while the conformance verdict simultaneously named a WCAG 1.3.1 Level A failure about those very paragraphs. The report then read grade A, "No headings were found", "Nothing — this document passed every automated check" and "1 criterion failing" at once. The scorer and the verdict must agree that this category was assessed: heading_structure must be SCORED (not null), must lose points, must name 1.3.1 — and must never also claim the document has no headings.',
+    build: () =>
+      docx(
+        [
+          P(BODY_TEXT),
+          EMPTY_HEADING(1),
+          P(BODY_TEXT),
+          EMPTY_HEADING(2),
+          P(BODY_TEXT),
+          EMPTY_HEADING(2),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Quarterly Update", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      // The whole point of the trap: Not Assessed here is the bug.
+      if (!c) return "heading_structure is missing from the report";
+      if (c.score === null)
+        return "heading_structure came back NOT ASSESSED — the scorer's early return fired on a document whose only headings are blank, which is what let a 1.3.1 failure sit beside grade A";
+      if (c.score >= 100) return `blank-only headings did not move the score (got ${c.score})`;
+      if (!/contain no text/i.test(allFindings(r))) return "the empty headings are not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "heading_structure",
+      );
+      if (!failing) return "score moved with no 1.3.1 failure attributed to heading_structure";
+      // Scorer and verdict must not contradict each other on the same screen.
+      if (/no headings were found/i.test(allFindings(r)))
+        return 'the report says "No headings were found" while naming a 1.3.1 failure about those headings';
       return null;
     },
   },
@@ -682,6 +720,11 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "heading_structure",
   },
   {
+    bad: "synthetic-131-docx-only-empty-headings.docx",
+    good: "synthetic-129-docx-empty-headings-good-twin.docx",
+    category: "heading_structure",
+  },
+  {
     bad: "synthetic-101-docx-bold-fake-headings.docx",
     good: "synthetic-102-docx-styles-good-twin.docx",
     category: "heading_structure",
@@ -722,15 +765,19 @@ type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
   "synthetic-130-docx-picture-headings-not-blank.docx": {
     label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
-    chip: "clean",
+    chip: "held",
+  },
+  "synthetic-131-docx-only-empty-headings.docx": {
+    label: "Word: a document whose only headings are blank lines — nothing else",
+    chip: "caught",
   },
   "synthetic-128-docx-empty-headings.docx": {
     label: "Word: heading styles on blank lines, used as spacing",
-    chip: "held",
+    chip: "caught",
   },
   "synthetic-129-docx-empty-headings-good-twin.docx": {
     label: "Word: the same document spaced with ordinary blank paragraphs",
-    chip: "clean",
+    chip: "held",
   },
   "synthetic-101-docx-bold-fake-headings.docx": {
     label: "Word: bold 16-point text instead of Heading styles",

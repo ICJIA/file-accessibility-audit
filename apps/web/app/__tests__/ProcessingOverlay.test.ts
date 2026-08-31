@@ -67,7 +67,7 @@ describe("ProcessingOverlay — the rotating check queue", () => {
     // "pass 2 of 2" would claim sequential progress the client cannot know
     // (the two passes run together and report nothing until done).
     expect(pdfText).toContain("pass 1 of 2, both run together): PDF/UA conformance");
-    expect(pdfText).toContain("pass 2 of 2, both run together): WCAG 2.2 machine checks");
+    expect(pdfText).toContain("pass 2 of 2, both run together): WCAG machine checks");
 
     const docx = mount(ProcessingOverlay, { props: { stage: "", rotate: true, fileType: "docx" } });
     const docxText = await collect(docx);

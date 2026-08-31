@@ -40,6 +40,14 @@ import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 import { evaluateBestPractices } from "~/utils/bestPractices";
 
 const ROOTS = ["controls"];
+/** Floor for how many documents must actually analyse: every read is wrapped
+ *  in `catch { continue }`, so an empty or unbuilt corpus would otherwise
+ *  report success over zero documents. */
+const MIN_DOCUMENTS = 120;
+/** The placeholder --bless writes. Leaving it in the ledger means the pairing
+ *  was recorded but never actually reviewed, which is the whole point of the
+ *  gate — so it must fail the build exactly like an unblessed pair. */
+const PLACEHOLDER = /^REVIEW ME/;
 const EXTS = new Set([".pdf", ".docx", ".pptx", ".xlsx"]);
 const LEDGER = path.join(import.meta.dirname, "best-practice-basis.json");
 const BLESS = process.argv.includes("--bless");
@@ -166,7 +174,22 @@ if (BLESS) {
     const unblessed = [...pairs.values()].filter((p) => !blessed.has(key(p)));
     const stale = [...blessed.keys()].filter((k) => !pairs.has(k));
 
-    if (unblessed.length === 0) {
+    const unreviewed = [...blessed.values()].filter((p) => PLACEHOLDER.test(p.reviewed ?? ""));
+    if (checked < MIN_DOCUMENTS) {
+      console.log(
+        `only ${checked} document(s) could be analysed, below the floor of ${MIN_DOCUMENTS} — the corpus is missing or the pipeline is broken, so this gate proves nothing\n    (regenerate with: pnpm synthetic-controls && pnpm synthetic-office-controls)`,
+      );
+      process.exitCode = 1;
+    } else if (unreviewed.length > 0) {
+      console.log(
+        `${unreviewed.length} pair(s) were recorded but never reviewed — the "reviewed" note is still the placeholder --bless wrote:\n`,
+      );
+      for (const p of unreviewed) console.log(`— ${p.practice}  (WCAG ${p.sc}, ${p.category})`);
+      console.log(
+        `\nAnswer the question for each, in "reviewed": is the row about a DIFFERENT defect than the one that cost points?`,
+      );
+      process.exitCode = 1;
+    } else if (unblessed.length === 0) {
       console.log(
         `NOTHING THE LAW REQUIRES IS FILED UNDER "NOT SCORED" (${checked} documents, ${pairs.size} reviewed pair(s))`,
       );

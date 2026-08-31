@@ -253,7 +253,7 @@
         >
 <span class="text-sky-300">PDF:</span>
   File → [validate type &amp; size]
-       → in order: <span class="text-emerald-300">QPDF</span> (structure) → <span class="text-emerald-300">PDF.js</span> (content) → <span class="text-emerald-300">veraPDF</span> (PDF/UA) }
+       → in order: <span class="text-emerald-300">QPDF</span> (structure) → <span class="text-emerald-300">PDF.js</span> (content) → <span class="text-emerald-300">veraPDF</span> (PDF/UA)
        → Scorer (9 categories) → Weighted Score → Report
 
 <span class="text-sky-300">Word / PowerPoint / Excel:</span>
@@ -760,15 +760,15 @@
         </p>
         <p class="text-[var(--text-muted)] mb-3">
           Between the action plan and &ldquo;Above and beyond&rdquo; sits a
-          <strong>Best practices</strong> section &mdash; 37 non-scored practices in all, 19 for PDF
-          and 18 across Word, PowerPoint and Excel. Each row shows whether <em>this</em> document
-          meets it, the evidence found in the document itself (the heading order it actually has,
-          the fonts it actually carries), both routes to fix it, and a link to the rule. Nothing in
-          the section touches the grade, and the section says so; a row marked &ldquo;not
-          checked&rdquo; explains why it could not be checked and what would settle it, beginning
-          with the fact that nothing is wrong with the reader's document. Where a practice's defect
-          <em>is</em> scored past some threshold, the row says so and points back at the action plan
-          rather than calling the same fault optional.
+          <strong>Best practices</strong> section &mdash; {{ bpTotal }} non-scored practices in all,
+          {{ bpPdf }} for PDF and {{ bpOffice }} across Word, PowerPoint and Excel. Each row shows
+          whether <em>this</em> document meets it, the evidence found in the document itself (the
+          heading order it actually has, the fonts it actually carries), both routes to fix it, and
+          a link to the rule. Nothing in the section touches the grade, and the section says so; a
+          row marked &ldquo;not checked&rdquo; explains why it could not be checked and what would
+          settle it, beginning with the fact that nothing is wrong with the reader's document. Where
+          a practice's defect <em>is</em> scored past some threshold, the row says so and points
+          back at the action plan rather than calling the same fault optional.
         </p>
         <p class="text-[var(--text-muted)] mb-3">
           Both views end with <strong>&ldquo;Still worth checking by hand&rdquo;</strong>, which
@@ -2530,7 +2530,19 @@ pm2 restart ecosystem.config.cjs</pre>
 
 <script setup lang="ts">
 // Static content extracted verbatim from pages/index.vue (Phase F, task F1:
-// perf(web) lazy technical-explainer extraction). No reactive state — the
-// only component referenced, <DiagramFigure>, is auto-imported globally the
-// same way it was inside the page.
+// perf(web) lazy technical-explainer extraction). The only component
+// referenced, <DiagramFigure>, is auto-imported globally the same way it was
+// inside the page.
+//
+// COUNTED, NOT TYPED (2026-08-31). The Best-practices paragraph used to carry
+// "37 … 19 … 18" as literal prose while the same three numbers were separately
+// pinned as literals in the catalog tests: adding a practice turned the tests
+// green and left this sentence quietly wrong. Every count on a public page is
+// computed from its source or not stated at all.
+import { CATALOG } from "~/utils/bestPractices";
+import { PDF_PRACTICES } from "~/utils/bestPractices/pdf";
+
+const bpTotal = CATALOG.length;
+const bpPdf = PDF_PRACTICES.length;
+const bpOffice = bpTotal - bpPdf;
 </script>

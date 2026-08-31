@@ -24,22 +24,21 @@ export function matterhornLink(id: string): BestPracticeLink | null {
   return { label: `Matterhorn ${cp.id} — ${cp.name}`, url: MATTERHORN_PROTOCOL_URL };
 }
 
+/** The technique base for the LEGAL standard — same reasoning as
+ *  WCAG21_UNDERSTANDING below, which it must agree with. */
+const WCAG21_TECHNIQUES = "https://www.w3.org/WAI/WCAG21/Techniques/";
+
 export function techniqueLink(code: string): BestPracticeLink {
   const prefix = /^[A-Z]+/.exec(code)?.[0] ?? "G";
   const dir = TECHNIQUE_DIR[prefix] ?? "general";
   return {
     label: `WCAG technique ${code}`,
-    url: `https://www.w3.org/WAI/WCAG22/Techniques/${dir}/${code}`,
+    // WCAG 2.1, to match the criterion links beside it and the standard the
+    // copy names. A row that linked "WCAG 2.4.4 … Level A" to /WCAG21/ and its
+    // technique to /WCAG22/ invited the obvious question about which version
+    // the tool is actually talking about. All 2.1 technique pages resolve.
+    url: `${WCAG21_TECHNIQUES}${dir}/${code}`,
   };
-}
-
-export function understandingLink(
-  slug: string,
-  label: string,
-  understandingUrl: (s: string) => string,
-): BestPracticeLink | null {
-  if (!slug) return null;
-  return { label, url: understandingUrl(slug) };
 }
 
 /** Drop anything that is not a plain http(s) address. */

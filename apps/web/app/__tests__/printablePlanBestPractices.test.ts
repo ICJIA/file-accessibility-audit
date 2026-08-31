@@ -213,9 +213,10 @@ describe("printable plan — best practices' wcagSlugs links", () => {
   it("links the criterion to the WCAG 2.1 Understanding page, whatever the caller passes", () => {
     // Pinned to 2.1 since 2026-08-31: these rows argue about the LEGAL
     // standard, and a label reading "Level A" that opens a /WCAG22/ page
-    // invites the obvious question about which version is meant. The
-    // runtime resolver follows WCAG.VERSION (2.2, the superset this tool
-    // tests against) and is correct everywhere except here.
+    // invites the obvious question about which version is meant. The runtime
+    // resolver follows WCAG.VERSION — 2.1 by default, and settable to 2.2 —
+    // which is right everywhere else and wrong here, so this link does not
+    // use it. That is what "whatever the caller passes" is asserting.
     const html = buildPrintablePlan({
       filename: "report.pdf",
       steps: [],

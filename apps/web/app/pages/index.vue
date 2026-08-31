@@ -883,7 +883,7 @@ const processingSteps = ref<Array<{
 const JOB_STEP_LABELS: Record<string, string> = {
   analysis: "Audit engine — structure, content, and scoring",
   veraPdfUa: "veraPDF: PDF/UA conformance",
-  veraPdfWcag: "veraPDF: WCAG 2.2 machine checks",
+  veraPdfWcag: "veraPDF: WCAG machine checks",
 };
 function mapJobSteps(status: AnalyzeJobStatus) {
   processingSteps.value = (Object.keys(JOB_STEP_LABELS) as AnalyzeJobStepKey[]).map((key) => ({

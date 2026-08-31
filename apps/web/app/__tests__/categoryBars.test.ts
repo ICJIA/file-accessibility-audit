@@ -80,12 +80,29 @@ describe("every bar is measured against the same track (2026-08-31 bug report)",
   const mountBars = () => mount(CategoryBars, { props: { categories: rows as never } });
 
   it("gives the severity column one fixed width, whatever the wording", () => {
+    // Asserted only `cells.length === 3` until 2026-08-31 — i.e. "three rows
+    // rendered", nothing about width. Deleting `w-[6.5rem]` from the component
+    // left it green, which is how a 94 came to draw a longer bar than a 100.
     const w = mountBars();
-    const cells = w.findAll('[data-testid="bar-row"]').map((r) => {
-      const spans = r.findAll("span");
-      return spans[spans.length - 1];
-    });
+    // The LAST COLUMN of the row, found structurally — not by the class we
+    // are about to assert, which would be circular. The severity chip is a
+    // child of this cell, so `findAll("span").at(-1)` returns the chip, not
+    // the track-defining column.
+    const cells = w
+      .findAll('[data-testid="bar-row"]')
+      .map((r) => r.element.lastElementChild as HTMLElement);
     expect(cells.length).toBe(3);
+    for (const [i, cell] of cells.entries()) {
+      const cls = [...cell.classList];
+      expect(cls, `row ${i} severity cell`).toContain("w-[6.5rem]");
+      expect(cls, `row ${i} severity cell`).toContain("flex-shrink-0");
+    }
+    // One width for all of them: "No issues found", "Minor" and the empty slot
+    // must reserve the same track, or the bars beside them start at different x.
+    const widths = new Set(
+      cells.map((c) => [...c.classList].find((k) => /^w-\[/.test(k)) ?? "MISSING"),
+    );
+    expect(widths.size, `severity cells use ${widths.size} different widths`).toBe(1);
   });
 
   it("renders a severity slot on EVERY row — including one with no severity", () => {

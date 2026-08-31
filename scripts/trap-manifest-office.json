@@ -1,5 +1,5 @@
 {
-  "count": 20,
+  "count": 21,
   "generated": "2026-08-31",
   "items": [
     {
@@ -86,17 +86,22 @@
     {
       "file": "synthetic-128-docx-empty-headings.docx",
       "label": "Word: heading styles on blank lines, used as spacing",
-      "chip": "held"
+      "chip": "caught"
     },
     {
       "file": "synthetic-130-docx-picture-headings-not-blank.docx",
       "label": "Word: headings made of a letterhead picture and a symbol — not blank lines",
-      "chip": "clean"
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-131-docx-only-empty-headings.docx",
+      "label": "Word: a document whose only headings are blank lines — nothing else",
+      "chip": "caught"
     },
     {
       "file": "synthetic-129-docx-empty-headings-good-twin.docx",
       "label": "Word: the same document spaced with ordinary blank paragraphs",
-      "chip": "clean"
+      "chip": "held"
     },
     {
       "file": "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",

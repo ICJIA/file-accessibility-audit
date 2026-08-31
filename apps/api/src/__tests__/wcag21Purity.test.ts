@@ -12,9 +12,7 @@
  * DISCLOSURE list — unexamined, explicitly uncounted — which is the one
  * place they belong.)
  */
-import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { describe, it, expect, vi } from "vitest";
 import { WCAG_CATEGORY_MAP } from "@file-audit/shared";
 
 const WCAG_22_ONLY = [
@@ -42,16 +40,61 @@ describe("the grade and the failing-criteria list are WCAG 2.1-pure", () => {
     }
   });
 
-  it("the conformance builder's source names no WCAG 2.2-only criterion", () => {
-    // The failures list ("N criteria failing") is built here; a 2.2-only SC
-    // appearing in it would put a non-legal criterion under the strip's
-    // "Required by WCAG 2.1" headline.
-    const src = readFileSync(
-      resolve(__dirname, "../../../../packages/analyzer/src/scoring/conformance.ts"),
-      "utf8",
-    );
-    for (const sc of WCAG_22_ONLY) {
-      expect(src.includes(`"${sc}"`), `conformance.ts names ${sc} (WCAG 2.2-only)`).toBe(false);
+  it("no verdict the builder produces puts a WCAG 2.2-only criterion in `failures`", async () => {
+    // WAS A SOURCE GREP, AND THEREFORE VACUOUS (fixed 2026-08-31). It read
+    // conformance.ts as text and asserted the string `"2.5.8"` did not appear.
+    // It never appears: the 2.2 criteria arrive through WCAG_22_NEW_AA,
+    // imported from #config. The test passed on a file that pushes all three
+    // of them, and would have kept passing if `notAssessed.push` there were
+    // changed to `failures.push` — the exact regression it was written to stop.
+    //
+    // Assert the VERDICT instead, on the one input that reaches the 2.2 block
+    // (a form PDF), under both settings of the version flag.
+    const makeQpdf = (o: Record<string, unknown> = {}) =>
+      ({
+        error: null,
+        hasStructTree: true,
+        hasLang: true,
+        images: [],
+        lists: [],
+        tables: [],
+        hasAcroForm: true,
+        formFields: [{ hasTU: true }],
+        ...o,
+      }) as never;
+    const makePdfjs = () => ({ error: null, hasText: true, lang: "en", title: "A Title" }) as never;
+
+    const orig = process.env.WCAG_VERSION;
+    try {
+      for (const version of ["2.1", "2.2"]) {
+        if (version === "2.2") process.env.WCAG_VERSION = "2.2";
+        else delete process.env.WCAG_VERSION;
+        vi.resetModules(); // re-read WCAG.VERSION
+        const { evaluateConformance } = await import("../services/scoring/conformance.js");
+
+        for (const categories of [
+          [{ id: "reading_order", score: 100 }],
+          // a failing document, so `failures` is genuinely populated
+          [{ id: "reading_order", score: 40 }],
+        ]) {
+          const v = evaluateConformance(
+            makeQpdf({ hasStructTree: false }),
+            makePdfjs(),
+            categories as never,
+          );
+          const failed = v.failures.map((f) => f.sc);
+          for (const sc of WCAG_22_ONLY) {
+            expect(
+              failed,
+              `WCAG_VERSION=${version}: ${sc} is WCAG 2.2-only and must never reach the failing-criteria list that sits under "Required by WCAG 2.1"`,
+            ).not.toContain(sc);
+          }
+          for (const f of v.failures) expect(["A", "AA"]).toContain(f.level);
+        }
+      }
+    } finally {
+      if (orig === undefined) delete process.env.WCAG_VERSION;
+      else process.env.WCAG_VERSION = orig;
     }
   });
 });

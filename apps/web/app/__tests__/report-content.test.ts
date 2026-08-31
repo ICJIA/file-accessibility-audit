@@ -1,15 +1,26 @@
 import { describe, it, expect, vi } from "vitest";
+import { WCAG } from "../../../../audit.config";
 
 // ReportContent calls useWcag(), which reads Nuxt runtime config — mock it
 // so bare @vue/test-utils mounts work outside a Nuxt app context.
+//
+// DERIVED, NEVER LITERAL. vi.mock is hoisted and replaces the module outright,
+// so a hardcoded version here beats the derived global stub in test-helpers and
+// silently pins this whole file to a standard the product does not serve. That
+// is exactly what happened: every ReportContent test ran at 2.2 for the length
+// of the 2.1 migration, and no test in this file could have seen the drift.
 vi.mock("~/composables/useWcag", () => ({
-  useWcag: () => ({
-    version: "2.2",
-    level: "AA",
-    label: "WCAG 2.2 Level AA",
-    quickref: "https://www.w3.org/WAI/WCAG22/quickref/",
-    understandingUrl: (slug: string) => `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
-  }),
+  useWcag: () => {
+    const version = WCAG.VERSION;
+    const level = WCAG.LEVEL;
+    return {
+      version,
+      level,
+      label: `WCAG ${version} Level ${level}`,
+      quickref: WCAG.QUICKREF[version],
+      understandingUrl: (slug: string) => `${WCAG.UNDERSTANDING_BASE[version]}${slug}.html`,
+    };
+  },
 }));
 
 import { mount } from "@vue/test-utils";

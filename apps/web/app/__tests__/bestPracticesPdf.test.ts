@@ -1263,15 +1263,40 @@ describe("every PDF practice tells an absent category from silence", () => {
 
 describe("advisorySince is declared on every witness-based PDF practice", () => {
   it("carries an ISO date the era gate can compare", () => {
-    for (const id of [
-      "nested-structure-tree",
-      "reading-order-fidelity",
-      "table-scope-with-headers",
-      "list-labels",
-      "heading-convention",
-    ]) {
-      expect(practice(id).advisorySince, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    }
+    // DERIVED, not listed. Until 2026-08-31 this iterated a hardcoded list of
+    // the five ids that already had the field — self-confirming. A new
+    // witness-based practice that omitted `advisorySince` could never turn it
+    // red, and the omission is precisely what fabricates a MET on a stored
+    // payload analysed before the advisory existed. The Office twin derives
+    // its set; this one now does too.
+    const NOT_WITNESS_BASED = [
+      // These read a defect (or a census line) directly rather than inferring
+      // MET from the ABSENCE of an advisory, so no era comparison applies.
+      "heading-level-order",
+      "heading-numbered-levels",
+      "heading-content",
+      "single-h1",
+      "bookmarks",
+      "font-embedding",
+      "display-doc-title",
+      "table-scope-simple",
+      "nested-tables",
+      "descriptive-link-text",
+      "raw-url-link-text",
+      "character-mapping",
+      "content-in-tag-tree",
+      "footnote-ids",
+    ];
+    // Every id must be accounted for on one side or the other: a NEW practice
+    // lands in `witnessBased` by default, which is the failure we want.
+    for (const id of NOT_WITNESS_BASED)
+      expect(
+        PDF_PRACTICES.map((p) => p.id),
+        `${id} is excluded here but no longer exists`,
+      ).toContain(id);
+    const witnessBased = PDF_PRACTICES.filter((p) => !NOT_WITNESS_BASED.includes(p.id));
+    expect(witnessBased.length).toBe(5);
+    for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

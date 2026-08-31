@@ -176,7 +176,7 @@ const PDF_LINES = [
   "Checking images and alt text…",
   "Checking tables, links, and bookmarks…",
   "Running veraPDF (pass 1 of 2, both run together): PDF/UA conformance…",
-  "Running veraPDF (pass 2 of 2, both run together): WCAG 2.2 machine checks…",
+  "Running veraPDF (pass 2 of 2, both run together): WCAG machine checks…",
   "Scoring the categories and building the report…",
 ];
 const OFFICE_LINES = [
