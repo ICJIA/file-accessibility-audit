@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.150.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: a real accessibility failure PowerPoint files could contain that the checker never reported.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: no data path, input, or output changes. Every other correction made today stopped the checker claiming more than it could support. This one is the reverse, and the more serious of the two: a slide whose heading was typed into a floating text box rather than the slide&rsquo;s title placeholder is a genuine Level A failure, Word has always caught it, and PowerPoint reported nothing at all. A tool that under-reports tells an agency a document is fine when it is not.",
+      },
+      {
+        kind: "p",
+        html: "The new check is deliberately narrow, because a false accusation costs more than a miss: the text must sit in a shape with no placeholder role at all, be short enough to be a heading, and have its size or weight set on the text itself rather than inherited from the slide layout &mdash; inherited sizes prove nothing and are ignored.",
+      },
+      {
+        kind: "p",
+        html: "The boundary matters as much as the rule, because the neighbouring question has the opposite answer: requiring a slide to <em>have</em> a heading is a Level AAA requirement that the law does not adopt, and it stays out of the grade. Three test documents pin both sides &mdash; one with typed headings, one done properly, and one with no heading at all that must keep a perfect score. Removing the rule fails the first; letting it grow to cover every untitled slide fails the other two. No existing document&rsquo;s score changed.",
+      },
+    ],
+  },
+  {
     version: "v1.149.1",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: completing the label fix released hours earlier, after a reader found two places it had missed.",
     body: [

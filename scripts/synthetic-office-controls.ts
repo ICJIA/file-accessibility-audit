@@ -230,6 +230,11 @@ const SLIDE_TITLE = (text: string) =>
   `<p:sp><p:nvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 const SLIDE_BODY = (text: string) =>
   `<p:sp><p:nvSpPr><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+/** A heading TYPED into a floating text box: no <p:ph>, so it carries no
+ *  placeholder role at all, with the size set explicitly on the run (an
+ *  inherited size proves nothing and the detector ignores it). */
+const SLIDE_FAKE_HEADING = (text: string, sz = 3200) =>
+  `<p:sp><p:nvSpPr><p:nvPr/></p:nvSpPr><p:txBody><a:p><a:r><a:rPr sz="${sz}" b="1"/><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 const SLIDE_PIC = (id: number, descr?: string) =>
   `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/><p:nvPr/></p:nvPicPr></p:pic>`;
 
@@ -1006,6 +1011,73 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-145-pptx-typed-heading.pptx",
+    truth:
+      "Two slides whose heading is typed into a floating 32-point bold text box instead of the slide's title placeholder — no <p:ph> on the shape at all, and the size set explicitly on the run. The heading EXISTS and is simply not marked up, which is WCAG 1.3.1 Level A, the same failure Word has scored since the start. PowerPoint had no equivalent check until 2026-08-31: this was a real Level A failure the report never mentioned in any form. slide_titles must lose points (15 per slide, capped at 40) AND the verdict must name 1.3.1. Deliberately NOT the same question as a slide with no heading at all, which is 2.4.10 Section Headings — Level AAA — and stays unscored.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_FAKE_HEADING("Quarterly Results") + SLIDE_BODY("Enrollment rose 12 percent."),
+          SLIDE_FAKE_HEADING("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "Quarterly Review" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score === null) return "slide_titles unscored";
+      if (c.score !== 70)
+        return `two typed headings scored ${c.score}, not the 100 - 2x15 the rule defines`;
+      const f = allFindings(r);
+      if (!/typed into an ordinary text box/i.test(f)) return "the typed headings are not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (x) => String(x.sc ?? "") === "1.3.1" && String(x.category ?? "") === "slide_titles",
+      );
+      return failing ? null : "points lost with no 1.3.1 failure attributed to slide_titles";
+    },
+  },
+  {
+    file: "synthetic-146-pptx-real-title-twin.pptx",
+    truth:
+      "The same two slides with the heading moved into the title placeholder. slide_titles must score a clean 100, no 1.3.1 may be asserted, and it must never score below its flawed twin.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Quarterly Results") + SLIDE_BODY("Enrollment rose 12 percent."),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "Quarterly Review" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score === null) return "slide_titles unscored";
+      if (c.score !== 100) return `a deck with real titles scored ${c.score}, not 100`;
+      return /typed into an ordinary text box/i.test(allFindings(r))
+        ? "a real title was called a typed heading"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-147-pptx-no-heading-at-all.pptx",
+    truth:
+      "A slide with NO title placeholder and NO heading-like text either — just body copy at ordinary size. This is the case that must NOT be scored: requiring a slide to HAVE a heading is WCAG 2.4.10 Section Headings, Level AAA, outside the standard the grade measures. slide_titles must stay at 100 and no 1.3.1 may be asserted. Without this twin, the typed-heading rule above could be satisfied by simply penalising every untitled slide, which is the over-reach the 2026-08-29 legal-only sweep removed.",
+    build: () =>
+      pptx([SLIDE_BODY("Enrollment rose 12 percent across all programs this year.")], {
+        title: "Quarterly Review",
+      }),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score === null) return "slide_titles unscored";
+      if (c.score !== 100)
+        return `an untitled slide with no visual heading scored ${c.score} — that is 2.4.10, Level AAA, and may not move the grade`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((x) => String(x.category ?? "") === "slide_titles");
+      return failing ? "asserted a criterion against a slide that simply has no heading" : null;
+    },
+  },
+  {
     file: "synthetic-134-pptx-title-not-first.pptx",
     truth:
       "A three-slide deck where slide 2 carries a real title placeholder that is NOT the first shape in the slide's tree — the body text is read out before the heading that was supposed to orient the listener. NOT SCORED since 2026-08-31: the PPTX conformance gate has always ruled the title-first heuristic is not a confirmed WCAG violation (1.3.2 asks that a correct sequence be programmatically DETERMINABLE, and the shape tree states it exactly), so reading_order must stay at 100 while the advisory names slide 2 with a not-scored prefix. This trap is the reason the rule was found: it deducted 15 points per slide for two days, which legal-basis catches the moment any document exercises it.",
@@ -1173,6 +1245,11 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "reading_order",
   },
   {
+    bad: "synthetic-145-pptx-typed-heading.pptx",
+    good: "synthetic-146-pptx-real-title-twin.pptx",
+    category: "slide_titles",
+  },
+  {
     bad: "synthetic-136-xlsx-headerless-table.xlsx",
     good: "synthetic-137-xlsx-header-table-twin.xlsx",
     category: "table_markup",
@@ -1277,6 +1354,18 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-133-docx-language-good-twin.docx": {
     label: "Word: the same document with its language declared",
+    chip: "held",
+  },
+  "synthetic-145-pptx-typed-heading.pptx": {
+    label: "PowerPoint: headings typed into text boxes instead of title placeholders",
+    chip: "caught",
+  },
+  "synthetic-146-pptx-real-title-twin.pptx": {
+    label: "PowerPoint: the same slides with real title placeholders",
+    chip: "held",
+  },
+  "synthetic-147-pptx-no-heading-at-all.pptx": {
+    label: "PowerPoint: a slide with no heading at all — AAA, and not scored",
     chip: "held",
   },
   "synthetic-134-pptx-title-not-first.pptx": {

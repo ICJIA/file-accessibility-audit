@@ -738,7 +738,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     // floating text box IS a 1.3.1 Level A failure (W3C F2) — scored for
     // Word (scoring/docx.ts:186-190), undetected for PowerPoint.
     standard:
-      "No WCAG 2.1 A/AA criterion requires a slide to have a title; requiring section headings is 2.4.10 (Level AAA). A missing title becomes a WCAG 1.3.1 (Level A) failure only where the slide shows a visually-styled heading that is not marked up as one — a case this tool does not detect in PowerPoint.",
+      "No WCAG 2.1 A/AA criterion requires a slide to have a title; requiring section headings is 2.4.10 (Level AAA). A missing title becomes a WCAG 1.3.1 (Level A) failure where the slide shows a visually-styled heading that is not marked up as one — which this tool detects and SCORES since v1.150.0, so those slides are handled by the action plan and this row no longer speaks for them.",
     links: [],
     wcagSlugs: [
       { slug: "section-headings", label: "WCAG 2.4.10: Section Headings — Level AAA" },
@@ -758,6 +758,20 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // alone would also match this category's duplicate-title advisory,
       // which interpolates a slide's OWN title; pairing it with the fix
       // clause both eras share cannot be forged from a title.
+      // The scored case takes precedence (v1.150.0). Where a slide carries a
+      // heading TYPED into a text box, its missing title is not optional — it
+      // is a WCAG 1.3.1 failure with points already taken, and the fix is the
+      // same action this row would recommend. Saying "worth doing" beside it
+      // would be the contradiction the converse gate exists to catch, and it
+      // caught exactly this the day the rule shipped.
+      if (matchMain(ctx, "typed into an ordinary text box")) {
+        return {
+          status: "not-applicable",
+          evidence: [
+            `At least one slide shows a heading typed into a text box rather than a title placeholder. That is ${SCORED_IN_PLAN}`,
+          ],
+        };
+      }
       const line = matchAdvisory(ctx, "no title", "use the outline view");
       if (line) {
         // pptx.ts:154 — the evidence is a LIST of slide numbers ("slides 3,

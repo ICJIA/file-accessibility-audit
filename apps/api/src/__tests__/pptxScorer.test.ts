@@ -40,6 +40,7 @@ function baseAnalysis(over: Partial<PptxAnalysis> = {}): PptxAnalysis {
       { index: 1, title: "Welcome", titleIsFirstShape: true, shapeCount: 2 },
       { index: 2, title: "Agenda", titleIsFirstShape: true, shapeCount: 3 },
     ],
+    fakeHeadings: [],
     images: [],
     tables: [],
     links: [],
@@ -199,5 +200,45 @@ describe("scorePptx", () => {
     expect(r.categories.find((c) => c.id === "table_markup")!.score).toBeNull();
     expect(r.categories.find((c) => c.id === "color_contrast")!.score).toBeNull();
     expect(r.categories.find((c) => c.id === "form_accessibility")!.notAssessed).toBe(true);
+  });
+});
+
+describe("a heading typed into a text box is scored; a missing heading is not (v1.150.0)", () => {
+  // Word has scored this since the start (docxService's fakeHeadings, WCAG
+  // 1.3.1 / failure F2). PowerPoint had no equivalent at all, so a slide whose
+  // heading was a floating 32pt text box was a Level A failure the report
+  // never mentioned in any form — the one under-reporting gap left after the
+  // 2026-08-31 accuracy work, and the more damaging direction: it tells an
+  // agency it is compliant when it is not.
+  it("scores a typed heading and names 1.3.1", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [{ index: 1, title: null, titleIsFirstShape: false, shapeCount: 2 }],
+        fakeHeadings: [{ slide: 1, text: "Quarterly Results" }],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "slide_titles")!;
+    expect(cat.score).toBe(85);
+    expect(cat.findings.join(" ")).toMatch(/typed into an ordinary text box/);
+  });
+
+  it("caps the deduction at 40, however many slides do it", () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ slide: i + 1, text: `H${i}` }));
+    const r = scorePptx(baseAnalysis({ fakeHeadings: many }));
+    expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(60);
+  });
+
+  it("does NOT score a slide that simply has no heading — that is 2.4.10, Level AAA", () => {
+    // The over-reach guard. Requiring a heading to EXIST is Level AAA and
+    // outside the standard the grade measures; the 2026-08-29 legal-only sweep
+    // removed exactly that deduction, and this rule must not reintroduce it by
+    // another route.
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [{ index: 1, title: null, titleIsFirstShape: false, shapeCount: 1 }],
+        fakeHeadings: [],
+      }),
+    );
+    expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(100);
   });
 });

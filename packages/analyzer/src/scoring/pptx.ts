@@ -146,9 +146,35 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
   // confirmed WCAG violation on its own" — a slide can carry its heading in
   // a body placeholder — and the score must now follow the same rule the
   // gate does. Reported loudly, counted never.
-  const score = 100;
+  //
+  // A TYPED heading is the other case, and it IS scored (2026-08-31). Where a
+  // slide has no title placeholder but does carry a short, explicitly large
+  // or bold line in a floating text box, the heading EXISTS and is simply not
+  // marked up — structure conveyed by presentation alone, which is WCAG 1.3.1
+  // Level A, the same failure Word has scored since the start. The two
+  // questions are different: "must a slide have a heading?" is 2.4.10, Level
+  // AAA and outside the legal bar; "is the heading it visibly has marked up?"
+  // is 1.3.1 and squarely inside it. PowerPoint had no answer to the second
+  // at all until now — a real Level A failure the report never mentioned.
+  const fakeHeadings = a.fakeHeadings ?? [];
+  let score = 100;
+  if (fakeHeadings.length > 0) {
+    score = Math.max(0, 100 - Math.min(40, fakeHeadings.length * 15));
+  }
   const findings: string[] = [];
 
+  if (fakeHeadings.length > 0) {
+    const nums = fakeHeadings.map((f) => f.slide).join(", ");
+    findings.push(
+      `Slide${fakeHeadings.length > 1 ? "s" : ""} ${nums} ${
+        fakeHeadings.length > 1 ? "have" : "has"
+      } a heading typed into an ordinary text box instead of the slide's title placeholder — it looks like a heading and is not one, so assistive technology cannot announce it as the slide's title or navigate to it. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder (or View → Outline and type it there).`,
+    );
+    findings.push(`--- Text Boxes Styled Like Slide Titles ---`);
+    for (const f of fakeHeadings.slice(0, 10)) {
+      findings.push(`  Slide ${f.slide}: "${f.text.slice(0, 80)}"`);
+    }
+  }
   if (untitled.length > 0) {
     const nums = untitled.map((s) => s.index).join(", ");
     findings.push(

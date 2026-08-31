@@ -1,5 +1,5 @@
 {
-  "count": 34,
+  "count": 37,
   "generated": "2026-08-31",
   "items": [
     {
@@ -146,6 +146,21 @@
     {
       "file": "synthetic-133-docx-language-good-twin.docx",
       "label": "Word: the same document with its language declared",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-145-pptx-typed-heading.pptx",
+      "label": "PowerPoint: headings typed into text boxes instead of title placeholders",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-146-pptx-real-title-twin.pptx",
+      "label": "PowerPoint: the same slides with real title placeholders",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-147-pptx-no-heading-at-all.pptx",
+      "label": "PowerPoint: a slide with no heading at all — AAA, and not scored",
       "chip": "held"
     },
     {

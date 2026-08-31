@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.150.0] - 2026-08-31
+
+### Added
+
+- **PowerPoint now catches a heading typed into a text box.** Word has always caught this: text made big and bold to look like a heading, without being one, is a WCAG 1.3.1 (Level A) failure, because the structure is visible but not readable by software. PowerPoint had no equivalent check at all — a slide whose heading was a floating 32-point text box was a genuine Level A failure that no report mentioned in any form. It is now found, scored, and named. This is the opposite direction from the corrections made earlier today: those stopped the tool claiming more than it could support, and this one stops it claiming *less*, which is the more damaging mistake of the two — it tells an agency a document is fine when it is not.
+- **The check is deliberately narrow, and the boundary is tested.** A slide that simply has no heading is *not* affected: requiring a heading to exist is WCAG 2.4.10, Level AAA, outside the standard the law names, and that stays unscored exactly as before. The new rule fires only where a heading visibly exists and is not marked up — a text box carrying no placeholder role at all, a short line, and a size or weight set explicitly on the text rather than inherited from the slide layout. Three test documents pin the boundary from both sides: one with typed headings, one with proper titles, and one with no heading at all that must keep scoring 100. Removing the rule fails the first; letting it grow to cover every untitled slide fails the last two.
+- **Where a slide has a typed heading, the "every slide has a title" best-practice row steps aside** — the fix is the same action, so listing it as optional beside a scored failure would contradict the report. It still appears for slides that genuinely have no heading, where the advice is real and the law is silent.
+
 ## [1.149.1] - 2026-08-31
 
 ### Fixed

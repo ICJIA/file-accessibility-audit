@@ -50,6 +50,15 @@ export interface PptxAnalysis {
     titleIsFirstShape: boolean;
     shapeCount: number;
   }>;
+  /** Slides whose heading is TYPED rather than placed: a slide with no title
+   *  placeholder, carrying a short line of explicitly large or bold text in an
+   *  ordinary shape. Word has scored this since the start (docxService's
+   *  fakeHeadings, WCAG 1.3.1 / failure F2); PowerPoint had no equivalent, so
+   *  a slide whose heading is a floating 32pt text box was a Level A failure
+   *  the report never mentioned. Distinct from a slide with NO heading at all,
+   *  which is 2.4.10 Section Headings — Level AAA, outside what the law asks
+   *  and deliberately unscored. */
+  fakeHeadings: Array<{ slide: number; text: string }>;
   images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
   tables: Array<{ hasHeaderRow: boolean; rowCount: number; colCount: number }>;
   links: Array<{ text: string; url: string | null }>;
@@ -92,6 +101,40 @@ function isTitlePlaceholder(sp: PONode): boolean {
 }
 
 /** A shape the reading order cares about: any sp/pic/graphicFrame etc. */
+/** Longest a typed heading may be. Same 120 as the Word rule: past that it is
+ *  a paragraph that happens to be emphasised, not a heading. */
+const FAKE_HEADING_MAX_LEN = 120;
+
+/**
+ * Is this shape a heading someone typed instead of placing?
+ *
+ * DELIBERATELY NARROW, because a false accusation here costs more than a miss:
+ * it must be a shape with NO placeholder role at all (a floating text box —
+ * text in a body placeholder is content, and its size is usually inherited),
+ * short, and carrying a run whose size or weight is set EXPLICITLY on the run.
+ * Inherited sizes are the false-positive trap this file already warns about
+ * ("frequently inherited from the placeholder/layout/master"), so an inherited
+ * large size proves nothing and is not read here.
+ */
+function typedHeadingText(sp: PONode): string | null {
+  if (tagOf(sp) !== "sp") return null;
+  const nv = firstChild(sp, "nvSpPr");
+  const nvPr = nv ? firstChild(nv, "nvPr") : undefined;
+  if (nvPr && firstChild(nvPr, "ph")) return null; // any placeholder: not floating
+  const text = textOf(sp).trim();
+  if (!text || text.length > FAKE_HEADING_MAX_LEN) return null;
+  for (const r of descendants(sp, "r")) {
+    const rPr = firstChild(r, "rPr");
+    if (!rPr) continue;
+    const raw = attrOf(rPr, "sz");
+    const sz = raw === undefined ? NaN : Number(raw);
+    const bold = attrOf(rPr, "b") === "1";
+    if (!Number.isFinite(sz)) continue; // inherited size — proves nothing
+    if (sz >= LARGE_HUNDREDTHS || (bold && sz >= LARGE_BOLD_HUNDREDTHS)) return text;
+  }
+  return null;
+}
+
 function contentShapes(spTree: PONode): PONode[] {
   return childrenOf(spTree).filter((c) => CONTENT_SHAPE_TAGS.has(tagOf(c) ?? ""));
 }
@@ -248,6 +291,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   }
 
   const analysis: PptxAnalysis = {
+    fakeHeadings: [],
     metadata: {
       title: corePropertyText(coreRoot, "title"),
       creator: corePropertyText(coreRoot, "creator"),
@@ -347,6 +391,19 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       titleIsFirstShape: !!titleSp && contentBearing.length > 0 && contentBearing[0] === titleSp,
       shapeCount: shapes.length,
     });
+
+    // Only when the slide has no title placeholder text of its own. With a
+    // real title present the heading IS marked up, and a big bold line
+    // elsewhere on the slide is just emphasis.
+    if (titleText.length === 0 && attrOf(slideRoot, "show") !== "0") {
+      for (const sp of shapes) {
+        const typed = typedHeadingText(sp);
+        if (typed) {
+          analysis.fakeHeadings.push({ slide: i + 1, text: typed });
+          break; // one per slide: the finding is about the slide, not each box
+        }
+      }
+    }
 
     for (const rPr of descendants(slideRoot, "rPr")) {
       const runLang = attrOf(rPr, "lang");

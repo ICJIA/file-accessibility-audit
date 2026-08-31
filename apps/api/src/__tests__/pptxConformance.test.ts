@@ -6,6 +6,7 @@ function analysis(over: Partial<PptxAnalysis>): PptxAnalysis {
   return {
     metadata: { title: "Deck", creator: null, language: "en-US", slideCount: 1 },
     slides: [{ index: 1, title: "T", titleIsFirstShape: true, shapeCount: 1 }],
+    fakeHeadings: [],
     images: [],
     tables: [],
     links: [],

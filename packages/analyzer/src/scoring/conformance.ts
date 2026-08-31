@@ -1184,6 +1184,24 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
     }
   }
 
+  // A heading typed into a floating text box instead of the slide's title
+  // placeholder. The heading EXISTS — it is visibly one — and nothing marks
+  // it as such, which is structure conveyed by presentation alone: WCAG 1.3.1
+  // Level A, exactly as Word has scored it since the start. Deliberately NOT
+  // the same question as "should this slide have a title at all", which is
+  // 2.4.10 Section Headings, Level AAA, and stays out of the grade (see the
+  // note on slide_titles above).
+  if ((analysis.fakeHeadings ?? []).length > 0) {
+    const n = analysis.fakeHeadings.length;
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "slide_titles",
+      `${n} slide(s) carry a heading typed into an ordinary text box rather than the slide's title placeholder, so the heading is visible but not programmatically a heading. In PowerPoint: Home → Layout → choose a layout with a Title, then move the text into the title placeholder.`,
+    );
+  }
+
   // --- criteria not assessed automatically ----------------------------------
   const notAssessed: NotAssessedCriterion[] = [
     {
