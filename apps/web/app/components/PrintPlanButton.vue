@@ -59,43 +59,58 @@ const wcag = useWcag();
 //
 // Big and unmissable on purpose: the small right-aligned view toggle taught us
 // that a control non-technical readers need cannot be a hint.
-const props = defineProps<{
-  result: {
-    filename?: string;
-    grade?: string | null;
-    overallScore?: number | null;
-    fileType?: string | null;
-    /** Read by the best-practices catalog (bestPractices/types.ts) to size
-     *  page-count-gated practices such as whether bookmarks are expected. */
-    pageCount?: number;
-    categories?: Array<{
-      id?: string;
-      label?: string;
-      score?: number | null;
-      severity?: string | null;
-      /** Widened 2026-08-30: the best-practices catalog reads each
-       *  category's findings — without this the catalog has no input and
-       *  evaluateBestPractices returns nothing. The full CategoryResult is
-       *  already passed at runtime; this only makes the type honest. */
-      findings?: string[];
-    }>;
-    conformance?: {
-      notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
+// withDefaults, not a bare optional: Vue casts an ABSENT Boolean prop to
+// false, so `includeBestPractices === false` would have been true on every
+// page that does not pass it — the shared report's printout lost its best
+// practices while the remediation page (which passes false) looked fine.
+// Caught by printablePlan.test "renders when best practices are the only
+// thing left to print".
+const props = withDefaults(
+  defineProps<{
+    result: {
+      filename?: string;
+      grade?: string | null;
+      overallScore?: number | null;
+      fileType?: string | null;
+      /** Read by the best-practices catalog (bestPractices/types.ts) to size
+       *  page-count-gated practices such as whether bookmarks are expected. */
+      pageCount?: number;
+      categories?: Array<{
+        id?: string;
+        label?: string;
+        score?: number | null;
+        severity?: string | null;
+        /** Widened 2026-08-30: the best-practices catalog reads each
+         *  category's findings — without this the catalog has no input and
+         *  evaluateBestPractices returns nothing. The full CategoryResult is
+         *  already passed at runtime; this only makes the type honest. */
+        findings?: string[];
+      }>;
+      conformance?: {
+        notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
+      } | null;
+      /** Stored PDF document info; `creator` picks the InDesign-aware source
+       *  steps. Absent on OOXML reports and old stored PDFs. */
+      pdfMetadata?: { creator?: string | null } | null;
     } | null;
-    /** Stored PDF document info; `creator` picks the InDesign-aware source
-     *  steps. Absent on OOXML reports and old stored PDFs. */
-    pdfMetadata?: { creator?: string | null } | null;
-  } | null;
-  /** Overrides for the remediation page, which is printing a different thing:
-   *  what is STILL wrong after the automatic fixes ran. */
-  heading?: string;
-  intro?: string;
-  /** Print the source URL in the header. Off for remediation: that job page
-   *  expires, and it is not somewhere the reader should return to — the file
-   *  has already been remediated, and the page cannot show the original
-   *  audit either. A dead link on a printout is worse than no link. */
-  showUrl?: boolean;
-}>();
+    /** Overrides for the remediation page, which is printing a different thing:
+     *  what is STILL wrong after the automatic fixes ran. */
+    heading?: string;
+    intro?: string;
+    /** Print the source URL in the header. Off for remediation: that job page
+     *  expires, and it is not somewhere the reader should return to — the file
+     *  has already been remediated, and the page cannot show the original
+     *  audit either. A dead link on a printout is worse than no link. */
+    showUrl?: boolean;
+    /** The shared row's createdAt on /report/[id]; absent for a live analysis. */
+    analyzedAt?: string | null;
+    /** The remediation page prints "What still needs fixing" — a best-practice
+     *  row reading "Already done" under that heading would read as an unfixed
+     *  defect, so it opts out. Default true. */
+    includeBestPractices?: boolean;
+  }>(),
+  { includeBestPractices: true },
+);
 
 const categories = computed(() => props.result?.categories ?? []);
 const steps = computed(() =>
@@ -106,7 +121,11 @@ const notAssessed = computed(() => props.result?.conformance?.notAssessed ?? [])
 // evaluateBestPractices narrows `unknown` itself and never throws (a
 // page-audit row, a null result, or a forged stored report all resolve to
 // an empty list) — see bestPractices/types.ts's own doctrine comment.
-const bestPractices = computed(() => evaluateBestPractices(props.result));
+const bestPractices = computed(() =>
+  props.includeBestPractices === false
+    ? []
+    : evaluateBestPractices(props.result, undefined, { analyzedAt: props.analyzedAt }),
+);
 
 // A document whose only remaining items are best practices must still
 // print — otherwise a page-audit row with nothing but optional best
@@ -121,10 +140,11 @@ const hasSomethingToPrint = computed(
 
 const blurb = computed(() => {
   const n = steps.value.length;
-  const bp = bestPractices.value.length;
+  // Countless on purpose: the catalog's row count is a constant per format
+  // and would count rows the printout labels "Does not apply".
   const bpBit =
-    bp > 0
-      ? ` It also lists ${bp} optional best practice${bp === 1 ? "" : "s"} that do not affect the grade.`
+    bestPractices.value.length > 0
+      ? " It also lists the best practices checked against this document — none affect the grade."
       : "";
   if (n === 0)
     return `Opens in a new tab: the checks a person still needs to make.${bpBit} Print or save as PDF.`;

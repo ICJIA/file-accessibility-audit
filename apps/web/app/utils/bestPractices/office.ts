@@ -172,6 +172,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   // =========================================================================
   {
     id: "docx-first-heading-is-h1",
+    advisorySince: "2026-08-29",
     formats: ["docx"],
     categoryId: "heading_structure",
     label: "Outline starts at Heading 1",
@@ -228,6 +229,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-heading-skips",
+    advisorySince: "2026-07-01",
     formats: ["docx"],
     categoryId: "heading_structure",
     label: "Heading levels do not skip",
@@ -286,6 +288,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-empty-headings",
+    advisorySince: "2026-07-19",
     formats: ["docx"],
     categoryId: "heading_structure",
     label: "No empty headings",
@@ -320,8 +323,15 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       }
       if (matchMain(ctx, "no headings were found")) {
         return {
-          status: "not-applicable",
-          evidence: ["This document has no headings, so there are no empty headings to check."],
+          // NOT not-applicable: docxService.ts:808 excludes EMPTY heading-styled
+          // paragraphs from `headings`, and docx.ts:145-152 returns this line
+          // before the emptyHeadingCount advisory (:182) is reached — so a
+          // document whose ONLY headings are empty lands here with exactly
+          // the defect this practice is about. The report cannot say.
+          status: "not-checked",
+          evidence: [
+            "This document has no headings with text in them. Whether it has empty heading-styled paragraphs could not be established from this report — worth a glance at the Styles pane.",
+          ],
         };
       }
       // ORDER IS LOAD-BEARING: docx.ts:162's witness is pushed whenever
@@ -341,6 +351,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-empty-paragraph-runs",
+    advisorySince: "2026-08-26",
     formats: ["docx"],
     categoryId: "text_extractability",
     label: "No long runs of blank paragraphs",
@@ -349,6 +360,12 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     why: "A screen reader announces each blank paragraph individually while moving through the document — a long run of them is dead air someone has to sit through.",
     links: [],
     detect(ctx) {
+      if (categoryAbsent(ctx)) {
+        return notChecked(
+          "This report contains no text-extractability data for this document.",
+          "not-run",
+        );
+      }
       const line = matchAdvisory(ctx, "consecutive empty paragraphs");
       if (line) {
         const n = firstNumber(line);
@@ -391,6 +408,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-layout-grids",
+    advisorySince: "2026-08-29",
     formats: ["docx"],
     categoryId: "table_markup",
     label: "Bare layout grids reviewed",
@@ -444,7 +462,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // above as redundant: today's half of the soundness rests entirely on
       // it returning first.
       //
-      //   TODAY, the bare-grid advisory is emitted for every bare grid
+      //   TODAY, the bare-grid advisory is emitted for every bare grid of two or more rows and columns (scoring/docx.ts:288)
       //   (docx.ts:296), so such a document has already returned NOT MET
       //   above and never reaches this gate. The header-row line read below
       //   says nothing about bare grids either way on a current payload — it
@@ -471,7 +489,12 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         if (!headerless) {
           return {
             status: "met",
-            evidence: ["This document's tables were checked, and none is a bare, unstyled grid."],
+            evidence: [
+              // scoring/docx.ts:288 counts a bare grid only when rowCount >= 2
+              // && colCount >= 2; a 1×N unstyled grid is never flagged, so
+              // the claim is scoped to what the analyzer actually examined.
+              "This document's tables with two or more rows and columns were checked, and none is a bare, unstyled grid.",
+            ],
           };
         }
         // Claims only what is established at this branch in EITHER era: the
@@ -479,9 +502,24 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         // can be, and that this check is not picking between them. It must
         // not say "this report does not say which" — a current-era report
         // DOES say, by the absence of the bare-grid advisory above.
-        return notChecked(
-          "This document has at least one table with no header row. That can be a layout grid, which does not need one, or a data table that is missing one — this check does not claim either way, so those tables are worth a quick look.",
-        );
+        // "N data table(s) have no header row" is, on every payload analyzed
+        // since 2026-08-29, a SCORED WCAG 1.3.1 failure that already excludes
+        // bare grids (docx.ts:285 filters looksLikeLayout) — it appears in the
+        // action plan above as a required fix. Saying "does not change your
+        // score" beneath it would contradict the plan on the same page.
+        // Before 2026-08-29 that count still INCLUDED bare grids, so on an
+        // older payload the line is genuinely ambiguous.
+        if (ctx.analyzedAt && ctx.analyzedAt < new Date("2026-08-29")) {
+          return notChecked(
+            "This report predates the check that tells a bare layout grid apart from a data table missing its header, so this one needs a person's eye.",
+          );
+        }
+        return {
+          status: "not-applicable",
+          evidence: [
+            "This document has a data table with no header row. That is counted in your score — see the action plan above, not this section.",
+          ],
+        };
       }
       return notChecked(
         "This report contains no finding about bare layout grids in this document.",
@@ -490,6 +528,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-nested-tables",
+    advisorySince: "2026-07-01",
     formats: ["docx"],
     categoryId: "table_markup",
     label: "No nested tables",
@@ -537,6 +576,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-merged-cells",
+    advisorySince: "2026-08-26",
     formats: ["docx"],
     categoryId: "table_markup",
     label: "Merged and split table cells",
@@ -601,6 +641,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-empty-table-rows",
+    advisorySince: "2026-08-26",
     formats: ["docx"],
     categoryId: "table_markup",
     label: "No entirely empty table rows",
@@ -651,6 +692,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "docx-raw-url-link-text",
+    advisorySince: "2026-06-05",
     formats: ["docx"],
     categoryId: "link_quality",
     label: "Link text is not a raw URL",
@@ -848,6 +890,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "pptx-raw-url-link-text",
+    advisorySince: "2026-06-05",
     formats: ["pptx"],
     categoryId: "link_quality",
     label: "Link text is not a raw URL",
@@ -960,6 +1003,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "xlsx-defined-tables",
+    advisorySince: "2026-07-19",
     formats: ["xlsx"],
     categoryId: "table_markup",
     label: "Data uses defined Excel Tables",
@@ -1033,6 +1077,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "xlsx-data-outside-tables",
+    advisorySince: "2026-07-19",
     formats: ["xlsx"],
     categoryId: "table_markup",
     label: "No sizable data outside a table",
@@ -1116,8 +1161,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
             status: "met",
             evidence: [
               pivotLine
-                ? "This workbook's visible sheets were checked, and apart from its pivot tables — which cannot be turned into Excel Tables — no sizable data sits outside a defined Table."
-                : "This workbook's visible sheets were checked, and none has sizable data sitting outside a defined Table.",
+                ? "Every visible sheet in this workbook with sizable data has at least one defined Excel Table — apart from its pivot tables, which cannot be turned into one. Whether every range on those sheets sits inside a Table is not checked; the analyzer tests each sheet, not each range."
+                : "Every visible sheet in this workbook with sizable data has at least one defined Excel Table. Whether every range on those sheets sits inside a Table is not checked; the analyzer tests each sheet (xlsxService hasDefinedTable), not each range.",
             ],
           };
         }
@@ -1146,6 +1191,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "xlsx-pivot-tables",
+    advisorySince: "2026-07-19",
     formats: ["xlsx"],
     categoryId: "table_markup",
     label: "Pivot tables reviewed manually",
@@ -1203,6 +1249,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "xlsx-data-start",
+    advisorySince: "2026-08-26",
     formats: ["xlsx"],
     categoryId: "table_markup",
     label: "Data starts near cell A1",
@@ -1267,6 +1314,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "xlsx-merged-cells",
+    advisorySince: "2026-07-02",
     formats: ["xlsx"],
     categoryId: "table_markup",
     label: "Merged cells reviewed",
@@ -1327,6 +1375,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
   },
   {
     id: "xlsx-raw-url-link-text",
+    advisorySince: "2026-06-05",
     formats: ["xlsx"],
     categoryId: "link_quality",
     label: "Link text is not a raw URL",

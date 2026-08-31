@@ -270,8 +270,12 @@ describe("docx-empty-headings", () => {
     expect(r.evidence.join(" ")).toMatch(/2 empty Heading-styled paragraphs/);
   });
 
-  it("is NOT APPLICABLE when the document has no headings at all", () => {
-    expect(run("docx-empty-headings", [DOCX_NO_HEADINGS]).status).toBe("not-applicable");
+  it("is NOT CHECKED — not NOT APPLICABLE — when no headings with text were found: empty heading-styled paragraphs are excluded before that line fires (docxService.ts:808, docx.ts:145-152)", () => {
+    const r = run("docx-empty-headings", [
+      "No headings were found. Short documents may not need them, but longer ones should use Heading styles.",
+    ]);
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBeUndefined();
   });
 
   it("is MET when the witness is present with no empty-heading advisory", () => {
@@ -948,5 +952,79 @@ describe("Word heading practices show the document's own outline — the evidenc
   it("no outline, no block — never an empty caption", () => {
     const r = run("docx-heading-skips", [DOCX_HEADING_WITNESS, DOCX_HEADING_SKIPS]);
     expect(r.block).toBeUndefined();
+  });
+});
+
+describe("docx-layout-grids claims only what the analyzer examined", () => {
+  it("MET is scoped to grids of two or more rows and columns (docx.ts:288 never flags a 1×N grid)", () => {
+    const r = run("docx-layout-grids", [DOCX_TABLE_WITNESS]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/two or more rows and columns/);
+  });
+  it("defers to the score on a headerless data table in a current-era payload — that is a Critical 1.3.1 failure in the plan above", () => {
+    const r = run("docx-layout-grids", [
+      DOCX_TABLE_WITNESS,
+      "1 data table(s) have no header row. In Word: select the top row → Table Layout → Repeat Header Rows.",
+    ]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
+    expect(r.evidence.join(" ")).not.toMatch(/does not claim either way/);
+  });
+  it("keeps the honest hedge only for payloads that predate the layout filter (2026-08-29)", () => {
+    const ctx = buildContext(
+      {
+        findings: [
+          DOCX_TABLE_WITNESS,
+          "1 data table(s) have no header row. In Word: select the top row → Table Layout → Repeat Header Rows.",
+        ],
+      },
+      "docx",
+      0,
+      new Date("2026-08-01"),
+    );
+    const r = practice("docx-layout-grids").detect(ctx);
+    expect(r.status).toBe("not-checked");
+    expect(r.evidence.join(" ")).toMatch(/predates/);
+  });
+});
+
+describe("docx-empty-headings does not call the exact defect it is about 'not applicable'", () => {
+  it("'No headings were found' is NOT CHECKED — empty heading-styled paragraphs are excluded before that line fires", () => {
+    const r = run("docx-empty-headings", [
+      "No headings were found. Short documents may not need them, but longer ones should use Heading styles.",
+    ]);
+    expect(r.status).toBe("not-checked");
+    expect(r.evidence.join(" ")).toMatch(/could not be established/);
+  });
+});
+
+describe("xlsx-data-outside-tables MET claims the per-sheet flag, not every range", () => {
+  it("says 'at least one defined Excel Table' per sheet and that ranges are not checked", () => {
+    const r = run("xlsx-data-outside-tables", ["2 defined table(s) found."]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/at least one defined Excel Table/);
+    expect(r.evidence.join(" ")).toMatch(/not checked/);
+    expect(r.evidence.join(" ")).not.toMatch(/no sizable data sits outside/);
+  });
+});
+
+describe("every Office practice tells an absent category from silence", () => {
+  it("returns reason 'not-run' when the category is missing", () => {
+    for (const p of OFFICE_PRACTICES) {
+      const r = p.detect(buildContext(undefined, p.formats[0] as FileType, 0));
+      expect(r.status, p.id).toBe("not-checked");
+      expect(r.reason, p.id).toBe("not-run");
+    }
+  });
+});
+
+describe("advisorySince is declared on every witness-based Office practice", () => {
+  it("carries an ISO date the era gate can compare", () => {
+    const witnessBased = OFFICE_PRACTICES.filter(
+      (p) =>
+        !["xlsx-sheet-names", "pptx-slide-titles", "pptx-distinct-slide-titles"].includes(p.id),
+    );
+    expect(witnessBased.length).toBe(16);
+    for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

@@ -671,7 +671,8 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     const beyond = w.find('[data-testid="plan-beyond-group"]');
     expect(bp.exists()).toBe(true);
     expect(beyond.exists()).toBe(true);
-    expect(bp.text()).toMatch(/scope/i);
+    // Not /scope/i — the row LABEL satisfies that. The NOT MET evidence does not.
+    expect(bp.text()).toMatch(/header cells? across/i);
     // The section sits between the numbered steps and the beyond group —
     // both boundaries, not just the one against the beyond group.
     const html = w.html();
@@ -756,5 +757,44 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     expect(w.find('[data-testid="best-practices"]').exists()).toBe(false);
     expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
     expect(w.text()).not.toMatch(/Everything the law requires is above/);
+  });
+});
+
+describe("the per-category not-scored tier names a standard the file type actually has", () => {
+  it("says PDF/UA on a PDF card and plain 'best practice' on a Word card", () => {
+    const line = "Note — not scored: 2 merged cell(s) across the table(s).";
+    const docx = mount(ReportContent, {
+      props: {
+        result: {
+          fileType: "docx",
+          categories: [{ id: "table_markup", label: "Table Markup", score: 100, findings: [line] }],
+        } as never,
+      },
+    });
+    // Scoped to the tier itself: TwoStandardsStrip (above the cards) names
+    // PDF/UA on purpose, to say it "Does not apply to this file type".
+    const docxTier = docx.find('[data-testid="not-scored-tier"]');
+    expect(docxTier.text()).toMatch(/Also recommended — best practice/);
+    expect(docxTier.text()).not.toMatch(/PDF\/UA/);
+    const pdf = mount(ReportContent, {
+      props: {
+        result: {
+          fileType: "pdf",
+          categories: [
+            {
+              id: "table_markup",
+              label: "Table Markup",
+              score: 100,
+              findings: [
+                "PDF/UA only — not scored: 2 header cell(s) across 1 table(s) have no /Scope.",
+              ],
+            },
+          ],
+        } as never,
+      },
+    });
+    expect(pdf.find('[data-testid="not-scored-tier"]').text()).toMatch(
+      /Also recommended — PDF\/UA best practice/,
+    );
   });
 });

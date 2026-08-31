@@ -227,7 +227,7 @@
       <div class="h-px flex-1 bg-[var(--border)]"></div>
     </div>
 
-    <BestPracticesSection v-if="result" :result="result" class="mt-8" />
+    <BestPracticesSection v-if="result" :result="result" :analyzed-at="analyzedAt" class="mt-8" />
 
     <!-- ABOVE AND BEYOND, NARROWED (2026-08-30) — this card now carries only
          veraPDF's verdict, the one thing the Best Practices section above
@@ -262,7 +262,7 @@
              and the referee's own totals. This card only renders at all when
              showBeyondGroup is true, which requires `error || passed ===
              false` — so a "veraPDF: ✓ clean" chip for `passed === true` can
-             never be reached (fix round 1, 2026-08-30: was dead code,
+             never be reached (fix round 1, 2026-08-30: was reachable on main via beyondItems, unreachable once showBeyondGroup narrowed to veraPDF alone —
              deleted). Do not re-add it without widening showBeyondGroup
              first, or it stays unreachable. -->
         <div class="mt-3.5 flex flex-wrap gap-2" data-testid="beyond-stat-chips">
@@ -428,6 +428,8 @@ const props = defineProps<{
    *  which does its own narrowing — /report/[id] renders attacker-controlled
    *  stored JSON — and self-hides when it has nothing to show. */
   result?: unknown;
+  /** Forwarded to BestPracticesSection and its era gate. */
+  analyzedAt?: string | null;
 }>();
 
 /** Whether BestPracticesSection will actually render a row below — the same
@@ -436,7 +438,9 @@ const props = defineProps<{
  *  not enough: it is truthy for any report object, including one with
  *  categories but a missing/unrecognized fileType, for which
  *  evaluateBestPractices returns nothing and the section renders nothing. */
-const hasBestPractices = computed(() => evaluateBestPractices(props.result).length > 0);
+const hasBestPractices = computed(
+  () => evaluateBestPractices(props.result, undefined, { analyzedAt: props.analyzedAt }).length > 0,
+);
 
 /** Every failing veraPDF rule, largest count first — the referee's full list,
  *  not our summary of it. */

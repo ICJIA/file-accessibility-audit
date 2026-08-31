@@ -275,6 +275,23 @@
         </div>
       </li>
     </ul>
+
+    <div v-if="otherNotes.length" data-testid="best-practices-other-notes" class="mt-5">
+      <p class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0">
+        Also noted in this report
+      </p>
+      <p class="text-xs text-[var(--text-muted)] mt-1">
+        Advisories the analyzer raised that none of the practices above covers — its own words.
+      </p>
+      <ul class="mt-2 space-y-1.5 list-none p-0 m-0">
+        <li v-for="(n, i) in otherNotes" :key="`note-${i}`" class="text-xs flex gap-2">
+          <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-sky-400">○</span>
+          <span class="text-[var(--text-secondary)]"
+            ><span class="font-semibold">{{ n.label }}: </span>{{ n.text }}</span
+          >
+        </li>
+      </ul>
+    </div>
   </section>
 </template>
 
@@ -284,6 +301,7 @@ import {
   evaluateBestPractices,
   sortBestPractices,
   summarizeBestPractices,
+  uncoveredNotScored,
 } from "~/utils/bestPractices";
 import type {
   BestPractice,
@@ -294,7 +312,7 @@ import type {
 import { resolveRowLinks } from "~/utils/bestPractices/links";
 import { useWcag } from "~/composables/useWcag";
 
-const props = defineProps<{ result: unknown }>();
+const props = defineProps<{ result: unknown; analyzedAt?: string | null }>();
 
 // Version-aware WCAG Understanding links are resolved once here, not in the
 // catalog — the base URL lives in runtime config behind useWcag(), which a
@@ -316,13 +334,21 @@ interface DisplayRow extends EvaluatedPractice {
 // place this order is defined; the printable plan calls it too, so the two
 // surfaces cannot drift apart on the same document.
 const rows = computed<DisplayRow[]>(() =>
-  sortBestPractices(evaluateBestPractices(props.result)).map((r) => ({
+  sortBestPractices(
+    evaluateBestPractices(props.result, undefined, { analyzedAt: props.analyzedAt }),
+  ).map((r) => ({
     ...r,
     links: resolveRowLinks(r, wcag.understandingUrl),
   })),
 );
 
 const summary = computed(() => summarizeBestPractices(rows.value));
+
+/** Not-scored lines from categories no practice covers (the static-XFA
+ *  caveat lives in form_accessibility). The plan's beyond group used to list
+ *  every such line; narrowing it to veraPDF alone dropped them from the
+ *  Visual view. Shown verbatim — the analyzer's words, not a verdict. */
+const otherNotes = computed(() => uncoveredNotScored(props.result));
 
 // No "N of 19" fraction anywhere — a denominator beside a status is read as
 // a grade in this product. Each chip stands alone. "worth doing" mirrors the

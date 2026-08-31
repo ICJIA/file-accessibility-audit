@@ -78,6 +78,11 @@ export interface DetectContext {
   /** False when the report has no such category at all. */
   categoryPresent: boolean;
   pageCount: number;
+  /** When this payload was analyzed, if known. Live analyses pass nothing
+   *  (= now); /report/[id] passes the shared row's createdAt. Consulted by
+   *  the era gate in evaluateBestPractices and by any practice whose
+   *  evidence lines changed meaning at a known date. Null = unknown. */
+  analyzedAt: Date | null;
 }
 
 export interface BestPractice {
@@ -100,6 +105,15 @@ export interface BestPractice {
    *  BestPracticesSection.vue turns these into links and concatenates them
    *  onto `links`. */
   wcagSlugs?: Array<{ slug: string; label: string }>;
+  /** ISO date (YYYY-MM-DD) the analyzer began emitting this practice's
+   *  advisory. A WITNESS-based MET (census line present, advisory absent) is
+   *  only sound for payloads analyzed on or after this date — before it the
+   *  analyzer could not have complained, so silence proves nothing. Stored
+   *  reports live 365 days and their findings are never re-derived
+   *  (regrade.ts), so evaluateBestPractices turns such a MET into NOT
+   *  CHECKED. Omit for positive-line METs, which are emitted only on the
+   *  clean path and are therefore era-proof. */
+  advisorySince?: string;
   detect(ctx: DetectContext): BestPracticeResult;
 }
 
@@ -114,7 +128,14 @@ export function buildContext(
   category: unknown,
   fileType: FileType,
   pageCount: number,
+  analyzedAt: Date | string | null = null,
 ): DetectContext {
+  const parsed =
+    analyzedAt instanceof Date
+      ? analyzedAt
+      : typeof analyzedAt === "string"
+        ? new Date(analyzedAt)
+        : null;
   const cat =
     category && typeof category === "object" ? (category as Record<string, unknown>) : null;
   const findings = toStringArray(cat?.findings);
@@ -128,6 +149,7 @@ export function buildContext(
     notAssessed: cat?.notAssessed === true,
     categoryPresent: cat !== null,
     pageCount: Number.isFinite(pageCount) ? pageCount : 0,
+    analyzedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed : null,
   };
 }
 

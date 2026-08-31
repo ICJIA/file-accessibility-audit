@@ -334,7 +334,8 @@
           class="mt-4 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-deep)] px-4 py-3"
         >
           <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-            Also recommended — PDF/UA best practice
+            Also recommended —
+            {{ result.fileType === "pdf" ? "PDF/UA best practice" : "best practice" }}
             <span class="font-normal normal-case">(not counted in your score)</span>
           </p>
           <ul class="mt-2 space-y-1.5">

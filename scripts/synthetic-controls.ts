@@ -4004,8 +4004,12 @@ const SAMPLES: Sample[] = [
       );
       if (bad.length)
         return `WCAG-clean document accused of ${bad.map((c) => `${c.id}(${c.severity})`).join(", ")}`;
-      if (r.overallScore < 89)
-        return `score ${r.overallScore} < 89 — best-practice debt must not move the grade`;
+      if (r.overallScore < 90)
+        return `score ${r.overallScore} is below the A band (90) — best-practice debt must not move the grade`;
+      // The /trust chip for these traps reads "HELD · SCORED 100" — a literal
+      // the gate must back, or the trust page states a number nothing checks.
+      if (r.overallScore !== 100)
+        return `scored ${r.overallScore}, but the trust-page chip claims SCORED 100`;
       const failures = r.conformance?.failures ?? [];
       if (failures.length)
         return `conformance failures present: ${failures.map((f) => f.sc).join(", ")}`;

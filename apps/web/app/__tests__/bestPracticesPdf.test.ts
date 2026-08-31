@@ -239,12 +239,13 @@ describe("heading-convention", () => {
     expect(run("heading-convention", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when every heading is generic — a different practice's concern", () => {
+  it("is NOT APPLICABLE when every heading is generic — and points at the row that flags it", () => {
     // All-generic is mutually exclusive with the mixed-convention check (the
-    // analyzer returns before computing genericHCount at all), and it is
-    // not what this practice's own needle matches — heading-numbered-levels
-    // covers that case instead.
-    expect(run("heading-convention", [ALL_GENERIC]).status).toBe("not-checked");
+    // analyzer returns before computing genericHCount at all); "no finding"
+    // was untrue when heading-numbered-levels reads NOT MET one row away.
+    const r = run("heading-convention", [ALL_GENERIC]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/Numbered heading levels/);
     expect(run("heading-convention", []).status).toBe("not-checked");
   });
 });
@@ -469,6 +470,22 @@ describe("bookmarks", () => {
     expect(run("bookmarks", [], 0).status).toBe("not-checked");
   });
 
+  it("defers to the score on an empty outline — scoring/pdf.ts:1444 scores that 40", () => {
+    const r = run("bookmarks", ["Outline structure present but contains no entries"], 12);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
+  });
+
+  it("is NOT APPLICABLE on the analyzer's own short-document line, even when a stored pageCount is 0", () => {
+    const r = run(
+      "bookmarks",
+      ["Document has 4 page(s) — bookmarks are not required for short documents"],
+      0,
+    );
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/short enough/);
+  });
+
   it("is NOT MET for a long document with no bookmarks", () => {
     const r = run("bookmarks", [MISSING_LINE], 24);
     expect(r.status).toBe("not-met");
@@ -623,8 +640,33 @@ describe("table-scope-with-headers", () => {
     expect(r.evidence.join(" ")).toMatch(/2 table/);
   });
 
-  it("is MET when tables associate headers via /Scope or /Headers, with no /Headers-only advisory", () => {
+  const TH_LINE = "All <TH> cells have Scope attributes (/Column, /Row, or /Both)";
+  const SIMPLE_SCOPE_ADVISORY =
+    "PDF/UA only — not scored: 2 header cell(s) across 1 table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.";
+  const SCORED_COMPLEX =
+    "2 <TH> cell(s) missing Scope attribute (with no /Headers association either) — and these tables need it: their headers run along more than one edge or contain spanned cells.";
+
+  it("is MET on the all-<TH>-scoped line (a fully scoped complex table used to read NOT CHECKED)", () => {
+    expect(run("table-scope-with-headers", [TH_LINE]).status).toBe("met");
+  });
+
+  it("is MET on the 'all tables associate' line only when no simple table lacks /Scope", () => {
     expect(run("table-scope-with-headers", [ASSOC_LINE]).status).toBe("met");
+  });
+
+  it("is NOT MET-nor-MET — NOT CHECKED — on controls/synthetic-121's shape: 'all tables associate' beside the simple-scope advisory", () => {
+    // scoring/pdf.ts:1671 counts `associated(t) || t.simpleHeaderLayout`, so
+    // an UNSCOPED simple table satisfies the associate line. table-scope-simple
+    // reads NOT MET on this document; this row read MET one line below it.
+    const r = run("table-scope-with-headers", [ASSOC_LINE, SIMPLE_SCOPE_ADVISORY]);
+    expect(r.status).toBe("not-checked");
+    expect(r.evidence.join(" ")).toMatch(/does not establish/);
+  });
+
+  it("defers to the score on a SCORED complex-table failure", () => {
+    const r = run("table-scope-with-headers", [SCORED_COMPLEX]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
@@ -786,7 +828,7 @@ describe("character-mapping", () => {
     expect(r.evidence.join(" ")).toMatch(/8/);
   });
 
-  it("is NOT MET for the WORST-case band too — the one that previously showed as not-checked", () => {
+  it("defers to the score in the WORST band — it is a scored deduction, not an optional practice", () => {
     // This band's advisory does NOT say "symbol-font bullets or dingbats"
     // at all (it says the opposite: real text may be unreadable) — the
     // fixed matcher keys off the always-present measurement line instead.
@@ -795,7 +837,10 @@ describe("character-mapping", () => {
     const WORST_ADVISORY =
       "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.";
     const r = run("character-mapping", [GROUP_HEADER, WORST_COUNT_LINE, WORST_ADVISORY]);
-    expect(r.status).toBe("not-met");
+    // This band caps text_extractability at 50 (scoring/pdf.ts:326) — a
+    // Moderate deduction with a REQUIRED plan step. It is not "optional".
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
     // Pins the analyzer's own thousands-separator convention
     // (unmappedChars.toLocaleString(), packages/analyzer/src/scoring/pdf.ts:323)
     // now carried into this catalog's own evidence sentence — a bare
@@ -804,7 +849,7 @@ describe("character-mapping", () => {
     expect(r.evidence.join(" ")).toMatch(/5,000 extracted characters/);
     expect(r.evidence.join(" ")).not.toMatch(/\b5000\b/);
     expect(r.evidence.join(" ")).not.toMatch(/symbol-font bullets or dingbats/);
-    expect(r.fix?.app).toMatch(/OCR/);
+    expect(r.fix).toBeUndefined();
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no MET/NOT APPLICABLE line exists)", () => {
@@ -825,15 +870,28 @@ describe("content-in-tag-tree", () => {
     expect(r.evidence.join(" ")).toMatch(/40/);
   });
 
-  it("is NOT MET for the WORST-case band too — the one that previously showed as not-checked", () => {
+  it("defers to the score in the WORST band — a scored deduction, not an optional practice", () => {
     const WORST_COUNT_LINE =
       "  600 visible character(s) — 22% of the page text — are painted outside the tagged content (pages 3, 4). They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.";
     const WORST_ADVISORY =
       "  How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF to bring the untagged content into the structure, then verify the affected pages in the Tags panel — or mark genuinely decorative runs as artifacts.";
     const r = run("content-in-tag-tree", [GROUP_HEADER, WORST_COUNT_LINE, WORST_ADVISORY]);
-    expect(r.status).toBe("not-met");
+    // 600 chars at 22% caps the category at 50 (scoring/pdf.ts:370) — a
+    // required plan step above the seam. Not this section's to call optional.
+    expect(r.status).toBe("not-applicable");
     expect(r.evidence.join(" ")).toMatch(/600/);
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
     expect(r.evidence.join(" ")).not.toMatch(/stray export residue/);
+  });
+
+  it("defers to the score in the MIDDLE band too (cap 85, 'Review the named pages')", () => {
+    const MID_COUNT =
+      "  80 visible character(s) — 5% of the page text — are painted outside the tagged content (page 2). They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.";
+    const MID_ADVICE =
+      "  Review the named pages in Acrobat's Tags panel: tag real content, or mark decorative text (watermarks, crop marks) as artifacts.";
+    const r = run("content-in-tag-tree", [GROUP_HEADER, MID_COUNT, MID_ADVICE]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no MET/NOT APPLICABLE line exists)", () => {
@@ -1081,5 +1139,74 @@ describe("every PDF practice", () => {
   it("populates wcagSlugs on at least one practice, so the field cannot silently rot", () => {
     const withSlugs = PDF_PRACTICES.filter((p) => (p.wcagSlugs?.length ?? 0) > 0);
     expect(withSlugs.length).toBeGreaterThan(0);
+  });
+});
+
+describe("table practices recognise every analyzer N/A outcome, not just 'no tables'", () => {
+  const LAYOUT_ONLY =
+    "2 single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.";
+  const NO_HEADER_CELLS = "Scope attributes: N/A (no header cells to check)";
+  it("layout-only tables → NOT APPLICABLE on all three table practices", () => {
+    for (const id of ["table-scope-simple", "table-scope-with-headers", "nested-tables"]) {
+      const r = run(id, [LAYOUT_ONLY]);
+      expect(r.status, id).toBe("not-applicable");
+      expect(r.evidence.join(" "), id).toMatch(/layout structures/);
+    }
+  });
+  it("no header cells → NOT APPLICABLE on both scope practices", () => {
+    for (const id of ["table-scope-simple", "table-scope-with-headers"]) {
+      const r = run(id, [NO_HEADER_CELLS]);
+      expect(r.status, id).toBe("not-applicable");
+      expect(r.evidence.join(" "), id).toMatch(/no header cells/);
+    }
+  });
+});
+
+describe("list-labels fails on the per-list glyph the advisory's own gate suppresses", () => {
+  it("is NOT MET when a malformed list carries <Lbl> ✗ and the advisory never fired", () => {
+    const r = run("list-labels", [
+      "--- List Structure Analysis ---",
+      "1 list(s) detected with 5 total item(s)",
+      "  List: 5 <LI> | <Lbl> ✗ | <LBody> ✗ | incomplete structure",
+    ]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/1 list .*no <Lbl>|list in this document has no <Lbl>/);
+  });
+});
+
+describe("an all-generic <H> document is NOT APPLICABLE for level order and convention — not 'no finding'", () => {
+  const ONLY_GENERIC =
+    "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.";
+  it("routes the reader to the row that actually flags it", () => {
+    for (const id of ["heading-level-order", "heading-convention"]) {
+      const r = run(id, [ONLY_GENERIC]);
+      expect(r.status, id).toBe("not-applicable");
+      expect(r.evidence.join(" "), id).toMatch(/Numbered heading levels/);
+    }
+    expect(run("heading-numbered-levels", [ONLY_GENERIC]).status).toBe("not-met");
+  });
+});
+
+describe("every PDF practice tells an absent category from silence", () => {
+  it("returns reason 'not-run' — never the 'silent' reassurance — when the category is missing", () => {
+    for (const p of PDF_PRACTICES) {
+      const r = p.detect(buildContext(undefined, "pdf", 0));
+      expect(r.status, p.id).toBe("not-checked");
+      expect(r.reason, p.id).toBe("not-run");
+    }
+  });
+});
+
+describe("advisorySince is declared on every witness-based PDF practice", () => {
+  it("carries an ISO date the era gate can compare", () => {
+    for (const id of [
+      "nested-structure-tree",
+      "reading-order-fidelity",
+      "table-scope-with-headers",
+      "list-labels",
+      "heading-convention",
+    ]) {
+      expect(practice(id).advisorySince, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
   });
 });

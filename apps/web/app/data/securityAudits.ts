@@ -59,7 +59,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     body: [
       {
         kind: "p",
-        html: "The new section opens no new trust boundary. Every interpolated value in the printable plan passes through the same <code>escapeHtml</code> helper already used for scored findings; every link &mdash; the catalog&rsquo;s own and any built from document content &mdash; passes through <code>safeHttpUrl</code> before it can render, and an unparseable one is dropped rather than shown broken. The catalog&rsquo;s own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied.",
+        html: "The new section opens no new trust boundary. Every interpolated value in the printable plan passes through the same <code>escapeHtml</code> helper already used for scored findings; every link &mdash; the catalog&rsquo;s own and any built from document content &mdash; passes through <code>safeHttpUrl</code> before it can render, and an unparseable one is dropped rather than shown broken. The catalog&rsquo;s own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied. A second review pass (the same day) closed the one way a stored report could still overstate itself: the section reads findings a past version of the analyzer wrote, and a report created before one of its advisories existed carries no complaint from it. Each witness-based check now records the date its advisory began, and older shared reports show that row as <em>not checked</em> rather than met.",
       },
       {
         kind: "p",

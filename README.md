@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,011 tests** across 196 test files (API 1,624 · Web 1,338 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,367 tests** across 202 test files (API 1,624 · Web 1,694 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1289,7 +1289,7 @@ Entries marked **(entry recorded 2026-08-08)** were reconstructed from that rele
 
 ### v1.143.0 — 2026-08-30 · Best practices section: your document's own evidence, through the same escaping every finding already used (no new attack surface)
 
-The new report section (38 non-scored best practices across PDF, Word, PowerPoint, and Excel, each row carrying this document's own evidence) opens no new trust boundary. Every interpolated value in the printable plan passes through the same `escapeHtml` helper already used for scored findings; every link — the catalog's own and any built from document content — passes through `safeHttpUrl` before it can render, and an unparseable one is dropped rather than shown broken. The catalog's own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied. `evaluateBestPractices`, which runs during `/report/[id]`'s server-side render of stored JSON, narrows every field it reads — file type, category id, page count — before use, and returns nothing rather than throwing on a shape it does not recognize. Also fixed: six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them; the check that separates them recognizes all three of the analyzer's not-scored prefixes now, not two. Tests 3,302.
+The new report section (38 non-scored best practices across PDF, Word, PowerPoint, and Excel, each row carrying this document's own evidence) opens no new trust boundary. Every interpolated value in the printable plan passes through the same `escapeHtml` helper already used for scored findings; every link — the catalog's own and any built from document content — passes through `safeHttpUrl` before it can render, and an unparseable one is dropped rather than shown broken. The catalog's own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied. `evaluateBestPractices`, which runs during `/report/[id]`'s server-side render of stored JSON, narrows every field it reads — file type, category id, page count — before use, and returns nothing rather than throwing on a shape it does not recognize. Also fixed: six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them; the check that separates them recognizes all three of the analyzer's not-scored prefixes now, not two. A second review pass closed the one way a stored report could still overstate itself: each witness-based check records the date its advisory began, and a shared report created before that date shows the row as not checked rather than met. Tests 3,367.
 
 <details>
 <summary><strong>Earlier per-release reviews</strong> (v1.142.0 → v1.33.0) — click to expand</summary>

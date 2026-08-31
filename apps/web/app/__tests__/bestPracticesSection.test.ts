@@ -356,8 +356,9 @@ describe("BestPracticesSection", () => {
       {
         id: "table_markup",
         findings: [
-          "All <TH> cells have scope attributes.",
-          "All tables associate data cells with headers, using /Scope or the explicit /Headers attribute.",
+          // The analyzer emits exactly ONE of the two scope lines (scoring/pdf.ts:1683-1687); the
+          // fully-scoped one is the clean path both scope practices read as MET.
+          "All <TH> cells have Scope attributes (/Column, /Row, or /Both)",
           "No nested tables detected in this document.",
         ],
       },
@@ -411,5 +412,54 @@ describe("category help links reach the row (spec §4's third link source)", () 
     expect(html).toContain('href="https://helpx.adobe.com/acrobat/headings"');
     expect(html).not.toContain("javascript:");
     expect(html.match(/Matterhorn 14 — Headings/g)?.length ?? 0).toBe(1);
+  });
+});
+
+describe("the era gate reaches the component through analyzedAt", () => {
+  const withHierarchy = {
+    fileType: "pdf",
+    pageCount: 12,
+    categories: [
+      { id: "heading_structure", findings: ["Found 4 heading tags with logical hierarchy"] },
+    ],
+  };
+  it("a witness-based MET reads NOT CHECKED for a payload older than its advisory, MET otherwise", () => {
+    const old = mount(BestPracticesSection, {
+      props: { result: withHierarchy, analyzedAt: "2026-08-01T00:00:00Z" },
+    });
+    expect(old.find('[data-practice="heading-convention"]').attributes("data-status")).toBe(
+      "not-checked",
+    );
+    const fresh = mountSection(withHierarchy);
+    expect(fresh.find('[data-practice="heading-convention"]').attributes("data-status")).toBe(
+      "met",
+    );
+  });
+});
+
+describe("Also noted in this report — advisories no practice covers are not dropped", () => {
+  it("renders the static-XFA caveat from form_accessibility, in the analyzer's words", () => {
+    const w = mountSection({
+      ...pdfResult,
+      categories: [
+        ...pdfResult.categories,
+        {
+          id: "form_accessibility",
+          label: "Form Accessibility",
+          findings: [
+            "Advisory — not scored: this is a static XFA form. The conventional PDF content audited here is exactly what viewers display, but the embedded XFA template layer itself was not separately audited.",
+          ],
+        },
+      ],
+    });
+    const notes = w.find('[data-testid="best-practices-other-notes"]');
+    expect(notes.exists()).toBe(true);
+    expect(notes.text()).toMatch(/Form Accessibility/);
+    expect(notes.text()).toMatch(/static XFA form/);
+  });
+  it("renders nothing when every advisory is covered", () => {
+    expect(
+      mountSection(pdfResult).find('[data-testid="best-practices-other-notes"]').exists(),
+    ).toBe(false);
   });
 });

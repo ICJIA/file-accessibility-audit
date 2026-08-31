@@ -27,6 +27,7 @@ import {
 import {
   CATALOG,
   evaluateBestPractices,
+  uncoveredNotScored,
   summarizeBestPractices,
   sortBestPractices,
   type BestPracticeStatus,
@@ -311,6 +312,102 @@ describe("evaluateBestPractices — category help links and a throwing practice"
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("the era gate — a witness cannot vouch for a payload older than its advisory", () => {
+  // Office checkers shipped 2026-07-01; docx-merged-cells' advisory arrived
+  // 2026-08-26 (v1.95.0). A July report carrying the table census but no
+  // advisory is NOT a clean document — it is one the analyzer of that day
+  // could not have complained about.
+  const julyWord = {
+    fileType: "docx",
+    pageCount: 3,
+    categories: [{ id: "table_markup", findings: ["3 table(s) found."] }],
+  };
+  it("turns a witness-based MET into NOT CHECKED when the payload predates the advisory", () => {
+    const rows = evaluateBestPractices(julyWord, undefined, { analyzedAt: "2026-07-05T10:00:00Z" });
+    const r = rows.find((x) => x.practice.id === "docx-merged-cells")!;
+    expect(r.status).toBe("not-checked");
+    expect(r.reason).toBe("not-run");
+    expect(r.evidence.join(" ")).toMatch(/before this check existed/);
+    expect(r.evidence.join(" ")).toMatch(/2026-08-26/);
+  });
+  it("leaves the MET alone once the payload is new enough, and for a live analysis with no date", () => {
+    expect(
+      evaluateBestPractices(julyWord, undefined, { analyzedAt: "2026-09-01" }).find(
+        (x) => x.practice.id === "docx-merged-cells",
+      )!.status,
+    ).toBe("met");
+    expect(
+      evaluateBestPractices(julyWord).find((x) => x.practice.id === "docx-merged-cells")!.status,
+    ).toBe("met");
+  });
+  it("never downgrades NOT MET or NOT APPLICABLE — only a fabricated MET", () => {
+    const withAdvisory = {
+      ...julyWord,
+      categories: [
+        {
+          id: "table_markup",
+          findings: [
+            "3 table(s) found.",
+            "Note — not scored: 2 merged cell(s) across the table(s).",
+          ],
+        },
+      ],
+    };
+    expect(
+      evaluateBestPractices(withAdvisory, undefined, { analyzedAt: "2026-07-05" }).find(
+        (x) => x.practice.id === "docx-merged-cells",
+      )!.status,
+    ).toBe("not-met");
+  });
+  it("ignores an unparseable date rather than guessing", () => {
+    expect(
+      evaluateBestPractices(julyWord, undefined, { analyzedAt: "not a date" }).find(
+        (x) => x.practice.id === "docx-merged-cells",
+      )!.status,
+    ).toBe("met");
+  });
+  it("gates the PDF witness practices too", () => {
+    const july = {
+      fileType: "pdf",
+      pageCount: 12,
+      categories: [{ id: "reading_order", findings: ["Structure tree depth: 3 level(s)"] }],
+    };
+    const gated = evaluateBestPractices(july, undefined, { analyzedAt: "2026-08-01" }).find(
+      (x) => x.practice.id === "nested-structure-tree",
+    )!;
+    expect(gated.status).toBe("not-checked");
+    expect(
+      evaluateBestPractices(july).find((x) => x.practice.id === "nested-structure-tree")!.status,
+    ).toBe("met");
+  });
+});
+
+describe("uncoveredNotScored — what the analyzer said that no practice covers", () => {
+  const xfa =
+    "Advisory — not scored: this is a static XFA form. The conventional PDF content audited here is exactly what viewers display, but the embedded XFA template layer itself was not separately audited.";
+  const report = {
+    fileType: "pdf",
+    pageCount: 4,
+    categories: [
+      { id: "form_accessibility", label: "Form Accessibility", findings: [xfa] },
+      {
+        id: "heading_structure",
+        label: "Heading Structure",
+        findings: ["PDF/UA only — not scored: only generic <H> tags were found (not H1–H6)."],
+      },
+    ],
+  };
+  it("returns not-scored lines from categories no practice reads, labelled", () => {
+    const notes = uncoveredNotScored(report);
+    expect(notes).toEqual([{ label: "Form Accessibility", text: xfa }]);
+  });
+  it("excludes categories a practice already covers, and never throws on junk", () => {
+    expect(uncoveredNotScored(report).some((n) => /generic <H>/.test(n.text))).toBe(false);
+    expect(uncoveredNotScored(null)).toEqual([]);
+    expect(uncoveredNotScored({ fileType: "pdf", categories: "junk" })).toEqual([]);
   });
 });
 

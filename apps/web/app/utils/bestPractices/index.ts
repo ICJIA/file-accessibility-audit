@@ -76,9 +76,40 @@ function runDetect(practice: BestPractice, ctx: DetectContext): BestPracticeResu
 
 /** `catalog` is injectable for tests only — production always evaluates the
  *  full CATALOG. */
+export interface EvaluateOptions {
+  /** When the payload was analyzed. Live results omit it; /report/[id]
+   *  passes the shared row's createdAt (minutes after analysis). */
+  analyzedAt?: Date | string | null;
+}
+
+/** The era gate. A witness-based MET on a payload analyzed before the
+ *  practice's advisory existed is a fabricated green: the analyzer of that
+ *  day could not have complained, so the advisory's absence proves nothing.
+ *  Found on real stored data (Office checkers shipped 2026-07-01; their
+ *  advisories arrived 07-19 and 08-26; reports live 365 days). Only MET is
+ *  overridden — NOT MET means the advisory WAS present, and N/A is a document
+ *  fact from a line that predates every advisory. */
+function eraGate(
+  practice: BestPractice,
+  ctx: DetectContext,
+  outcome: BestPracticeResult,
+): BestPracticeResult {
+  if (outcome.status !== "met" || !practice.advisorySince || !ctx.analyzedAt) return outcome;
+  const since = new Date(practice.advisorySince);
+  if (Number.isNaN(since.getTime()) || ctx.analyzedAt >= since) return outcome;
+  return {
+    status: "not-checked",
+    reason: "not-run",
+    evidence: [
+      `This report was created on ${ctx.analyzedAt.toISOString().slice(0, 10)}, before this check existed (added ${practice.advisorySince}), so it could not have been looked at. Re-run the audit to check it.`,
+    ],
+  };
+}
+
 export function evaluateBestPractices(
   result: unknown,
   catalog: BestPractice[] = CATALOG,
+  opts: EvaluateOptions = {},
 ): EvaluatedPractice[] {
   const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
   if (!r) return [];
@@ -105,8 +136,12 @@ export function evaluateBestPractices(
     .filter((p) => p.formats.includes(ft))
     .map((practice) => {
       const category = byId.get(practice.categoryId);
-      const ctx = buildContext(category, ft, pageCount);
-      return { practice, categoryLinks: readHelpLinks(category), ...runDetect(practice, ctx) };
+      const ctx = buildContext(category, ft, pageCount, opts.analyzedAt ?? null);
+      return {
+        practice,
+        categoryLinks: readHelpLinks(category),
+        ...eraGate(practice, ctx, runDetect(practice, ctx)),
+      };
     });
 }
 
@@ -148,4 +183,33 @@ export function summarizeBestPractices(rows: EvaluatedPractice[]): BestPracticeS
     else s.notChecked++;
   }
   return s;
+}
+
+/** Not-scored lines from categories NO practice for this format reads —
+ *  today, for PDF: alt_text, color_contrast and form_accessibility (the
+ *  static-XFA caveat lives there). Before this section existed the plan's
+ *  "Above and beyond" group listed every such line; narrowing that group to
+ *  veraPDF's verdict alone silently dropped them from the Visual view.
+ *  BestPracticesSection renders these under "Also noted in this report" so
+ *  nothing the analyzer chose to say goes unsaid. Same narrowing as
+ *  evaluateBestPractices; never throws. */
+export function uncoveredNotScored(result: unknown): Array<{ label: string; text: string }> {
+  const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
+  if (!r) return [];
+  const fileType = r.fileType;
+  if (typeof fileType !== "string" || !FILE_TYPES.includes(fileType as FileType)) return [];
+  const covered = new Set(
+    CATALOG.filter((p) => p.formats.includes(fileType as FileType)).map((p) => p.categoryId),
+  );
+  const categories = Array.isArray(r.categories) ? r.categories : [];
+  const out: Array<{ label: string; text: string }> = [];
+  for (const c of categories) {
+    if (!c || typeof c !== "object") continue;
+    const cat = c as Record<string, unknown>;
+    if (typeof cat.id !== "string" || covered.has(cat.id)) continue;
+    const ctx = buildContext(cat, fileType as FileType, 0);
+    const label = typeof cat.label === "string" ? cat.label : cat.id;
+    for (const text of ctx.notScored) out.push({ label, text });
+  }
+  return out;
 }

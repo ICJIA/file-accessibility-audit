@@ -190,3 +190,28 @@ describe("Best Practices placement (2026-08-30)", () => {
     expect(componentSource("ReportContent.vue")).toContain('data-testid="not-scored-tier"');
   });
 });
+
+describe("the era gate is wired end to end (2026-08-30)", () => {
+  it("/report/[id] passes the shared row's createdAt to every surface that evaluates the catalog", () => {
+    const src = pageSource("report/[id].vue");
+    const visual = src.match(/<ReportVisualView\b[\s\S]*?\/?>/)?.[0] ?? "";
+    expect(visual).toContain(':analyzed-at="data.createdAt"');
+    const section = src.match(/<BestPracticesSection\b[\s\S]*?\/>/)?.[0] ?? "";
+    expect(section).toContain(':analyzed-at="data.createdAt"');
+    const print = src.match(/<PrintPlanButton\b[^>]*\/>/)?.[0] ?? "";
+    expect(print).toContain(':analyzed-at="data.createdAt"');
+  });
+  it("ReportVisualView forwards it to ActionPlan and PrintPlanButton", () => {
+    const src = componentSource("ReportVisualView.vue");
+    expect(src.match(/<ActionPlan\b[^>]*\/>/)?.[0] ?? "").toContain(':analyzed-at="analyzedAt"');
+    expect(src.match(/<PrintPlanButton\b[^>]*\/>/)?.[0] ?? "").toContain(
+      ':analyzed-at="analyzedAt"',
+    );
+  });
+  it("the remediation page opts its 'What still needs fixing' printout out of best practices", () => {
+    const src = pageSource("remediate/[jobId].vue");
+    expect(src.match(/<PrintPlanButton\b[\s\S]*?\/>/)?.[0] ?? "").toContain(
+      ':include-best-practices="false"',
+    );
+  });
+});
