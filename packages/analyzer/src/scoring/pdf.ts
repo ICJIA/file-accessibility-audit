@@ -1863,8 +1863,12 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
 //   - "rawUrl"      — the visible text is the URL itself. The destination is
 //                     determinable, so 2.4.4 is met (and PAC does not flag it).
 //                     Surfaced as a best-practice advisory, NOT penalized.
-//   - "needsFix"    — empty, a vague phrase ("click here"), or 1–2 chars. The
-//                     purpose is not conveyed; this is penalized.
+//   - "unnamed"     — NO link text at all. A link with no accessible name
+//                     fails WCAG 4.1.2 (Level A) outright — no context can
+//                     supply a name that is absent. Penalized (2026-08-31).
+//   - "vague"       — a vague phrase ("click here") or 1–2 chars. The text
+//                     exists but is weak; 2.4.4 lets the surrounding sentence
+//                     supply the purpose, so this is reported, never scored.
 //   - "descriptive" — self-describing text.
 // The classifier itself lives in scoring/common.ts (imported at the top of
 // this file) so docx/pptx/xlsx apply the identical doctrine.
@@ -1924,23 +1928,35 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
     link,
     cls: classifyLinkText(link.text),
   }));
-  const needsFix = classified.filter((c) => c.cls === "needsFix");
+  const unnamed = classified.filter((c) => c.cls === "unnamed");
+  const vague = classified.filter((c) => c.cls === "vague");
   const rawUrls = classified.filter((c) => c.cls === "rawUrl");
   const descriptive = classified.filter((c) => c.cls === "descriptive");
 
-  // Only UNTAGGED links are penalized (2026-08-29, the legal-only sweep) —
-  // that failure is mechanical and 1.3.1-certain: the annotation exists and
-  // no <Link> element claims it. Vague link TEXT ("click here") is NOT
-  // scored: WCAG 2.4.4 (Level A) explicitly allows the link's purpose to
-  // come from its programmatically determined context — the sentence around
-  // it — which no automated text-only check can weigh. Judging the text
-  // alone is 2.4.9 Link Purpose (Link Only), a AAA criterion. A visible raw
-  // URL likewise satisfies 2.4.4 and stays advisory.
-  const failing = untagged.length;
+  // Two mechanical failures are penalized, and only two.
+  //
+  // UNTAGGED (2026-08-29, the legal-only sweep) — 1.3.1-certain: the
+  // annotation exists and no <Link> element claims it.
+  //
+  // UNNAMED (2026-08-31) — a link with NO text at all has no accessible name,
+  // which WCAG 4.1.2 Name, Role, Value (Level A) forbids for every user
+  // interface component, links named explicitly among them. Unlike weak text,
+  // there is no context to weigh: a name is present or it is not. Added when
+  // splitting this doctrine's old single "needsFix" class showed that the
+  // three Office scorers had been penalising the WHOLE class — vague text
+  // included — while naming no criterion for any of it.
+  //
+  // VAGUE link TEXT ("click here") is still NOT scored: WCAG 2.4.4 (Level A)
+  // explicitly allows the link's purpose to come from its programmatically
+  // determined context — the sentence around it — which no automated
+  // text-only check can weigh. Judging the text alone is 2.4.9 Link Purpose
+  // (Link Only), a AAA criterion. A visible raw URL likewise satisfies 2.4.4
+  // and stays advisory.
+  const failing = untagged.length + unnamed.length;
   const score = Math.floor(((total - failing) / total) * 100);
   const findings: string[] = [];
 
-  if (failing === 0 && rawUrls.length === 0 && needsFix.length === 0) {
+  if (failing === 0 && rawUrls.length === 0 && vague.length === 0) {
     findings.push(`All ${total} link(s) use descriptive text`);
     findings.push(`--- Link Details ---`);
     for (const { link } of classified.slice(0, 20)) {
@@ -1950,23 +1966,33 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
       findings.push(`  ... and ${total - 20} more link(s)`);
     }
   } else {
-    if (needsFix.length > 0) {
+    if (unnamed.length > 0) {
       findings.push(
-        `Advisory — not scored: ${needsFix.length} of ${total} link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link's purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.`,
+        `${unnamed.length} of ${total} link(s) have no link text at all, so a screen reader announces the link with nothing to identify it. A link is a user interface component, and WCAG 4.1.2 Name, Role, Value (Level A) requires every one of them to carry a name that software can read — there is no surrounding sentence that can supply a name which is absent.`,
+      );
+      findings.push(`--- Links With No Link Text ---`);
+      for (const { link } of unnamed.slice(0, 15)) {
+        findings.push(`  (no text)${linkPageSuffix(link)} → ${link.url}`);
+      }
+      if (unnamed.length > 15) {
+        findings.push(`  ... and ${unnamed.length - 15} more`);
+      }
+    }
+    if (vague.length > 0) {
+      findings.push(
+        `Advisory — not scored: ${vague.length} of ${total} link(s) use non-descriptive text — a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link's purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.`,
       );
       findings.push(`--- Links With Non-Descriptive Text ---`);
-      for (const { link } of needsFix.slice(0, 15)) {
+      for (const { link } of vague.slice(0, 15)) {
         const t = link.text.trim();
         const why =
-          t.length === 0
-            ? "empty link text"
-            : t.replace(/[^a-z0-9]/gi, "").length <= 2
-              ? "too short to describe a destination"
-              : "vague phrase";
+          t.replace(/[^a-z0-9]/gi, "").length <= 2
+            ? "too short to describe a destination"
+            : "vague phrase";
         findings.push(`  "${t}"${linkPageSuffix(link)} — ${why} → ${link.url}`);
       }
-      if (needsFix.length > 15) {
-        findings.push(`  ... and ${needsFix.length - 15} more`);
+      if (vague.length > 15) {
+        findings.push(`  ... and ${vague.length - 15} more`);
       }
     }
     if (untagged.length > 0) {
@@ -2013,7 +2039,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
         findings.push(`  ... and ${descriptive.length - 10} more descriptive link(s)`);
       }
     }
-    if (needsFix.length > 0) {
+    if (vague.length > 0) {
       findings.push(
         "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
       );

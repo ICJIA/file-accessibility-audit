@@ -146,7 +146,7 @@ export const ANALYTICS = {
 // ---------------------------------------------------------------------------
 
 export const WCAG = {
-  /** Operative version. Defaults to "2.2"; only "2.1" reverts. */
+  /** Operative version. Defaults to "2.1"; set WCAG_VERSION=2.2 to opt in. */
   // 2.1 IS THE BAR (user decision, 2026-08-31). ADA Title II and the Illinois
   // IITAA both name WCAG 2.1 Level AA, the grade has measured only 2.1 since
   // v1.130, and 2.1 is the version this agency's readers actually hear. The

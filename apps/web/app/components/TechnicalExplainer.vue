@@ -253,7 +253,7 @@
         >
 <span class="text-sky-300">PDF:</span>
   File → [validate type &amp; size]
-       → parallel { <span class="text-emerald-300">QPDF</span> (structure), <span class="text-emerald-300">PDF.js</span> (content), <span class="text-emerald-300">veraPDF</span> (PDF/UA) }
+       → in order: <span class="text-emerald-300">QPDF</span> (structure) → <span class="text-emerald-300">PDF.js</span> (content) → <span class="text-emerald-300">veraPDF</span> (PDF/UA)
        → Scorer (9 categories) → Weighted Score → Report
 
 <span class="text-sky-300">Word / PowerPoint / Excel:</span>
@@ -759,6 +759,18 @@
           detailed view and know where the toggle is.
         </p>
         <p class="text-[var(--text-muted)] mb-3">
+          Between the action plan and &ldquo;Above and beyond&rdquo; sits a
+          <strong>Best practices</strong> section &mdash; {{ bpTotal }} non-scored practices in all,
+          {{ bpPdf }} for PDF and {{ bpOffice }} across Word, PowerPoint and Excel. Each row shows
+          whether <em>this</em> document meets it, the evidence found in the document itself (the
+          heading order it actually has, the fonts it actually carries), both routes to fix it, and
+          a link to the rule. Nothing in the section touches the grade, and the section says so; a
+          row marked &ldquo;not checked&rdquo; explains why it could not be checked and what would
+          settle it, beginning with the fact that nothing is wrong with the reader's document. Where
+          a practice's defect <em>is</em> scored past some threshold, the row says so and points
+          back at the action plan rather than calling the same fault optional.
+        </p>
+        <p class="text-[var(--text-muted)] mb-3">
           Both views end with <strong>&ldquo;Still worth checking by hand&rdquo;</strong>, which
           appears on every report at every score — including a perfect one. These checks confirm
           that accessibility structure is <em>present</em>; almost none of them can judge whether it
@@ -950,18 +962,42 @@
               report but are not automatically scored.
             </li>
             <li>
-              <strong>PowerPoint (.pptx) — 9 scored categories:</strong> the same eight plus a
-              presentation-specific <strong>Slide Titles</strong> check (every slide needs a
-              distinct title placeholder so screen-reader users can tell slides apart) and an
-              actively-scored <strong>Reading Order</strong> category (whether each slide's title
-              reads first in tab order). Only Form Accessibility is excluded.
+              <strong>PowerPoint (.pptx) — 9 scored categories:</strong> the same eight
+              <em>minus Heading Structure</em> — slides carry titles, not a heading hierarchy —
+              <em>plus</em> a presentation-specific <strong>Slide Titles</strong> check (every slide
+              needs a distinct title placeholder so screen-reader users can tell slides apart) and
+              an actively-scored <strong>Reading Order</strong> category (whether each slide's title
+              reads first in tab order). Heading Structure, Bookmarks and Form Accessibility are not
+              scored for a presentation.
             </li>
             <li>
               <strong>Excel (.xlsx) — 7 scored categories:</strong> Text Extractability, Title &amp;
               Language, <strong>Sheet Names</strong> (descriptive names vs. Excel defaults like
               "Sheet1"), Table Markup, Alt Text on Images, Color Contrast, and Link Quality. Excel
               workbooks have no document-language property, so Title &amp; Language evaluates title
-              only. Only Form Accessibility is excluded.
+              only. Heading Structure, List Structure, Reading Order, Bookmarks and Form
+              Accessibility do not apply to a workbook and are not scored.
+            </li>
+            <li>
+              <strong>Empty headings: scored for Word, reported for PDF.</strong> A Heading style on
+              a <em>blank line</em> &mdash; used to make space &mdash; puts a section in the outline
+              with no content in it, so someone moving by heading lands on silence. In a Word
+              document that is a scored
+              <a
+                href="https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-[var(--link)] underline"
+                >WCAG 1.3.1</a
+              >
+              (Level A) failure &mdash; 10 points each, capped at 30, so it can never take Heading
+              Structure past Minor. The identical defect in a <em>PDF</em> is reported and not
+              scored: there the evidence is an estimate (pdf.js text attribution) rather than a
+              certainty (a heading style with no text, read straight from the XML), and the PDF row
+              says plainly that checkers disagree about it. A heading whose content is a
+              <em>described picture</em> &mdash; an agency masthead &mdash; counts as a heading,
+              using its alt text; an undescribed one is left to the alt-text check rather than
+              charged twice.
             </li>
           </ul>
           <p class="text-xs text-[var(--text-muted)]">
@@ -1386,10 +1422,13 @@
           2.2 is a strict superset of it: it adds nine success criteria (six at Level A/AA) and
           removes one (4.1.1 Parsing, obsolete). The automated checks are the same either way —
           every machine-checkable criterion is one carried forward from 2.1. The criteria 2.2 adds
-          are interactive and manual, so they are never reported as automated failures; they are
-          described on the
+          are interactive and manual, so they are never reported as automated failures. On a
+          document with interactive form fields the form-relevant ones (Target Size 2.5.8, Redundant
+          Entry 3.3.7, Accessible Authentication 3.3.8) are listed as
+          <em>&ldquo;not assessed &mdash; manual review&rdquo;</em>, each saying plainly that it
+          sits beyond the standard your grade measures. The rest are described on the
           <a href="/wcag-2-2" class="text-[var(--link)] underline">What&rsquo;s new in WCAG 2.2</a>
-          page rather than listed in each document&rsquo;s verdict.
+          page.
         </p>
         <p class="text-[var(--text-muted)]">
           For a plain-language manager summary, see
@@ -2491,7 +2530,19 @@ pm2 restart ecosystem.config.cjs</pre>
 
 <script setup lang="ts">
 // Static content extracted verbatim from pages/index.vue (Phase F, task F1:
-// perf(web) lazy technical-explainer extraction). No reactive state — the
-// only component referenced, <DiagramFigure>, is auto-imported globally the
-// same way it was inside the page.
+// perf(web) lazy technical-explainer extraction). The only component
+// referenced, <DiagramFigure>, is auto-imported globally the same way it was
+// inside the page.
+//
+// COUNTED, NOT TYPED (2026-08-31). The Best-practices paragraph used to carry
+// "37 … 19 … 18" as literal prose while the same three numbers were separately
+// pinned as literals in the catalog tests: adding a practice turned the tests
+// green and left this sentence quietly wrong. Every count on a public page is
+// computed from its source or not stated at all.
+import { CATALOG } from "~/utils/bestPractices";
+import { PDF_PRACTICES } from "~/utils/bestPractices/pdf";
+
+const bpTotal = CATALOG.length;
+const bpPdf = PDF_PRACTICES.length;
+const bpOffice = bpTotal - bpPdf;
 </script>

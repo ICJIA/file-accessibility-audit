@@ -162,12 +162,25 @@
               </p>
 
               <div class="mt-2 flex items-center gap-2 flex-wrap">
-                <span
+                <!-- LINKED (standing rule, 2026-08-31: naming a criterion
+                     means linking it). This chip is on the checklist a public
+                     body actually works from, and it named the rule the
+                     deduction rests on with no way to go and read it — while
+                     the PRINTABLE version of the same data has linked it all
+                     along (printablePlan.ts renderStep). Falls back to a plain
+                     chip if a criterion has no known slug, rather than
+                     rendering a dead link. -->
+                <component
+                  :is="criterionHref(wcagRef.sc) ? 'a' : 'span'"
                   v-for="wcagRef in step.wcagRefs"
                   :key="wcagRef.sc"
+                  :href="criterionHref(wcagRef.sc) || undefined"
+                  :target="criterionHref(wcagRef.sc) ? '_blank' : undefined"
+                  :rel="criterionHref(wcagRef.sc) ? 'noopener noreferrer' : undefined"
                   class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5"
+                  :class="criterionHref(wcagRef.sc) ? 'underline hover:text-indigo-300' : ''"
                   :title="wcagRef.name"
-                  >WCAG {{ wcagRef.sc }}</span
+                  >WCAG {{ wcagRef.sc }}</component
                 >
                 <button
                   type="button"
@@ -392,7 +405,7 @@
 </template>
 
 <script setup lang="ts">
-import { withAlpha } from "@file-audit/shared";
+import { withAlpha, wcagSlugFor } from "@file-audit/shared";
 import { useTokenColors } from "~/composables/useTokenColors";
 import { computed, ref, watch } from "vue";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
@@ -438,6 +451,17 @@ const props = defineProps<{
  *  not enough: it is truthy for any report object, including one with
  *  categories but a missing/unrecognized fileType, for which
  *  evaluateBestPractices returns nothing and the section renders nothing. */
+// Version-aware Understanding-page base (WCAG 2.1 by default).
+const wcag = useWcag();
+
+/** Understanding-page URL for a criterion number, or null when the slug is
+ *  unknown — the chip then renders as plain text rather than a dead link.
+ *  Same source of truth the printable plan uses (wcagSlugFor). */
+function criterionHref(sc: string): string | null {
+  const slug = wcagSlugFor(sc);
+  return slug ? wcag.understandingUrl(slug) : null;
+}
+
 const hasBestPractices = computed(
   () => evaluateBestPractices(props.result, undefined, { analyzedAt: props.analyzedAt }).length > 0,
 );

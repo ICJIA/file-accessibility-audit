@@ -1,3 +1,4 @@
+import { WCAG } from "../../../../audit.config";
 import "./test-helpers";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -83,7 +84,7 @@ describe("ReportActionBanner", () => {
       props: { categories: [cat("Pass"), cat("Pass"), cat("Pass")] },
     });
     expect(wrapper.text()).toBe(
-      "This document passes Illinois IITAA 2.1 + WCAG 2.2 AA accessibility checks.",
+      `This document passes Illinois IITAA 2.1 + WCAG ${WCAG.VERSION} AA accessibility checks.`,
     );
     expect(wrapper.classes()).toContain("pass");
   });
@@ -98,7 +99,7 @@ describe("ReportActionBanner", () => {
       props: { categories: [cat("Pass"), cat("Pass")], fileType: "docx" },
     });
     expect(wrapper.text()).toBe(
-      "This document passes Illinois IITAA 2.1 + WCAG 2.2 AA accessibility checks.",
+      `This document passes Illinois IITAA 2.1 + WCAG ${WCAG.VERSION} AA accessibility checks.`,
     );
     expect(wrapper.text()).not.toContain("PDF");
   });

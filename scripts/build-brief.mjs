@@ -198,6 +198,25 @@ const TRAP_LIST_MD = trapManifest.items
   .join("\n");
 const trapsCaught = trapManifest.items.filter((i) => i.chip === "caught").length;
 const trapsHeld = trapManifest.items.filter((i) => i.chip === "held").length;
+// The three chips must PARTITION the manifest. A typo'd chip value falls
+// through chipFor()'s final branch and still renders a card, so the grid can
+// show N documents while the sentence beneath it counts fewer: on 2026-08-31
+// two traps carried chip "clean" (not a chip at all) and one caught defect was
+// labelled "held", so the brief rendered 130 cards and claimed 56+66+6 = 128.
+{
+  const bucketed = trapsCaught + trapsHeld + trapBugs;
+  if (bucketed !== trapManifest.count) {
+    const strays = [...new Set(trapManifest.items.map((i) => i.chip))].filter(
+      (c) => !["caught", "held", "bug"].includes(c),
+    );
+    throw new Error(
+      `trap chips do not partition the manifest: ${trapsCaught} caught + ${trapsHeld} held + ${trapBugs} bug = ${bucketed}, but ${trapManifest.count} traps exist` +
+        (strays.length
+          ? `\n    unrecognised chip value(s): ${strays.map((c) => JSON.stringify(c)).join(", ")}`
+          : ""),
+    );
+  }
+}
 
 const SUBS = {
   DATE_BIG: dateBig,

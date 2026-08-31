@@ -1,5 +1,5 @@
 {
-  "count": 20,
+  "count": 34,
   "generated": "2026-08-31",
   "items": [
     {
@@ -86,17 +86,87 @@
     {
       "file": "synthetic-128-docx-empty-headings.docx",
       "label": "Word: heading styles on blank lines, used as spacing",
-      "chip": "held"
+      "chip": "caught"
     },
     {
       "file": "synthetic-130-docx-picture-headings-not-blank.docx",
       "label": "Word: headings made of a letterhead picture and a symbol — not blank lines",
-      "chip": "clean"
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-142-docx-vague-link-text.docx",
+      "label": "Word: links reading “click here” and “read more”",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-143-docx-unnamed-link.docx",
+      "label": "Word: a link with no link text at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-144-docx-descriptive-links-twin.docx",
+      "label": "Word: the same page with both links described",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-138-docx-low-contrast.docx",
+      "label": "Word: body text in yellow on a white page",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-139-docx-contrast-good-twin.docx",
+      "label": "Word: the same notice in near-black on white",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-140-docx-typed-bullets.docx",
+      "label": "Word: a list typed with bullet characters instead of list formatting",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-141-docx-real-list-twin.docx",
+      "label": "Word: the same list built with Word's numbering",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-136-xlsx-headerless-table.xlsx",
+      "label": "Excel: a defined table created with “my table has no headers” ticked",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-137-xlsx-header-table-twin.xlsx",
+      "label": "Excel: the same table with its header row marked",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-132-docx-no-language.docx",
+      "label": "Word: a titled document that declares no language at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-133-docx-language-good-twin.docx",
+      "label": "Word: the same document with its language declared",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-134-pptx-title-not-first.pptx",
+      "label": "PowerPoint: a slide whose title is read after its body text",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-135-pptx-title-first-twin.pptx",
+      "label": "PowerPoint: the same deck with every title read first",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-131-docx-only-empty-headings.docx",
+      "label": "Word: a document whose only headings are blank lines — nothing else",
+      "chip": "caught"
     },
     {
       "file": "synthetic-129-docx-empty-headings-good-twin.docx",
       "label": "Word: the same document spaced with ordinary blank paragraphs",
-      "chip": "clean"
+      "chip": "held"
     },
     {
       "file": "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",

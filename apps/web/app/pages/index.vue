@@ -599,8 +599,9 @@
             rel="noopener noreferrer"
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >WCAG 2.2</a
-          >'s newer criteria, which are described there rather than counted here, and returns a
-          detailed report with actionable findings.
+          >'s newer criteria — flagged for manual review on documents with interactive forms, marked
+          as beyond the standard being measured, and never counted — and returns a detailed report
+          with actionable findings.
         </p>
       </div>
 
@@ -882,7 +883,7 @@ const processingSteps = ref<Array<{
 const JOB_STEP_LABELS: Record<string, string> = {
   analysis: "Audit engine — structure, content, and scoring",
   veraPdfUa: "veraPDF: PDF/UA conformance",
-  veraPdfWcag: "veraPDF: WCAG 2.2 machine checks",
+  veraPdfWcag: "veraPDF: WCAG machine checks",
 };
 function mapJobSteps(status: AnalyzeJobStatus) {
   processingSteps.value = (Object.keys(JOB_STEP_LABELS) as AnalyzeJobStepKey[]).map((key) => ({

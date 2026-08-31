@@ -127,7 +127,7 @@ describe("buildAiAnalysis", () => {
 
   it("includes WCAG references for failing categories", () => {
     const out = buildAiAnalysis(baseResult());
-    // alt_text maps to WCAG 1.1.1; default version is 2.2
+    // alt_text maps to WCAG 1.1.1; default version is 2.1 (since 2026-08-31)
     expect(out).toContain("WCAG 2.1 references"); // the cited criteria are 2.1-pure
     expect(out).toMatch(/1\.1\.1/);
   });

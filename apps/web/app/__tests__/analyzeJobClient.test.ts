@@ -99,7 +99,7 @@ describe("ProcessingOverlay — steps mode (real observed states)", () => {
       state: "running",
       startedAt: Date.now() - 4_000,
     },
-    { key: "veraPdfWcag", label: "veraPDF: WCAG 2.2 machine checks", state: "pending" },
+    { key: "veraPdfWcag", label: "veraPDF: WCAG machine checks", state: "pending" },
   ] as const;
 
   it("renders one row per non-skipped step with its real state; skipped steps never render; no percentage anywhere", async () => {

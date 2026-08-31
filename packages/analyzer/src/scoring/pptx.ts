@@ -265,15 +265,32 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
   const titledOutOfOrder = titled.filter((s) => !s.titleIsFirstShape);
   const denseSlides = visible.filter((s) => s.shapeCount > 10);
 
-  const score = 100 - 15 * titledOutOfOrder.length;
+  // NOT SCORED (2026-08-31). The legal-only sweep of 2026-08-29 un-scored the
+  // sibling rule six functions above — a slide missing its title — because
+  // this file's own conformance gate rules it "not a confirmed WCAG violation
+  // on its own". That gate's doc comment says the SAME THING, in the same
+  // sentence, about this heuristic: "most notably a slide missing its own
+  // title (`slide_titles`) and the title-first reading-order heuristic
+  // (`reading_order`) are NOT gate failures". The sweep missed this one, so
+  // for two days the product deducted 15 points per slide for a defect it
+  // simultaneously declined to call a WCAG failure — the exact over-scoring
+  // the sweep existed to end, and what `legal-basis` caught the moment a trap
+  // document finally exercised the rule (synthetic-134).
+  //
+  // A title read second is genuinely worth fixing: it is why the advisory
+  // still names every slide. But 1.3.2 asks that a correct reading sequence
+  // be programmatically DETERMINABLE, and it is — the shape tree states it
+  // exactly. "Determinable but not ideal" is advice, not a violation.
+  // Reported loudly, counted never.
+  const score = 100;
   const findings: string[] = [];
 
   if (titledOutOfOrder.length > 0) {
     const nums = titledOutOfOrder.map((s) => s.index).join(", ");
     findings.push(
-      `Slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
+      `Advisory — not scored: slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
         titledOutOfOrder.length > 1 ? "have" : "has"
-      } a title that is not the first shape in reading order. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) and reorder shapes so the title reads first.`,
+      } a title that is not the first shape in reading order. A listener hears the body text before the heading that was meant to orient them. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) and reorder shapes so the title reads first.`,
     );
   }
 
@@ -454,21 +471,39 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
       false,
     );
   }
-  // Shared 2.4.4 doctrine (scoring/common.ts): raw URLs are advisory-only;
-  // empty/vague/too-short text is penalized. The old rule penalized raw URLs
-  // but let "click here" pass untouched — backwards on both counts.
-  const needsFix = a.links.filter((l) => classifyLinkText(l.text) === "needsFix");
+  // THE PDF PATH'S DOCTRINE, APPLIED AT LAST (2026-08-31). The 2026-08-29
+  // legal-only sweep stopped the PDF scorer penalising weak link TEXT — 2.4.4
+  // is satisfied by the text together with its context, which no text-only
+  // check can weigh — but the three Office scorers were not swept, under a
+  // comment in scoring/common.ts claiming they applied "the identical
+  // doctrine". They did not: a Word document with two "click here" links
+  // scored link_quality 0, Critical, capping the whole file at D, with the
+  // verdict naming NO criterion at all — against a public promise that every
+  // finding names the WCAG rule behind it. Neither corpus gate could see it:
+  // legal-basis needs a control document with weak link text (none had one)
+  // and best-practice-basis needs a failing criterion (there was none).
+  //
+  // Only an UNNAMED link is scored now: no text at all is a link with no
+  // accessible name, which WCAG 4.1.2 (Level A) forbids outright, with no
+  // context to weigh. Vague text is reported and never counted.
+  const unnamed = a.links.filter((l) => classifyLinkText(l.text) === "unnamed");
+  const vague = a.links.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
-  const score = Math.round((100 * (a.links.length - needsFix.length)) / a.links.length);
-  const findings = [`${a.links.length} link(s) found; ${needsFix.length} with unclear text.`];
-  if (needsFix.length > 0) {
+  const score = Math.round((100 * (a.links.length - unnamed.length)) / a.links.length);
+  const findings = [`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`];
+  if (unnamed.length > 0) {
     findings.push(
-      `Empty or vague link text: ${needsFix
+      `${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In PowerPoint: select the linked text → Insert → Link, and type a descriptive phrase in "Text to display".`,
+    );
+  }
+  if (vague.length > 0) {
+    findings.push(
+      `Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
         .slice(0, 5)
-        .map((l) => (l.text.trim() ? `"${l.text}"` : "(empty)"))
+        .map((l) => `"${l.text.trim()}"`)
         .join(
           ", ",
-        )}. In PowerPoint: select the linked text → Insert → Link, and use a descriptive phrase.`,
+        )}). WCAG 2.4.4 lets the surrounding sentence supply a link's purpose, which an automated check cannot weigh, so this never affects your grade — but a descriptive phrase reads better in a screen reader's list of links.`,
     );
   }
   if (rawUrls.length > 0) {

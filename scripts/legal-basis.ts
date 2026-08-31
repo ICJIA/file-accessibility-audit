@@ -16,6 +16,8 @@ import path from "node:path";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 
 const ROOTS = ["controls"];
+/** Floor for how many documents must actually analyse. See the check below. */
+const MIN_DOCUMENTS = 120;
 const EXTS = new Set([".pdf", ".docx", ".pptx", ".xlsx"]);
 
 async function main() {
@@ -83,7 +85,20 @@ async function main() {
   }
 
   if (violations.length === 0) {
-    console.log(`EVERY POINT LOST NAMES THE LAW IT BROKE (${checked} documents)`);
+    // A FLOOR, not a formality (2026-08-31). Every read is wrapped in
+    // `catch { continue }`, so with `controls/` empty, unbuilt, or qpdf
+    // missing from the PATH this gate walked zero documents, found zero
+    // violations, printed success and exited 0 — a green CI step proving
+    // nothing. The corpus only ever grows; a sudden collapse is a broken
+    // environment, not a clean bill.
+    if (checked < MIN_DOCUMENTS) {
+      console.log(
+        `only ${checked} document(s) could be analysed, below the floor of ${MIN_DOCUMENTS} — the corpus is missing or the pipeline is broken, so this gate proves nothing\n    (regenerate with: pnpm synthetic-controls && pnpm synthetic-office-controls)`,
+      );
+      process.exitCode = 1;
+    } else {
+      console.log(`EVERY POINT LOST NAMES THE LAW IT BROKE (${checked} documents)`);
+    }
     return;
   }
   console.log(`${violations.length} deduction(s) with NO failing WCAG criterion behind them:\n`);

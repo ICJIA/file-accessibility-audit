@@ -47,9 +47,14 @@ async function zip(files: Record<string, string | Buffer>): Promise<Buffer> {
   return z.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
-function corePropsXml(title: string | null): string {
+function corePropsXml(title: string | null, language: string | null = "en-US"): string {
+  // `language: null` omits <dc:language> entirely — a READABLE core.xml that
+  // simply declares no language, which is the case WCAG 3.1.1 is about. It
+  // must not be confused with an unparseable part: conformance.ts suppresses
+  // the 3.1.1 claim when the part could not be read, precisely so "said
+  // nothing" and "could not be read" never produce the same accusation.
   return `${XMLDECL}
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">${title === null ? "" : `<dc:title>${title}</dc:title>`}<dc:language>en-US</dc:language></cp:coreProperties>`;
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">${title === null ? "" : `<dc:title>${title}</dc:title>`}${language === null ? "" : `<dc:language>${language}</dc:language>`}</cp:coreProperties>`;
 }
 
 // Word resolves a heading's LEVEL from styles.xml, never from the styleId
@@ -68,7 +73,15 @@ const HEADING_STYLES_XML = `${XMLDECL}
 
 function docx(
   bodyXml: string,
-  opts: { title?: string | null; styles?: boolean } = {},
+  opts: {
+    title?: string | null;
+    styles?: boolean;
+    language?: string | null;
+    /** Emits word/_rels/document.xml.rels so LINK()'s r:id values resolve to
+     *  real destinations — docxService reads link TEXT either way, but these
+     *  controls are also meant to open correctly in Word. */
+    hyperlinks?: Array<{ id: string; target: string }>;
+  } = {},
 ): Promise<Buffer> {
   return zip({
     "[Content_Types].xml": `${XMLDECL}
@@ -89,7 +102,16 @@ function docx(
 </Relationships>`,
     "docProps/core.xml": corePropsXml(
       opts.title === undefined ? "Synthetic Office Control" : opts.title,
+      opts.language === undefined ? "en-US" : opts.language,
     ),
+    ...(opts.hyperlinks && opts.hyperlinks.length > 0
+      ? {
+          "word/_rels/document.xml.rels": `${XMLDECL}
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${opts.hyperlinks.map((h) => `<Relationship Id="${h.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${h.target}" TargetMode="External"/>`).join("\n")}
+</Relationships>`,
+        }
+      : {}),
     "word/document.xml": `${XMLDECL}
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <w:body>${bodyXml}</w:body>
@@ -97,6 +119,23 @@ function docx(
   });
 }
 
+/** A run carrying an EXPLICIT color, which is what the contrast walk needs:
+ *  style-inherited colors resolve to "unresolved" and are reported as
+ *  un-evaluated rather than as failures. Background falls back to white. */
+const COLORED_P = (text: string, hex: string) =>
+  `<w:p><w:r><w:rPr><w:color w:val="${hex}"/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+/** A paragraph that TYPES its bullet character instead of using Word's list
+ *  formatting — no w:numPr, so nothing announces it as a list. */
+const TYPED_BULLET_P = (text: string) => `<w:p><w:r><w:t>\u2022 ${text}</w:t></w:r></w:p>`;
+/** A real list item: direct numbering properties, the form agency documents
+ *  most often carry. */
+const REAL_LIST_P = (text: string) =>
+  `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
+/** A hyperlink run. `text: ""` produces a link with NO accessible name — the
+ *  one link-text defect that is scored (WCAG 4.1.2); any other text is
+ *  reported at most. */
+const LINK = (id: string, text: string) =>
+  `<w:p><w:r><w:t>See </w:t></w:r><w:hyperlink r:id="${id}"><w:r><w:t>${text}</w:t></w:r></w:hyperlink><w:r><w:t> for details.</w:t></w:r></w:p>`;
 const P = (text: string) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`;
 const HEADING = (level: number, text: string) =>
   `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
@@ -194,8 +233,18 @@ const SLIDE_BODY = (text: string) =>
 const SLIDE_PIC = (id: number, descr?: string) =>
   `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/><p:nvPr/></p:nvPicPr></p:pic>`;
 
+/** A defined Table (Insert -> Table in Excel), the thing xlsxService counts.
+ *  `headerRowCount: 0` is Excel's "my table has no headers": the range is a
+ *  table, but no row is marked as its header, so nothing tells assistive
+ *  technology which cells label the columns. */
+interface XlsxTable {
+  name: string;
+  ref: string;
+  headerRowCount: 0 | 1;
+}
+
 function xlsx(
-  sheets: { name: string; rows: string[][] }[],
+  sheets: { name: string; rows: string[][]; table?: XlsxTable }[],
   opts: { title?: string | null } = {},
 ): Promise<Buffer> {
   const files: Record<string, string> = {
@@ -205,6 +254,14 @@ function xlsx(
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
 ${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("\n")}
+${sheets
+  .map((sh, i) =>
+    sh.table
+      ? `<Override PartName="/xl/tables/table${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>`
+      : "",
+  )
+  .filter(Boolean)
+  .join("\n")}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
     "_rels/.rels": `${XMLDECL}
@@ -231,8 +288,19 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
           `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${String.fromCharCode(65 + ci)}${ri + 1}" t="inlineStr"><is><t>${v}</t></is></c>`).join("")}</row>`,
       )
       .join("");
+    // xlsxService finds tables by walking the SHEET's rels for a /table
+    // relationship, so the rels part is what makes the table real; <tableParts>
+    // is emitted too because that is what Excel writes.
     files[`xl/worksheets/sheet${i + 1}.xml`] = `${XMLDECL}
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`;
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
+    if (s.table) {
+      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = `${XMLDECL}
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>
+</Relationships>`;
+      files[`xl/tables/table${i + 1}.xml`] = `${XMLDECL}
+<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${i + 1}" name="${s.table.name}" displayName="${s.table.name}" ref="${s.table.ref}" headerRowCount="${s.table.headerRowCount}"/>`;
+    }
   });
   return zip(files);
 }
@@ -550,7 +618,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-128-docx-empty-headings.docx",
     truth:
-      "Three Heading-styled blank lines used as spacing, among real headings. SCORED since 2026-08-31: a heading style applied to a blank line announces a section that does not exist — W3C failure F43 for WCAG 1.3.1 (Level A) — so heading_structure must lose points AND the conformance verdict must name 1.3.1. Reporting it without scoring it, or scoring it without naming the criterion, both fail this trap.",
+      "Three Heading-styled blank lines used as spacing, among real headings. SCORED since 2026-08-31: a heading style applied to a blank line announces a section that does not exist — structure conveyed by presentation that represents no real relationship, which is WCAG 1.3.1 (Level A) itself. heading_structure must lose points AND the conformance verdict must name 1.3.1. Reporting it without scoring it, or scoring it without naming the criterion, both fail this trap. (Deliberately NOT cited as W3C failure F43: every F43 example is heading markup on VISIBLE text, and W3C publishes no failure technique for an empty heading — the scorer says so in its own comment, and this truth must not contradict it.)",
     build: () =>
       docx(
         [
@@ -570,8 +638,9 @@ const SAMPLES: Sample[] = [
       const c = cat("heading_structure")(r);
       if (!c || c.score === null) return "heading_structure unscored";
       if (c.score >= 100) return `empty headings did not move the score (got ${c.score})`;
-      if (c.score < 70)
-        return `empty headings cost more than the 30-point cap (got ${c.score}) — they may never take this category past Minor`;
+      // Not a proof of the 30-point cap: three empty headings cost exactly 30
+      // with or without it. The cap is covered at n=3/8/40 in docxScorer.test.
+      if (c.score < 70) return `three empty headings cost more than 30 points (got ${c.score})`;
       if (!/contain no text/i.test(allFindings(r))) return "the empty headings are not named";
       // Only a named criterion may move a score (the legal-basis rule).
       const failing = (
@@ -612,6 +681,413 @@ const SAMPLES: Sample[] = [
       // The scorer and the verdict must agree the category was assessed.
       if (c && c.score !== null && c.score < 100)
         return `lost points for headings that carry content (${c.score})`;
+      // Not merely unaccused: the picture heading must be USED. Its alt text
+      // becomes the heading's text, so the outline starts at level 1 with the
+      // masthead's description — proving the heading was counted as a heading
+      // rather than quietly dropped, which would make the outline read as
+      // starting one level down.
+      const f = allFindings(r);
+      if (!/County Health Department bulletin masthead/.test(f))
+        return "the described picture heading is missing from the outline — its alt text never became the heading's text";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-142-docx-vague-link-text.docx",
+    truth:
+      'Two links reading "click here" and "read more". THIS MUST NOT MOVE THE SCORE. WCAG 2.4.4 Link Purpose (Level A) is satisfied by the link text together with its programmatically determined context — the sentence around it — which no text-only check can weigh; judging the text alone is 2.4.9, Level AAA, outside the legal minimum. The PDF scorer adopted that rule in the 2026-08-29 legal-only sweep and the three Office scorers did not, so until 2026-08-31 this exact document scored link_quality 0, severity Critical, capping the whole file at D, with the verdict naming NO criterion at all — against the promise that every finding names the WCAG rule behind it. Neither corpus gate could see it: legal-basis needs a control document with weak link text (there was none, until this one) and best-practice-basis needs a failing criterion (there was none). link_quality must score 100, the advisory must still name the links, and no criterion may be asserted.',
+    build: () =>
+      docx(
+        [HEADING(1, "How to Apply"), LINK("rH1", "click here"), LINK("rH2", "read more")].join(""),
+        {
+          title: "How to Apply",
+          styles: true,
+          hyperlinks: [
+            { id: "rH1", target: "https://example.illinois.gov/apply" },
+            { id: "rH2", target: "https://example.illinois.gov/eligibility" },
+          ],
+        },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unscored";
+      if (c.score !== 100)
+        return `weak link TEXT took ${100 - c.score} points; 2.4.4 lets context supply a link's purpose, so it may only be reported`;
+      const f = allFindings(r);
+      if (!/Advisory — not scored against you: 2 link\(s\) use non-descriptive text/.test(f))
+        return "the weak link text is not reported at all — unscored must never mean unmentioned";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.filter((x) => String(x.category ?? "") === "link_quality");
+      return failing && failing.length > 0
+        ? `asserted ${failing.map((x) => x.sc).join(", ")} against link text a machine cannot judge`
+        : null;
+    },
+  },
+  {
+    file: "synthetic-143-docx-unnamed-link.docx",
+    truth:
+      "One link with NO link text at all beside one descriptive link. This IS scored: a link is a user interface component, and WCAG 4.1.2 Name, Role, Value (Level A) requires every one of them to carry a programmatically determinable name — with no text there is no name, and no surrounding sentence can supply one, which is what separates this from the vague-text case in trap 142. link_quality must lose points (one of two links, so 50) and the verdict must name 4.1.2.",
+    build: () =>
+      docx(
+        [HEADING(1, "How to Apply"), LINK("rH1", ""), LINK("rH2", "the eligibility rules")].join(
+          "",
+        ),
+        {
+          title: "How to Apply",
+          styles: true,
+          hyperlinks: [
+            { id: "rH1", target: "https://example.illinois.gov/apply" },
+            { id: "rH2", target: "https://example.illinois.gov/eligibility" },
+          ],
+        },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unscored";
+      if (c.score !== 50)
+        return `one unnamed link of two scored ${c.score}, not 50 — a link with no name is the one text defect that IS confirmable`;
+      if (!/have no link text/i.test(allFindings(r))) return "the unnamed link is not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (x) => String(x.sc ?? "") === "4.1.2" && String(x.category ?? "") === "link_quality",
+      );
+      return failing ? null : "points lost with no 4.1.2 failure attributed to link_quality";
+    },
+  },
+  {
+    file: "synthetic-144-docx-descriptive-links-twin.docx",
+    truth:
+      "The same page with both links given descriptive text. link_quality must score a clean 100, no criterion may be asserted, and it must never score below either flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "How to Apply"),
+          LINK("rH1", "the application form"),
+          LINK("rH2", "the eligibility rules"),
+        ].join(""),
+        {
+          title: "How to Apply",
+          styles: true,
+          hyperlinks: [
+            { id: "rH1", target: "https://example.illinois.gov/apply" },
+            { id: "rH2", target: "https://example.illinois.gov/eligibility" },
+          ],
+        },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unscored";
+      if (c.score !== 100) return `two descriptive links scored ${c.score}, not 100`;
+      const f = allFindings(r);
+      // Match the PROBLEM lines, not the census line, which always reads
+      // "N link(s) found; 0 with no link text at all".
+      if (/link\(s\) have no link text/i.test(f))
+        return "a described link was reported as having no link text";
+      return /Advisory — not scored against you: \d+ link\(s\) use non-descriptive/.test(f)
+        ? "descriptive links were reported as non-descriptive"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-138-docx-low-contrast.docx",
+    truth:
+      "Ten explicitly coloured runs, nine of them near-black and ONE in yellow (#FFFF00) on Word's default white page — about 1.07:1 against a WCAG minimum of 4.5:1. The proportional score would be 90, so the category's 85 cap is what decides the number: a single unreadable line may never leave the category in the A band. Both halves must hold — exactly 85, and WCAG 1.4.3 Contrast (Minimum), Level AA named in the verdict. Remove the cap and this trap fails, which is the whole point: a fixture that already scores below 85 proves nothing about it. The colours are EXPLICIT, so this is a resolved measurement, not the 'could not be evaluated' branch.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Program Notice"),
+          ...Array.from({ length: 9 }, (_, i) =>
+            COLORED_P(`Readable paragraph number ${i + 1} of the notice.`, "1A1A1A"),
+          ),
+          COLORED_P("Applications are due by the fifteenth of March.", "FFFF00"),
+        ].join(""),
+        { title: "Program Notice", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null)
+        return "color_contrast was not assessed — the explicit run colors should have resolved";
+      // EXACTLY 85: nine of ten runs pass, so the proportional score is 90 and
+      // only the cap can bring it here. `<= 85` would pass with the cap gone.
+      if (c.score !== 85)
+        return `one unreadable run in ten scored ${c.score}; the proportional 90 must be capped to 85`;
+      if (!/Lowest contrast/i.test(allFindings(r))) return "the measured ratio is not reported";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.4.3" && String(f.category ?? "") === "color_contrast",
+      );
+      return failing
+        ? null
+        : "contrast points lost with no 1.4.3 failure attributed to the category";
+    },
+  },
+  {
+    file: "synthetic-139-docx-contrast-good-twin.docx",
+    truth:
+      "The same notice in near-black (#1A1A1A) on white — about 16:1. color_contrast must score a clean 100, no 1.4.3 may be asserted, and it must never score below its flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Program Notice"),
+          COLORED_P("Applications are due by the fifteenth of March.", "1A1A1A"),
+          COLORED_P("Late applications cannot be accepted.", "1A1A1A"),
+        ].join(""),
+        { title: "Program Notice", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null) return "color_contrast was not assessed";
+      if (c.score !== 100) return `near-black on white scored ${c.score}, not 100`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.sc ?? "") === "1.4.3");
+      return failing ? "1.4.3 asserted against 16:1 text" : null;
+    },
+  },
+  {
+    file: "synthetic-140-docx-typed-bullets.docx",
+    truth:
+      "A ten-item list, nine built with Word's numbering and ONE typed by hand as an ordinary paragraph beginning with a bullet character. The proportional score would be 90, so the category's 85 cap is what decides the number: even a single hand-typed item leaves the list boundaries and item count unannounced, and may not leave the category in the A band. Both halves must hold — exactly 85, and WCAG 1.3.1 (Level A) named in the verdict. Remove the cap and this trap fails, which is the point: a fixture that already scores below 85 proves nothing about it.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Eligibility"),
+          ...Array.from({ length: 9 }, (_, i) => REAL_LIST_P(`Requirement number ${i + 1}`)),
+          TYPED_BULLET_P("A completed application form"),
+        ].join(""),
+        { title: "Eligibility", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      // EXACTLY 85: nine of ten items are real, so the proportional score is 90
+      // and only the cap can bring it here.
+      if (c.score !== 85)
+        return `one typed bullet in ten scored ${c.score}; the proportional 90 must be capped to 85`;
+      if (!/typed bullets or numbers/i.test(allFindings(r)))
+        return "the typed bullets are not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "list_structure",
+      );
+      return failing ? null : "list points lost with no 1.3.1 failure attributed to list_structure";
+    },
+  },
+  {
+    file: "synthetic-141-docx-real-list-twin.docx",
+    truth:
+      "The same list built with Word's numbering properties on every item. list_structure must score a clean 100, no 1.3.1 may be asserted against it, and it must never score below its flawed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Eligibility"),
+          REAL_LIST_P("Illinois residency"),
+          REAL_LIST_P("Proof of income"),
+          REAL_LIST_P("A current photo ID"),
+          REAL_LIST_P("A completed application form"),
+        ].join(""),
+        { title: "Eligibility", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      if (c.score !== 100) return `a list built with real numbering scored ${c.score}, not 100`;
+      return /typed bullets or numbers/i.test(allFindings(r))
+        ? "a real list was reported as typed bullets"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-136-xlsx-headerless-table.xlsx",
+    truth:
+      'A workbook with one defined Table (Insert -> Table) created with Excel\'s "my table has no headers" box left ticked: headerRowCount="0". The range is a real table with named columns of data, but no row is marked as its header, so nothing tells assistive technology which cells label the columns beneath them. table_markup loses 30 points per headerless table — exactly 70 — and the verdict must name WCAG 1.3.1 (Level A). Trap 127 has no defined table at all, so nothing in either battery exercised this deduction until now.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "Enrollment",
+            rows: [
+              ["Program", "Participants"],
+              ["Job Training", "412"],
+              ["Housing Support", "268"],
+            ],
+            table: { name: "EnrollmentTable", ref: "A1:B3", headerRowCount: 0 },
+          },
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 70)
+        return `a single headerless defined table scored ${c.score}, not the 100 - 30 the rule defines`;
+      if (!/no header row/i.test(allFindings(r))) return "the headerless table is not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "table_markup",
+      );
+      return failing ? null : "30 points lost with no 1.3.1 failure attributed to table_markup";
+    },
+  },
+  {
+    file: "synthetic-137-xlsx-header-table-twin.xlsx",
+    truth:
+      'The same workbook with the table\'s header row marked (headerRowCount="1"). table_markup must score a clean 100, no 1.3.1 may be asserted against it, and it must never score below its flawed twin.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "Enrollment",
+            rows: [
+              ["Program", "Participants"],
+              ["Job Training", "412"],
+              ["Housing Support", "268"],
+            ],
+            table: { name: "EnrollmentTable", ref: "A1:B3", headerRowCount: 1 },
+          },
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `a table with a marked header row scored ${c.score}, not 100`;
+      return /no header row/i.test(allFindings(r))
+        ? "a table with a marked header row was reported as headerless"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-132-docx-no-language.docx",
+    truth:
+      "A titled Word document that declares NO language — core.xml is perfectly readable and simply carries no dc:language, and styles.xml declares no default either. title_language is worth 50 for the title and 50 for the language, so it must score exactly 50, and the verdict must name WCAG 3.1.1 Language of Page (Level A): without a declared language a screen reader applies the wrong pronunciation rules to the whole document. Scoring the half without naming the criterion would breach the legal-basis rule; naming it without scoring would file a Level A failure under 'not scored'.",
+    build: () =>
+      docx([HEADING(1, "Annual Report"), P(BODY_TEXT)].join(""), {
+        title: "Annual Report 2026",
+        styles: true,
+        language: null,
+      }),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 50)
+        return `a titled document with no language scored ${c.score}, not the 50 that a title alone earns`;
+      if (!/no document language/i.test(allFindings(r))) return "the missing language is not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "3.1.1" && String(f.category ?? "") === "title_language",
+      );
+      return failing ? null : "50 points lost with no 3.1.1 failure attributed to title_language";
+    },
+  },
+  {
+    file: "synthetic-133-docx-language-good-twin.docx",
+    truth:
+      "The same document with the document language declared. title_language must score a clean 100, no 3.1.1 may be asserted, and it must never score below its flawed twin.",
+    build: () =>
+      docx([HEADING(1, "Annual Report"), P(BODY_TEXT)].join(""), {
+        title: "Annual Report 2026",
+        styles: true,
+      }),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 100) return `a titled, language-declared document scored ${c.score}, not 100`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.sc ?? "") === "3.1.1");
+      return failing ? "3.1.1 asserted against a document that declares its language" : null;
+    },
+  },
+  {
+    file: "synthetic-134-pptx-title-not-first.pptx",
+    truth:
+      "A three-slide deck where slide 2 carries a real title placeholder that is NOT the first shape in the slide's tree — the body text is read out before the heading that was supposed to orient the listener. NOT SCORED since 2026-08-31: the PPTX conformance gate has always ruled the title-first heuristic is not a confirmed WCAG violation (1.3.2 asks that a correct sequence be programmatically DETERMINABLE, and the shape tree states it exactly), so reading_order must stay at 100 while the advisory names slide 2 with a not-scored prefix. This trap is the reason the rule was found: it deducted 15 points per slide for two days, which legal-basis catches the moment any document exercises it.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Quarterly Review") + SLIDE_BODY("Opening remarks."),
+          SLIDE_BODY("Enrollment rose 12 percent.") + SLIDE_TITLE("Enrollment"),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "Quarterly Review" },
+      ),
+    check: (r) => {
+      const c = cat("reading_order")(r);
+      if (!c || c.score === null) return "reading_order unscored";
+      if (c.score !== 100)
+        return `a title-order heuristic the conformance gate declines to call a WCAG failure took ${100 - c.score} points`;
+      const f = allFindings(r);
+      if (!/not the first shape in reading order/i.test(f))
+        return "the out-of-order slide is not reported at all";
+      if (!/Advisory — not scored: slide 2\b/.test(f))
+        return "the advisory does not name slide 2 with a not-scored prefix";
+      // Titled slides must not also be reported as missing their titles.
+      const st = cat("slide_titles")(r);
+      if (st && st.score !== null && st.score < 100)
+        return `slide_titles lost points (${st.score}) on a deck where every slide has a title`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-135-pptx-title-first-twin.pptx",
+    truth:
+      "The same deck with slide 2's title placeholder restored to the front of the shape tree. reading_order must score a clean 100, and must never score below its flawed twin.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Quarterly Review") + SLIDE_BODY("Opening remarks."),
+          SLIDE_TITLE("Enrollment") + SLIDE_BODY("Enrollment rose 12 percent."),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "Quarterly Review" },
+      ),
+    check: (r) => {
+      const c = cat("reading_order")(r);
+      if (!c || c.score === null) return "reading_order unscored";
+      return c.score === 100 ? null : `a title-first deck scored ${c.score}, not 100`;
+    },
+  },
+  {
+    file: "synthetic-131-docx-only-empty-headings.docx",
+    truth:
+      'A Word document whose ONLY Heading-styled paragraphs are blank lines — no real heading anywhere. This is the document that produced the 2026-08-31 contradiction: the scorer\'s early return fired on `no headings found` and reported heading_structure as NOT ASSESSED, while the conformance verdict simultaneously named a WCAG 1.3.1 Level A failure about those very paragraphs. The report then read grade A, "No headings were found", "Nothing — this document passed every automated check" and "1 criterion failing" at once. The scorer and the verdict must agree that this category was assessed: heading_structure must be SCORED (not null), must lose points, must name 1.3.1 — and must never also claim the document has no headings.',
+    build: () =>
+      docx(
+        [
+          P(BODY_TEXT),
+          EMPTY_HEADING(1),
+          P(BODY_TEXT),
+          EMPTY_HEADING(2),
+          P(BODY_TEXT),
+          EMPTY_HEADING(2),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Quarterly Update", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      // The whole point of the trap: Not Assessed here is the bug.
+      if (!c) return "heading_structure is missing from the report";
+      if (c.score === null)
+        return "heading_structure came back NOT ASSESSED — the scorer's early return fired on a document whose only headings are blank, which is what let a 1.3.1 failure sit beside grade A";
+      if (c.score >= 100) return `blank-only headings did not move the score (got ${c.score})`;
+      if (!/contain no text/i.test(allFindings(r))) return "the empty headings are not named";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "heading_structure",
+      );
+      if (!failing) return "score moved with no 1.3.1 failure attributed to heading_structure";
+      // Scorer and verdict must not contradict each other on the same screen.
+      if (/no headings were found/i.test(allFindings(r)))
+        return 'the report says "No headings were found" while naming a 1.3.1 failure about those headings';
       return null;
     },
   },
@@ -682,6 +1158,41 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "heading_structure",
   },
   {
+    bad: "synthetic-131-docx-only-empty-headings.docx",
+    good: "synthetic-129-docx-empty-headings-good-twin.docx",
+    category: "heading_structure",
+  },
+  {
+    bad: "synthetic-132-docx-no-language.docx",
+    good: "synthetic-133-docx-language-good-twin.docx",
+    category: "title_language",
+  },
+  {
+    bad: "synthetic-134-pptx-title-not-first.pptx",
+    good: "synthetic-135-pptx-title-first-twin.pptx",
+    category: "reading_order",
+  },
+  {
+    bad: "synthetic-136-xlsx-headerless-table.xlsx",
+    good: "synthetic-137-xlsx-header-table-twin.xlsx",
+    category: "table_markup",
+  },
+  {
+    bad: "synthetic-138-docx-low-contrast.docx",
+    good: "synthetic-139-docx-contrast-good-twin.docx",
+    category: "color_contrast",
+  },
+  {
+    bad: "synthetic-140-docx-typed-bullets.docx",
+    good: "synthetic-141-docx-real-list-twin.docx",
+    category: "list_structure",
+  },
+  {
+    bad: "synthetic-143-docx-unnamed-link.docx",
+    good: "synthetic-144-docx-descriptive-links-twin.docx",
+    category: "link_quality",
+  },
+  {
     bad: "synthetic-101-docx-bold-fake-headings.docx",
     good: "synthetic-102-docx-styles-good-twin.docx",
     category: "heading_structure",
@@ -722,15 +1233,71 @@ type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
   "synthetic-130-docx-picture-headings-not-blank.docx": {
     label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
-    chip: "clean",
+    chip: "held",
+  },
+  "synthetic-142-docx-vague-link-text.docx": {
+    label: "Word: links reading \u201cclick here\u201d and \u201cread more\u201d",
+    chip: "held",
+  },
+  "synthetic-143-docx-unnamed-link.docx": {
+    label: "Word: a link with no link text at all",
+    chip: "caught",
+  },
+  "synthetic-144-docx-descriptive-links-twin.docx": {
+    label: "Word: the same page with both links described",
+    chip: "held",
+  },
+  "synthetic-138-docx-low-contrast.docx": {
+    label: "Word: body text in yellow on a white page",
+    chip: "caught",
+  },
+  "synthetic-139-docx-contrast-good-twin.docx": {
+    label: "Word: the same notice in near-black on white",
+    chip: "held",
+  },
+  "synthetic-140-docx-typed-bullets.docx": {
+    label: "Word: a list typed with bullet characters instead of list formatting",
+    chip: "caught",
+  },
+  "synthetic-141-docx-real-list-twin.docx": {
+    label: "Word: the same list built with Word's numbering",
+    chip: "held",
+  },
+  "synthetic-136-xlsx-headerless-table.xlsx": {
+    label: "Excel: a defined table created with \u201cmy table has no headers\u201d ticked",
+    chip: "caught",
+  },
+  "synthetic-137-xlsx-header-table-twin.xlsx": {
+    label: "Excel: the same table with its header row marked",
+    chip: "held",
+  },
+  "synthetic-132-docx-no-language.docx": {
+    label: "Word: a titled document that declares no language at all",
+    chip: "caught",
+  },
+  "synthetic-133-docx-language-good-twin.docx": {
+    label: "Word: the same document with its language declared",
+    chip: "held",
+  },
+  "synthetic-134-pptx-title-not-first.pptx": {
+    label: "PowerPoint: a slide whose title is read after its body text",
+    chip: "caught",
+  },
+  "synthetic-135-pptx-title-first-twin.pptx": {
+    label: "PowerPoint: the same deck with every title read first",
+    chip: "held",
+  },
+  "synthetic-131-docx-only-empty-headings.docx": {
+    label: "Word: a document whose only headings are blank lines — nothing else",
+    chip: "caught",
   },
   "synthetic-128-docx-empty-headings.docx": {
     label: "Word: heading styles on blank lines, used as spacing",
-    chip: "held",
+    chip: "caught",
   },
   "synthetic-129-docx-empty-headings-good-twin.docx": {
     label: "Word: the same document spaced with ordinary blank paragraphs",
-    chip: "clean",
+    chip: "held",
   },
   "synthetic-101-docx-bold-fake-headings.docx": {
     label: "Word: bold 16-point text instead of Heading styles",

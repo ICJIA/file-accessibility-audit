@@ -18,6 +18,19 @@ const page = readFileSync(resolve(WEB, "pages/technical-details.vue"), "utf8");
 const index = readFileSync(resolve(WEB, "pages/index.vue"), "utf8");
 
 describe("technical-details ⇄ audit-page collapsible: one content source", () => {
+  it("states the Best-practices counts from the catalog, never as typed prose", () => {
+    // House rule: every count on a public page is computed or countless.
+    // These three were typed ("37 … 19 … 18") while the same numbers were
+    // separately pinned as literals in the catalog tests, so adding a
+    // practice updated the tests and left the sentence quietly wrong.
+    const explainer = readFileSync(resolve(WEB, "components/TechnicalExplainer.vue"), "utf8");
+    expect(explainer).toMatch(/\{\{ bpTotal \}\} non-scored practices/);
+    expect(explainer).toMatch(/\{\{ bpPdf \}\} for PDF and \{\{ bpOffice \}\}/);
+    expect(explainer, "a literal count of practices is back in the prose").not.toMatch(
+      /\d+ non-scored practices/,
+    );
+  });
+
   it("the standalone page renders <TechnicalExplainer /> — the same component the audit page's collapsible renders", () => {
     expect(page).toMatch(/<TechnicalExplainer\s*\/>/);
     expect(index).toMatch(/<LazyTechnicalExplainer[\s>]/);

@@ -942,3 +942,28 @@ describe("heading_structure: blank headings get their own fix, not the fake-head
     expect(step.title).toMatch(/real heading styles/i);
   });
 });
+
+describe("the criterion chip links the rule it names (standing rule, 2026-08-31)", () => {
+  // This chip sits on the checklist a public body works from, naming the rule
+  // a deduction rests on with no way to go and read it — while the PRINTABLE
+  // version of the same data has linked it all along. Source-inspected: the
+  // chip is deep inside a v-for in a large template.
+  const src = readFileSync(resolve(__dirname, "..", "components", "ActionPlan.vue"), "utf-8");
+
+  it("renders the criterion as an anchor when a slug is known", () => {
+    // The chip block runs from the dynamic element to its closing tag.
+    const start = src.indexOf(':is="criterionHref(wcagRef.sc)');
+    expect(start, "the chip is no longer a dynamic element").toBeGreaterThan(-1);
+    const chip = src.slice(start, src.indexOf("</component", start));
+    expect(chip).toContain('v-for="wcagRef in step.wcagRefs"');
+    expect(chip).toContain(':href="criterionHref(wcagRef.sc) || undefined"');
+    expect(chip).toContain("noopener noreferrer");
+  });
+
+  it("uses the same slug source as the printable plan, so the two cannot disagree", () => {
+    expect(src).toContain("wcagSlugFor");
+    expect(src).toContain("wcag.understandingUrl(slug)");
+    // Falls back to plain text rather than a dead link.
+    expect(src).toMatch(/return slug \? wcag\.understandingUrl\(slug\) : null;/);
+  });
+});

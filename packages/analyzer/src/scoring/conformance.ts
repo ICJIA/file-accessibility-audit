@@ -23,6 +23,7 @@
  *
  * The gate never says "conformant". By design — only a human review can.
  */
+import { classifyLinkText } from "./common.js";
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { DocxAnalysis } from "../docxService.js";
@@ -395,6 +396,26 @@ export function evaluateConformance(
     );
   }
 
+  // Same 4.1.2 rule the three Office gates carry: a link with NO text has no
+  // accessible name, and 4.1.2 (Level A) names links among the components that
+  // must have one. Distinct from the untagged-link rule above (that one is
+  // about the tag tree, this one about the name) and from vague text, which
+  // stays unscored because 2.4.4 lets context supply the purpose.
+  {
+    const unnamedLinks = (pdfjs.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the source document before re-exporting, or edit it in Acrobat.`,
+      );
+    }
+  }
+
   // --- Rules 7c–7f + 5b, 6b, 9b (2026-08-29, the legal-only sweep) --------
   // The user's ruling: only WCAG 2.1 A/AA may move a score. That forces the
   // score and this verdict to agree EXACTLY — every deduction that survived
@@ -688,10 +709,18 @@ export function evaluateConformance(
 
   // New in WCAG 2.2: surface the form-relevant new A/AA criteria as
   // "not assessed — manual review" when this document has interactive form
-  // fields. Never as failures (no automated evidence). Skipped entirely when
-  // reverted to WCAG 2.1. Web-UI-only new criteria (focus, dragging, consistent
-  // help) are documented on the /wcag-2-2 page instead, not per-document.
-  if (WCAG.VERSION === "2.2" && qpdf.hasAcroForm) {
+  // fields. Never as failures (no automated evidence). Web-UI-only new
+  // criteria (focus, dragging, consistent help) are documented on the
+  // /wcag-2-2 page instead, not per-document.
+  //
+  // NO LONGER GATED ON WCAG.VERSION (user decision, 2026-08-31). When the
+  // displayed standard moved to 2.1 these notes vanished, which is defensible
+  // — they are not part of 2.1 — but it silently removed useful advice from
+  // exactly the documents that need it, and left four surfaces promising a
+  // disclosure that no longer happened. They are restored as ASPIRATIONAL:
+  // the reason says plainly that they sit beyond the standard being measured,
+  // so no reader can mistake one for something the law asks of them.
+  if (qpdf.hasAcroForm) {
     for (const c of WCAG_22_NEW_AA) {
       if (!c.pdfFormRelevant) continue;
       notAssessed.push({
@@ -699,7 +728,7 @@ export function evaluateConformance(
         name: c.name,
         level: c.level as "A" | "AA",
         reason:
-          "New in WCAG 2.2. Applies to interactive PDF form controls/processes; this tool does not assess it automatically — manual review required.",
+          "Beyond the standard your grade measures: this is new in WCAG 2.2, and WCAG 2.1 is what ADA Title II and the Illinois IITAA require. It applies to interactive form controls, so it is worth a look by hand if you are aiming past the legal minimum. Nothing here affects your grade or your compliance.",
         url: wcagUrl(c.sc),
       });
     }
@@ -985,6 +1014,29 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
+  // A link with NO TEXT AT ALL has no accessible name. WCAG 4.1.2 Name, Role,
+  // Value (Level A) names links explicitly among the user interface components
+  // whose "name and role can be programmatically determined", and unlike 2.4.4
+  // it offers no context escape hatch — a name is present or it is not. This
+  // is the ONE link-text defect an automated check can assert, which is why
+  // the scorers penalise it and report weak-but-present text instead.
+  // Added 2026-08-31: the scorers had been deducting for the whole class,
+  // including vague text, while this gate named no criterion for any of it.
+  {
+    const unnamedLinks = (analysis.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the "Text to display" field.`,
+      );
+    }
+  }
+
   // --- criteria not assessed automatically ----------------------------------
   const floatingCount = analysis.floatingObjectCount ?? 0;
   const notAssessed: NotAssessedCriterion[] = [
@@ -1107,6 +1159,29 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       "color_contrast",
       `${analysis.contrast.failing.length} text run(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or background color in PowerPoint.`,
     );
+  }
+
+  // A link with NO TEXT AT ALL has no accessible name. WCAG 4.1.2 Name, Role,
+  // Value (Level A) names links explicitly among the user interface components
+  // whose "name and role can be programmatically determined", and unlike 2.4.4
+  // it offers no context escape hatch — a name is present or it is not. This
+  // is the ONE link-text defect an automated check can assert, which is why
+  // the scorers penalise it and report weak-but-present text instead.
+  // Added 2026-08-31: the scorers had been deducting for the whole class,
+  // including vague text, while this gate named no criterion for any of it.
+  {
+    const unnamedLinks = (analysis.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the "Text to display" field.`,
+      );
+    }
   }
 
   // --- criteria not assessed automatically ----------------------------------
@@ -1233,6 +1308,29 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       "color_contrast",
       `${analysis.contrast.failing.length} cell style(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or fill color in Excel.`,
     );
+  }
+
+  // A link with NO TEXT AT ALL has no accessible name. WCAG 4.1.2 Name, Role,
+  // Value (Level A) names links explicitly among the user interface components
+  // whose "name and role can be programmatically determined", and unlike 2.4.4
+  // it offers no context escape hatch — a name is present or it is not. This
+  // is the ONE link-text defect an automated check can assert, which is why
+  // the scorers penalise it and report weak-but-present text instead.
+  // Added 2026-08-31: the scorers had been deducting for the whole class,
+  // including vague text, while this gate named no criterion for any of it.
+  {
+    const unnamedLinks = (analysis.links ?? []).filter(
+      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+    ).length;
+    if (unnamedLinks > 0) {
+      add(
+        "4.1.2",
+        "Name, Role, Value",
+        "A",
+        "link_quality",
+        `${unnamedLinks} link(s) carry no link text, so nothing identifies them to a screen reader — the link is announced with no name at all. Give each one descriptive text in the "Text to display" field.`,
+      );
+    }
   }
 
   // --- criteria not assessed automatically ----------------------------------

@@ -420,6 +420,10 @@ const SAMPLES: Sample[] = [
     },
     check: (r) => {
       const c = cat("table_markup")(r)!;
+      // `null < 100` is true, so a Not-Assessed category would silently PASS
+      // this trap — it could not tell "correctly penalised" from "never looked
+      // at". Every sibling trap guards the null; this one did not.
+      if (c.score === null) return "table_markup was not assessed at all";
       return c.score < 100 ? null : "a headerless 3x3 table scored 100";
     },
   },

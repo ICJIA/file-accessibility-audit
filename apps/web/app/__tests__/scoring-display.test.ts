@@ -1,3 +1,4 @@
+import { WCAG } from "../../../../audit.config";
 import "./test-helpers";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -128,7 +129,7 @@ describe("Score display — verdict explanation", () => {
     expect(explanation.exists()).toBe(true);
     expect(explanation.text()).toContain("2 critical issues");
     expect(explanation.text()).toContain("1 moderate issue");
-    expect(explanation.text()).toContain("WCAG 2.2 AA");
+    expect(explanation.text()).toContain(`WCAG ${WCAG.VERSION} AA`);
     expect(explanation.text()).toContain("IITAA §E205.4");
   });
 

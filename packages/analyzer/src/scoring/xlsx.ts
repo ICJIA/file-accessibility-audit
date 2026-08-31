@@ -426,23 +426,46 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
       true,
     );
   }
-  // Shared 2.4.4 doctrine (scoring/common.ts): raw URLs are advisory-only;
-  // empty/vague/too-short text is penalized.
-  const needsFix = assessable.filter((l) => classifyLinkText(l.text) === "needsFix");
+  // THE PDF PATH'S DOCTRINE, APPLIED AT LAST (2026-08-31). The 2026-08-29
+  // legal-only sweep stopped the PDF scorer penalising weak link TEXT — 2.4.4
+  // is satisfied by the text together with its context, which no text-only
+  // check can weigh — but the three Office scorers were not swept, under a
+  // comment in scoring/common.ts claiming they applied "the identical
+  // doctrine". They did not: a Word document with two "click here" links
+  // scored link_quality 0, Critical, capping the whole file at D, with the
+  // verdict naming NO criterion at all — against a public promise that every
+  // finding names the WCAG rule behind it. Neither corpus gate could see it:
+  // legal-basis needs a control document with weak link text (none had one)
+  // and best-practice-basis needs a failing criterion (there was none).
+  //
+  // Only an UNNAMED link is scored now: no text at all is a link with no
+  // accessible name, which WCAG 4.1.2 (Level A) forbids outright, with no
+  // context to weigh. Vague text is reported and never counted.
+  const unnamed = assessable.filter((l) => classifyLinkText(l.text) === "unnamed");
+  const vague = assessable.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = assessable.filter((l) => classifyLinkText(l.text) === "rawUrl");
-  const score = Math.round((100 * (assessable.length - needsFix.length)) / assessable.length);
-  const findings = [`${assessable.length} link(s) assessed; ${needsFix.length} with unclear text.`];
+  const score = Math.round((100 * (assessable.length - unnamed.length)) / assessable.length);
+  const findings = [
+    `${assessable.length} link(s) assessed; ${unnamed.length} with no link text at all.`,
+  ];
   if (unresolvedCount > 0) {
     findings.push(
       `${unresolvedCount} additional link(s) had no resolvable text in the file and were not assessed.`,
     );
   }
-  if (needsFix.length > 0) {
+  if (unnamed.length > 0) {
     findings.push(
-      `Empty or vague link text: ${needsFix
+      `${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In Excel: right-click the cell → Edit Link, and type a descriptive phrase in "Text to display".`,
+    );
+  }
+  if (vague.length > 0) {
+    findings.push(
+      `Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
         .slice(0, 5)
-        .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
-        .join(", ")}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase.`,
+        .map((l) => `"${l.text}"`)
+        .join(
+          ", ",
+        )}). WCAG 2.4.4 lets the surrounding cell text supply a link's purpose, which an automated check cannot weigh, so this never affects your grade — but a descriptive phrase reads better in a screen reader's list of links.`,
     );
   }
   if (rawUrls.length > 0) {

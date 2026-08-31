@@ -1,3 +1,4 @@
+import { WCAG } from "../../../../audit.config";
 /**
  * Shared test helpers for Vue component tests in a Nuxt environment.
  * Stubs Nuxt auto-imports and UI components so we can mount components
@@ -72,22 +73,27 @@ _global.useRuntimeConfig = () => ({
     xlsxEnabled: true,
     iitaaUrl: "https://doit.illinois.gov/initiatives/accessibility/iitaa.html",
     verapdfUrl: "https://verapdf.org/",
-    wcagVersion: "2.2",
+    wcagVersion: WCAG.VERSION,
     wcagLevel: "AA",
-    wcagQuickref: "https://www.w3.org/WAI/WCAG22/quickref/",
-    wcagUnderstandingBase: "https://www.w3.org/WAI/WCAG22/Understanding/",
+    wcagQuickref: WCAG.QUICKREF[WCAG.VERSION],
+    wcagUnderstandingBase: WCAG.UNDERSTANDING_BASE[WCAG.VERSION],
     announcements: [],
   },
 });
+// DERIVED FROM THE REAL CONFIG, never hardcoded (2026-08-31). This stub had
+// its own literal "2.2" and its own /WCAG22/ URLs, so it silently overrode the
+// runtime-config mock below and no component test could see a WCAG-version
+// regression: chips resolved to 2.2 pages under test while production served
+// 2.1. Reading audit.config means the stub follows the flag by construction.
 _global.useWcag = () => {
-  const version = "2.2";
-  const level = "AA";
+  const version = WCAG.VERSION;
+  const level = WCAG.LEVEL;
   return {
     version,
     level,
-    quickref: "https://www.w3.org/WAI/WCAG22/quickref/",
+    quickref: WCAG.QUICKREF[version],
     label: `WCAG ${version} Level ${level}`,
-    understandingUrl: (slug: string) => `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
+    understandingUrl: (slug: string) => `${WCAG.UNDERSTANDING_BASE[version]}${slug}.html`,
   };
 };
 

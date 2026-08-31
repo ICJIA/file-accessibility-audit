@@ -372,7 +372,31 @@ const VAGUE_LINK_PHRASES = new Set([
   "click this link",
 ]);
 
-export type LinkClass = "descriptive" | "rawUrl" | "needsFix";
+/**
+ * `"unnamed"` and `"vague"` were ONE class ("needsFix") until 2026-08-31, and
+ * merging them is what let three Office formats deduct for something the
+ * report could not tie to any criterion. They fail for different reasons and
+ * only one of them is machine-confirmable:
+ *
+ *   unnamed — the link has NO text at all. A link is a user interface
+ *             component, and WCAG 4.1.2 Name, Role, Value (Level A) requires
+ *             every one of them to have a programmatically determinable name.
+ *             There is no context escape hatch in 4.1.2: a name is present or
+ *             it is not, which makes this the one link-text defect an
+ *             automated check can assert. SCORED.
+ *   vague   — the link has text, but weak text ("click here", "more", "»").
+ *             WCAG 2.4.4 Link Purpose (Level A) is satisfied by the link text
+ *             "together with its programmatically determined link context" —
+ *             the sentence around it — which a text-only check cannot weigh.
+ *             Judging the text ALONE is 2.4.9, Level AAA, outside the legal
+ *             minimum. REPORTED, NEVER SCORED. This is the rule the PDF path
+ *             adopted in the 2026-08-29 legal-only sweep; the Office scorers
+ *             kept penalising it for two days longer, under a comment in this
+ *             very file claiming they applied "the identical doctrine".
+ *   rawUrl  — visible URL. The destination IS determinable, so 2.4.4 is met.
+ *             Advisory only.
+ */
+export type LinkClass = "descriptive" | "rawUrl" | "unnamed" | "vague";
 
 // ---------------------------------------------------------------------------
 // Language-tag shape check (WCAG 3.1.1 / Matterhorn 11, v1.92.0).
@@ -396,11 +420,12 @@ export function isPlausibleLanguageTag(tag: string): boolean {
 
 export function classifyLinkText(text: string): LinkClass {
   const t = text.trim().toLowerCase();
-  if (t.length === 0) return "needsFix"; // empty link text — no purpose conveyed
+  if (t.length === 0) return "unnamed"; // no accessible name at all — 4.1.2
   if (/^(https?:\/\/|www\.)/i.test(t)) return "rawUrl"; // visible URL — advisory
-  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return "needsFix";
-  // 1–2 alphanumeric characters cannot describe a destination.
-  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return "needsFix";
+  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return "vague";
+  // 1–2 alphanumeric characters cannot describe a destination on their own —
+  // but they ARE a name, so this is the 2.4.4-with-context case, not 4.1.2.
+  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return "vague";
   return "descriptive";
 }
 
