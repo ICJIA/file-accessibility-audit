@@ -789,9 +789,17 @@ import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
 import {
   analyzeWithProgress,
+  resumeWithProgress,
   type AnalyzeJobStatus,
   type AnalyzeJobStepKey,
 } from "~/utils/analyzeJob";
+import {
+  clearAuditSession,
+  readAuditSession,
+  saveFinishedAudit,
+  saveRunningAudit,
+} from "~/utils/auditSession";
+import { ANALYZE_JOB } from "../../../../audit.config";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
 
@@ -949,13 +957,98 @@ const hasAnyResult = computed(() => {
 // in-flight fetch owned by this page, a batch is a client-side loop — neither
 // survives leaving. See composables/useAuditInProgress.ts.
 const auditInProgress = useAuditInProgress();
+// True only while the CURRENT single-file audit is one a reloaded tab could
+// rejoin: the job endpoints answered, and its id and token actually reached
+// sessionStorage. Both halves matter — the synchronous fallback has no job to
+// rejoin, and a storage write can be refused (blocked site data, full quota),
+// in which case leaving really does lose the audit and the warning is right.
+const singleAuditResumable = ref(false);
 watchEffect(() => {
-  auditInProgress.value = processing.value || batchProcessing.value;
+  auditInProgress.value =
+    (processing.value && !singleAuditResumable.value) || batchProcessing.value;
 });
 // REQUIRED, not tidiness: after a confirmed departure this page unmounts while
 // the flag is still true, and a stuck flag would prompt on every later click.
 onBeforeUnmount(() => {
   auditInProgress.value = false;
+});
+
+// --- Rejoining an audit after a page load (v1.147.0) ---
+// The visitor clicked "Status" (a Nitro route, so a real document
+// navigation), or reloaded, or followed any in-app link, while their document
+// was being audited. The audit never stopped — it runs on the server, and its
+// job holds the finished report until a page collects it — so all this has to
+// do is find the job again and carry on watching it.
+//
+// Client-only: sessionStorage does not exist during SSR, and restoring on the
+// server would render a report into the HTML of a page anyone could be
+// served.
+onMounted(async () => {
+  // ?prefill= owns the page when present: it is an explicit instruction to
+  // audit a named URL, and it must not lose to whatever the tab did last.
+  if (new URLSearchParams(window.location.search).has("prefill")) return;
+
+  const session = readAuditSession({
+    now: Date.now(),
+    appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    ttlMs: ANALYZE_JOB.TTL_MS,
+  });
+  if (!session) return;
+
+  if (session.kind === "result") {
+    singleResult.value = session.result;
+    // The File itself is not storable — not serialisable, and a 7 MB PDF
+    // would blow the quota that the report barely fits inside. The one
+    // consumer, RemediateButton, already handles a null file by opening a
+    // picker (it has to: shared report views never had one either), so a
+    // restored report offers remediation with one extra click.
+    singleFile.value = null;
+    return;
+  }
+
+  // A job that was still running. Show the same overlay it had before, then
+  // pick the polling back up where it left off.
+  processing.value = true;
+  singleAuditResumable.value = true;
+  processingRotate.value = true;
+  processingFileType.value = session.fileType;
+  processingFilename.value = session.filename;
+  processingSteps.value = null;
+  processingStage.value = "";
+  analysisError.value = null;
+
+  try {
+    const response = await resumeWithProgress(
+      session.jobId,
+      session.token,
+      $fetch as never,
+      mapJobSteps,
+    );
+    singleResult.value = response;
+    saveFinishedAudit({
+      result: response,
+      filename: session.filename,
+      savedAt: Date.now(),
+      appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    });
+    focusResultsHeading();
+  } catch (err: unknown) {
+    clearAuditSession();
+    // A job that is simply gone is not an error the visitor made or needs
+    // explaining in red: it expired, another tab collected it, or the API
+    // restarted. Return the page to its ordinary state and let them upload.
+    if ((err as { jobGone?: boolean })?.jobGone) return;
+    analysisError.value = (err as { data?: PrefillError })?.data ?? {
+      error: "Analysis failed. Please try again.",
+    };
+  } finally {
+    processing.value = false;
+    singleAuditResumable.value = false;
+    processingRotate.value = false;
+    processingFileType.value = null;
+    processingFilename.value = null;
+    processingSteps.value = null;
+  }
 });
 
 const showDropHint = ref(false);
@@ -1024,9 +1117,26 @@ async function analyzeFile(file: File) {
     // never break on the progress feature.
     let response: AnalysisResult;
     try {
-      response = await analyzeWithProgress(file, $fetch as never, mapJobSteps);
+      response = await analyzeWithProgress(file, $fetch as never, mapJobSteps, {
+        // The audit runs on the server and its job outlives this page; these
+        // two strings are all a reloaded tab needs to rejoin it.
+        onJobCreated: ({ jobId, token }) => {
+          singleAuditResumable.value = saveRunningAudit({
+            jobId,
+            token,
+            filename: file.name,
+            fileType: fileTypeFromName(file.name),
+            startedAt: Date.now(),
+            appVersion: String(runtimeConfig.public.appVersion ?? ""),
+          });
+        },
+      });
     } catch (jobErr: any) {
       if (!jobErr?.jobUnsupported) throw jobErr;
+      // No job endpoints on this deployment: nothing to rejoin, so leaving
+      // really would discard this audit and the warning must come back.
+      singleAuditResumable.value = false;
+      clearAuditSession();
       processingSteps.value = null;
       const formData = new FormData();
       formData.append("file", file);
@@ -1038,13 +1148,25 @@ async function analyzeFile(file: File) {
     }
 
     singleResult.value = response;
+    // The server deletes a finished job the moment a page collects it, so
+    // from here on this browser is the only place the report exists. Keeping
+    // it means a visitor who reads the report, checks the status page, and
+    // comes back still has it. A failure to store is not a failure to audit.
+    saveFinishedAudit({
+      result: response,
+      filename: file.name,
+      savedAt: Date.now(),
+      appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    });
     focusResultsHeading();
   } catch (err: any) {
+    clearAuditSession();
     analysisError.value = err.data || {
       error: "Analysis failed. Please try again.",
     };
   } finally {
     processing.value = false;
+    singleAuditResumable.value = false;
     processingRotate.value = false;
     processingFileType.value = null;
     processingFilename.value = null;
@@ -1154,6 +1276,7 @@ function scrollToExport() {
 }
 
 function clearResults() {
+  clearAuditSession();
   singleResult.value = null;
   analysisError.value = null;
   batchItems.value = [];

@@ -2414,6 +2414,39 @@ export const UI = {
 // deleted between pipeline stages; outputs are deleted on first download or
 // after OUTPUT_TTL_MS, whichever comes first.
 
+// ---------------------------------------------------------------------------
+// IN-PROGRESS AUDIT JOBS
+// ---------------------------------------------------------------------------
+// The progress-model audit (POST /api/analyze-job) keeps a job in the API's
+// process memory while it runs. These two numbers live here, rather than
+// beside the job store, because the BROWSER needs them too: since v1.147.0 a
+// tab that navigates away mid-audit stores the job's id and token and resumes
+// polling when it comes back, and it must not offer to resume a job the
+// server has already swept. Two copies of this number would drift, and the
+// drift would show as a resume that 404s.
+// ---------------------------------------------------------------------------
+export const ANALYZE_JOB = {
+  /**
+   * How long a job — running or finished-but-uncollected — stays in memory.
+   *
+   * SAFE TO CHANGE: Yes, within reason. It bounds how long a visitor may
+   * wander off and still find their audit waiting. Raising it holds finished
+   * results in server memory longer (they are deleted the moment a page
+   * collects them); lowering it below the hard timeout would sweep jobs that
+   * are still legitimately running.
+   */
+  TTL_MS: 10 * 60 * 1000,
+
+  /**
+   * How long a job may RUN before it is abandoned as stuck.
+   *
+   * DO NOT CHANGE without measuring: a 246-page report has taken ~60 s on the
+   * production box, and the qpdf pipe stall of 2026-08-28 showed the tail is
+   * long. This is the backstop, not the expected duration.
+   */
+  HARD_TIMEOUT_MS: 5 * 60 * 1000,
+} as const;
+
 export const REMEDIATION = {
   /**
    * Feature flag. When false, the API endpoints return 404 and the

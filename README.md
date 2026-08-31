@@ -256,6 +256,18 @@ Each category receives a severity based on its individual score:
 
 Scoring counts only WCAG 2.1 Level A/AA success criteria — the standard ADA Title II and the Illinois IITAA 2.1 require. The audit also checks documents against WCAG 2.2 AA (a strict superset) for the manual-review disclosure list; nothing 2.2 added is ever counted in a score. ADA Title II digital accessibility compliance is due April 26, 2027 for public entities serving 50,000 or more people, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026). All scoring constants live in `audit.config.ts`. WCAG 2.1 is the displayed standard. To display 2.2 instead, set `WCAG_VERSION=2.2` and redeploy (API reverts on restart; the web UI reverts on rebuild).
 
+## Leaving the Page Mid-Audit
+
+A single-file audit runs as a **server-side job**, not as work owned by the browser tab: `POST /api/analyze-job` returns a job id and a one-time key, the pipeline runs to completion on the server whether or not anyone is watching, and the finished report waits in memory until a page collects it or `ANALYZE_JOB.TTL_MS` (10 minutes) passes.
+
+Since **v1.147.0** the page keeps that id and key in the browser's per-tab `sessionStorage`, so a real page load no longer discards the work. Following the header's **Status** link (a Nitro server route, so a genuine document navigation), reloading, or clicking any in-app link and coming back all rejoin the same job — and a report that had already arrived is re-rendered from the copy the browser kept, with nothing uploaded twice. What the browser holds is named in full on `/data-retention` § 8: while running, the job id, its key, and the file's *name*; once finished, the report JSON (75–100 KB on real agency documents). Never the file itself.
+
+Three consequences worth knowing:
+
+- **The "you will lose this audit" warning got narrower, not louder.** It now appears only when leaving would genuinely destroy something: a **batch** (a client-side queue holding the files themselves), the **synchronous fallback** used by an older API with no job endpoints, or a tab where `sessionStorage` could not be written (blocked site data, full quota — the page checks the write's return value rather than assuming it worked). Warning about a recoverable audit would describe a loss that does not happen, and a dialog that cries wolf gets clicked through.
+- **The Status link opens in a new tab only in those same cases.** It opened one unconditionally once and was changed back because it left a stray tab behind on every visit; the cost is now paid only when it buys something.
+- **A stored session is discarded if the app version changed**, so a deploy landing mid-session can never render a report shaped for an older build.
+
 ## Batch Upload
 
 Upload up to **5 files** (PDF, Word, PowerPoint, or Excel) at once. Files are analyzed in parallel (2 at a time) and results appear in a **file scoreboard** — a row of report cards, one per file, each showing a grade ring in the grade's color, the score out of 100, and the filename. Select any card to read that file's full report, export, or share.

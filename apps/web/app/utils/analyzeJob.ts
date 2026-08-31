@@ -34,13 +34,95 @@ export class AnalyzeJobUnsupportedError extends Error {
   }
 }
 
+/** Thrown when a RESUMED job is no longer on the server — swept after its
+ *  TTL, already collected by another tab, or lost to an API restart. Not a
+ *  failure of the audit and never an error the visitor caused, so the caller
+ *  shows the upload form again rather than an error card. */
+export class AnalyzeJobGoneError extends Error {
+  jobGone = true as const;
+  constructor() {
+    super("analysis job no longer available");
+  }
+}
+
 type Fetcher = <T>(url: string, opts?: Record<string, unknown>) => Promise<T>;
+
+/** The shared poll loop. `startedAt` lets a RESUMED job inherit the elapsed
+ *  time, so a tab that returns after eight minutes does not sit for the full
+ *  budget again waiting on a job the server is about to sweep. */
+async function pollUntilDone(
+  jobId: string,
+  token: string,
+  fetcher: Fetcher,
+  onStatus: (status: AnalyzeJobStatus) => void,
+  opts: { pollMs: number; maxPolls: number; resumed: boolean },
+): Promise<AnalysisResult> {
+  const statusUrl = `/api/analyze-job/${jobId}?t=${encodeURIComponent(token)}`;
+  for (let i = 0; i < opts.maxPolls; i++) {
+    await new Promise((r) => setTimeout(r, opts.pollMs));
+    let status: AnalyzeJobStatus;
+    try {
+      status = await fetcher<AnalyzeJobStatus>(statusUrl, { credentials: "include" });
+    } catch (err) {
+      const code =
+        (err as { status?: number; statusCode?: number }).status ??
+        (err as { statusCode?: number }).statusCode;
+      // On a RESUME a 404 is the expected end of the road, not a fault: the
+      // job was swept, already delivered, or the API restarted. On a job we
+      // just created it is a real error and stays one.
+      if (opts.resumed && code === 404) throw new AnalyzeJobGoneError();
+      throw err;
+    }
+    onStatus(status);
+    if (status.done) {
+      if (status.result) return status.result;
+      // The same body the synchronous endpoint would have sent, shaped like
+      // a $fetch error so the caller's existing handling applies untouched.
+      const err = new Error(status.error?.body?.error ?? "Analysis failed") as Error & {
+        data?: unknown;
+        status?: number;
+      };
+      err.data = status.error?.body;
+      err.status = status.error?.status;
+      throw err;
+    }
+  }
+  const timedOut = new Error("Analysis timed out") as Error & { data?: unknown };
+  timedOut.data = { ...AUDIT_TIMEOUT_MESSAGE };
+  throw timedOut;
+}
+
+/**
+ * Rejoin a job this browser started before a page load — the visitor clicked
+ * "Status", or any other real navigation, while their document was being
+ * audited. The audit never stopped: it runs on the server, and the job holds
+ * its result until a page collects it. This picks the polling back up.
+ */
+export async function resumeWithProgress(
+  jobId: string,
+  token: string,
+  fetcher: Fetcher,
+  onStatus: (status: AnalyzeJobStatus) => void,
+  opts: { pollMs?: number; maxPolls?: number } = {},
+): Promise<AnalysisResult> {
+  return pollUntilDone(jobId, token, fetcher, onStatus, {
+    pollMs: opts.pollMs ?? 1_000,
+    maxPolls: opts.maxPolls ?? 400,
+    resumed: true,
+  });
+}
 
 export async function analyzeWithProgress(
   file: File,
   fetcher: Fetcher,
   onStatus: (status: AnalyzeJobStatus) => void,
-  opts: { pollMs?: number; maxPolls?: number } = {},
+  opts: {
+    pollMs?: number;
+    maxPolls?: number;
+    /** Called the instant the server accepts the upload, with the only two
+     *  facts needed to rejoin this audit after a page load. */
+    onJobCreated?: (job: { jobId: string; token: string }) => void;
+  } = {},
 ): Promise<AnalysisResult> {
   const pollMs = opts.pollMs ?? 1_000;
   // Backstop far above the server's own 5-minute job timeout — the loop must
@@ -66,25 +148,11 @@ export async function analyzeWithProgress(
     throw err;
   }
 
-  const statusUrl = `/api/analyze-job/${created.jobId}?t=${encodeURIComponent(created.token)}`;
-  for (let i = 0; i < maxPolls; i++) {
-    await new Promise((r) => setTimeout(r, pollMs));
-    const status = await fetcher<AnalyzeJobStatus>(statusUrl, { credentials: "include" });
-    onStatus(status);
-    if (status.done) {
-      if (status.result) return status.result;
-      // The same body the synchronous endpoint would have sent, shaped like
-      // a $fetch error so the caller's existing handling applies untouched.
-      const err = new Error(status.error?.body?.error ?? "Analysis failed") as Error & {
-        data?: unknown;
-        status?: number;
-      };
-      err.data = status.error?.body;
-      err.status = status.error?.status;
-      throw err;
-    }
-  }
-  const timedOut = new Error("Analysis timed out") as Error & { data?: unknown };
-  timedOut.data = { ...AUDIT_TIMEOUT_MESSAGE };
-  throw timedOut;
+  opts.onJobCreated?.({ jobId: created.jobId, token: created.token });
+
+  return pollUntilDone(created.jobId, created.token, fetcher, onStatus, {
+    pollMs,
+    maxPolls,
+    resumed: false,
+  });
 }

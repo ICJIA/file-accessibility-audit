@@ -1,11 +1,23 @@
 // Guards a running audit against being thrown away by a stray click.
 //
-// The audit runs in the page: a single file is an in-flight fetch owned by
-// index.vue, and a batch is a client-side worker looping over the queue. Both
-// die with the page. Leaving — the header "Status" link (a real document
-// navigation), FAQs, an in-app link like "What's New", a reload, or closing
-// the tab — discards the report with no way to get it back short of
-// re-uploading and waiting again.
+// NARROWED IN v1.147.0 — read this before using the flag. It no longer means
+// "an audit is running". It means "an audit is running THAT LEAVING WOULD
+// DESTROY", and those are no longer the same thing.
+//
+// A single-file upload now runs as a server-side job (POST /api/analyze-job)
+// whose id and token the page stores in sessionStorage, so a real navigation
+// and a return rejoin the same audit instead of losing it. Prompting in that
+// case would warn about a consequence that does not happen — the worst kind
+// of dialog, and the one people learn to click through.
+//
+// What leaving still destroys, and what this flag is therefore still true for:
+//   · a BATCH — a client-side loop over the queue, holding File objects that
+//     cannot be serialised and a report per file that was never persisted
+//   · the SYNCHRONOUS fallback (an older API with no job endpoints) — one
+//     in-flight fetch owned by the page, with no job to rejoin
+//   · a single file whose job could NOT be stored — some privacy modes throw
+//     on sessionStorage, and a full quota rejects the write. index.vue checks
+//     the return value rather than assuming the write worked.
 //
 // The warning is strictly conditional: NOTHING is shown unless an audit is
 // actually running. An always-on caution would be noise on every click for
@@ -13,7 +25,8 @@
 // dismiss without reading — which is worse than none at all.
 
 /**
- * Shared "an audit is running right now" flag.
+ * Shared "leaving would destroy a running audit" flag (see the note above:
+ * a resumable single-file job deliberately does NOT set this).
  *
  * `useState` rather than provide/inject because the readers are not all
  * descendants of the page that owns the state: the navigation guard lives in

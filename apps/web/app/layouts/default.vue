@@ -83,12 +83,22 @@
                  Same tab, deliberately: this opened in a new one originally,
                  to protect an in-progress audit, but that left a stray tab
                  behind on every visit. The status page now carries its own
-                 link back to the app, so the round trip is a normal one. -->
+                 link back to the app, so the round trip is a normal one.
+
+                 The ONE exception, since v1.147.0: while an audit is running
+                 that leaving would actually destroy. A resumable audit is
+                 rejoined on return (utils/auditSession.ts) and needs no tab of
+                 its own; an unresumable one has nothing else protecting it.
+                 The stray-tab cost is now paid only when it buys something. -->
             <a
               href="/status?html"
+              :target="auditInProgress ? '_blank' : undefined"
+              :rel="auditInProgress ? 'noopener noreferrer' : undefined"
               class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
-              Status
+              Status<span v-if="auditInProgress" class="sr-only">
+                (opens in a new tab so your audit keeps running)</span
+              >
             </a>
           </nav>
           <!-- Color mode toggle -->
@@ -530,6 +540,11 @@
 </template>
 
 <script setup lang="ts">
+// Only to decide whether the "Status" link should open in a new tab: the flag
+// means "leaving would destroy a running audit", so it is false for the
+// ordinary case and for an audit the page can rejoin.
+const auditInProgress = useAuditInProgress();
+
 import { SCORING_PROFILES, GRADE_THRESHOLDS, SEVERITY_COLORS, withAlpha } from "@file-audit/shared";
 
 const config = useRuntimeConfig();
