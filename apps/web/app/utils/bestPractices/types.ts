@@ -39,6 +39,24 @@ export interface EvidenceBlock {
   lines: string[];
 }
 
+/**
+ * The sentence a row uses when its defect is NOT optional — it already cost
+ * the reader points and is waiting in the action plan.
+ *
+ * A CONSTANT, not prose repeated twelve times, because two things must agree
+ * and neither can be allowed to drift: the words the reader sees, and the
+ * chip above them. Until v1.148.0 the chip on these rows said NOT APPLICABLE
+ * while the sentence beneath it said the opposite — a document with no
+ * headings at all showed five amber "NOT APPLICABLE" chips over a heading
+ * category scoring 0/Critical with WCAG 1.3.1 failing. The reader's
+ * conclusion, entirely reasonably, was that headings did not apply to their
+ * document. `evaluateBestPractices` reads this marker to tell the two kinds
+ * of "not applicable" apart, and a guard test forbids the literal sentence
+ * anywhere outside this constant.
+ */
+export const SCORED_IN_PLAN =
+  "counted in your score — see the action plan above, not this section.";
+
 export interface BestPracticeResult {
   status: BestPracticeStatus;
   /** Plain sentences of document-specific evidence. */
@@ -57,6 +75,15 @@ export interface BestPracticeResult {
    *  there was no silence to interpret. Omitted (undefined) means "silent";
    *  only a categoryAbsent() branch sets "not-run" explicitly. */
   reason?: "silent" | "not-run" | "error";
+  /** Only meaningful when status is "not-applicable" — WHY the row does not
+   *  apply, because the two reasons mean opposite things to a reader.
+   *  "absent" = there is genuinely nothing of this kind in the document (no
+   *  links to judge, no tables to scope) and nothing was lost. "scored" =
+   *  the thing DOES apply, it is defective, and the defect already cost
+   *  points; the row defers to the action plan rather than repeating it.
+   *  Derived centrally in evaluateBestPractices from SCORED_IN_PLAN, so a
+   *  new divert cannot forget to set it. Absent (undefined) means "absent". */
+  naReason?: "scored" | "absent";
   // "error": detect() threw and evaluateBestPractices caught it (spec §2:
   // one bad practice must never take down the page — /report/[id] renders
   // stored JSON through SSR). The row is NOT CHECKED; the component shows
@@ -75,6 +102,14 @@ export interface DetectContext {
   fileType: FileType;
   /** The category's own notAssessed flag. */
   notAssessed: boolean;
+  /** The category's score, when it has one. Added v1.148.0 for ONE job: a
+   *  practice that cannot apply needs to know whether the reason it cannot
+   *  apply already cost the reader points. "Your tables have no header cells,
+   *  so there is no scope to check" is true either way, but it means
+   *  "nothing to do here" on a document scoring 100 and "the missing headers
+   *  are already in your plan" on one scoring 45 — and the second was
+   *  rendering as a bare NOT APPLICABLE. Null when never assessed. */
+  score: number | null;
   /** False when the report has no such category at all. */
   categoryPresent: boolean;
   pageCount: number;
@@ -147,6 +182,7 @@ export function buildContext(
     signals: parts.signals,
     fileType,
     notAssessed: cat?.notAssessed === true,
+    score: typeof cat?.score === "number" ? cat.score : null,
     categoryPresent: cat !== null,
     pageCount: Number.isFinite(pageCount) ? pageCount : 0,
     analyzedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed : null,

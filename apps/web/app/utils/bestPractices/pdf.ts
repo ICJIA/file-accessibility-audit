@@ -44,6 +44,7 @@ import {
   type DetectContext,
   type EvidenceBlock,
 } from "./types";
+import { SCORED_IN_PLAN } from "./types";
 import { matterhornLink, techniqueLink } from "./links";
 // apps/web has no #config alias (that exists in api/cli only) — import the
 // root config by relative path, as other web code does.
@@ -118,10 +119,19 @@ function tableNotApplicable(ctx: DetectContext, aboutScope: boolean): BestPracti
     };
   }
   if (aboutScope && matchMain(ctx, "scope attributes: n/a")) {
+    // Two very different documents reach this line. One has clean tables that
+    // simply carry no header cells to scope; the other has tables the report
+    // has already marked down for having no header row at all. Both used to
+    // render a bare NOT APPLICABLE, which on the second reads as "your tables
+    // are fine here" beside a table category scoring 45 with 1.3.1 failing.
+    const headerCellsCostPoints = ctx.score !== null && ctx.score < 100;
     return {
       status: "not-applicable",
       evidence: [
-        "This document's tables have no header cells, so there is no header scope to check.",
+        "This document's tables have no header cells, so there is no header scope to check." +
+          (headerCellsCostPoints
+            ? ` Those missing header cells are themselves ${SCORED_IN_PLAN}`
+            : ""),
       ],
     };
   }
@@ -137,7 +147,7 @@ function scopeScoredFailure(ctx: DetectContext): BestPracticeResult | null {
   return {
     status: "not-applicable",
     evidence: [
-      "Some of this document's tables have headers on more than one edge (or spanned cells) with no /Scope or /Headers. That is a WCAG 1.3.1 failure and is counted in your score — see the action plan above, not this section.",
+      `Some of this document's tables have headers on more than one edge (or spanned cells) with no /Scope or /Headers. That is a WCAG 1.3.1 failure and is ${SCORED_IN_PLAN}`,
     ],
   };
 }
@@ -255,7 +265,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has no heading tags at all, so there is no level order to check. That absence is counted in your score — see the action plan above, not this section.",
+            `This document has no heading tags at all, so there is no level order to check. That absence is ${SCORED_IN_PLAN}`,
           ],
         };
       }
@@ -342,7 +352,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has no heading tags at all, so there is no convention to check. That absence is counted in your score — see the action plan above, not this section.",
+            `This document has no heading tags at all, so there is no convention to check. That absence is ${SCORED_IN_PLAN}`,
           ],
         };
       }
@@ -442,7 +452,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has no heading tags at all, so there are no levels to check. That absence is counted in your score — see the action plan above, not this section.",
+            `This document has no heading tags at all, so there are no levels to check. That absence is ${SCORED_IN_PLAN}`,
           ],
         };
       }
@@ -535,7 +545,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has no heading tags at all, so there is no content to check. That absence is counted in your score — see the action plan above, not this section.",
+            `This document has no heading tags at all, so there is no content to check. That absence is ${SCORED_IN_PLAN}`,
           ],
         };
       }
@@ -609,7 +619,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has no heading tags at all, so there is no H1 count to check. That absence is counted in your score — see the action plan above, not this section.",
+            `This document has no heading tags at all, so there is no H1 count to check. That absence is ${SCORED_IN_PLAN}`,
           ],
         };
       }
@@ -731,7 +741,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            "This document has a bookmark outline with no entries in it. That is counted in your score — see the action plan above, not this section.",
+            `This document has a bookmark outline with no entries in it. That is ${SCORED_IN_PLAN}`,
           ],
         };
       }
@@ -1367,8 +1377,8 @@ export const PDF_PRACTICES: BestPractice[] = [
             status: "not-applicable",
             evidence: [
               count !== null
-                ? `${count.toLocaleString()} extracted character${count === 1 ? "" : "s"} in this document cannot be mapped to readable text. That is counted in your score — see the action plan above, not this section.`
-                : "Some of this document's text cannot be mapped to readable text. That is counted in your score — see the action plan above, not this section.",
+                ? `${count.toLocaleString()} extracted character${count === 1 ? "" : "s"} in this document cannot be mapped to readable text. That is ${SCORED_IN_PLAN}`
+                : `Some of this document's text cannot be mapped to readable text. That is ${SCORED_IN_PLAN}`,
             ],
           };
         }
@@ -1443,8 +1453,8 @@ export const PDF_PRACTICES: BestPractice[] = [
             status: "not-applicable",
             evidence: [
               count !== null
-                ? `${count.toLocaleString()} visible character${count === 1 ? "" : "s"} in this document ${count === 1 ? "sits" : "sit"} outside the tag structure. That is counted in your score — see the action plan above, not this section.`
-                : "Some visible text in this document sits outside the tag structure. That is counted in your score — see the action plan above, not this section.",
+                ? `${count.toLocaleString()} visible character${count === 1 ? "" : "s"} in this document ${count === 1 ? "sits" : "sit"} outside the tag structure. That is ${SCORED_IN_PLAN}`
+                : `Some visible text in this document sits outside the tag structure. That is ${SCORED_IN_PLAN}`,
             ],
           };
         }
