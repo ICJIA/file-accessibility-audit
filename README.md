@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,381 tests** across 203 test files (API 1,625 · Web 1,707 · CLI 49) — plus the **accuracy gates**, nine corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,390 tests** across 204 test files (API 1,628 · Web 1,713 · CLI 49) — plus the **accuracy gates**, nine corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1288,6 +1288,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.145.0 — 2026-08-31 · WCAG 2.1 named everywhere; two criterion listings corrected (no new attack surface)
+
+No new attack surface: nothing here adds a data path, an input, or an output — the release changes which standard the reports name and how they cite it. Every label, criterion link and export now says **WCAG 2.1**, the version ADA Title II and the Illinois IITAA both require; a verdict could previously state one version while the links beside it opened pages for another, and two quick-reference links disagreed with their own labels. Two criterion listings were wrong in a way that matters more than a missing link: the text-extractability card cited **1.4.5 Images of Text**, which the same report lists among the criteria it explicitly does *not* assess, while omitting **1.1.1**; form accessibility omitted **3.3.2**. Both corrected against `packages/shared`, which had them right. One consequence is disclosed rather than buried: on PDFs with form fields, three WCAG 2.2-only criteria (2.5.8, 3.3.7, 3.3.8) no longer appear as manual-review notes, and are named on `/wcag-2-2` instead — and four sentences that the version change had made untrue were rewritten. Every criterion the reports name is now a link to the rule, enforced by a guard test. Tests 3,390.
 
 ### v1.144.0 — 2026-08-31 · Adversarial audit of every standards claim the reports make (no new attack surface)
 

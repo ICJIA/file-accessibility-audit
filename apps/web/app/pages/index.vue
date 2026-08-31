@@ -459,7 +459,7 @@
             </li>
             <li class="flex items-start gap-2">
               <span class="text-purple-400 mt-0.5">•</span
-              ><span>Failing categories with findings and WCAG 2.2 references</span>
+              ><span>Failing categories with findings and WCAG 2.1 references</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-purple-400 mt-0.5">•</span
@@ -598,8 +598,8 @@
             rel="noopener noreferrer"
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >WCAG 2.2</a
-          >'s newer criteria (disclosed for manual review, never counted), and returns a detailed
-          report with actionable findings.
+          >'s newer criteria, which are described there rather than counted here, and returns a
+          detailed report with actionable findings.
         </p>
       </div>
 
@@ -634,7 +634,7 @@
         What This Tool Does
       </h2>
       <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Audit any PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) document for WCAG 2.2 AA
+        Audit any PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) document for WCAG 2.1 AA
         accessibility — and (optionally) auto-remediate PDFs — all on infrastructure you control,
         with no AI and no per-document fees.
       </p>
@@ -707,7 +707,7 @@
         </div>
         <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Standards aligned</div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          WCAG 2.2 Level AA, ADA Title II (compliance due April 26, 2027 for larger entities, 2028
+          WCAG 2.1 Level AA, ADA Title II (compliance due April 26, 2027 for larger entities, 2028
           for smaller), Illinois IITAA 2.1, and PDF/UA-1 (ISO 14289-1) via veraPDF — with PDF/UA-2
           (ISO 14289-2) validated when a document declares it. Full lifecycle audit trail with
           deletion verification for compliance reporting.

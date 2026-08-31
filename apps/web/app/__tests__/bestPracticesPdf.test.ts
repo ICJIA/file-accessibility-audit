@@ -1307,3 +1307,46 @@ describe("the five heading rows tell a no-heading document where its score went 
     }
   });
 });
+
+describe("font-embedding shows WHICH fonts, not just whether (2026-08-31)", () => {
+  // Requested for a communications team: "all embedded" answers the
+  // compliance question, but the people who choose the typefaces need the
+  // list. The analyzer already prints it; only the failing path showed it.
+  const CENSUS = [
+    "--- Font Embedding ---",
+    "  3 font(s) found: 2 embedded, 1 not embedded",
+    "  ABCDEE+Calibri — embedded",
+    "  ABCDEE+Calibri-Bold — embedded",
+    "  Wingdings — NOT embedded (never displays visible text — no impact)",
+  ];
+  const ALL_EMBEDDED =
+    "All fonts are embedded — text will render correctly regardless of the user's installed fonts";
+  const DISPLAY_EMBEDDED =
+    "All fonts used to display text are embedded. 1 font entry (Wingdings) is not embedded but never displays visible text.";
+  const FLAGGED =
+    "PDF/UA only — not scored: 2 non-embedded font(s) may cause garbled text on systems without these fonts: Arial, Georgia";
+
+  it("lists every font on the all-embedded MET path", () => {
+    const r = run("font-embedding", [ALL_EMBEDDED, ...CENSUS]);
+    expect(r.status).toBe("met");
+    expect(r.block?.lines.join(" ")).toMatch(/ABCDEE\+Calibri — embedded/);
+    expect(r.block?.caption).toMatch(/whether it is embedded/);
+  });
+
+  it("lists every font on the exempt-entries MET path too", () => {
+    const r = run("font-embedding", [DISPLAY_EMBEDDED, ...CENSUS]);
+    expect(r.status).toBe("met");
+    expect(r.block?.lines.some((l) => /Wingdings/.test(l))).toBe(true);
+  });
+
+  it("still lists them when a font is missing, with the same caption", () => {
+    const r = run("font-embedding", [FLAGGED, ...CENSUS]);
+    expect(r.status).toBe("not-met");
+    expect(r.block?.caption).toMatch(/whether it is embedded/);
+    expect(r.block?.lines.length).toBeGreaterThan(1);
+  });
+
+  it("shows no block when the report carries no census", () => {
+    expect(run("font-embedding", [ALL_EMBEDDED]).block).toBeUndefined();
+  });
+});

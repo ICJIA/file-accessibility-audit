@@ -398,13 +398,19 @@ const otherNotes = computed(() => uncoveredNotScored(props.result));
  *  the control. Kept to one or two sentences: it is a tooltip, and the row
  *  body carries the long form. */
 function notCheckedReason(row: EvaluatedPractice): string {
-  if (row.reason === "not-run") {
-    return "Nothing is wrong with your document. This report carries no data for this check, so it was never looked at either way — re-running the audit usually settles it.";
-  }
-  if (row.reason === "error") {
-    return "Nothing is wrong with your document. This check could not be completed for this report.";
-  }
-  return "Nothing is wrong with your document. The checker only speaks up when something looks wrong, so silence here is not a sign of trouble — it simply did not confirm this one either way. A person can usually confirm it in a minute.";
+  // The row's own first line already says WHICH check had nothing to go on
+  // ("no finding about this document's H1 count"). What it never answered is
+  // the question every reader actually has — "well, can it be checked?" —
+  // so each branch now says why not, and what would settle it. Keyed on the
+  // SAME `reason` field the body copy branches on, so the two cannot drift.
+  const specific = (row.evidence[0] ?? "").trim();
+  const why =
+    row.reason === "not-run"
+      ? "That data is not in this report at all — usually because the audit ran before this check existed, or the document had nothing of that kind in it to examine. Re-running the audit will settle it."
+      : row.reason === "error"
+        ? "The check itself could not finish on this report. Re-running the audit usually clears that."
+        : "This checker speaks up about this one only when something looks wrong, so it cannot confirm the opposite on its own. A person can usually confirm it in a minute.";
+  return `${specific} ${why} Nothing is wrong with your document.`.replace(/\s+/g, " ").trim();
 }
 
 // No "N of 19" fraction anywhere — a denominator beside a status is read as

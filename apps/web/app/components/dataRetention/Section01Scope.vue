@@ -20,8 +20,8 @@
     <ul class="text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 space-y-1.5">
       <li>
         The <strong>audit pipeline</strong> (always available) — analyzes an uploaded document (PDF,
-        Word, PowerPoint, or Excel) for WCAG 2.2 AA (a superset of 2.1 AA) / ADA Title II / Illinois
-        IITAA 2.1 accessibility conformance signals and returns a score and findings.
+        Word, PowerPoint, or Excel) for WCAG 2.1 AA / ADA Title II / Illinois IITAA 2.1
+        accessibility conformance signals and returns a score and findings.
       </li>
       <li>
         The <strong>remediation pipeline</strong> (optional, gated by the server-side

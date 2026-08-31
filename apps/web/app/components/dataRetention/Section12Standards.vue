@@ -11,12 +11,12 @@
     </p>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
       <li>
-        <strong>WCAG 2.2 Level AA</strong> (Web Content Accessibility Guidelines, W3C) — a superset
-        of the WCAG 2.1 AA that IITAA 2.1 and ADA Title II require; the audit scores each uploaded
-        document — PDF, Word, PowerPoint, or Excel — against a set of WCAG-aligned categories that
-        map to these success criteria for non-web documents. The exact category set is tailored per
-        format (for example, reading order and form accessibility are structurally not applicable to
-        Word, and heading structure does not apply to a spreadsheet).
+        <strong>WCAG 2.1 Level AA</strong> (Web Content Accessibility Guidelines, W3C) — the version
+        IITAA 2.1 and ADA Title II both require; the audit scores each uploaded document — PDF,
+        Word, PowerPoint, or Excel — against a set of WCAG-aligned categories that map to these
+        success criteria for non-web documents. The exact category set is tailored per format (for
+        example, reading order and form accessibility are structurally not applicable to Word, and
+        heading structure does not apply to a spreadsheet).
       </li>
       <li>
         <strong>ADA Title II</strong> (U.S. federal law; compliance due April 26, 2027 for state and

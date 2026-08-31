@@ -569,8 +569,13 @@ describe("NOT CHECKED carries an ⓘ that absolves the document (2026-08-31)", (
     // every other category is absent (so those rows have no data at all).
     // A result with NO categories is not a case — the section self-hides.
     const texts = tipTexts(withTips(silent));
-    expect(texts.some((x) => /carries no data for this check/.test(x))).toBe(true);
-    expect(texts.some((x) => /only speaks up when something looks wrong/.test(x))).toBe(true);
+    // Each branch must say WHY it was not checked and what would settle it —
+    // "can it be checked?" is the question a NOT CHECKED row provokes.
+    expect(texts.some((x) => /not in this report at all/.test(x))).toBe(true);
+    expect(texts.some((x) => /Re-running the audit will settle it/.test(x))).toBe(true);
+    expect(texts.some((x) => /cannot confirm the opposite on its own/.test(x))).toBe(true);
+    // And each carries the practice-specific sentence, not just boilerplate.
+    expect(texts.some((x) => /no finding about/i.test(x))).toBe(true);
   });
 
   it("is excluded from exports, like the other row chrome", () => {

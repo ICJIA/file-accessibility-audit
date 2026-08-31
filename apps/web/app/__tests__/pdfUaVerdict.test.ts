@@ -327,7 +327,7 @@ describe("PdfUaVerdict.vue — Don't Panic badge + grade-aware reconciliation", 
     await w.get('[data-testid="pdfua-why-toggle"]').trigger("click");
     expect(w.text()).toMatch(/Adobe Acrobat, PAC, and veraPDF/);
     expect(w.text()).toMatch(/punch-list/i);
-    expect(w.text()).toMatch(/WCAG 2\.2 AA/);
+    expect(w.text()).toMatch(/WCAG 2\.1 AA/);
   });
 
   it("shows no badge or reconciliation when veraPDF passes", () => {

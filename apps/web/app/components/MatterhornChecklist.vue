@@ -203,8 +203,7 @@ const coverageCount = computed(() => {
               compliance due April 26, 2027 for entities of 50,000 or more, April 26, 2028 for
               smaller ones and special districts) and Illinois' IITAA 2.1 make digital accessibility
               a legal obligation for public bodies like ICJIA — and both name
-              <strong>WCAG 2.1 AA</strong> as the standard to meet. (This tool audits against WCAG
-              2.2 AA, a superset of that legal minimum.)
+              <strong>WCAG 2.1 AA</strong> as the standard to meet.
             </p>
             <p>
               <strong>But WCAG was written mainly for web pages.</strong> It says <em>what</em> must

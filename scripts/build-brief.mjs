@@ -90,6 +90,24 @@ const monthsWord = MONTH_WORDS[months] ?? String(months);
 const version = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
 const versions = version.split(".")[1]; // 1.117.0 → 117
 
+// The /trust timeline is the section a sceptical reader scrolls to for "is
+// this still maintained?", and it is hand-curated — not every release earns an
+// entry, so this warns rather than fails. It shouts only when the newest entry
+// has fallen a long way behind the version in the heading right above it.
+{
+  const tpl = fs.readFileSync(path.join(ROOT, "docs/brief/checker-brief.template.html"), "utf8");
+  const timeline = tpl.slice(tpl.indexOf('class="timeline"'));
+  const minors = [...timeline.matchAll(/class="ver mono">v1\.(\d+)/g)].map((m) => Number(m[1]));
+  const newest = minors.length ? Math.max(...minors) : 0;
+  const behind = Number(versions) - newest;
+  if (behind > 5) {
+    console.warn(
+      `WARN: the /trust timeline's newest entry is v1.${newest}, ${behind} minor versions behind v${version}. ` +
+        "Add an entry to docs/brief/checker-brief.template.html for anything a reader can see, or accept the gap deliberately.",
+    );
+  }
+}
+
 // --- the date stamp ---
 const now = new Date();
 const MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];

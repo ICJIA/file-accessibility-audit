@@ -17,10 +17,14 @@ interface Announcement {
   linkExternal?: boolean;
   date?: string;
   requiresWcagVersion?: string | null;
+  /** WCAG criteria this entry names, rendered as links to the rules. */
+  wcagRefs?: Array<{ sc: string; name: string; slug: string }>;
 }
 
 const pub = useRuntimeConfig().public;
-const wcagVersion = String(pub.wcagVersion ?? "2.2");
+const wcagVersion = String(pub.wcagVersion ?? "2.1");
+// Understanding-page URLs for any criterion an entry names.
+const wcag = useWcag();
 const siteUrl = String(pub.siteUrl ?? "");
 
 // Same WCAG-version filter the banner applies: an announcement that does not
@@ -82,6 +86,17 @@ useHead({
             :external="item.linkExternal === true"
             class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >{{ item.linkText }}</NuxtLink
+          >
+          <!-- The criteria this entry names, linked to the rules themselves. -->
+          <template v-for="ref in item.wcagRefs ?? []" :key="ref.sc"
+            >{{ " "
+            }}<a
+              :href="wcag.understandingUrl(ref.slug)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+              >WCAG {{ ref.sc }}: {{ ref.name }}</a
+            ></template
           >
         </p>
       </li>

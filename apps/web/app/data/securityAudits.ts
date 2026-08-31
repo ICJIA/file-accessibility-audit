@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.145.0",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: the copy and citation sweep that made WCAG 2.1 the standard every report names, plus two criterion listings that were wrong.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: nothing in this release adds a data path, an input, or an output. It changes which standard the reports name and how they cite it. Every label, criterion link and export now says <strong>WCAG 2.1</strong> &mdash; the version ADA Title II and the Illinois IITAA both require. Until now a verdict could state one version while the links beside it opened pages for another.",
+      },
+      {
+        kind: "p",
+        html: "Two criterion listings were wrong in a way worth recording: the text-extractability card cited <strong>1.4.5 Images of Text</strong>, a criterion the same report lists among those it explicitly does not assess, while omitting <strong>1.1.1 Non-text Content</strong>, which it does check; and form accessibility omitted <strong>3.3.2 Labels or Instructions</strong>. Citing a rule the tool admits it never checks is worse for a reader than failing to link one, so both were corrected against the shared definition, which had them right.",
+      },
+      {
+        kind: "p",
+        html: "One consequence is stated plainly in the release notes rather than left to be discovered: on PDFs with interactive form fields, three criteria that exist only in WCAG 2.2 no longer appear as manual-review notes, because they are not part of 2.1. They are named on the What&rsquo;s new in WCAG 2.2 page instead. A related check found four sentences that the version change had made untrue &mdash; each promised a per-document disclosure the new default no longer produces &mdash; and all four were rewritten to describe what actually happens.",
+      },
+    ],
+  },
+  {
     version: "v1.144.0",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: an adversarial audit of every claim the reports make about the accessibility standards, carried out as a hostile reviewer looking for one error that would discredit the tool.",
     body: [
