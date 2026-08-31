@@ -90,7 +90,7 @@
               href="https://plausible.io/privacy-focused-web-analytics"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
               >Plausible</a
             >
             instance, which runs on ICJIA's own server, stores no IP address, and never sees

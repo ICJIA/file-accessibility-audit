@@ -837,6 +837,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "ICJIA_Freshservice_Quick_Guide.docx": {
+      "score": 59,
+      "grade": "F",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "0|Critical",
+        "heading_structure": "30|Critical",
+        "alt_text": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "85|Minor",
+        "list_structure": "0|Critical",
+        "link_quality": "100|No scored issues",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "ILHEALSFallWinter2022FINAL-remediated.pdf": {
       "score": 55,
       "grade": "F",

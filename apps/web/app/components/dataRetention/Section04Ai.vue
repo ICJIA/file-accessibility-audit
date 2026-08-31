@@ -60,7 +60,7 @@
             href="https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >changelog</a
           >
           before the feature is enabled in production</strong

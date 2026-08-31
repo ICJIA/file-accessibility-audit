@@ -27,7 +27,7 @@
         href="https://github.com/ICJIA/file-accessibility-audit"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-[var(--link)] hover:text-[var(--link-hover)]"
+        class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
         >github.com/ICJIA/file-accessibility-audit</a
       >.
     </p>

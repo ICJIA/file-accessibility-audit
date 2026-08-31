@@ -195,23 +195,22 @@ const DISPUTE_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "se
 const disputeWord = (n) => DISPUTE_WORDS[n] ?? String(n);
 /** "once" / "twice" / "three times" — the sentence reads "This one has X". */
 const disputeTimes = (n) => (n === 1 ? "once" : n === 2 ? "twice" : `${disputeWord(n)} times`);
-let disputesTotal = 0;
-let disputesWon = 0;
-{
+const disputeCards = (() => {
   const tpl = fs.readFileSync(path.join(BRIEF, "checker-brief.template.html"), "utf8");
   const start = tpl.indexOf('class="disputes"');
   const end = tpl.indexOf('<p class="agree"', start);
   if (start === -1 || end === -1) throw new Error("cannot find the disputes block to count");
   const cards = tpl.slice(start, end).split('<div class="dis">').slice(1);
-  disputesTotal = cards.length;
-  // ONLY the span class, never the words. The LOSING cards say "The expert
-  // was right" in their body copy, so matching that text inverted the record
-  // — the page briefly claimed three wins and one loss, the exact opposite of
-  // the truth, which is worse than the typo it replaced.
-  disputesWon = cards.filter((c) => /class="right"/.test(c)).length;
-  if (disputesTotal === 0)
+  if (cards.length === 0)
     throw new Error("no dispute cards found — the counted prose would read zero");
-}
+  return cards;
+})();
+const disputesTotal = disputeCards.length;
+// ONLY the span class, never the words. The LOSING cards say "The expert was
+// right" in their body copy, so matching that text inverted the record — the
+// page briefly claimed three wins and one loss, the exact opposite of the
+// truth, which is worse than the typo it replaced.
+const disputesWon = disputeCards.filter((c) => /class="right"/.test(c)).length;
 
 const escHtml = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const chipFor = (i) =>

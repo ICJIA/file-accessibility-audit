@@ -21,7 +21,7 @@
           href="https://plausible.io/privacy-focused-web-analytics"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-[var(--link)] hover:text-[var(--link-hover)]"
+          class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
           >Plausible, a privacy-first, open-source analytics tool</a
         >, running on ICJIA's own server (<code class="text-xs font-mono"
           >plausible.icjia.cloud</code

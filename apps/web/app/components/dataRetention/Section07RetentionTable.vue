@@ -533,7 +533,7 @@
         fix (§ 8a). Never the pages themselves, and never who uploaded anything: there is no account
         to record, and the schema has no email, IP-address, or browser column to fill. The complete
         accounting is in
-        <a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]"
+        <a href="#stored" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
           >§ 8, What is and isn't stored</a
         >.
       </p>
