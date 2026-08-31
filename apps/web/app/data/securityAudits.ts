@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.148.3",
+    meta: "Reviewed <strong>2026-08-31</strong> · scope: presentation of the figures on the trust page.",
+    body: [
+      {
+        kind: "p",
+        html: "Presentation only &mdash; no data path, input, or output changes. The large figures on the trust page were sized against the width of the window rather than the width of the card holding them, so the size had been chosen twice to fit whichever number was largest at the time. Both choices went stale as the collection of test documents grew, and one figure had reached the edge of its card. Each figure is now measured against its own card and centred, so it stays inside the box at any screen width and as the numbers continue to rise.",
+      },
+    ],
+  },
+  {
     version: "v1.148.2",
     meta: "Reviewed <strong>2026-08-31</strong> · scope: narrowing the best-practices section to what a reader can actually act on.",
     body: [

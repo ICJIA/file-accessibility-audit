@@ -36,10 +36,16 @@
   .hero h1 .good{color:var(--good)}
   .hero .sub{font-size:clamp(18px,2.4vw,23px);color:var(--muted);max-width:56ch}
   .statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:44px}
-  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 24px}
-  /* Sized so the widest figure ("100 / 100") fits a 4-up card — the old
-     clamp(40,5.5vw,58) let it spill into the neighboring card. */
-  .stat .n{font-family:"Archivo Black";font-size:clamp(30px,4.2vw,46px);line-height:1;white-space:nowrap}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 24px;
+    /* The figure is sized against THIS CARD, not the viewport (2026-08-31).
+       Twice now a hardcoded size was chosen to fit the widest figure of the
+       day — "100 / 100", then "39 / 39" on the in-app twin — and both staled
+       the moment the trap corpus grew: at 144 / 144 the number ran to the
+       edge of its card. cqi tracks the card, so the figure cannot outgrow the
+       box it sits in when the layout reflows. */
+    container-type:inline-size}
+  .stat .n{font-family:"Archivo Black";font-size:clamp(26px,17cqi,44px);line-height:1;
+    white-space:nowrap;text-align:center}
   .stat .n.good{color:var(--good)} .stat .n.ext{color:var(--ext)} .stat .n.act{color:var(--act)}
   .stat .l{margin-top:10px;font-size:15px;color:var(--muted);font-weight:600}
 

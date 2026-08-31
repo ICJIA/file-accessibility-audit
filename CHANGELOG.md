@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.148.3] - 2026-08-31
+
+### Fixed
+
+- **The big figures on the trust page are centred, and can no longer run to the edge of their card.** "144 / 144" had grown wide enough to almost touch the right edge of its box. The cause was that each figure was sized against the width of the *window* rather than the width of the card it sits in — so it was set, twice, to whatever happened to fit the largest number of the day ("100 / 100" on the printed brief, "39 / 39" in the app), and both went wrong the moment the trap collection grew. Each figure is now measured against its own card, so it stays inside it however the layout reflows and however large the numbers get, and it is centred rather than pushed to the left edge.
+
 ## [1.148.2] - 2026-08-31
 
 ### Changed

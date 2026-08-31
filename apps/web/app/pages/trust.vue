@@ -180,6 +180,7 @@ function onTrustBodyClick(e: MouseEvent) {
   margin-top: 34px;
 }
 .trust-page .stat {
+  container-type: inline-size;
   background: var(--tp-panel);
   border: 1px solid var(--tp-line);
   border-radius: 14px;
@@ -187,12 +188,14 @@ function onTrustBodyClick(e: MouseEvent) {
 }
 .trust-page .stat .n {
   font-weight: 900;
-  /* Sized so the widest figure ("39 / 39" in tabular mono) fits the in-app
-     card, which is narrower than the standalone brief's. */
-  font-size: clamp(28px, 3.6vw, 38px);
+  /* Sized against THIS CARD, not the viewport (2026-08-31) — see the same
+     note in the brief template. A figure pinned to fit "39 / 39" ran to the
+     edge of its card once the corpus reached 144 / 144. */
+  font-size: clamp(24px, 17cqi, 38px);
   line-height: 1;
   white-space: nowrap;
   letter-spacing: -0.01em;
+  text-align: center;
 }
 .trust-page .stat .n.good {
   color: var(--tp-good);
