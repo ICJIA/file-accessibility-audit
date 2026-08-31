@@ -852,7 +852,10 @@ describe("table_markup variant — headers exist but have no direction", () => {
     const why = step().why;
     expect(why).toMatch(/WCAG 1\.3\.1 failure — not just a PDF\/UA preference/i);
     expect(why).not.toMatch(/experts may disagree/i);
-    expect(why).toMatch(/Above and beyond/);
+    // The simple-table variant of this finding now lives in the Best
+    // Practices section (2026-08-30) — "Above and beyond" carries only
+    // veraPDF's verdict, and no longer collects our own unscored findings.
+    expect(why).toMatch(/Best practices/);
   });
 
   it("keeps today's copy for a table with no headers at all", () => {

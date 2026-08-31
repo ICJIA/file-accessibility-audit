@@ -28,6 +28,9 @@ import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
+import { sortBestPractices } from "~/utils/bestPractices";
+import type { BestPracticeStatus, EvaluatedPractice } from "~/utils/bestPractices";
+import { resolveRowLinks } from "~/utils/bestPractices/links";
 
 export interface PrintablePlanOptions {
   filename: string;
@@ -36,6 +39,10 @@ export interface PrintablePlanOptions {
   /** The publish verdict, in the same words the report shows. */
   verdict?: string | null;
   steps: PlanStep[];
+  /** Best practices, already evaluated. Printed FULLY EXPANDED — there is no
+   *  show/hide on paper, and the holder of the printout may not be the
+   *  person who chose which fix route to take. */
+  bestPractices?: EvaluatedPractice[];
   manualChecks?: Array<ManualCheck & { label: string }>;
   /** WCAG criteria the tool does not evaluate at all. `url` is the server's
    *  Understanding-page address; it is safeHttpUrl-guarded before rendering
@@ -93,6 +100,17 @@ li.step{border:1px solid #bbb;border-radius:8px;padding:14px 16px;margin:0 0 14p
 .wcag{margin:10px 0 0;font-size:12px;color:#555}
 .wcag code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#eee;
  padding:1px 5px;border-radius:3px}
+ul.bp{list-style:none;padding:0;margin:0}
+ul.bp>li{border:1px solid #bbb;border-radius:8px;padding:12px 14px;margin:0 0 12px;
+ /* Same rule as li.step: a practice and its evidence must not straddle a
+    page break. */
+ break-inside:avoid;page-break-inside:avoid}
+.bp-what,.bp-doc,.bp-why,.bp-fix{margin:4px 0}
+.bp-cap{margin:8px 0 2px;font-size:12px;color:#555}
+pre.bp-block{margin:0 0 8px;padding:8px 10px;background:#f4f4f4;border:1px solid #ddd;
+ border-radius:4px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.bp-standard{margin:6px 0 0;font-size:11px;color:#666}
+.bp-links{margin:6px 0 0;font-size:12px;color:#444}
 ul.checks{list-style:none;padding:0;margin:0}
 ul.checks li{border-left:3px solid #bbb;padding:0 0 0 12px;margin:0 0 14px;
  break-inside:avoid;page-break-inside:avoid}
@@ -155,6 +173,96 @@ function renderStep(step: PlanStep, criterionHref: (sc: string) => string | null
   );
 }
 
+// Friendlier prose than the on-screen chip's ALL-CAPS pill (BestPracticesSection.vue) —
+// this reads as a sentence next to the practice's own label, not a compact status badge.
+const STATUS_LABEL: Record<BestPracticeStatus, string> = {
+  met: "Already done",
+  "not-met": "Worth doing",
+  "not-applicable": "Does not apply",
+  "not-checked": "Not checked",
+};
+
+/** Each catalog practice belongs to exactly one format family — pdf, or one
+ *  of docx/pptx/xlsx — never both (bestPractices/types.ts), so this single
+ *  check is enough to pick the right fix-route labels. */
+function isPdfPractice(practice: EvaluatedPractice["practice"]): boolean {
+  return practice.formats.includes("pdf");
+}
+
+/** A best practice, expanded in full — there is no accordion on paper, and
+ *  the person reading it may not be the one who generated it. Every
+ *  document-derived value (evidence, the heading/link/font census block)
+ *  passes escapeHtml; the catalog's own copy (label/description/why) is
+ *  static, but is escaped too rather than trusted as a special case.
+ *
+ *  `understandingUrl` resolves each practice's `wcagSlugs` the same way
+ *  BestPracticesSection.vue does on screen — both call resolveRowLinks() — those slugs
+ *  are version-aware and can only be turned into a URL by the caller
+ *  (useWcag() lives behind runtime config, unreachable from this
+ *  module-scope catalog). Matters MORE on paper than on screen: the print
+ *  stylesheet appends "(href)" after every link so it can be typed from the
+ *  page, so a link this function drops is unrecoverable in a way a missing
+ *  on-screen link is not. Absent (no resolver wired — only some tests; every
+ *  PrintPlanButton caller passes one), wcagSlugs links are skipped entirely rather than
+ *  rendering a broken href. */
+function renderBestPractice(
+  r: EvaluatedPractice,
+  understandingUrl?: (slug: string) => string,
+): string {
+  const isPdf = isPdfPractice(r.practice);
+  const evidence = r.evidence.length
+    ? `<p class="bp-doc"><strong>Your document:</strong> ${r.evidence.map(escapeHtml).join(" ")}</p>`
+    : "";
+  const block = r.block
+    ? `<p class="bp-cap">${escapeHtml(r.block.caption)}</p>` +
+      `<pre class="bp-block">${r.block.lines.map(escapeHtml).join("\n")}</pre>`
+    : "";
+  // PDF has a real second tool (Acrobat, editing the exported file). Office
+  // documents do not — office.ts's OFFICE_FIX_APP is a re-export reminder,
+  // not a second route, and BestPracticesSection.vue's own history has a
+  // fix for exactly this: a heading here once contradicted the very
+  // sentence under it ("fixed at the source, not after export"). Same
+  // information, no second-route label, for anything that isn't PDF.
+  const fix = r.fix
+    ? `<p class="bp-fix"><strong>In the source file (${isPdf ? "Word, InDesign" : "Word, PowerPoint, Excel"}):</strong> ${escapeHtml(r.fix.source)}</p>` +
+      (isPdf
+        ? `<p class="bp-fix"><strong>In the PDF (Acrobat):</strong> ${escapeHtml(r.fix.app)}</p>`
+        : `<p class="bp-fix">${escapeHtml(r.fix.app)}</p>`)
+    : "";
+  // The citation (e.g. "PDF/UA (ISO 14289) clause 7.1") is independent of
+  // whether the practice has any links — display-doc-title cites a standard
+  // with links: [] — so it prints even when the links paragraph below does
+  // not. On screen this sits under the same "Read more" label as the links
+  // list (BestPracticesSection.vue); the printout is the artifact someone
+  // may cite a decision from, so the provenance travels onto paper too.
+  const standard = r.practice.standard
+    ? `<p class="bp-standard">${escapeHtml(r.practice.standard)}</p>`
+    : "";
+
+  // wcagSlugs concatenated onto the practice's own links and run through
+  // safeLinks TOGETHER, exactly as BestPracticesSection.vue does — a link
+  // is the one thing on the page a reader is invited to click (or, here,
+  // type out by hand), and an entry whose URL fails safeHttpUrl is DROPPED
+  // rather than downgraded to plain text.
+  const allLinks = resolveRowLinks(r, understandingUrl);
+  const links = allLinks.length
+    ? `<p class="bp-links">` +
+      allLinks.map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.label)}</a>`).join(" · ") +
+      `</p>`
+    : "";
+  return (
+    `<li><h3>${escapeHtml(r.practice.label)} — ${escapeHtml(STATUS_LABEL[r.status])}</h3>` +
+    `<p class="bp-what">${escapeHtml(r.practice.description)}</p>` +
+    evidence +
+    block +
+    `<p class="bp-why">${escapeHtml(r.practice.why)}</p>` +
+    fix +
+    standard +
+    links +
+    `</li>`
+  );
+}
+
 export function buildPrintablePlan(o: PrintablePlanOptions): string {
   const appName = o.appName || "ICJIA Accessibility Audit";
   const when = (o.generatedAt ?? new Date()).toLocaleDateString("en-US", {
@@ -190,6 +298,23 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
       `<p class="sub">${escapeHtml(FIX_STEPS_VERSION_NOTE)}</p>` +
       `<ol class="steps">${o.steps.map((s) => renderStep(s, criterionHref)).join("")}</ol>`
     : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
+
+  // Between "What to fix" and the human checks: best practices are
+  // reported-but-never-scored, so they sit in their own group rather than
+  // inside the fix count above it. sortBestPractices (bestPractices/index.ts)
+  // is the ONE place NOT-MET-first ordering is defined — BestPracticesSection.vue
+  // calls the same function, so a reader comparing the screen and the
+  // printout sees the same rows in the same order, not the catalog's raw
+  // declaration order scattering the one or two actionable rows among
+  // mostly "Does not apply"/"Not checked".
+  const sortedPractices = sortBestPractices(o.bestPractices ?? []);
+  const practices = sortedPractices.length
+    ? `<h2>Best practices — not scored</h2>` +
+      `<p class="sub">None of this affected the grade. The fixes above are everything WCAG 2.1 ` +
+      `asks of this document that an automated check can find; everything here is optional work ` +
+      `that helps real readers.</p>` +
+      `<ul class="bp">${sortedPractices.map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
+    : "";
 
   const hasCaution = (o.manualChecks ?? []).some((c) => c.tone === "caution");
   const checks = (o.manualChecks ?? []).length
@@ -266,6 +391,7 @@ ${
 }
 ${o.intro ? `<p class="note">${escapeHtml(o.intro)}</p>` : ""}
 ${steps}
+${practices}
 ${checks}
 ${na}
 <footer>

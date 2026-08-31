@@ -55,6 +55,13 @@ export const MATTERHORN_FACTS = {
   noDefinedTest: 2,
 } as const;
 
+/** The PDF Association's Matterhorn Protocol page. Checkpoints are not
+ *  separately addressable, so every checkpoint reference links here and
+ *  carries its number and name in the link label. Exported so the checklist
+ *  component and the best-practices catalog cannot drift apart — they did,
+ *  once, and the mismatch reached a review. */
+export const MATTERHORN_PROTOCOL_URL = "https://pdfa.org/resource/the-matterhorn-protocol/";
+
 export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "01",

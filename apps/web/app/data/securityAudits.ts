@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.143.0",
+    meta: "Reviewed <strong>2026-08-30</strong> · scope: the new Best practices section &mdash; 38 non-scored checks across PDF, Word, PowerPoint, and Excel, each showing a document&rsquo;s own evidence.",
+    body: [
+      {
+        kind: "p",
+        html: "The new section opens no new trust boundary. Every interpolated value in the printable plan passes through the same <code>escapeHtml</code> helper already used for scored findings; every link &mdash; the catalog&rsquo;s own and any built from document content &mdash; passes through <code>safeHttpUrl</code> before it can render, and an unparseable one is dropped rather than shown broken. The catalog&rsquo;s own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied. A second review pass (the same day) closed the one way a stored report could still overstate itself: the section reads findings a past version of the analyzer wrote, and a report created before one of its advisories existed carries no complaint from it. Each witness-based check now records the date its advisory began, and older shared reports show that row as <em>not checked</em> rather than met.",
+      },
+      {
+        kind: "p",
+        html: "<code>evaluateBestPractices</code>, which runs during <code>/report/[id]</code>&rsquo;s server-side render of stored JSON, narrows every field it reads &mdash; file type, category id, page count &mdash; before use, and returns nothing rather than throwing on a shape it does not recognize.",
+      },
+      {
+        kind: "p",
+        html: "Also fixed: six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them. The check that separates them now recognizes all three of the analyzer&rsquo;s not-scored prefixes, not two.",
+      },
+    ],
+  },
+  {
     version: "v1.142.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: a requested red/blue security audit of every change shipped today (thirty releases). Verdict: no findings, no new attack surface.",
     body: [

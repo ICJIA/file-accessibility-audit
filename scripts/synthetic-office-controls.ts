@@ -7,7 +7,7 @@
  * WHY (2026-08-29): the 100-trap battery proved the PDF checker against
  * designed answers — but Word, PowerPoint, and Excel checking was guarded
  * only by four real controls and unit tests. Three of the four supported
- * formats had no adversarial coverage at all. These fifteen close that:
+ * formats had no adversarial coverage at all. These seventeen close that:
  * hand-built .docx/.pptx/.xlsx files, each around one designed truth,
  * modeled on the habits those programs actually produce (bold-instead-of-
  * Heading-1, alt panels never opened, header rows that are only styled,
@@ -52,15 +52,36 @@ function corePropsXml(title: string | null): string {
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">${title === null ? "" : `<dc:title>${title}</dc:title>`}<dc:language>en-US</dc:language></cp:coreProperties>`;
 }
 
-function docx(bodyXml: string, opts: { title?: string | null } = {}): Promise<Buffer> {
+// Word resolves a heading's LEVEL from styles.xml, never from the styleId
+// alone, so a document.xml full of `w:pStyle w:val="Heading1"` has no
+// headings at all without this part. Opt-in (`styles: true`) so every
+// sample written before it keeps producing the same bytes.
+const HEADING_STYLES_XML = `${XMLDECL}
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${[
+  1, 2, 3, 4, 5, 6,
+]
+  .map(
+    (n) =>
+      `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:pPr><w:outlineLvl w:val="${n - 1}"/></w:pPr></w:style>`,
+  )
+  .join("")}</w:styles>`;
+
+function docx(
+  bodyXml: string,
+  opts: { title?: string | null; styles?: boolean } = {},
+): Promise<Buffer> {
   return zip({
     "[Content_Types].xml": `${XMLDECL}
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${opts.styles ? '\n<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
+    // After [Content_Types].xml, never before it: OPC readers are forgiving,
+    // but these controls are also meant to be opened by hand in Word, and
+    // the content-types part conventionally leads the package.
+    ...(opts.styles ? { "word/styles.xml": HEADING_STYLES_XML } : {}),
     "_rels/.rels": `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
@@ -85,6 +106,26 @@ const DRAWING = (id: number, descr?: string) =>
   `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="1905000"/><wp:docPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/></wp:inline></w:drawing></w:r></w:p>`;
 const BODY_TEXT =
   "This paragraph carries enough ordinary running prose to count as real document body text for the analyzer, with plain words continuing along in an unremarkable way.";
+
+const EMPTY_P = "<w:p/>";
+
+/** A real data table (borders + a marked header row) whose top row is one
+ *  cell spanning both columns — the merged-header habit Word encourages. */
+function docxMergedHeaderTable(): string {
+  const cell = (t: string, span?: number) =>
+    `<w:tc>${span ? `<w:tcPr><w:gridSpan w:val="${span}"/></w:tcPr>` : ""}<w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:tc>`;
+  const borders =
+    '<w:tblPr><w:tblBorders><w:top w:val="single"/><w:bottom w:val="single"/><w:insideH w:val="single"/><w:insideV w:val="single"/></w:tblBorders></w:tblPr>';
+  return (
+    "<w:tbl>" +
+    borders +
+    `<w:tr><w:trPr><w:tblHeader/></w:trPr>${cell("Enrollment by county", 2)}</w:tr>` +
+    `<w:tr><w:trPr><w:tblHeader/></w:trPr>${cell("County")}${cell("Enrolled")}</w:tr>` +
+    `<w:tr>${cell("Adams")}${cell("412")}</w:tr>` +
+    `<w:tr>${cell("Brown")}${cell("318")}</w:tr>` +
+    "</w:tbl>"
+  );
+}
 
 function docxTable(withHeader: boolean): string {
   const cell = (t: string) => `<w:tc><w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:tc>`;
@@ -198,6 +239,39 @@ const allFindings = (r: AnalysisResult) => r.categories.flatMap((c) => c.finding
 const noAccusation = (r: AnalysisResult): string | null => {
   const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
   return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
+};
+
+/** The Best Practices claim, asserted the same way in both batteries: a
+ *  document can satisfy WCAG 2.1 completely and still have work worth doing.
+ *  Nothing Critical or Moderate, an A-band score, no conformance failure —
+ *  and at least three findings that carry a not-scored prefix. The floor is
+ *  safe only because EVERY designed defect is also named in `needles` —
+ *  without that, an unrelated future advisory could hold the count at three
+ *  while one of the designed ones quietly stopped firing. Any defect added
+ *  to one of these samples must get a needle of its own too. */
+const bestPracticeDebtCheck = (r: AnalysisResult, needles: string[]): string | null => {
+  const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
+  if (bad.length)
+    return `WCAG-clean document accused of ${bad.map((c) => `${c.id}(${c.severity})`).join(", ")}`;
+  if (r.overallScore < 90)
+    return `score ${r.overallScore} is below the A band (90) — best-practice debt must not move the grade`;
+  // The /trust chip for these traps reads "HELD · SCORED 100" — a literal
+  // the gate must back, or the trust page states a number nothing checks.
+  if (r.overallScore !== 100)
+    return `scored ${r.overallScore}, but the trust-page chip claims SCORED 100`;
+  const failures = r.conformance?.failures ?? [];
+  if (failures.length)
+    return `conformance failures present: ${failures.map((f) => f.sc).join(", ")}`;
+  const notScored = r.categories
+    .flatMap((c) => c.findings)
+    .filter((f) => /^(pdf\/ua only|advisory|note) — not scored/i.test(f.trim()));
+  if (notScored.length < 3)
+    return `expected at least 3 not-scored items, found ${notScored.length}`;
+  const all = notScored.join("\n").toLowerCase();
+  for (const needle of needles) {
+    if (!all.includes(needle)) return `missing the designed advisory: ${needle}`;
+  }
+  return null;
 };
 
 const SAMPLES: Sample[] = [
@@ -435,6 +509,63 @@ const SAMPLES: Sample[] = [
       return c.score < 100 ? null : "missing workbook title scored 100";
     },
   },
+  {
+    file: "synthetic-126-docx-wcag-clean-bp-debt.docx",
+    truth:
+      "A Word document that satisfies WCAG 2.1 outright — titled, language-declared, real Heading styles, a bordered data table with its header row marked, no images to describe — and still carries best-practice work: the outline skips a level (Heading 1 -> Heading 3), the header row is one merged cell spanning both columns, and three blank paragraphs stand in for spacing. None of the three is a WCAG 2.1 failure, so none may move the score; each must still be reported with a not-scored prefix.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Annual Program Report"),
+          P(BODY_TEXT),
+          HEADING(3, "Program Enrollment"),
+          P(BODY_TEXT),
+          docxMergedHeaderTable(),
+          EMPTY_P,
+          EMPTY_P,
+          EMPTY_P,
+          HEADING(3, "Next Steps"),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Annual Program Report 2026", styles: true },
+      ),
+    check: (r) =>
+      bestPracticeDebtCheck(r, [
+        "skip a heading level",
+        "merged cell(s)",
+        "consecutive empty paragraphs",
+      ]),
+  },
+  {
+    file: "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",
+    truth:
+      "An Excel workbook that satisfies WCAG 2.1 outright — titled, every value extractable, no images and no headerless defined table to fault — and still carries best-practice work: both sheets keep Excel's default names, and the data sits in plain cell ranges with no defined Table anywhere. Neither is a WCAG 2.1 failure, so neither may move the score; both must still be reported with a not-scored prefix.",
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "Sheet1",
+            rows: [
+              ["County", "Enrolled", "Completed"],
+              ["Adams", "412", "377"],
+              ["Brown", "318", "301"],
+              ["Clark", "265", "244"],
+              ["Dane", "199", "180"],
+              ["Edgar", "154", "141"],
+              ["Fayette", "121", "118"],
+            ],
+          },
+          { name: "Sheet2", rows: [["Note"], ["Counts come from the quarterly intake export."]] },
+        ],
+        { title: "Enrollment Counts 2026" },
+      ),
+    check: (r) =>
+      bestPracticeDebtCheck(r, [
+        'rename "sheet1"',
+        'rename "sheet2"',
+        "no defined excel table anywhere",
+      ]),
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
@@ -537,6 +668,16 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-115-xlsx-untitled.xlsx": {
     label: "Excel: a workbook with no document title",
     chip: "caught",
+  },
+  "synthetic-126-docx-wcag-clean-bp-debt.docx": {
+    label: "Word: passes WCAG 2.1, and still skips a heading level and merges a header cell",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
+  },
+  "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx": {
+    label: 'Excel: passes WCAG 2.1, and is still called "Sheet1" with no defined Tables',
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
   },
 };
 

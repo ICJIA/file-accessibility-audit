@@ -136,3 +136,82 @@ describe("TechnicalReport.vue — informational panels stay below blocking info"
     expect(at(src, "PdfUaVerdict")).toBeLessThan(at(src, "MethodologyCard"));
   });
 });
+
+describe("Best Practices placement (2026-08-30)", () => {
+  it("sits between IssuesSummary and ManualReviewCard in both Detailed views", () => {
+    for (const page of ["index.vue", "report/[id].vue"]) {
+      const src = pageSource(page);
+      const issues = at(src, "IssuesSummary");
+      const bp = at(src, "BestPracticesSection");
+      const manual = at(src, "ManualReviewCard");
+      expect(issues, page).toBeLessThan(bp);
+      expect(bp, page).toBeLessThan(manual);
+    }
+  });
+
+  it("stays above the informational PDF/UA panels — the blocking-first invariant", () => {
+    for (const page of ["index.vue", "report/[id].vue"]) {
+      const src = pageSource(page);
+      expect(at(src, "BestPracticesSection"), page).toBeLessThan(at(src, "PdfUaVerdict"));
+    }
+  });
+
+  it("renders ONCE per view — never via ReportContent, which TechnicalReport embeds", () => {
+    // ReportContent is rendered inside TechnicalReport, which is inside
+    // ReportVisualView. A section placed there would appear twice on one
+    // page in the Visual view.
+    expect(componentSource("ReportContent.vue")).not.toContain("BestPracticesSection");
+    const visual = componentSource("ReportVisualView.vue");
+    expect(visual.match(/<BestPracticesSection/g) ?? []).toHaveLength(0);
+    // Bounded to the ActionPlan tag itself (stops at its own self-closing
+    // `/>`) — CORRECTED (Task 9 sabotage check): an unbounded lazy
+    // `/<ActionPlan[\s\S]*?:result="result"/` lazily matches PAST ActionPlan
+    // into PrintPlanButton's own :result a few lines below, so it kept
+    // passing even with :result deleted from ActionPlan — the exact
+    // silent-gate failure this suite's "gates must be provable" rule warns
+    // about. Every attribute on this tag is a plain identifier/expression
+    // with no literal `>`, so `[^>]*` cannot itself run past the tag close.
+    const actionPlanTag = visual.match(/<ActionPlan\b[^>]*\/>/)?.[0] ?? "";
+    expect(actionPlanTag, "ActionPlan tag not found in ReportVisualView.vue").not.toBe("");
+    expect(actionPlanTag).toContain(':result="result"');
+    // CLOSE 1 (post-approval review): at() above only ever returns the
+    // FIRST index of a tag — it cannot see a second <BestPracticesSection
+    // added below ManualReviewCard on either Detailed page, which is
+    // exactly the double-render failure this whole placement exists to
+    // prevent. Count it explicitly, per page.
+    for (const page of ["index.vue", "report/[id].vue"]) {
+      expect(pageSource(page).match(/<BestPracticesSection/g), page).toHaveLength(1);
+    }
+  });
+
+  it("keeps ReportContent's per-category not-scored tier — it is card detail, not the scorecard", () => {
+    // Spec §6: the two serve different readers. Removing TIER 2 would strip
+    // the not-scored items out of the per-category cards entirely.
+    expect(componentSource("ReportContent.vue")).toContain('data-testid="not-scored-tier"');
+  });
+});
+
+describe("the era gate is wired end to end (2026-08-30)", () => {
+  it("/report/[id] passes the shared row's createdAt to every surface that evaluates the catalog", () => {
+    const src = pageSource("report/[id].vue");
+    const visual = src.match(/<ReportVisualView\b[\s\S]*?\/?>/)?.[0] ?? "";
+    expect(visual).toContain(':analyzed-at="data.createdAt"');
+    const section = src.match(/<BestPracticesSection\b[\s\S]*?\/>/)?.[0] ?? "";
+    expect(section).toContain(':analyzed-at="data.createdAt"');
+    const print = src.match(/<PrintPlanButton\b[^>]*\/>/)?.[0] ?? "";
+    expect(print).toContain(':analyzed-at="data.createdAt"');
+  });
+  it("ReportVisualView forwards it to ActionPlan and PrintPlanButton", () => {
+    const src = componentSource("ReportVisualView.vue");
+    expect(src.match(/<ActionPlan\b[^>]*\/>/)?.[0] ?? "").toContain(':analyzed-at="analyzedAt"');
+    expect(src.match(/<PrintPlanButton\b[^>]*\/>/)?.[0] ?? "").toContain(
+      ':analyzed-at="analyzedAt"',
+    );
+  });
+  it("the remediation page opts its 'What still needs fixing' printout out of best practices", () => {
+    const src = pageSource("remediate/[jobId].vue");
+    expect(src.match(/<PrintPlanButton\b[\s\S]*?\/>/)?.[0] ?? "").toContain(
+      ':include-best-practices="false"',
+    );
+  });
+});

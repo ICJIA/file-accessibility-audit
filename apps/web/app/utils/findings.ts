@@ -47,11 +47,21 @@ export function isNeutralFinding(finding: string): boolean {
 }
 
 /** A finding the analyzer marked as reported-but-unscored. The analyzer owns
- *  the wording; these two prefixes are its contract with the UI. */
+ *  the wording; these three prefixes are its contract with the UI.
+ *
+ *  "Note — not scored" was missing until 2026-08-30, so six Word/Excel lines
+ *  (merged cells, empty table rows, out-of-table ranges, pivot tables,
+ *  far-from-A1 starts, merged cells) fell through to `main` and rendered
+ *  under the Tier-1 heading "Required by WCAG 2.1 — this is what your score
+ *  measures". Unscored advice must never be presented as legally required. */
 export function isNotScoredFinding(finding: string): boolean {
   if (!finding) return false;
   const f = finding.trim().toLowerCase();
-  return f.startsWith("pdf/ua only — not scored") || f.startsWith("advisory — not scored");
+  return (
+    f.startsWith("pdf/ua only — not scored") ||
+    f.startsWith("advisory — not scored") ||
+    f.startsWith("note — not scored")
+  );
 }
 
 export function isGuidanceFinding(finding: string): boolean {

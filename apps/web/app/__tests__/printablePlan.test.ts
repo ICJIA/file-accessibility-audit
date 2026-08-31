@@ -224,6 +224,41 @@ describe("PrintPlanButton", () => {
     const src = readFileSync(resolve(__dirname, "..", "components/PrintPlanButton.vue"), "utf8");
     expect(src).toMatch(/buildActionPlan\([^)]*pdfMetadata\?\.creator/);
   });
+
+  it("passes best practices into the plan builder", () => {
+    // Third instance of this exact class of bug on this branch: a feature
+    // wired behind a prop no parent supplies, invisible in production, every
+    // test green. Every test above (and every printablePlanBestPractices.test.ts
+    // test) calls buildPrintablePlan() directly — none mounts this component
+    // — so deleting `bestPractices: bestPractices.value` from openPlan()
+    // would make every real printout silently drop the section while the
+    // whole suite stayed green. Same pattern as the Creator pin above and
+    // the understandingUrl/wcagQuickref pin below.
+    const src = readFileSync(resolve(__dirname, "..", "components/PrintPlanButton.vue"), "utf8");
+    expect(src).toMatch(/bestPractices:\s*bestPractices\.value/);
+  });
+
+  it("renders when best practices are the only thing left to print", () => {
+    // Reachable state: a category that neither fails (no fix step —
+    // buildActionPlan only turns a Critical/Moderate/Minor severity into a
+    // step) nor passes into a dictionary-known manual check (manualChecks
+    // only fires for an id MANUAL_CHECKS recognizes), on a format the
+    // best-practices catalog evaluates regardless of which specific
+    // category ids are present. Without the bestPractices clause in
+    // hasSomethingToPrint, this document would show no button at all.
+    const w = mount(PrintPlanButton, {
+      props: {
+        result: {
+          filename: "clean.pdf",
+          fileType: "pdf",
+          categories: [
+            { id: "not_in_manual_checks_dictionary", score: 100, severity: "No issues found" },
+          ],
+        },
+      },
+    });
+    expect(w.find('[data-testid="print-plan"]').exists()).toBe(true);
+  });
 });
 
 describe("the print button reaches every surface that shows a report", () => {

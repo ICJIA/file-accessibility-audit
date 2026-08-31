@@ -229,6 +229,14 @@
 
             <IssuesSummary v-if="result?.categories" :categories="result.categories" class="mb-8" />
 
+            <!-- Best practices — reported, never scored. Mirrors the Visual
+                 view's reading order: obligations, then the optional work,
+                 then what only a person can judge. Deliberately NOT in
+                 ReportContent: TechnicalReport embeds that inside
+                 ReportVisualView, so a section placed there would render
+                 twice on one page in the Visual view. -->
+            <BestPracticesSection v-if="result?.categories" :result="result" class="mb-8" />
+
             <!-- See the note on the shared-report page: IssuesSummary renders
                  nothing when there are no findings, which left a clean report's
                  Detailed view empty below the hero. -->

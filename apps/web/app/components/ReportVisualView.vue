@@ -54,13 +54,15 @@
         :conformance="result.conformance"
         :pdf-ua-verdict="result.pdfUaVerdict"
         :categories="displayedCategories"
+        :result="result"
+        :analyzed-at="analyzedAt"
         class="mb-6"
         @show-evidence="revealEvidence"
       />
 
       <!-- Directly under the plan: the moment someone has read the fixes is
            the moment they go and do them, away from this tab. -->
-      <PrintPlanButton :result="result" class="mb-6" />
+      <PrintPlanButton :result="result" :analyzed-at="analyzedAt" class="mb-6" />
 
       <slot name="cta" />
 
@@ -123,6 +125,8 @@ const props = defineProps<{
   // (@typescript-eslint/no-explicit-any is off repo-wide — see eslint.config.mjs.)
   result: Record<string, any>;
   verapdfUrl?: string;
+  /** The shared row's createdAt on /report/[id]; absent for a live analysis. */
+  analyzedAt?: string | null;
 }>();
 
 const wcag = useWcag();

@@ -105,6 +105,7 @@
           <ReportVisualView
             v-if="viewMode === 'visual'"
             :result="data.report"
+            :analyzed-at="data.createdAt"
             :verapdf-url="String(config.public.verapdfUrl ?? '')"
           />
 
@@ -143,6 +144,19 @@
               class="mb-8"
             />
 
+            <!-- Best practices — reported, never scored. Mirrors the Visual
+                 view's reading order: obligations, then the optional work,
+                 then what only a person can judge. Deliberately NOT in
+                 ReportContent: TechnicalReport embeds that inside
+                 ReportVisualView, so a section placed there would render
+                 twice on one page in the Visual view. -->
+            <BestPracticesSection
+              v-if="data?.report?.categories"
+              :result="data.report"
+              :analyzed-at="data.createdAt"
+              class="mb-8"
+            />
+
             <!-- IssuesSummary is v-if="rows.length", so a document with no
                  findings rendered nothing at all here — leaving "where are the
                  findings?" as the reader's honest reaction. This answers it:
@@ -157,7 +171,7 @@
             <!-- Same printable plan the Visual view offers. Someone reading the
                  detailed report is just as likely to be the person who has to go
                  and make the fixes. -->
-            <PrintPlanButton :result="data.report" class="mb-8" />
+            <PrintPlanButton :result="data.report" :analyzed-at="data.createdAt" class="mb-8" />
 
             <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
              ScoreCard (which rendered it at the very top of the report, above

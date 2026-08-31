@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.143.0] - 2026-08-30
+
+### Added — a Best practices section, with your document's own evidence
+
+- **A new section now sits between the numbered action plan and "Above and beyond,"** in the Visual view, the Detailed view, shared reports, and the printable plan. It lists every non-scored best practice for the file's format — 38 in all, across PDF, Word, PowerPoint, and Excel — and for each one shows whether **this** document meets it, the evidence found in the document itself, both ways to fix it (in the source file, and in the finished file), and a link to learn more. Nothing in the section is scored: a "worth doing" row is never a failure, and the section's own heading says so.
+- **The point is proven in the test corpus, not just claimed in copy.** Three new documents — a PDF, a Word document, and an Excel workbook — were built to score completely clean under WCAG 2.1 while still carrying real best-practice work, and each one does: 100/A, zero conformance failures, and best-practice rows the new section reports anyway. All three are CI-gated so that can never quietly stop being true. A document can pass the law outright and still have work worth doing.
+
+### Changed
+
+- **"Above and beyond" narrows to what only veraPDF can say.** Retitled "Above and beyond — veraPDF's verdict," it no longer repeats items the new Best practices section already covers in more depth, and its now-duplicated "BEST PRACTICE — NOT SCORED" label is gone — the new section's own heading already says "not scored."
+
+### Fixed
+
+- **Six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them.** The check that separates scored findings from "Note — not scored" ones recognized only two of the three prefixes the analyzer actually writes; it now recognizes all three, so those six lines sit where their own label says they belong.
+- **A shared report older than one of its checks can no longer show that check as met.** The Best practices section reads a stored report's findings, and the analyzer's advisories were added on different dates — the Office checkers in July, most of their advisories in late August. A report analyzed before an advisory existed carries no complaint from it, and that silence used to read as a pass. Each witness-based practice now records the date its advisory began, and a shared report created before that date shows the row as **Not checked** with the reason, and a suggestion to re-run the audit.
+- **Best-practice rows no longer say "does not change your score" beneath a finding that does.** Unreadable characters or untagged text past the scored thresholds, an empty bookmark outline, a data table with no header row, and complex tables missing both /Scope and /Headers are all counted in the grade and already appear as required steps in the action plan; the corresponding rows now say so and point upward instead of calling the same defect optional. Also corrected: complex-table header association is no longer reported as met on the strength of a line that unscoped simple tables satisfy; a list with no bullet or number labels is caught from the analyzer's per-list marks even when its summary advisory never fired; a document whose headings are all generic `<H>` is told which row assesses that; every table practice recognizes the analyzer's own "layout tables only" and "no header cells" outcomes; and a Word or Excel card's "Also recommended" tier no longer names PDF/UA.
+
+### Notes
+
+- Tests 3,367 (API 1,624 · Web 1,694 · CLI 49). Traps 127 (110 PDF + 17 Office) — three more than v1.142.0, the clean-but-improvable documents described above. No scores moved: the new traps are all clean documents, and this release narrows no scoring rule.
+
+<details>
+<summary><strong>v1.142.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.142.0] - 2026-08-29
 
 ### Security — red/blue audit of the entire day's changes (v1.130.0 → v1.141.3)
@@ -13,9 +37,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Changed
 
 - **"Good twins" explained for non-technical readers** (user-caught jargon): the trust page now says *"for each flawed file, a matching corrected copy — the same document with the mistake fixed — that the checker must NOT flag,"* and the pair rule reads *"the broken version may never outscore the corrected one."* The dated announcement's "done-right twins" phrasing gets the same treatment.
-
-<details>
-<summary><strong>v1.141.3 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.141.3] - 2026-08-29
 

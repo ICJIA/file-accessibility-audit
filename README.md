@@ -699,8 +699,8 @@ file-accessibility-audit/
 ├── scripts/
 │   ├── test.ts                      # `pnpm test` — api/web/cli suites in parallel, one summary
 │   ├── rebrand.ts                   # Regenerate static branding files (pnpm rebrand)
-│   ├── synthetic-controls.ts        # 100-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
-│   ├── synthetic-office-controls.ts # 15-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
+│   ├── synthetic-controls.ts        # 110-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
+│   ├── synthetic-office-controls.ts # 17-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
 │   ├── score-ledger.ts              # Golden score ledger verify/--bless (CI gate) ↔ score-ledger.json
 │   ├── resave-invariance.ts         # qpdf re-save must grade identically + determinism (CI gate)
 │   ├── prod-sentinels.ts            # Post-deploy: designed-answer uploads against the live site
@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,011 tests** across 196 test files (API 1,624 · Web 1,338 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,367 tests** across 202 test files (API 1,624 · Web 1,694 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -836,9 +836,9 @@ Beyond the unit suites, six corpus-level gates verify the **auditing itself** �
 
 | Gate | Command | What it guarantees |
 | --- | --- | --- |
-| Trap battery (PDF) | `pnpm synthetic-controls` | 100 hand-built adversarial PDFs, each with a designed truth (modeled on Canva, InDesign, and Word exports), rebuilt from scratch and re-judged; **twin orderings** — for every matched good/bad pair, the flawed twin may never outscore the correct one. One violated truth fails the build. |
-| Trap battery (Office) | `pnpm synthetic-office-controls` | 15 hand-built `.docx`/`.pptx`/`.xlsx` traps with designed truths (fake bold headings, alt panels never opened, unmarked header rows, untitled slides, "Sheet1") plus done-right twins and the same twin-ordering rule. |
-| Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (151 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
+| Trap battery (PDF) | `pnpm synthetic-controls` | 110 hand-built adversarial PDFs, each with a designed truth (modeled on Canva, InDesign, and Word exports), rebuilt from scratch and re-judged; **twin orderings** — for every matched good/bad pair, the flawed twin may never outscore the correct one. One violated truth fails the build. |
+| Trap battery (Office) | `pnpm synthetic-office-controls` | 17 hand-built `.docx`/`.pptx`/`.xlsx` traps with designed truths (fake bold headings, alt panels never opened, unmarked header rows, untitled slides, "Sheet1", and a workbook that passes WCAG 2.1 outright while still carrying best-practice work) plus done-right twins and the same twin-ordering rule. |
+| Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (171 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
 | Re-save invariance + determinism | `pnpm resave-invariance` | Every trap rewritten by qpdf must grade identically, digit for digit — byte layout can never change a grade — and sentinel documents audited five times (three concurrently) must return identical results. |
 | Encoding invariance | `pnpm encoding-invariance` | One document re-emitted in **every legal encoding of the same meaning** — attributes inline / behind a reference / as an array / via a class map, values direct or indirect, role-mapped custom tags, single-kid shorthand — must return an identical verdict. Generalizes re-save invariance from *different bytes* to *different legal structure*; found unsupported class-map attributes on its first run. |
 | Corpus sweep | `pnpm verify-controls` | Invariant verification across the full local corpus (real documents + traps) before releases. |
@@ -1287,12 +1287,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.143.0 — 2026-08-30 · Best practices section: your document's own evidence, through the same escaping every finding already used (no new attack surface)
+
+The new report section (38 non-scored best practices across PDF, Word, PowerPoint, and Excel, each row carrying this document's own evidence) opens no new trust boundary. Every interpolated value in the printable plan passes through the same `escapeHtml` helper already used for scored findings; every link — the catalog's own and any built from document content — passes through `safeHttpUrl` before it can render, and an unparseable one is dropped rather than shown broken. The catalog's own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied. `evaluateBestPractices`, which runs during `/report/[id]`'s server-side render of stored JSON, narrows every field it reads — file type, category id, page count — before use, and returns nothing rather than throwing on a shape it does not recognize. Also fixed: six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them; the check that separates them recognizes all three of the analyzer's not-scored prefixes now, not two. A second review pass closed the one way a stored report could still overstate itself: each witness-based check records the date its advisory began, and a shared report created before that date shows the row as not checked rather than met. Tests 3,367.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.142.0 → v1.33.0) — click to expand</summary>
+
 ### v1.142.0 — 2026-08-29 · Red/blue audit of the day's thirty releases: no findings, no new attack surface (documented)
 
 A requested red/blue security audit of everything shipped on 2026-08-29 (75 files, +4,369/−881 across v1.130.0 → v1.141.3), fully documented in `docs/security-audit-2026-08-29-legal-only-sweep.md`. **Zero critical/high/medium findings; zero new attack surface** — no new routes, storage, input parsers, outbound requests, or `v-html`. The three mechanical red-sweep hits verified safe (a dev-only qpdf round-trip with array args on self-built input); the newly rendered veraPDF error field is fixed-literal-only; the v-html'd trust body's data fields are escaped. Also: "good twins" explained in plain language on the trust page. Tests 3,011.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.141.3 → v1.33.0) — click to expand</summary>
 
 ### v1.141.3 — 2026-08-29 · The last staled count, and the guard that now catches its class (no new attack surface)
 
