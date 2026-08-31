@@ -109,7 +109,9 @@ const props = withDefaults(
      *  defect, so it opts out. Default true. */
     includeBestPractices?: boolean;
   }>(),
-  { includeBestPractices: true },
+  // Every optional prop needs an explicit default once withDefaults is in
+  // play, or vue/require-default-prop warns on the ones that lack one.
+  { includeBestPractices: true, heading: undefined, intro: undefined, analyzedAt: undefined },
 );
 
 const categories = computed(() => props.result?.categories ?? []);

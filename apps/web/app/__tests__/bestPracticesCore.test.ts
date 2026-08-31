@@ -37,7 +37,7 @@ const category = {
   id: "heading_structure",
   label: "Heading Structure",
   findings: [
-    "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+    "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected.",
     "--- Heading Tree ---",
     "  H1 → H2 → H1 → H1 → H3 → H5",
     "  Heading hierarchy skip: H1 → H3 (skipped H2)",
@@ -97,7 +97,7 @@ describe("buildContext", () => {
 describe("matchNotScored", () => {
   it("returns the matching not-scored line", () => {
     const ctx = buildContext(category, "pdf", 12);
-    expect(matchNotScored(ctx, "level order has gaps")).toMatch(/Matterhorn 13-004/);
+    expect(matchNotScored(ctx, "level order has gaps")).toMatch(/Matterhorn 14\b/);
   });
 
   it("returns null when nothing matches — silence is never a pass", () => {
@@ -205,7 +205,7 @@ describe("evaluateBestPractices", () => {
         id: "heading_structure",
         label: "Heading Structure",
         findings: [
-          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected.",
           "--- Heading Tree ---",
           "  H1 → H2 → H1 → H1",
         ],
@@ -502,7 +502,7 @@ describe("a document that PASSES WCAG still has best practices to meet", () => {
         grade: "A",
         severity: "No issues found",
         findings: [
-          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected.",
           "--- Heading Tree ---",
           "  H1 → H2 → H1 → H1 → H3 → H5",
           "--- Heading Outline ---",

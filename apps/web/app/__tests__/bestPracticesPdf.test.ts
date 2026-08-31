@@ -37,7 +37,7 @@ const run = (id: string, findings: string[], pageCount = 10) =>
 // ---- verbatim analyzer output, packages/analyzer/src/scoring/pdf.ts -------
 
 const HEADING_GAPS =
-  "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.";
+  "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.";
 // Shaped like a REAL document's findings, not a convenient one: once pdfjs
 // resolves any heading text, "--- Heading Outline ---" opens a SECOND
 // signal group (analyzer common.ts:423) after the Heading Tree flow line —
@@ -237,6 +237,32 @@ describe("heading-convention", () => {
 
   it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
     expect(run("heading-convention", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("cross-references the H1 count on a MET document with more than one H1 (2026-08-31)", () => {
+    // Reported from a real 51-page report: seven H1s, no skipped level, so
+    // this row reads MET and prints a tree full of H1s under a green check —
+    // which reads as an endorsement of the whole outline. The multiple-H1
+    // finding is real and lives one row above ("One top-level heading"), but
+    // nothing here said so.
+    const r = run("heading-level-order", [
+      HEADING_OK,
+      "Found 7 H1 headings. No WCAG criterion requires a single H1, so this does not affect the score.",
+    ]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/7 H1 headings/);
+    expect(r.evidence.join(" ")).toMatch(/One top-level heading/);
+  });
+
+  it("says nothing extra when the document has exactly one H1, or no H1 line at all", () => {
+    expect(run("heading-level-order", [HEADING_OK]).evidence.join(" ")).not.toMatch(
+      /top-level heading/,
+    );
+    // "Found 1 H1 headings" is not a shape the analyzer emits (it speaks up
+    // only above one), but the guard must be on the COUNT, not on presence.
+    expect(
+      run("heading-level-order", [HEADING_OK, "Found 1 H1 headings."]).evidence.join(" "),
+    ).not.toMatch(/top-level heading/);
   });
 
   it("is NOT APPLICABLE when every heading is generic — and points at the row that flags it", () => {
@@ -503,8 +529,15 @@ describe("bookmarks", () => {
   });
 
   it("cites WCAG 2.4.5 via wcagSlugs", () => {
+    // The label carries the caveat the standard field states, so a reader
+    // who sees only the link does not take 2.4.5 for the governing rule
+    // (2026-08-31 WCAG audit): it governs a SET of pages, not navigation
+    // inside one document.
     expect(practice("bookmarks").wcagSlugs).toEqual([
-      { slug: "multiple-ways", label: "WCAG 2.4.5: Multiple Ways" },
+      {
+        slug: "multiple-ways",
+        label: "WCAG 2.4.5: Multiple Ways — applies to sets of pages, not within one document",
+      },
     ]);
   });
 });
@@ -705,6 +738,26 @@ describe("nested-tables", () => {
 });
 
 describe("descriptive-link-text", () => {
+  it("names the Level A criterion that actually governs 'click here', not only the AAA one (2026-08-31 WCAG audit)", () => {
+    // The ANALYZER's own advisory (scoring/pdf.ts:1952) says it correctly:
+    // "WCAG 2.4.4 (Level A) allows a link's purpose to come from the sentence
+    // around it, which no automated check can weigh — judging the text alone
+    // is a AAA rule (2.4.9) — so your grade is not affected." The catalog's
+    // summary had kept only the 2.4.9 half, which reads as "the law is silent
+    // here". It is not: per W3C, "click here" FAILS 2.4.4 (Level A) unless the
+    // surrounding context supplies the purpose. Unscored because it is not
+    // machine-decidable — not because it is not required.
+    const std = practice("descriptive-link-text").standard ?? "";
+    expect(std).toMatch(/2\.4\.4/);
+    expect(std).toMatch(/Level A\b/);
+    expect(std).toMatch(/sentence|context/i);
+    expect(std).toMatch(/2\.4\.9/);
+    // And the row must link the reader to BOTH criteria, not just the AAA one.
+    const slugs = (practice("descriptive-link-text").wcagSlugs ?? []).map((x) => x.slug);
+    expect(slugs).toContain("link-purpose-in-context");
+    expect(slugs).toContain("link-purpose-link-only");
+  });
+
   const NO_LINKS = "No links found in this document — this category does not affect the score";
   const NON_DESCRIPTIVE_ADVISORY =
     'Advisory — not scored: 3 of 12 link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link\'s purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.';
@@ -738,9 +791,17 @@ describe("descriptive-link-text", () => {
     expect(run("descriptive-link-text", []).status).toBe("not-checked");
   });
 
-  it("cites WCAG 2.4.9 via wcagSlugs", () => {
+  it("cites BOTH link-purpose criteria via wcagSlugs — the Level A one first", () => {
+    // Was pinned to 2.4.9 alone until the 2026-08-31 WCAG audit. A reader who
+    // follows the only link offered lands on a AAA criterion and concludes the
+    // subject is above the legal line; the criterion that actually governs
+    // "click here" is 2.4.4, Level A. Order matters: the legal one leads.
     expect(practice("descriptive-link-text").wcagSlugs).toEqual([
-      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only)" },
+      {
+        slug: "link-purpose-in-context",
+        label: "WCAG 2.4.4: Link Purpose (In Context) — Level A",
+      },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — AAA" },
     ]);
   });
 });
@@ -1207,6 +1268,39 @@ describe("advisorySince is declared on every witness-based PDF practice", () => 
       "heading-convention",
     ]) {
       expect(practice(id).advisorySince, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+});
+
+describe("the five heading rows tell a no-heading document where its score went (2026-08-31)", () => {
+  // scoring/pdf.ts:777 → score 0, grade F, and a 1.3.1 Level A conformance
+  // failure. Answering a bare "not applicable" beside the largest deduction
+  // in the report reads as absolution. The SHORT-document line one branch
+  // away (scoring/pdf.ts:770) is score null — genuinely nothing to say.
+  const HEADINGS_ABSENT_SCORED = "No heading tags found in the document structure";
+  const HEADINGS_ABSENT_SHORT =
+    "No headings were found. Short documents may not need them; longer documents should use Heading styles.";
+  const IDS = [
+    "heading-level-order",
+    "heading-convention",
+    "heading-numbered-levels",
+    "heading-content",
+    "single-h1",
+  ];
+
+  it("points at the action plan when headings are absent AND scored", () => {
+    for (const id of IDS) {
+      const r = run(id, [HEADINGS_ABSENT_SCORED]);
+      expect(r.status, id).toBe("not-applicable");
+      expect(r.evidence.join(" "), id).toMatch(/counted in your score/);
+    }
+  });
+
+  it("says nothing about the score for a short document, where none was lost", () => {
+    for (const id of IDS) {
+      const r = run(id, [HEADINGS_ABSENT_SHORT]);
+      expect(r.status, id).toBe("not-applicable");
+      expect(r.evidence.join(" "), id).not.toMatch(/counted in your score/);
     }
   });
 });

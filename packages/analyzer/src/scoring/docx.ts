@@ -295,7 +295,7 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
   }
   if (layoutish > 0) {
     findings.push(
-      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — overwhelmingly a layout construct, so no header row is demanded and your grade is not affected. If it IS a data table, mark its header row (Table Layout → Repeat Header Rows) and give it a table style.`,
+      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, mark its header row (Table Layout → Repeat Header Rows) and give it a table style.`,
     );
   }
   // Nested tables: reported, never scored (2026-08-29 — same rule as the

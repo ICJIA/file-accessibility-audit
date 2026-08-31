@@ -153,15 +153,17 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     findings.push(
       `Advisory — not scored: slide${untitled.length > 1 ? "s" : ""} ${nums} ${
         untitled.length > 1 ? "have" : "has"
-      } no title placeholder — your grade is not affected (a slide can carry its heading in a body placeholder), but titled slides give screen-reader users a navigable outline. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.`,
+      } no title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.`,
     );
   }
 
   // NOT SCORED (2026-08-29, the legal-only sweep): whether two identically
   // titled slides "describe their purpose" (2.4.6) is a judgment about the
   // slides' content that no automated check can make — a deck can honestly
-  // have two "Q3 results" slides. Reported, never counted. Missing titles
-  // stay scored: that is structural absence, attributed as 1.3.1.
+  // have two "Q3 results" slides. Reported, never counted. So are MISSING
+  // titles: `const score = 100` above. (This comment asserted the opposite
+  // until 2026-08-31 — it described pre-v1.136 behaviour and contradicted the
+  // code six lines above it.)
   if (duplicateGroups.length > 0) {
     for (const [title, idx] of duplicateGroups) {
       findings.push(

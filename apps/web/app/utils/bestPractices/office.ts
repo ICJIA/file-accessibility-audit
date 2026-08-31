@@ -295,6 +295,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     description:
       "A paragraph styled as a heading should hold heading text — not sit empty, kept only for spacing.",
     why: "A heading tag with no text is silence: a screen-reader user who jumps to it hears nothing, and it clutters the outline everyone navigates by.",
+    // Hedged, not settled (2026-08-31 WCAG audit) — the Word twin of the PDF
+    // heading-content row, and the same split in mainstream tooling.
+    standard:
+      "Contested. An empty heading is widely treated as a WCAG failure (1.3.1 Level A via W3C failure F43 — structural markup used for spacing; a heading with no text also describes no topic or purpose under 2.4.6 Level AA), while other checkers class it a best practice. This tool does not count it — do not read that as safe to leave.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -698,7 +702,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -757,7 +761,16 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Every slide has a title",
     description:
       "Each slide should carry a title in its title placeholder — PowerPoint's equivalent of a heading.",
-    why: "A slide's title placeholder is what lets a screen-reader user tell slides apart and jump straight to one, building a navigable outline of the whole deck. A slide can still carry its heading text in a body placeholder instead, which is why this is reported rather than counted.",
+    why: "A slide's title placeholder is what lets a screen-reader user tell slides apart and jump straight to one, building a navigable outline of the whole deck. No WCAG 2.1 A/AA criterion requires a heading to exist — that requirement is 2.4.10 Section Headings, Level AAA, which the ADA Title II rule does not adopt — which is why this is reported rather than counted.",
+    // The old reason given here ("a slide can carry its heading text in a
+    // body placeholder") was not accurate: a body placeholder carries no
+    // heading semantics at all, and its text never reaches the Outline view.
+    // The honest reason is the AAA one above. Note also the coverage gap
+    // this row cannot close: a slide showing a visually-styled heading in a
+    // floating text box IS a 1.3.1 Level A failure (W3C F2) — scored for
+    // Word (scoring/docx.ts:186-190), undetected for PowerPoint.
+    standard:
+      "No WCAG 2.1 A/AA criterion requires a slide to have a title; requiring section headings is 2.4.10 (Level AAA). A missing title becomes a WCAG 1.3.1 (Level A) failure only where the slide shows a visually-styled heading that is not marked up as one — a case this tool does not detect in PowerPoint.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -896,7 +909,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -1381,7 +1394,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {

@@ -310,9 +310,19 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
   const sortedPractices = sortBestPractices(o.bestPractices ?? []);
   const practices = sortedPractices.length
     ? `<h2>Best practices — not scored</h2>` +
+      // "everything here is optional work" was a LEGAL claim, and a stronger
+      // one than the catalog supports (2026-08-31 WCAG audit). Two different
+      // things sit in this list: items the law genuinely does not ask for
+      // (PDF/UA and industry practice), and items WCAG does ask for but whose
+      // judgment needs a human — vague link text meets 2.4.4 (Level A) when
+      // the surrounding sentence carries the purpose, which no automated
+      // check can read. Calling the second kind "optional" on paper, where
+      // there is no row detail to correct it, is the overclaim. The screen
+      // version makes only the score claim, which is true by construction.
       `<p class="sub">None of this affected the grade. The fixes above are everything WCAG 2.1 ` +
-      `asks of this document that an automated check can find; everything here is optional work ` +
-      `that helps real readers.</p>` +
+      `asks of this document that an automated check can find. Each practice below names the ` +
+      `standard behind it — some are industry practice beyond what the law requires, others are ` +
+      `things the law asks for that only a person can judge.</p>` +
       `<ul class="bp">${sortedPractices.map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
     : "";
 

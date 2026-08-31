@@ -205,14 +205,26 @@
             <p class="text-sm text-[var(--text-secondary)] mt-1">{{ row.practice.why }}</p>
           </div>
 
-          <div>
+          <!-- NOT rendered on a NOT APPLICABLE row (2026-08-31 WCAG audit).
+               Today's scored-band diverts land here with evidence reading
+               "That is counted in your score — see the action plan above";
+               an unconditional "No, this is optional" printed two blocks
+               below that contradicted the row and undid the divert. For a
+               genuine N/A ("this document has no tables") the question does
+               not arise either.
+               "Optional" is also gone from the answer that remains: it is a
+               claim about the LAW, and this catalog holds practices the law
+               does reach — vague link text is WCAG 2.4.4 Level A, unscored
+               only because the surrounding sentence is not machine-readable.
+               What is true of every remaining row is the SCORE claim. -->
+          <div v-if="row.status !== 'not-applicable'">
             <p
               class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
             >
               Does this affect my grade?
             </p>
             <p class="text-sm text-[var(--text-secondary)] mt-1">
-              No. This is optional — it does not change your score.
+              No — this practice does not change your score.
             </p>
           </div>
 

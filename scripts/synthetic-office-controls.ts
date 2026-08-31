@@ -388,11 +388,11 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-109-pptx-untitled-slides.pptx",
     truth:
-      "Slides with no title placeholder. NOT a confirmed WCAG failure — a slide can carry its heading in a body placeholder, and this battery's own conformance gate has always declined to assert 1.3.1 here — so since the legal-only sweep (2026-08-29) it must score 100 while the advisory still names every untitled slide.",
+      "Slides with no title placeholder. NOT a confirmed WCAG 2.1 A/AA failure — no A/AA criterion requires a heading to EXIST (that is 2.4.10 Section Headings, Level AAA), and this battery's own conformance gate has always declined to assert 1.3.1 here — so since the legal-only sweep (2026-08-29) it must score 100 while the advisory still names every untitled slide.",
     build: () => pptx([SLIDE_BODY(BODY_TEXT), SLIDE_BODY(BODY_TEXT)]),
     check: (r) => {
       const t = allFindings(r);
-      if (!/Advisory — not scored:.*no title placeholder/is.test(t))
+      if (!/Advisory — not scored:.*no title\b/is.test(t))
         return "untitled slides not reported as advisory";
       const c = cat("slide_titles")(r);
       if (c && c.score !== null && c.score < 100)

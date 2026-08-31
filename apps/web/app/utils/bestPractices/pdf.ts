@@ -151,7 +151,8 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Headings should step down one level at a time — H1, then H2, then H3. Jumping a level leaves a gap in the outline.",
     why: "Screen-reader users move through a document by jumping between headings. A skipped level reads as a missing section: they cannot tell whether they missed something or whether the document simply has a gap.",
-    standard: "Matterhorn Protocol 14 (Headings) · WCAG technique G141",
+    standard:
+      "Matterhorn Protocol 14 (Headings) · W3C technique G141 — a SUFFICIENT technique for 1.3.1, not a criterion. Skipping a heading level is not a WCAG 2.1 failure: the levels are still programmatically determinable.",
     links: links(matterhornLink("14"), techniqueLink("G141")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -199,9 +200,25 @@ export const PDF_PRACTICES: BestPractice[] = [
       }
       // The positive line. Only the analyzer's own words earn a pass.
       if (matchMain(ctx, "heading tags with logical hierarchy")) {
+        // MET here means only "no level is SKIPPED". A document can satisfy
+        // that and still have seven H1s (H1→H1→H1→H2→H2→H1…): stepping back
+        // up to a new top level is not a gap. Reported 2026-08-31 from a
+        // real 51-page report — the tree printed under this row's green
+        // check reads as an endorsement of the whole outline, while the
+        // finding that actually applies sits in "One top-level heading".
+        // Say so here rather than let the reader conclude the outline is
+        // fine. scoring/pdf.ts:879 emits the count only above one.
+        const h1Line = ctx.findings.find((l) => /^found \d+ h1 headings\b/i.test(l.trim()));
+        const h1Count = firstNumber(h1Line ?? null);
+        const alsoManyH1 =
+          h1Line && h1Count !== null && h1Count > 1
+            ? [
+                `This document has ${h1Count} H1 headings, which is not a skipped level — stepping back up to a new top level leaves no gap. Whether that is worth changing is judged in "One top-level heading" above.`,
+              ]
+            : [];
         return {
           status: "met",
-          evidence: ["Every heading level steps down one at a time."],
+          evidence: ["Every heading level steps down one at a time.", ...alsoManyH1],
           block: headingTreeBlock(ctx),
         };
       }
@@ -216,15 +233,26 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
-        // Two distinct analyzer N/A lines for the SAME underlying fact
-        // (no headings at all): "No heading tags found in the document
-        // structure" (substantive documents) and "No headings were found.
-        // Short documents may not need them…" (a short document below the
-        // substantive threshold). Only the first was matched before.
+      // THE TWO LINES ARE NOT THE SAME FACT (2026-08-31 WCAG audit).
+      // "No heading tags found in the document structure" (scoring/pdf.ts:777)
+      // is the score-0, grade-F branch, and conformance.ts:479-491 attributes
+      // it as a WCAG 1.3.1 Level A failure — the single largest deduction the
+      // report can carry. Five of these cards used to answer "not applicable"
+      // beside it, saying nothing about the score. "No headings were found.
+      // Short documents may not need them" (scoring/pdf.ts:770) is a
+      // different branch entirely: score null, not assessed, nothing lost.
+      if (matchMain(ctx, "no heading tags")) {
         return {
           status: "not-applicable",
-          evidence: ["This document has no heading tags, so there is no level order to check."],
+          evidence: [
+            "This document has no heading tags at all, so there is no level order to check. That absence is counted in your score — see the action plan above, not this section.",
+          ],
+        };
+      }
+      if (matchMain(ctx, "no headings were found")) {
+        return {
+          status: "not-applicable",
+          evidence: ["This document has no headings, so there is no level order to check."],
         };
       }
       return notChecked("This report contains no finding about this document's heading levels.");
@@ -288,15 +316,26 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
-        // Two distinct analyzer N/A lines for the SAME underlying fact
-        // (no headings at all): "No heading tags found in the document
-        // structure" (substantive documents) and "No headings were found.
-        // Short documents may not need them…" (a short document below the
-        // substantive threshold). Only the first was matched before.
+      // THE TWO LINES ARE NOT THE SAME FACT (2026-08-31 WCAG audit).
+      // "No heading tags found in the document structure" (scoring/pdf.ts:777)
+      // is the score-0, grade-F branch, and conformance.ts:479-491 attributes
+      // it as a WCAG 1.3.1 Level A failure — the single largest deduction the
+      // report can carry. Five of these cards used to answer "not applicable"
+      // beside it, saying nothing about the score. "No headings were found.
+      // Short documents may not need them" (scoring/pdf.ts:770) is a
+      // different branch entirely: score null, not assessed, nothing lost.
+      if (matchMain(ctx, "no heading tags")) {
         return {
           status: "not-applicable",
-          evidence: ["This document has no heading tags, so there is no convention to check."],
+          evidence: [
+            "This document has no heading tags at all, so there is no convention to check. That absence is counted in your score — see the action plan above, not this section.",
+          ],
+        };
+      }
+      if (matchMain(ctx, "no headings were found")) {
+        return {
+          status: "not-applicable",
+          evidence: ["This document has no headings, so there is no convention to check."],
         };
       }
       return notChecked(
@@ -372,15 +411,26 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["Every heading tag in this document carries a specific, numbered level."],
         };
       }
-      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
-        // Two distinct analyzer N/A lines for the SAME underlying fact
-        // (no headings at all): "No heading tags found in the document
-        // structure" (substantive documents) and "No headings were found.
-        // Short documents may not need them…" (a short document below the
-        // substantive threshold). Only the first was matched before.
+      // THE TWO LINES ARE NOT THE SAME FACT (2026-08-31 WCAG audit).
+      // "No heading tags found in the document structure" (scoring/pdf.ts:777)
+      // is the score-0, grade-F branch, and conformance.ts:479-491 attributes
+      // it as a WCAG 1.3.1 Level A failure — the single largest deduction the
+      // report can carry. Five of these cards used to answer "not applicable"
+      // beside it, saying nothing about the score. "No headings were found.
+      // Short documents may not need them" (scoring/pdf.ts:770) is a
+      // different branch entirely: score null, not assessed, nothing lost.
+      if (matchMain(ctx, "no heading tags")) {
         return {
           status: "not-applicable",
-          evidence: ["This document has no heading tags, so there are no levels to check."],
+          evidence: [
+            "This document has no heading tags at all, so there are no levels to check. That absence is counted in your score — see the action plan above, not this section.",
+          ],
+        };
+      }
+      if (matchMain(ctx, "no headings were found")) {
+        return {
+          status: "not-applicable",
+          evidence: ["This document has no headings, so there are no levels to check."],
         };
       }
       return notChecked(
@@ -396,6 +446,14 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "A heading tag should hold a short heading — not an empty tag, a sentence fragment, or an entire paragraph.",
     why: "Someone navigating by heading lands on whatever the tag contains. A heading tag with no text is silence; one holding a paragraph reads as a wall of words that says nothing about where they are.",
+    // The most legally exposed row in this catalog, and it says so rather
+    // than claiming to be settled (2026-08-31 WCAG audit): an EMPTY heading
+    // is treated as a failure by mainstream tooling — WAVE maps empty_heading
+    // to 1.3.1 Level A, and W3C failure F43 covers structural markup used for
+    // presentation — while axe-core classes it best-practice, and the
+    // fragment/paragraph members of this check really are heuristic.
+    standard:
+      "Contested. An empty heading is widely treated as a WCAG failure (1.3.1 Level A via W3C failure F43; a heading with no text also describes no topic or purpose under 2.4.6 Level AA), while other checkers class it a best practice. This tool does not score it, because its heading-text census is heuristic — do not read that as settled: have a person confirm any empty heading.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -443,15 +501,26 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
-        // Two distinct analyzer N/A lines for the SAME underlying fact
-        // (no headings at all): "No heading tags found in the document
-        // structure" (substantive documents) and "No headings were found.
-        // Short documents may not need them…" (a short document below the
-        // substantive threshold). Only the first was matched before.
+      // THE TWO LINES ARE NOT THE SAME FACT (2026-08-31 WCAG audit).
+      // "No heading tags found in the document structure" (scoring/pdf.ts:777)
+      // is the score-0, grade-F branch, and conformance.ts:479-491 attributes
+      // it as a WCAG 1.3.1 Level A failure — the single largest deduction the
+      // report can carry. Five of these cards used to answer "not applicable"
+      // beside it, saying nothing about the score. "No headings were found.
+      // Short documents may not need them" (scoring/pdf.ts:770) is a
+      // different branch entirely: score null, not assessed, nothing lost.
+      if (matchMain(ctx, "no heading tags")) {
         return {
           status: "not-applicable",
-          evidence: ["This document has no heading tags, so there is no content to check."],
+          evidence: [
+            "This document has no heading tags at all, so there is no content to check. That absence is counted in your score — see the action plan above, not this section.",
+          ],
+        };
+      }
+      if (matchMain(ctx, "no headings were found")) {
+        return {
+          status: "not-applicable",
+          evidence: ["This document has no headings, so there is no content to check."],
         };
       }
       return notChecked("This report contains no finding about heading content for this document.");
@@ -504,15 +573,26 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchMain(ctx, "no heading tags") || matchMain(ctx, "no headings were found")) {
-        // Two distinct analyzer N/A lines for the SAME underlying fact
-        // (no headings at all): "No heading tags found in the document
-        // structure" (substantive documents) and "No headings were found.
-        // Short documents may not need them…" (a short document below the
-        // substantive threshold). Only the first was matched before.
+      // THE TWO LINES ARE NOT THE SAME FACT (2026-08-31 WCAG audit).
+      // "No heading tags found in the document structure" (scoring/pdf.ts:777)
+      // is the score-0, grade-F branch, and conformance.ts:479-491 attributes
+      // it as a WCAG 1.3.1 Level A failure — the single largest deduction the
+      // report can carry. Five of these cards used to answer "not applicable"
+      // beside it, saying nothing about the score. "No headings were found.
+      // Short documents may not need them" (scoring/pdf.ts:770) is a
+      // different branch entirely: score null, not assessed, nothing lost.
+      if (matchMain(ctx, "no heading tags")) {
         return {
           status: "not-applicable",
-          evidence: ["This document has no heading tags, so there is no H1 count to check."],
+          evidence: [
+            "This document has no heading tags at all, so there is no H1 count to check. That absence is counted in your score — see the action plan above, not this section.",
+          ],
+        };
+      }
+      if (matchMain(ctx, "no headings were found")) {
+        return {
+          status: "not-applicable",
+          evidence: ["This document has no headings, so there is no H1 count to check."],
         };
       }
       return notChecked("This report contains no finding about this document's H1 count.");
@@ -527,7 +607,11 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "The order screen readers announce content in should agree with the order the page draws it in — or where it does not, that divergence should have been reviewed.",
     why: "When the tagged order and the drawing order disagree, assistive technology and a sighted reviewer can end up looking at content in a different sequence, which makes it hard for anyone to confirm a document reads correctly.",
-    standard: "WCAG technique for 1.3.2 (advisory measurement, not a scored check)",
+    // "WCAG technique for 1.3.2" borrowed W3C's authority for a home-grown
+    // metric — no such technique exists (PDF3 is an authoring action, not a
+    // similarity measure), and techniques are never requirements anyway.
+    standard:
+      "Relates to WCAG 1.3.2 Meaningful Sequence (Level A), but is not a conformance test: this is a heuristic comparison of tag order against draw order. Divergence does not by itself fail 1.3.2, and agreement does not establish conformance.",
     wcagSlugs: [{ slug: "meaningful-sequence", label: "WCAG 1.3.2: Meaningful Sequence" }],
     links: [],
     detect(ctx) {
@@ -595,7 +679,16 @@ export const PDF_PRACTICES: BestPractice[] = [
       "A long document is easier to navigate with bookmarks (a clickable outline) than by scrolling or paging through it from the start.",
     why: "Bookmarks let every reader — screen-reader users included — jump straight to a section instead of stepping through everything before it.",
     standard: "No WCAG 2.1 criterion requires bookmarks in a single document",
-    wcagSlugs: [{ slug: "multiple-ways", label: "WCAG 2.4.5: Multiple Ways" }],
+    // A bare "WCAG 2.4.5" link under a row the standard field says no
+    // criterion governs reads as the governing rule. 2.4.5 is about a SET of
+    // pages; WCAG2ICT maps it to a set of documents, not to navigation
+    // inside one.
+    wcagSlugs: [
+      {
+        slug: "multiple-ways",
+        label: "WCAG 2.4.5: Multiple Ways — applies to sets of pages, not within one document",
+      },
+    ],
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -742,7 +835,14 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "A PDF can be set to show its own descriptive title in the viewer's title bar and tabs, instead of the filename.",
     why: 'Screen readers announce whatever the viewer displays first. Without this preference set, someone opening the file hears the filename ("report_v3_final.pdf") instead of a title that says what the document actually is.',
-    standard: "PDF/UA (ISO 14289) clause 7.1",
+    // The internal inconsistency this row must not hide: when the /Title
+    // merely LOOKS like a filename, scoring/pdf.ts:423 gives 25/50 and
+    // conformance.ts:462-469 records a 2.4.2 / F25 Level A failure. With this
+    // flag off the reader is handed the actual filename — the same outcome,
+    // full credit. Defensible (2.4.2 asks for a title, which exists), but the
+    // row may not present it as settled.
+    standard:
+      "PDF/UA (ISO 14289) clause 7.1. WCAG's own PDF technique for 2.4.2 (PDF18) sets this flag too, and some evaluators record a 2.4.2 (Level A) failure when the viewer shows the filename. This tool does not count it, because 2.4.2 asks that the document have a title — and it does.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -873,7 +973,10 @@ export const PDF_PRACTICES: BestPractice[] = [
             count !== null
               ? `${count} table${count === 1 ? "" : "s"} in this document ${count === 1 ? "associates" : "associate"} headers with data cells using /Headers, without also setting /Scope.`
               : "Some tables in this document associate headers using /Headers, without also setting /Scope.",
-            "That is complete and spec-correct on its own — adding /Scope as well is optional extra insurance.",
+            // qpdfStructTree.ts:497-499 sets hasHeaderAssociation from ANY
+            // cell carrying /Headers, and never resolves the references. So
+            // "spec-correct" was a conclusion the analyzer never reached.
+            "Where those /Headers references are complete and point at real header cells, that is spec-correct on its own and /Scope is optional extra insurance. This tool does not resolve the references — on a table with headers on more than one edge, confirm them in Acrobat's Table Editor.",
           ],
           fix: {
             source: "No change is required in the source document — this is an optional addition.",
@@ -920,8 +1023,12 @@ export const PDF_PRACTICES: BestPractice[] = [
     categoryId: "table_markup",
     label: "No nested tables",
     description: "A table should not contain another table nested inside one of its cells.",
-    why: "A properly tagged nested table still has determinable relationships, so it is not a standards failure — but it is genuinely difficult to navigate by keyboard or screen reader, one table inside another.",
-    standard: "PDF/UA (ISO 14289) · Matterhorn Protocol 15",
+    why: "A properly tagged nested table still has determinable relationships, so it is not a WCAG failure — but it is genuinely difficult to navigate by keyboard or screen reader, one table inside another.",
+    // NOT Matterhorn 15: the repo's own checkpoint data (data/matterhorn.ts)
+    // defines 15 as "Tables declare header cells and associate data cells
+    // with them" — nothing about nesting. Neither rulebook forbids a nested
+    // table, so this row cites no standard at all.
+    standard: "No standard forbids nesting — a navigability recommendation only",
     links: links(matterhornLink("15")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -976,9 +1083,20 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       'A link\'s visible text should describe where it goes — not a vague phrase like "click here" or "read more".',
     why: 'Screen-reader users often pull up a bare list of every link on a page. "Click here" repeated ten times in that list says nothing about where any of them go; a descriptive label does.',
+    // The full legal position, restored from the analyzer's own advisory
+    // (scoring/pdf.ts:1952) after the 2026-08-31 WCAG audit found this
+    // summary had kept only its second half. Saying just "2.4.9 is AAA"
+    // reads as "the law is silent about vague link text" — it is not.
+    // W3C: "click here" / "read more" FAIL 2.4.4 (Level A) unless adequate
+    // context is provided; context means the same paragraph, list item or
+    // table cell. This is unscored because that context is not machine-
+    // decidable, NOT because it falls outside the legal standard.
     standard:
-      "WCAG 2.4.9 (Link Purpose, Link Only) is a AAA criterion — this product's grade measures WCAG 2.1 A/AA only, so this does not affect your score.",
-    wcagSlugs: [{ slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only)" }],
+      "WCAG 2.4.4 (Link Purpose, In Context) is Level A and does apply — but it is met when the surrounding sentence makes the purpose clear, which no automated check can weigh. Judging the link text on its own is 2.4.9, a AAA criterion outside the legal standard. Unscored for that reason, not because vague link text is always acceptable.",
+    wcagSlugs: [
+      { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — AAA" },
+    ],
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -1028,7 +1146,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -1146,7 +1264,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Every extracted character should map to real, readable text — not a symbol-font glyph with no pronounceable meaning.",
     why: "A glyph that paints correctly on screen but extracts as a private-use symbol looks fine to a sighted reader and is unreadable to a screen reader — it has no word to announce.",
-    standard: "Matterhorn Protocol 10",
+    // As content-in-tag-tree: conformance.ts:555-570 maps the larger bands
+    // to WCAG 1.1.1 Level A, and they cap the category.
+    standard:
+      "Matterhorn Protocol 10 · A larger share of unmappable text is a WCAG 1.1.1 (Level A) failure and IS scored — only a small share is left unscored here.",
     links: links(matterhornLink("10")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
@@ -1218,7 +1339,12 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Every visible, non-decorative character on the page should sit inside the tag structure, not painted outside every tagged element.",
     why: "A screen reader follows the tags. Visible text painted outside all of them — neither in the reading order nor marked as a decorative artifact — is never encountered at all.",
-    standard: "Matterhorn Protocol 01",
+    // The unscored band only. conformance.ts:530-548 attributes this exact
+    // defect to WCAG 1.3.1 Level A once it passes the threshold, and the
+    // larger bands cap the category — citing only the PDF industry's test
+    // model presented a Level A matter as format etiquette.
+    standard:
+      "Matterhorn Protocol 01 · Above a small amount, untagged visible text is a WCAG 1.3.1 (Level A) failure and IS scored — only a very small amount is left unscored here.",
     links: links(matterhornLink("01")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {

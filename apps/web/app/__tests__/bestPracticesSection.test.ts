@@ -18,7 +18,7 @@ const pdfResult = {
       id: "heading_structure",
       label: "Heading Structure",
       findings: [
-        "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+        "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected.",
         "--- Heading Tree ---",
         "  H1 → H2 → H1 → H1",
         "  Heading hierarchy skip: H1 → H3 (skipped H2)",
@@ -164,7 +164,13 @@ describe("BestPracticesSection", () => {
     expect(w.find("#bp-body-single-h1").isVisible()).toBe(true);
   });
 
-  it("a not-checked row's body contains neither How to fix nor Read more", () => {
+  it("a not-checked row offers no How to fix — but may still cite the standard it belongs to", () => {
+    // Renamed and narrowed 2026-08-31. The old name claimed a rule the
+    // component never had: the "Read more" block is gated on
+    // `standard || links`, not on status, and a NOT CHECKED display-doc-title
+    // row has always rendered it. heading-content merely happened to carry
+    // neither — until the WCAG audit gave it a contested-status citation.
+    // What IS guaranteed is that a check which did not run offers no fix.
     const w = mountSection({
       fileType: "pdf",
       pageCount: 2,
@@ -181,7 +187,6 @@ describe("BestPracticesSection", () => {
     const row = w.find('[data-practice="heading-content"]');
     expect(row.attributes("data-status")).toBe("not-checked");
     expect(row.text()).not.toContain("How to fix");
-    expect(row.text()).not.toContain("Read more");
   });
 
   it("drops a WCAG Understanding link whose resolved URL is not http(s) — safeLinks on the wcag half", () => {
@@ -461,5 +466,45 @@ describe("Also noted in this report — advisories no practice covers are not dr
     expect(
       mountSection(pdfResult).find('[data-testid="best-practices-other-notes"]').exists(),
     ).toBe(false);
+  });
+});
+
+describe("the grade answer never contradicts the row above it (2026-08-31 WCAG audit)", () => {
+  // Found by three independent auditors and reproduced here. Today's fix
+  // round diverted scored defects into NOT APPLICABLE rows whose evidence
+  // reads "That is counted in your score — see the action plan above." The
+  // row body then printed, unconditionally, "Does this affect my grade? No.
+  // This is optional — it does not change your score." Two blocks apart, on
+  // the same card. It also defeated the whole divert mechanism.
+  const scoredDivert = {
+    fileType: "pdf",
+    pageCount: 12,
+    categories: [
+      {
+        id: "bookmarks",
+        label: "Bookmarks",
+        findings: ["Outline structure present but contains no entries"],
+      },
+    ],
+  };
+
+  it("does not print the 'optional' answer on a row that says the defect IS scored", () => {
+    const w = mountSection(scoredDivert);
+    const row = w.find('[data-practice="bookmarks"]');
+    expect(row.attributes("data-status")).toBe("not-applicable");
+    expect(row.text()).toMatch(/counted in your score/);
+    expect(row.text()).not.toMatch(/does not change your score/);
+    expect(row.text()).not.toMatch(/Does this affect my grade/);
+  });
+
+  it("still answers the question on a genuine NOT MET row — without the word 'optional'", () => {
+    const row = mountSection(pdfResult).find('[data-status="not-met"]');
+    expect(row.exists()).toBe(true);
+    expect(row.text()).toMatch(/Does this affect my grade/);
+    expect(row.text()).toMatch(/does not change your score/);
+    // "Optional" is a claim about the LAW, not about scoring, and the
+    // catalog holds practices (vague link text) that WCAG 2.4.4 Level A
+    // does reach — it is unscored because context is not machine-readable.
+    expect(row.text()).not.toMatch(/\boptional\b/i);
   });
 });

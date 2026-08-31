@@ -441,7 +441,7 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
         "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off, so viewers show the FILENAME in the title bar instead of this title. WCAG 2.1 asks for a describing title, which this document has — your grade is not affected. PDF/UA (clause 7.1) requires the flag as well.",
       );
       findings.push(
-        "How to fix (optional): In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
+        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
       );
     } else {
       score += 50;
@@ -873,7 +873,10 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   // HTML-era convention 75 was denying a conformance-clean document its A:
   // controls/DVFR_Biennial_2024 (5×H1, no other finding) graded B for it.
   // Hierarchy SKIPS keep their penalty — that one has a standards basis
-  // (Matterhorn 13-004; WCAG technique G141).
+  // (Matterhorn 14 — Headings; W3C technique G141, which is a SUFFICIENT
+  // technique for 1.3.1, not a criterion). This cited checkpoint 13 until
+  // 2026-08-31; 13 is GRAPHICS (see apps/web/app/data/matterhorn.ts), so
+  // every heading finding here pointed a reader at the wrong checkpoint.
   if (h1Count > 1) {
     findings.push(
       `Found ${h1Count} H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading (the document title), with sections demoted to H2 and below, so the outline has a single root.`,
@@ -898,14 +901,14 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   }
 
   // NOT SCORED (2026-08-29, the legal-only sweep). Hierarchy SKIPS and mixed
-  // conventions were scored via Matterhorn 13-004 / 14-002 and WCAG
+  // conventions were scored via Matterhorn 14 (Headings) and WCAG
   // technique G141 — a PDF/UA condition and a *technique*, not a criterion.
   // W3C's own guidance says skipped levels are not a WCAG failure. The
   // headings exist, are identifiable, and carry levels: 1.3.1 is satisfied.
   // Reported, never counted.
   if (hierarchyBroken) {
     findings.unshift(
-      `PDF/UA only — not scored: found ${levels.length} heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.`,
+      `PDF/UA only — not scored: found ${levels.length} heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.`,
     );
     findings.push(
       "How to fix (optional): renumber the heading tags so levels never skip — e.g., don't jump from H1 to H3 without an H2 in between.",

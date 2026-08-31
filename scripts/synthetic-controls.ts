@@ -785,7 +785,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-19-skipped-heading-levels.pdf",
     truth:
-      "Heading levels that skip (H1 → H3). W3C's own guidance says skipped levels are not a WCAG failure — it is PDF/UA / best-practice territory (Matterhorn 13-004) — so since the legal-only sweep it must be reported as a PDF/UA-only item and never scored: 100/A with the skip named.",
+      "Heading levels that skip (H1 → H3). W3C's own guidance says skipped levels are not a WCAG failure — it is PDF/UA / best-practice territory (Matterhorn 14 — Headings) — so since the legal-only sweep it must be reported as a PDF/UA-only item and never scored: 100/A with the skip named.",
     build: () => {
       const lv = [1, 3, 5, 1, 3, 5];
       let content = "";
