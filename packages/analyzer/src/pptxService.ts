@@ -634,29 +634,179 @@ function explicitFill(
   return null;
 }
 
+/** A shape's placement in EMU, from its own a:xfrm (a:off + a:ext). null =
+ *  not declared on the slide (inherited from the layout/master chain). */
+interface ShapeRect {
+  x: number;
+  y: number;
+  cx: number;
+  cy: number;
+}
+
+function xfrmRect(props: PONode | undefined): ShapeRect | null {
+  const xfrm = props ? firstChild(props, "xfrm") : undefined;
+  if (!xfrm) return null;
+  const off = firstChild(xfrm, "off");
+  const ext = firstChild(xfrm, "ext");
+  const x = Number(off ? attrOf(off, "x") : NaN);
+  const y = Number(off ? attrOf(off, "y") : NaN);
+  const cx = Number(ext ? attrOf(ext, "cx") : NaN);
+  const cy = Number(ext ? attrOf(ext, "cy") : NaN);
+  if (![x, y, cx, cy].every(Number.isFinite)) return null;
+  return { x, y, cx, cy };
+}
+
+function rectsIntersect(a: ShapeRect, b: ShapeRect): boolean {
+  return a.x < b.x + b.cx && b.x < a.x + a.cx && a.y < b.y + b.cy && b.y < a.y + a.cy;
+}
+
+function rectContains(outer: ShapeRect, inner: ShapeRect): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.cx >= inner.x + inner.cx &&
+    outer.y + outer.cy >= inner.y + inner.cy
+  );
+}
+
+/** What an earlier-in-z-order shape contributes to the pixels beneath a later
+ *  text shape. "solid" carries a resolved color; "opaque" means it paints
+ *  something we cannot reduce to one color (gradient, picture, chart, theme
+ *  fill reference); absence from the painter list means it paints nothing. */
+interface Painter {
+  bounds: ShapeRect | null;
+  kind: "solid" | "opaque";
+  color: string | null;
+}
+
+const UNRESOLVABLE_FILL_TAGS = ["gradFill", "blipFill", "pattFill", "grpFill"] as const;
+
+function hasUnresolvableFill(props: PONode | undefined): boolean {
+  if (!props) return false;
+  return UNRESOLVABLE_FILL_TAGS.some((t) => !!firstChild(props, t));
+}
+
+/** A shape's contribution as a background painter, or null when it paints
+ *  nothing (no fill / noFill / a connector line). Conservative by design:
+ *  anything visual that cannot be reduced to a single solid color is
+ *  "opaque", which downstream turns intersecting runs into unresolved —
+ *  never into a confirmed failure. */
+function painterOf(shape: PONode, schemeColorMap: Map<string, string>): Painter | null {
+  const tag = tagOf(shape);
+  if (tag === "pic" || tag === "graphicFrame") {
+    const props = tag === "pic" ? firstChild(shape, "spPr") : undefined;
+    // graphicFrame keeps its xfrm as a direct child, not inside spPr.
+    const bounds = tag === "pic" ? xfrmRect(props) : xfrmRect(shape);
+    return { bounds, kind: "opaque", color: null };
+  }
+  if (tag === "grpSp") {
+    const grpPr = firstChild(shape, "grpSpPr");
+    const bounds = xfrmRect(grpPr);
+    const solid = explicitFill(grpPr, schemeColorMap);
+    if (solid) return { bounds, kind: "solid", color: solid };
+    if (hasUnresolvableFill(grpPr)) return { bounds, kind: "opaque", color: null };
+    // No group-level fill: the group paints whatever its members paint.
+    // If anything inside carries a fill or an image, the group is a visual
+    // block we cannot reduce to one color.
+    const paintsInside =
+      descendants(shape, "blip").length > 0 ||
+      descendants(shape, "solidFill").length > 0 ||
+      descendants(shape, "gradFill").length > 0 ||
+      descendants(shape, "pattFill").length > 0;
+    return paintsInside ? { bounds, kind: "opaque", color: null } : null;
+  }
+  if (tag === "sp") {
+    const spPr = firstChild(shape, "spPr");
+    const bounds = xfrmRect(spPr);
+    const solid = explicitFill(spPr, schemeColorMap);
+    if (solid) return { bounds, kind: "solid", color: solid };
+    if (hasUnresolvableFill(spPr)) return { bounds, kind: "opaque", color: null };
+    // A style fill reference (idx > 0) paints a theme fill we do not resolve.
+    const style = firstChild(shape, "style");
+    const fillRef = style ? firstChild(style, "fillRef") : undefined;
+    if (fillRef && attrOf(fillRef, "idx") && attrOf(fillRef, "idx") !== "0") {
+      return { bounds, kind: "opaque", color: null };
+    }
+    return null; // noFill / no fill at all — transparent.
+  }
+  return null; // cxnSp connectors and anything unknown paint no background.
+}
+
+/** The background behind a text shape with no fill of its own. Walks the
+ *  shapes painted BENEATH it (earlier in spTree order): the topmost one that
+ *  overlaps decides — a solid card that fully contains the text shape IS the
+ *  background; anything else that overlaps (partial cover, gradient,
+ *  picture, unknown geometry) makes the background unresolvable. Only when
+ *  nothing beneath overlaps does the slide's own background apply. */
+function stackedBackground(
+  textBounds: ShapeRect | null,
+  beneath: readonly Painter[],
+  slideBg: string | null,
+): string | null {
+  if (beneath.length === 0) return slideBg;
+  if (!textBounds) return null; // unresolvable — occlusion cannot be ruled out
+  let top: Painter | null = null;
+  let anyUnknownBounds = false;
+  for (const p of beneath) {
+    if (p.bounds === null) {
+      anyUnknownBounds = true;
+      top = p; // later shapes overwrite — the last possible occluder wins
+      continue;
+    }
+    if (rectsIntersect(p.bounds, textBounds)) top = p;
+  }
+  if (top === null) return slideBg; // nothing beneath overlaps the text shape
+  if (
+    !anyUnknownBounds &&
+    top.kind === "solid" &&
+    top.color !== null &&
+    top.bounds !== null &&
+    rectContains(top.bounds, textBounds)
+  ) {
+    return top.color;
+  }
+  // An unknown-bounds painter may sit above a resolvable card; a partial
+  // cover splits the background in two; gradients and pictures have no one
+  // color. All of these are honestly unknown — never a confirmed pair.
+  return null;
+}
+
 function collectSlideContrast(
   analysis: PptxAnalysis,
   slideRoot: PONode,
   schemeColorMap: Map<string, string>,
   spTree: PONode | undefined,
 ): void {
-  // Background PROVENANCE: only two backgrounds are treated as resolved —
-  // an explicit solid fill on the shape itself, or an explicit solid fill
-  // on the slide's own p:bg/p:bgPr. Everything else (p:bgRef theme
-  // references, layout/master-inherited backgrounds, gradient/picture
-  // fills, shapes stacked over cards) is genuinely unknown at this layer.
-  // The previous "else white" default failed white-titled dark-template
-  // decks at "1:1" as a CONFIRMED 1.4.3 violation; unresolved runs are
-  // counted and honestly reported as not-assessed instead.
+  // Background PROVENANCE: three backgrounds are treated as resolved — an
+  // explicit solid fill on the shape itself, a solid-filled shape stacked
+  // beneath it that fully contains it (the banner/card pattern real decks
+  // put white titles on), or an explicit solid fill on the slide's own
+  // p:bg/p:bgPr when nothing is stacked beneath. Everything else (p:bgRef
+  // theme references, layout/master-inherited backgrounds, gradient/picture
+  // fills, partial covers, unknown geometry) is genuinely unknown at this
+  // layer. The previous "else white" default failed white-titled
+  // dark-template decks at "1:1" as a CONFIRMED 1.4.3 violation, and the
+  // slide-background fallback did the same to white titles on solid banner
+  // shapes (found 2026-09-01 on three real agency decks); unresolved runs
+  // are counted and honestly reported as not-assessed instead.
   const bgNode = descendants(slideRoot, "bg")[0];
   const bgPr = bgNode ? firstChild(bgNode, "bgPr") : undefined;
   const slideBg: string | null = explicitFill(bgPr, schemeColorMap);
 
   if (!spTree) return;
+  const beneath: Painter[] = [];
   for (const sp of contentShapes(spTree)) {
-    if (tagOf(sp) !== "sp") continue;
+    if (tagOf(sp) !== "sp") {
+      const painter = painterOf(sp, schemeColorMap);
+      if (painter) beneath.push(painter);
+      continue;
+    }
     const spPr = firstChild(sp, "spPr");
-    const shapeBg: string | null = explicitFill(spPr, schemeColorMap) ?? slideBg;
+    const shapeBg: string | null =
+      explicitFill(spPr, schemeColorMap) ?? stackedBackground(xfrmRect(spPr), beneath, slideBg);
+    // The shape itself paints over what was beneath it for LATER shapes.
+    const ownPainter = painterOf(sp, schemeColorMap);
+    if (ownPainter) beneath.push(ownPainter);
     for (const run of descendants(sp, "r")) {
       const text = textOf(run).trim();
       if (!text) continue;

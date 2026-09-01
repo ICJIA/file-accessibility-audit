@@ -527,7 +527,7 @@
         "alt_text": "6|Critical",
         "reading_order": "100|No scored issues",
         "table_markup": "100|No issues found",
-        "color_contrast": "50|Moderate",
+        "color_contrast": "48|Moderate",
         "list_structure": "100|No issues found",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -1037,7 +1037,7 @@
         "alt_text": "62|Moderate",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
-        "color_contrast": "64|Moderate",
+        "color_contrast": "100|No issues found",
         "list_structure": "100|No issues found",
         "link_quality": "50|Moderate",
         "form_accessibility": "null|none"
@@ -1053,15 +1053,15 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "null|none",
         "list_structure": "100|No issues found",
         "link_quality": "92|Minor",
         "form_accessibility": "null|none"
       }
     },
     "POWERPOINT_PWDOA_Part_3_Trauma_Informed_c2e8071cc7.pptx": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
@@ -1069,7 +1069,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "85|Minor",
+        "color_contrast": "null|none",
         "list_structure": "100|No issues found",
         "link_quality": "100|No scored issues",
         "form_accessibility": "null|none"
@@ -1085,7 +1085,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "null|none",
         "list_structure": "100|No issues found",
         "link_quality": "100|No scored issues",
         "form_accessibility": "null|none"
@@ -2893,6 +2893,38 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-150-pptx-white-on-white.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "50|Moderate",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-151-pptx-white-on-banner-twin.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "100|No issues found",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

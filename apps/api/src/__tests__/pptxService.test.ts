@@ -4,9 +4,11 @@ import {
   buildPptx,
   bodyShape,
   bodyPlaceholderShape,
+  groupShape,
   para,
   picture,
   pptTable,
+  rectShape,
   hyperlinkRels,
   videoRel,
 } from "./helpers/minimalPptx.js";
@@ -396,6 +398,196 @@ describe("pptxService: contrast", () => {
     });
     const a = await analyzePptx(buf);
     expect(a.contrast.failing.map((f) => f.text)).toEqual(["nearly invisible"]);
+  });
+});
+
+describe("pptxService: contrast — shapes stacked beneath the text (the banner pattern)", () => {
+  // The false-positive class found 2026-09-01: a white title on a solid card
+  // over a white slide background was measured against the SLIDE background
+  // and confirmed as a 1:1 WCAG 1.4.3 failure. The card beneath the text is
+  // the rendered background; when it cannot be resolved, the run is
+  // unresolved — never failed against a background the viewer does not see.
+  const CARD = { x: 400_000, y: 600_000, cx: 11_000_000, cy: 2_500_000 };
+  const TITLE = { x: 1_000_000, y: 750_000, cx: 10_000_000, cy: 1_300_000 };
+
+  it("uses a solid-filled rectangle stacked beneath the text as its background (passes white-on-dark)", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            rectShape({ fillHex: "1F3864", bounds: CARD }) +
+            bodyShape(para("white on a dark card", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.checkedRuns).toBe(1);
+    expect(a.contrast.failing).toHaveLength(0);
+  });
+
+  it("fails against the stacked card's color, not the slide background", async () => {
+    // White on #EEEEEE ≈ 1.15:1 — fails; the pinned background proves the
+    // color came from the card, not the white slide background (also 1:1,
+    // but reported as #FFFFFF).
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            rectShape({ fillHex: "EEEEEE", bounds: CARD }) +
+            bodyShape(para("white on a pale card", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(1);
+    expect(a.contrast.failing[0].background).toBe("#EEEEEE");
+  });
+
+  it("a solid-filled group beneath the text is the background (the real decks' Group banner)", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            groupShape(rectShape({ noFill: true, bounds: CARD, id: 21 }), {
+              fillHex: "4E67C8",
+              bounds: CARD,
+            }) + bodyShape(para("white on the banner", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    // #FFFFFF on #4E67C8 ≈ 5.1:1 — passes even the normal-text bar.
+    expect(a.contrast.checkedRuns).toBe(1);
+    expect(a.contrast.failing).toHaveLength(0);
+  });
+
+  it("a gradient-filled shape beneath the text makes the run unresolved, not a 1:1 failure", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            rectShape({ gradient: true, bounds: CARD }) +
+            bodyShape(para("white on a gradient", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(0);
+    expect(a.contrast.checkedRuns).toBe(0);
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("a picture beneath the text makes the run unresolved", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            picture({ descr: "photo", bounds: CARD }) +
+            bodyShape(para("white over a photo", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(0);
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("a card that only partially overlaps the text shape makes the run unresolved", async () => {
+    const HALF = { x: 400_000, y: 600_000, cx: 5_000_000, cy: 2_500_000 };
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            rectShape({ fillHex: "1F3864", bounds: HALF }) +
+            bodyShape(para("half on half off", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(0);
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("an earlier filled shape with unknown bounds makes the run unresolved", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            rectShape({ fillHex: "1F3864" }) + // no xfrm — occlusion cannot be ruled out
+            bodyShape(para("somewhere near a card", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(0);
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("a no-fill rectangle beneath the text paints nothing — the slide background still applies", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            rectShape({ noFill: true, bounds: CARD }) +
+            bodyShape(para("invisible against the slide", { colorHex: "FFFFFF" }), {
+              bounds: TITLE,
+            }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(1);
+    expect(a.contrast.failing[0].background).toBe("#FFFFFF");
+  });
+
+  it("genuinely invisible text with nothing stacked beneath it still fails at 1:1", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body: bodyShape(para("truly invisible", { colorHex: "FFFFFF" }), { bounds: TITLE }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(1);
+    expect(a.contrast.failing[0]).toMatchObject({ foreground: "#FFFFFF", background: "#FFFFFF" });
+  });
+
+  it("shapes AFTER the text shape in z-order are not its background", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [
+        {
+          title: null,
+          body:
+            bodyShape(para("text under a later card", { colorHex: "FFFFFF" }), { bounds: TITLE }) +
+            rectShape({ fillHex: "1F3864", bounds: CARD }),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    // The later card covers the text visually, so honesty says unresolved is
+    // also defensible — but it must NOT resolve to the dark card and pass.
+    expect(a.contrast.checkedRuns + a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+    expect(a.contrast.failing.map((f) => f.background)).not.toContain("#1F3864");
   });
 });
 

@@ -189,7 +189,10 @@ function docxTable(withHeader: boolean): string {
   return `<w:tbl>${borders}${row(["Category", "Amount"], withHeader)}${row(["Training", "12,400"], false)}${row(["Outreach", "9,100"], false)}</w:tbl>`;
 }
 
-function pptx(slides: string[], opts: { title?: string | null } = {}): Promise<Buffer> {
+function pptx(
+  slides: string[],
+  opts: { title?: string | null; slideBgHex?: string } = {},
+): Promise<Buffer> {
   const files: Record<string, string> = {
     "[Content_Types].xml": `${XMLDECL}
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -218,9 +221,15 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 </Relationships>`,
   };
   slides.forEach((spTree, i) => {
+    // An explicit slide background is what gives the contrast walk resolved
+    // provenance — without it every run is unresolved and a contrast trap
+    // proves nothing (traps 150/151 need the same white ground on both).
+    const bg = opts.slideBgHex
+      ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${opts.slideBgHex}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`
+      : "";
     files[`ppt/slides/slide${i + 1}.xml`] = `${XMLDECL}
 <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-<p:cSld><p:spTree>${spTree}</p:spTree></p:cSld>
+<p:cSld>${bg}<p:spTree>${spTree}</p:spTree></p:cSld>
 </p:sld>`;
   });
   return zip(files);
@@ -244,6 +253,25 @@ const SLIDE_BIG_BODY = (text: string, sz = 3600) =>
   `<p:sp><p:nvSpPr><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:rPr sz="${sz}" b="1"/><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 const SLIDE_PIC = (id: number, descr?: string) =>
   `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/><p:nvPr/></p:nvPicPr></p:pic>`;
+/** A text-free solid rectangle with explicit bounds — the banner/card real
+ *  decks paint beneath a white title. Bounds in EMU. */
+const SLIDE_BANNER = (fillHex: string, x: number, y: number, cx: number, cy: number) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="30" name="Banner"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:solidFill><a:srgbClr val="${fillHex}"/></a:solidFill><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:p/></p:txBody></p:sp>`;
+/** A title placeholder at explicit bounds whose run carries an explicit
+ *  color and size — everything the contrast walk needs resolved. */
+const SLIDE_COLORED_TITLE = (
+  text: string,
+  colorHex: string,
+  x: number,
+  y: number,
+  cx: number,
+  cy: number,
+  sz = 3200,
+) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="31" name="Title"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="${sz}" b="1"><a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+/** A body placeholder whose run carries an explicit color and size. */
+const SLIDE_COLORED_BODY = (text: string, colorHex: string, sz = 1800) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="32" name="Body"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="1000000" y="4000000"/><a:ext cx="10000000" cy="2000000"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="${sz}"><a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 
 /** A defined Table (Insert -> Table in Excel), the thing xlsxService counts.
  *  `headerRowCount: 0` is Excel's "my table has no headers": the range is a
@@ -1057,6 +1085,60 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-150-pptx-white-on-white.pptx",
+    truth:
+      "A slide with an explicit white background whose title is typed in explicit white at an explicit 32-point size — genuinely invisible text, nothing stacked beneath it to change what a viewer sees. This is the REAL 1:1 case and it must stay caught: color_contrast must score 50 (one failing run of two checked), the findings must report the 1:1 ratio, and WCAG 1.4.3 Contrast (Minimum), Level AA must be named in the verdict against color_contrast. This trap exists as the flawed twin of synthetic-151: the two slides differ only in the banner painted beneath the title, which is exactly the difference between invisible text and a false accusation.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_COLORED_TITLE("Quarterly Update", "FFFFFF", 1000000, 700000, 10000000, 1300000) +
+            SLIDE_COLORED_BODY("Enrollment rose 12 percent across all regions.", "1A1A1A"),
+        ],
+        { title: "Quarterly Update", slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null) return "color_contrast was not assessed";
+      if (c.score !== 50) return `one invisible run of two checked scored ${c.score}, not 50`;
+      const f = allFindings(r);
+      if (!/Lowest contrast 1:1/i.test(f)) return "the 1:1 ratio is not reported";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (x) => String(x.sc ?? "") === "1.4.3" && String(x.category ?? "") === "color_contrast",
+      );
+      return failing ? null : "contrast points lost with no 1.4.3 failure attributed";
+    },
+  },
+  {
+    file: "synthetic-151-pptx-white-on-banner-twin.pptx",
+    truth:
+      "The same slide with one addition: a solid dark banner rectangle painted BENEATH the title, fully containing it — the pattern three real agency decks use for every section header. What a viewer sees is white-on-dark at about 11:1. Before 2026-09-01 the contrast walk resolved the title against the slide's white background and confirmed it as a 1.4.3 Level AA failure at 1:1 — a false accusation in the scored tier on real documents. The background behind a text shape is the topmost shape stacked beneath it: color_contrast must score a clean 100, the findings must say every checked run meets the minimum, no 1.4.3 may be asserted, and no category may accuse this deck of anything.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_BANNER("1F3864", 400000, 500000, 11200000, 1700000) +
+            SLIDE_COLORED_TITLE("Quarterly Update", "FFFFFF", 1000000, 700000, 10000000, 1300000) +
+            SLIDE_COLORED_BODY("Enrollment rose 12 percent across all regions.", "1A1A1A"),
+        ],
+        { title: "Quarterly Update", slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null)
+        return "color_contrast was not assessed — the banner's solid fill should resolve the pair";
+      if (c.score !== 100) return `white on a dark banner scored ${c.score} — the false 1:1 is back`;
+      const f = allFindings(r);
+      if (!/all meet the WCAG contrast minimum/i.test(f))
+        return "the clean contrast result is not stated";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((x) => String(x.sc ?? "") === "1.4.3");
+      if (failing) return "a 1.4.3 failure is asserted against a readable title";
+      return noAccusation(r);
+    },
+  },
+  {
     file: "synthetic-145-pptx-typed-heading.pptx",
     truth:
       "Two slides whose heading is typed into a floating 32-point bold text box instead of the slide's title placeholder — no <p:ph> on the shape at all, and the size set explicitly on the run. The heading EXISTS and is simply not marked up, which is WCAG 1.3.1 Level A, the same failure Word has scored since the start. PowerPoint had no equivalent check until 2026-08-31: this was a real Level A failure the report never mentioned in any form. slide_titles must lose points (15 per slide, capped at 40) AND the verdict must name 1.3.1. Deliberately NOT the same question as a slide with no heading at all, which is 2.4.10 Section Headings — Level AAA — and stays unscored.",
@@ -1296,6 +1378,11 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "slide_titles",
   },
   {
+    bad: "synthetic-150-pptx-white-on-white.pptx",
+    good: "synthetic-151-pptx-white-on-banner-twin.pptx",
+    category: "color_contrast",
+  },
+  {
     bad: "synthetic-136-xlsx-headerless-table.xlsx",
     good: "synthetic-137-xlsx-header-table-twin.xlsx",
     category: "table_markup",
@@ -1408,6 +1495,14 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-149-pptx-long-line-not-a-heading.pptx": {
     label: "PowerPoint: a long sentence set large — emphasis, not a heading",
+    chip: "held",
+  },
+  "synthetic-150-pptx-white-on-white.pptx": {
+    label: "PowerPoint: a white title on a white slide — genuinely invisible text",
+    chip: "caught",
+  },
+  "synthetic-151-pptx-white-on-banner-twin.pptx": {
+    label: "PowerPoint: the same white title on a dark banner — readable, and no longer accused",
     chip: "held",
   },
   "synthetic-145-pptx-typed-heading.pptx": {

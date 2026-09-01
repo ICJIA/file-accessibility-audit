@@ -42,10 +42,64 @@ export function bodyPlaceholderShape(paragraphs: string): string {
     <p:spPr/><p:txBody><a:bodyPr/>${paragraphs}</p:txBody></p:sp>`;
 }
 
-export function bodyShape(paragraphs: string, opts: { fillHex?: string } = {}): string {
+/** Optional shape geometry, in EMU. Rendered as an a:xfrm inside spPr/grpSpPr. */
+export interface Bounds {
+  x: number;
+  y: number;
+  cx: number;
+  cy: number;
+}
+
+function xfrmXml(bounds: Bounds | undefined): string {
+  if (!bounds) return "";
+  return `<a:xfrm><a:off x="${bounds.x}" y="${bounds.y}"/><a:ext cx="${bounds.cx}" cy="${bounds.cy}"/></a:xfrm>`;
+}
+
+export function bodyShape(
+  paragraphs: string,
+  opts: { fillHex?: string; bounds?: Bounds } = {},
+): string {
   const fill = opts.fillHex ? `<a:solidFill><a:srgbClr val="${opts.fillHex}"/></a:solidFill>` : "";
   return `<p:sp><p:nvSpPr><p:cNvPr id="3" name="Body"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
-    <p:spPr>${fill}</p:spPr><p:txBody><a:bodyPr/>${paragraphs}</p:txBody></p:sp>`;
+    <p:spPr>${xfrmXml(opts.bounds)}${fill}</p:spPr><p:txBody><a:bodyPr/>${paragraphs}</p:txBody></p:sp>`;
+}
+
+/** A text-free rectangle — the "card"/"banner" shape decks stack titles on.
+ *  fillHex → solid fill; gradient → two-stop gradFill (unresolvable);
+ *  noFill → paints nothing; none of the three → spPr carries no fill child. */
+export function rectShape(
+  opts: {
+    fillHex?: string;
+    schemeFill?: string;
+    gradient?: boolean;
+    noFill?: boolean;
+    bounds?: Bounds;
+    id?: number;
+  } = {},
+): string {
+  const fill = opts.noFill
+    ? "<a:noFill/>"
+    : opts.gradient
+      ? '<a:gradFill><a:gsLst><a:gs pos="0"><a:srgbClr val="000000"/></a:gs><a:gs pos="100000"><a:srgbClr val="4472C4"/></a:gs></a:gsLst></a:gradFill>'
+      : opts.fillHex
+        ? `<a:solidFill><a:srgbClr val="${opts.fillHex}"/></a:solidFill>`
+        : opts.schemeFill
+          ? `<a:solidFill><a:schemeClr val="${opts.schemeFill}"/></a:solidFill>`
+          : "";
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${opts.id ?? 20}" name="Rectangle"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+    <p:spPr>${xfrmXml(opts.bounds)}${fill}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+    <p:txBody><a:bodyPr/><a:p/></p:txBody></p:sp>`;
+}
+
+/** A p:grpSp whose grpSpPr carries the given bounds and (optionally) a solid
+ *  fill — the "Group 10" banner pattern real decks use under white titles. */
+export function groupShape(
+  children: string,
+  opts: { fillHex?: string; bounds?: Bounds } = {},
+): string {
+  const fill = opts.fillHex ? `<a:solidFill><a:srgbClr val="${opts.fillHex}"/></a:solidFill>` : "";
+  return `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="10" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+    <p:grpSpPr>${xfrmXml(opts.bounds)}${fill}</p:grpSpPr>${children}</p:grpSp>`;
 }
 
 /** An a:p paragraph. bullet: 'char' | 'auto' | 'none' | undefined (no pPr). */
@@ -87,13 +141,15 @@ export function para(
   return `<a:p>${pPr}<a:r>${rPr}<a:t>${text}</a:t></a:r></a:p>`;
 }
 
-export function picture(opts: { descr?: string; decorative?: boolean } = {}): string {
+export function picture(
+  opts: { descr?: string; decorative?: boolean; bounds?: Bounds } = {},
+): string {
   const descr = opts.descr !== undefined ? ` descr="${opts.descr}"` : "";
   const dec = opts.decorative
     ? '<a:extLst><a:ext uri="{C183D7F6-B498-43B3-948B-1728B52AA6E4}"><adec:decorative xmlns:adec="http://schemas.microsoft.com/office/drawing/2017/decorative" val="1"/></a:ext></a:extLst>'
     : "";
   return `<p:pic><p:nvPicPr><p:cNvPr id="9" name="Picture"${descr}>${dec}</p:cNvPr><p:cNvPicPr/><p:nvPr/></p:nvPicPr>
-    <p:blipFill><a:blip r:embed="rIdImg"/></p:blipFill><p:spPr/></p:pic>`;
+    <p:blipFill><a:blip r:embed="rIdImg"/></p:blipFill><p:spPr>${xfrmXml(opts.bounds)}</p:spPr></p:pic>`;
 }
 
 export function pptTable(opts: { firstRow?: boolean; rows?: number; cols?: number } = {}): string {

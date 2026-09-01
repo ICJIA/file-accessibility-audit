@@ -1,6 +1,6 @@
 {
-  "count": 39,
-  "generated": "2026-08-31",
+  "count": 41,
+  "generated": "2026-09-01",
   "items": [
     {
       "file": "synthetic-101-docx-bold-fake-headings.docx",
@@ -156,6 +156,16 @@
     {
       "file": "synthetic-149-pptx-long-line-not-a-heading.pptx",
       "label": "PowerPoint: a long sentence set large — emphasis, not a heading",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-150-pptx-white-on-white.pptx",
+      "label": "PowerPoint: a white title on a white slide — genuinely invisible text",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-151-pptx-white-on-banner-twin.pptx",
+      "label": "PowerPoint: the same white title on a dark banner — readable, and no longer accused",
       "chip": "held"
     },
     {
