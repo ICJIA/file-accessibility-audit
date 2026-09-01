@@ -103,14 +103,28 @@ function scoreDocxText(a: DocxAnalysis): CategoryResult {
 }
 
 function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
+  // Mirrors the conformance gate's parse guards (2026-09-01): "the part said
+  // nothing" and "the part could not be read" must not produce the same
+  // deduction any more than the same confirmed claim. The gate withholds
+  // 2.4.2 when core.xml is unparseable and 3.1.1 when either styles.xml or
+  // core.xml is; a deduction the verdict cannot attribute may not move the
+  // grade, so an unreadable part scores as unassessed-for-that-half — with a
+  // not-scored note — never as a confirmed absence.
+  const coreReadable = a.parse.coreState !== "unparseable";
+  const langReadable = coreReadable && a.parse.stylesState !== "unparseable";
   let score = 0;
   const findings: string[] = [];
   if (a.metadata.title) {
     score += 50;
     findings.push(`Document title: "${a.metadata.title}"`);
-  } else {
+  } else if (coreReadable) {
     findings.push(
       "No document title is set. In Word: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the document opens.",
+    );
+  } else {
+    score += 50;
+    findings.push(
+      "The document's title could not be read — the file's core-properties part is unparseable, so this half is not scored.",
     );
   }
   if (a.metadata.language) {
@@ -123,9 +137,16 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
     );
   }
   if (!a.metadata.language) {
-    findings.push(
-      "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
-    );
+    if (langReadable) {
+      findings.push(
+        "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
+      );
+    } else {
+      score += 50;
+      findings.push(
+        "The document's language could not be read — a properties part is unparseable, so this half is not scored.",
+      );
+    }
   }
   return docxCategory(
     "title_language",

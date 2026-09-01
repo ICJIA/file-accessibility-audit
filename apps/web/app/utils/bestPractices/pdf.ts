@@ -733,17 +733,10 @@ export const PDF_PRACTICES: BestPractice[] = [
       // document invents a document fact ("too short for bookmarks") from
       // data that was never read at all; it belongs with the other
       // not-checked defaults, not with a genuinely short 1-9 page document.
-      // scoring/pdf.ts:1444-1459 — an /Outlines with no entries scores the
-      // category 40 (a Moderate deduction with its own plan step). Not this
-      // section's to call "optional".
-      if (matchMain(ctx, "outline structure present but contains no entries")) {
-        return {
-          status: "not-applicable",
-          evidence: [
-            `This document has a bookmark outline with no entries in it. That is ${SCORED_IN_PLAN}`,
-          ],
-        };
-      }
+      // (2026-09-01: the empty-/Outlines case is an unscored advisory now —
+      // its line carries "pages" and "no bookmarks", so the not-met matcher
+      // below picks it up like any other missing-bookmarks advisory. The old
+      // scored-40 branch and its "counted in your score" divert are gone.)
       // The analyzer's own short-document line (scoring/pdf.ts:1412) — a
       // document fact, and the right answer even when a stored pageCount is 0.
       if (matchMain(ctx, "bookmarks are not required")) {

@@ -329,20 +329,17 @@ export function evaluateConformance(
     );
   }
 
-  // 6. Malformed tagged lists (1.3.1, Level A). isWellFormed requires every
-  //    <LI> to contain an <LBody>; a missing <Lbl> alone is advisory and must
-  //    NOT be asserted as a confirmed failure (ISO 32000 permits label-less
-  //    items, and common tooling emits LBody-only lists).
-  const malformedLists = qpdf.lists.filter((l) => !l.isWellFormed).length;
-  if (qpdf.lists.length > 0 && malformedLists > 0) {
-    add(
-      "1.3.1",
-      "Info and Relationships",
-      "A",
-      "reading_order",
-      `${malformedLists} tagged list(s) have items without the required <LBody> structure, so list item content is not programmatically associated with the list.`,
-    );
-  }
+  // 6. RETIRED (2026-09-01): malformed tagged lists (<LI> without <LBody>)
+  //    are no longer asserted as a confirmed 1.3.1 failure. The rule had no
+  //    scoring twin — no scorer ever deducts for list shape — so the verdict
+  //    said "does not meet WCAG 2.1 Level AA" beside a reading-order card at
+  //    100/A, a contradiction on one screen that neither corpus gate could
+  //    see (legal-basis now checks this converse direction). On the merits it
+  //    was also the weakest rule here: an <LI> lacking <LBody> still exposes
+  //    its text and its list membership; no W3C failure technique covers the
+  //    shape, and Matterhorn 16 is PDF/UA, not WCAG. The reading-order card
+  //    still reports the malformed lists — including the misspelt-LBody
+  //    near-miss repair — as findings; they simply assert no criterion.
 
   // 7. Tagged tables with no header cells. Sub-2×2 tables (single row or
   //    single column) are overwhelmingly layout constructs — the OOXML gates
@@ -376,16 +373,20 @@ export function evaluateConformance(
   //     old content-free-tree guard suppressed this on remediated documents
   //     whose trees reference little content while their links still scored
   //     0 unattributed (ILHEALS, caught by scripts/legal-basis.ts).
-  const perLinkUntagged =
+  // THE PER-LINK CENSUS ONLY (2026-09-01). The old Math.max with the raw
+  // untaggedLinkAnnotationCount asserted 1.3.1 on ELEVEN real corpus PDFs
+  // whose every per-link record was tagged and whose link category showed a
+  // perfect 100 — the annotation count includes duplicate/split annotations
+  // and internal links the per-link census deliberately reconciles, and the
+  // scorer deducts from the census alone. Found by the converse direction of
+  // scripts/legal-basis.ts the day it was added. The census is present on
+  // every fresh analysis that has links at all, so the fallback arm could
+  // only ever fire beside a null ("No links found") category — a failing
+  // criterion the report would show no deduction for.
+  const untaggedLinks =
     qpdf.hasStructTree && (pdfjs.links ?? []).some((l) => typeof l.tagged === "boolean")
       ? (pdfjs.links ?? []).filter((l) => l.tagged === false).length
       : 0;
-  const untaggedLinks = Math.max(
-    perLinkUntagged,
-    qpdf.hasStructTree && !structTreeIsContentFree(qpdf, pdfjs)
-      ? (pdfjs.untaggedLinkAnnotationCount ?? 0)
-      : 0,
-  );
   if (untaggedLinks > 0) {
     add(
       "1.3.1",
@@ -1225,6 +1226,21 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       url: wcagUrl("1.4.3"),
     });
   }
+  // Hand-typed bullets → 1.3.1 (Level A; F2's class — visual list structure
+  // with no programmatic list). Mirrors the list_structure deduction in
+  // scoring/pptx.ts exactly as the Word gate has since 2026-08-31; until
+  // 2026-09-01 the pptx gate had no list rule at all, so a deck capped at D
+  // named no criterion.
+  if (analysis.lists.manualBulletParagraphs > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "list_structure",
+      `${analysis.lists.manualBulletParagraphs} paragraph(s) use typed characters instead of PowerPoint's bullet/numbering formatting, so they are not announced as a list. Use the Bullets/Numbering controls.`,
+    );
+  }
+
   // Embedded audio/video is detected structurally, but caption presence and
   // quality are not — surfaced as not-assessed whenever the deck has media.
   if (analysis.hasMedia) {
@@ -1337,8 +1353,14 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
   // Added 2026-08-31: the scorers had been deducting for the whole class,
   // including vague text, while this gate named no criterion for any of it.
   {
+    // Mirrors the scorer (2026-09-01): links whose text could not be
+    // resolved from the file are excluded there, so they may not become a
+    // confirmed 4.1.2 here — an unresolved link produced a failure beside a
+    // link category that lost nothing. Only the Excel service emits
+    // `resolved`; the Word/PowerPoint gates classify every link, as their
+    // scorers do.
     const unnamedLinks = (analysis.links ?? []).filter(
-      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+      (l) => l.resolved && classifyLinkText(l.text ?? "") === "unnamed",
     ).length;
     if (unnamedLinks > 0) {
       add(

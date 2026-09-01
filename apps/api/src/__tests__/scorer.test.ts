@@ -433,6 +433,167 @@ describe("scoreDocument — mixed results", () => {
     );
   });
 
+  it("a tagged PDF with a little text (1–49 chars) is not assessed — never Critical with no criterion", () => {
+    // pdf.ts scored this 25/Critical ("limited assessable content rather
+    // than a confirmed barrier" — its own words) while the gate attributes
+    // nothing unless textLength === 0: a 69/D with zero failures.
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 3, totalPageCount: 1 });
+    const pdfjs = makePdfjs({ hasText: false, textLength: 9, pageCount: 1 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBeNull();
+    expect(cat.notAssessed).toBe(true);
+    expect(cat.severity).toBeNull();
+    expect(cat.findings.join(" ")).toMatch(/too little/i);
+    expect(result.conformance.failures.map((f) => f.category)).not.toContain(
+      "text_extractability",
+    );
+  });
+
+  it("zero extractable text with a struct tree stays scored — the gate attributes that case", () => {
+    const qpdf = makeQpdf({ hasStructTree: true });
+    const pdfjs = makePdfjs({ hasText: false, textLength: 0 });
+    const cat = findCategory(scoreDocument(qpdf, pdfjs), "text_extractability");
+    expect(cat.score).toBe(25);
+  });
+
+  it("a short PDF whose RoleMap maps heading-like tags to P is advisory — not 0/Critical with no criterion", () => {
+    // The gate's rule 6b requires `substantive`; the scorer fell through to
+    // 0/Critical on the RoleMap signal alone. Align the scorer to the gate:
+    // report the mapped tags, move no points on a 2-page document.
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      totalPageCount: 2,
+      paragraphCount: 8,
+      hasRoleMap: true,
+      roleMapEntries: ["Head → P", "Subhead_1 → P"],
+    });
+    const pdfjs = makePdfjs({ pageCount: 2, hasText: true, textLength: 900 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "heading_structure");
+    expect(cat.score).toBeNull();
+    expect(cat.findings.join(" ")).toMatch(/not scored/i);
+    expect(cat.findings.join(" ")).toMatch(/Head → P/);
+    expect(result.conformance.failures.map((f) => f.category)).not.toContain("heading_structure");
+  });
+
+  it("a substantive PDF with heading-like RoleMap tags keeps the scored 0 and its 1.3.1", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      totalPageCount: 30,
+      paragraphCount: 400,
+      hasRoleMap: true,
+      roleMapEntries: ["Head → P"],
+    });
+    const pdfjs = makePdfjs({ pageCount: 30, hasText: true, textLength: 90_000 });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "heading_structure").score).toBe(0);
+    expect(
+      result.conformance.failures.some(
+        (f) => f.sc === "1.3.1" && f.category === "heading_structure",
+      ),
+    ).toBe(true);
+  });
+
+  it("an empty /Outlines dictionary is reported, never scored — bookmarks are counted never", () => {
+    // pdf.ts kept a scored 40/Moderate branch inside the category whose own
+    // copy says "counted never"; no gate rule attributes to bookmarks, so an
+    // entry-less outline dictionary cost a C with zero failures.
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      paragraphCount: 30,
+      hasOutlines: true,
+      outlineCount: 0,
+    });
+    const pdfjs = makePdfjs({ pageCount: 12, hasText: true, textLength: 9000 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "bookmarks");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/Advisory — not scored:.*no entries/i);
+    expect(result.conformance.failures.map((f) => f.category)).not.toContain("bookmarks");
+  });
+
+  it("pdfjs failure leaves text and title NOT ASSESSED rather than deducted on defaults", () => {
+    // With pdfjs down, hasText:false and title:null are the analyzer's
+    // DEFAULTS, not observations — the old behavior graded the tool's own
+    // failure 69/D with zero failures ("incomplete" gate, deducting scorer).
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30, totalPageCount: 10 });
+    const pdfjs = makePdfjs({ error: "PDF.js parsing failed", hasText: false, title: null });
+    const result = scoreDocument(qpdf, pdfjs);
+    for (const id of ["text_extractability", "title_language"]) {
+      const cat = findCategory(result, id);
+      expect(cat.score, id).toBeNull();
+      expect(cat.notAssessed, id).toBe(true);
+      expect(cat.findings.join(" "), id).toMatch(/could not run|could not be completed/i);
+    }
+    expect(result.conformance.status).toBe("incomplete");
+  });
+
+  it("qpdf failure leaves the structure categories NOT ASSESSED rather than deducted on defaults", () => {
+    const qpdf = makeQpdf({ error: "QPDF parsing failed" });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 9000, title: "Report", pageCount: 10 });
+    const result = scoreDocument(qpdf, pdfjs);
+    for (const id of [
+      "text_extractability",
+      "heading_structure",
+      "table_markup",
+      "reading_order",
+      "bookmarks",
+      "alt_text",
+      "form_accessibility",
+    ]) {
+      const cat = findCategory(result, id);
+      expect(cat.score, id).toBeNull();
+      expect(cat.notAssessed, id).toBe(true);
+    }
+    // Title and language come from pdfjs, which ran — still scored.
+    expect(findCategory(result, "title_language").score).toBe(50);
+  });
+
+  it("unclaimed link annotations beside fully-tagged links assert nothing — the census is the per-link signal", () => {
+    // Found 2026-09-01 by the converse gate on ELEVEN real corpus PDFs: the
+    // verdict asserted "8 link(s) are not tagged" (1.3.1) from
+    // untaggedLinkAnnotationCount while every per-link record was tagged and
+    // link_quality showed 100 — a failing criterion beside a perfect tile.
+    // The annotation count includes duplicates and internal links the
+    // per-link census deliberately reconciles; the gate must use the same
+    // signal the score uses.
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 9000,
+      pageCount: 10,
+      links: Array.from({ length: 5 }, (_, i) => ({
+        url: `https://example.org/${i}`,
+        text: `Example resource ${i}`,
+        tagged: true,
+        page: 1,
+      })),
+      untaggedLinkAnnotationCount: 8,
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "link_quality").score).toBe(100);
+    expect(result.conformance.failures.map((f) => f.category)).not.toContain("link_quality");
+  });
+
+  it("per-link untagged records still assert 1.3.1 beside the deduction", () => {
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 9000,
+      pageCount: 10,
+      links: [
+        { url: "https://example.org/a", text: "Report A", tagged: false, page: 1 },
+        { url: "https://example.org/b", text: "Report B", tagged: true, page: 2 },
+      ],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "link_quality").score).toBeLessThan(100);
+    expect(
+      result.conformance.failures.some((f) => f.sc === "1.3.1" && f.category === "link_quality"),
+    ).toBe(true);
+  });
+
   it("qpdf error adds a warning", () => {
     const qpdf = makeQpdf({ error: "QPDF parsing failed" });
     const pdfjs = makePdfjs();
@@ -1271,15 +1432,15 @@ describe("scoreBookmarks edge cases", () => {
     expect(findCategory(result, "bookmarks").score).toBe(100);
   });
 
-  it("20 pages, outline structure but 0 entries → score 40", () => {
-    const qpdf = makeQpdf({ hasOutlines: true, outlineCount: 0 });
-    const pdfjs = makePdfjs({
-      pageCount: 20,
-      hasOutlines: false,
-      outlineCount: 0,
-    });
-    const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "bookmarks").score).toBe(40);
+  it("20 pages, outline structure but 0 entries → advisory at 100, counted never", () => {
+    // Until 2026-09-01 this scored 40/Moderate — the one scored branch left
+    // in a category whose own copy says bookmarks are counted never, and no
+    // gate rule attributes to bookmarks.
+    const qpdf = makeQpdf({ hasStructTree: true, hasOutlines: true, outlineCount: 0 });
+    const pdfjs = makePdfjs({ pageCount: 20, hasText: true, textLength: 9000 });
+    const cat = findCategory(scoreDocument(qpdf, pdfjs), "bookmarks");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/Advisory — not scored:.*no entries/i);
   });
 
   it("20 pages, no outlines → 100 with a loud advisory (the legal-only sweep)", () => {

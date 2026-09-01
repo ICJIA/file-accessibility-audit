@@ -2928,6 +2928,38 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-152-pptx-typed-bullets.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "0|Critical",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-153-pptx-real-list-twin.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "100|No issues found",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-16-form-unlabeled.pdf": {
       "score": 69,
       "grade": "D",

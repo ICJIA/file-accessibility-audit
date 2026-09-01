@@ -56,6 +56,48 @@ export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResu
     !qpdf.hasStructTree;
 
   const strictCategories = buildCategories(qpdf, pdfjs, "strict");
+
+  // When ONE analyzer failed, the fields it owns are DEFAULTS, not
+  // observations — the old behavior graded the tool's own failure (hasText
+  // false → 25/Critical, title null → 50) while the gate honestly returned
+  // "incomplete" with no failures: a 69/D with nothing attributed. The
+  // categories built on the failed analyzer's fields become NOT ASSESSED;
+  // the ones whose inputs survived stay scored, which is exactly what the
+  // summary already promises ("the partial score reflects only the checks
+  // that ran"). Both analyzers failing never reaches scoring at all.
+  if (qpdf.error || pdfjs.error) {
+    const affected = new Set<string>([
+      // text_extractability reads both (pdfjs text, qpdf struct tree).
+      "text_extractability",
+      ...(pdfjs.error ? ["title_language"] : []),
+      ...(qpdf.error
+        ? [
+            "heading_structure",
+            "table_markup",
+            "reading_order",
+            "bookmarks",
+            "alt_text",
+            "form_accessibility",
+          ]
+        : []),
+    ]);
+    const failedSide = qpdf.error ? "structure" : "text-layer";
+    for (let i = 0; i < strictCategories.length; i++) {
+      const c = strictCategories[i];
+      if (!affected.has(c.id)) continue;
+      strictCategories[i] = {
+        ...c,
+        score: null,
+        grade: null,
+        severity: null,
+        notAssessed: true,
+        findings: [
+          `This check could not run — the ${failedSide} analyzer failed on this file, so its inputs are unavailable. The results below reflect only the checks that succeeded; a manual review is required for this category.`,
+        ],
+      };
+    }
+  }
+
   const conformance = evaluateConformance(qpdf, pdfjs, strictCategories);
   const strictAggregate = aggregateScore(strictCategories, isScanned, "strict", conformance);
 
@@ -151,6 +193,25 @@ function applyProfileWeights(categories: CategoryResult[], mode: ScoringMode): v
   }
 }
 
+
+const TEXT_EXTRACTABILITY_EXPLANATION =
+  "Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.";
+
+const TEXT_EXTRACTABILITY_HELP = [
+  {
+    label: "Adobe: Add Tags to a PDF",
+    url: "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html",
+  },
+  {
+    label: "Adobe: OCR a Scanned Document",
+    url: "https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html",
+  },
+  {
+    label: "WebAIM: PDF Accessibility",
+    url: "https://webaim.org/techniques/acrobat/",
+  },
+];
+
 function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   let score: number;
   const findings: string[] = [];
@@ -203,12 +264,26 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     // must stay factual for documents that DO have a little real text.
     score = 25;
     if (pdfjs.textLength > 0) {
-      findings.push(
-        `Only ${pdfjs.textLength} characters of extractable text were found — too little to assess the text layer with confidence`,
-      );
-      findings.push(
-        "Document is tagged (StructTreeRoot present). If this is genuinely a very short document, the low score reflects limited assessable content rather than a confirmed barrier.",
-      );
+      // NOT ASSESSED (2026-09-01): the old 25/Critical here capped the whole
+      // grade at D while conceding, in its own words, that the low score
+      // "reflects limited assessable content rather than a confirmed
+      // barrier" — and the gate attributes nothing above textLength 0. A
+      // deduction the verdict cannot attribute may not move the grade.
+      return {
+        id: "text_extractability",
+        label: "Text Extractability",
+        weight: SCORING_WEIGHTS.text_extractability,
+        score: null,
+        grade: null,
+        severity: null,
+        notAssessed: true,
+        findings: [
+          `Only ${pdfjs.textLength} characters of extractable text were found — too little to assess the text layer with confidence, so this category is not scored.`,
+          "Document is tagged (StructTreeRoot present). If this is genuinely a very short document, there is simply not enough text here for an automated verdict either way — read it aloud with a screen reader to confirm.",
+        ],
+        explanation: TEXT_EXTRACTABILITY_EXPLANATION,
+        helpLinks: TEXT_EXTRACTABILITY_HELP,
+      };
     } else {
       findings.push("No extractable text found, but document has tag structure");
       findings.push(
@@ -399,21 +474,9 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
-    explanation:
-      "Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.",
+    explanation: TEXT_EXTRACTABILITY_EXPLANATION,
     helpLinks: [
-      {
-        label: "Adobe: Add Tags to a PDF",
-        url: "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html",
-      },
-      {
-        label: "Adobe: OCR a Scanned Document",
-        url: "https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html",
-      },
-      {
-        label: "WebAIM: PDF Accessibility",
-        url: "https://webaim.org/techniques/acrobat/",
-      },
+      ...TEXT_EXTRACTABILITY_HELP,
     ],
   };
 }
@@ -766,7 +829,21 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     // keep the 0.
     const substantive =
       qpdf.totalPageCount >= 4 || qpdf.paragraphCount >= 20 || qpdf.outlineCount > 0;
-    if (!substantive && roleMappedParagraphs.length === 0) {
+    if (!substantive) {
+      // The conformance gate's rule 6b requires `substantive` before it will
+      // assert 1.3.1 — so a short document may not lose points here either
+      // (2026-09-01; the scorer used to fall through to 0/Critical on the
+      // RoleMap signal alone, a 69/D with zero failures). The mapped tags
+      // are still worth naming: they are the strongest hint the author MEANT
+      // headings.
+      const findings = [
+        "No headings were found. Short documents may not need them; longer documents should use H1–H6 tags so screen-reader users can navigate.",
+      ];
+      if (roleMappedParagraphs.length > 0) {
+        findings.push(
+          `Advisory — not scored: heading-like custom tags are mapped to paragraphs in the RoleMap (${roleMappedParagraphs.slice(0, 4).join(", ")}${roleMappedParagraphs.length > 4 ? ` (+${roleMappedParagraphs.length - 4} more)` : ""}). In a document this short your grade is not affected, but mapping them to H1–H6 instead would restore the outline for screen-reader users.`,
+        );
+      }
       return {
         id: "heading_structure",
         label: "Heading Structure",
@@ -774,9 +851,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
         score: null,
         grade: null,
         severity: null,
-        findings: [
-          "No headings were found. Short documents may not need them; longer documents should use H1–H6 tags so screen-reader users can navigate.",
-        ],
+        findings,
         explanation: headingExplanation,
         helpLinks: headingLinks,
       };
@@ -1453,16 +1528,21 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   }
 
   if (hasOutlines && outlineCount === 0) {
+    // NOT SCORED (2026-09-01): this was the one scored branch left inside a
+    // category whose own copy says "counted never" — an entry-less /Outlines
+    // dictionary (routine producer output) cost 60 points with no gate rule
+    // attributing anything to bookmarks. Same legal footing as no outline at
+    // all; reported loudly, counted never.
     return {
       id: "bookmarks",
       label: "Bookmarks / Navigation",
       weight: SCORING_WEIGHTS.bookmarks,
-      score: 40,
-      grade: getGrade(40),
-      severity: getSeverity(40),
+      score: 100,
+      grade: "A",
+      severity: "No issues found",
       findings: [
-        "Outline structure present but contains no entries",
-        "How to fix: In Adobe Acrobat, go to the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks From Structure).",
+        `Advisory — not scored: this document has ${pdfjs.pageCount} pages and an outline dictionary with no entries — readers see an empty Bookmarks panel and effectively no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them.`,
+        "How to fix (optional): In Adobe Acrobat, go to the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks From Structure).",
       ],
       explanation: bookmarkExplanation,
       helpLinks: bookmarkLinks,

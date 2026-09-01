@@ -68,7 +68,22 @@ async function main() {
         }
         continue;
       }
-      if (c.score >= 100) continue;
+      if (c.score >= 100) {
+        // THE CONVERSE (added 2026-09-01): a confirmed failing criterion
+        // whose category lost nothing is the mirror-image violation — the
+        // verdict says "does not meet WCAG 2.1" while every tile reads 100.
+        // Found live: the malformed-lists rule asserted 1.3.1 against a
+        // reading_order category no scorer ever deducts for.
+        if (failing.has(c.id)) {
+          violations.push({
+            file: path.basename(f),
+            cat: c.id,
+            score: c.score,
+            firstFinding: "scored 100, yet the verdict names a failing criterion for this category",
+          });
+        }
+        continue;
+      }
       if (!failing.has(c.id)) {
         const first = (c.findings ?? []).find(
           (x: string) =>

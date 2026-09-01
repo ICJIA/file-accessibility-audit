@@ -1,5 +1,5 @@
 {
-  "count": 41,
+  "count": 43,
   "generated": "2026-09-01",
   "items": [
     {
@@ -156,6 +156,16 @@
     {
       "file": "synthetic-149-pptx-long-line-not-a-heading.pptx",
       "label": "PowerPoint: a long sentence set large — emphasis, not a heading",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-152-pptx-typed-bullets.pptx",
+      "label": "PowerPoint: agenda points typed with dashes instead of real bullets",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-153-pptx-real-list-twin.pptx",
+      "label": "PowerPoint: the same agenda as a real bulleted list",
       "chip": "held"
     },
     {

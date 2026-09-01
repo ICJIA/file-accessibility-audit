@@ -270,6 +270,16 @@ const SLIDE_COLORED_TITLE = (
 ) =>
   `<p:sp><p:nvSpPr><p:cNvPr id="31" name="Title"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="${sz}" b="1"><a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 /** A body placeholder whose run carries an explicit color and size. */
+/** A body placeholder whose paragraphs are REAL list items (explicit
+ *  buChar), and one whose "bullets" are typed characters. */
+const SLIDE_REAL_LIST = (items: string[]) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="33" name="Body"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:bodyPr/>${items
+    .map((t) => `<a:p><a:pPr><a:buChar char="\u2022"/></a:pPr><a:r><a:t>${t}</a:t></a:r></a:p>`)
+    .join("")}</p:txBody></p:sp>`;
+const SLIDE_TYPED_LIST = (items: string[]) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="34" name="Body"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:bodyPr/>${items
+    .map((t) => `<a:p><a:r><a:t>- ${t}</a:t></a:r></a:p>`)
+    .join("")}</p:txBody></p:sp>`;
 const SLIDE_COLORED_BODY = (text: string, colorHex: string, sz = 1800) =>
   `<p:sp><p:nvSpPr><p:cNvPr id="32" name="Body"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="1000000" y="4000000"/><a:ext cx="10000000" cy="2000000"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="${sz}"><a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 
@@ -1085,6 +1095,52 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-152-pptx-typed-bullets.pptx",
+    truth:
+      "A titled slide whose three agenda points are typed with a leading dash instead of PowerPoint's bullet formatting — visual list structure with no programmatic list, the same WCAG 1.3.1 Level A class Word has scored since the start. Until 2026-09-01 the deck lost the points with NO criterion in the verdict: the pptx gate had no list rule at all, so a deck capped at D named nothing — invisible to legal-basis because no control exercised it. list_structure must score 0 (no real items among three typed ones), and the verdict must name 1.3.1 against list_structure.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Agenda") +
+            SLIDE_TYPED_LIST(["Call to order", "Budget review", "Adjournment"]),
+        ],
+        { title: "Board Agenda" },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      if (c.score !== 0) return `three typed bullets with no real item scored ${c.score}, not 0`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (x) => String(x.sc ?? "") === "1.3.1" && String(x.category ?? "") === "list_structure",
+      );
+      return failing ? null : "points lost with no 1.3.1 failure attributed to list_structure";
+    },
+  },
+  {
+    file: "synthetic-153-pptx-real-list-twin.pptx",
+    truth:
+      "The same agenda with the three points as real bulleted paragraphs. list_structure must score a clean 100, no criterion may be asserted for it, and the deck must never score below its typed twin.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Agenda") +
+            SLIDE_REAL_LIST(["Call to order", "Budget review", "Adjournment"]),
+        ],
+        { title: "Board Agenda" },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      if (c.score !== 100) return `three real list items scored ${c.score}`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((x) => String(x.category ?? "") === "list_structure");
+      return failing ? "a criterion is asserted against a clean list" : null;
+    },
+  },
+  {
     file: "synthetic-150-pptx-white-on-white.pptx",
     truth:
       "A slide with an explicit white background whose title is typed in explicit white at an explicit 32-point size — genuinely invisible text, nothing stacked beneath it to change what a viewer sees. This is the REAL 1:1 case and it must stay caught: color_contrast must score 50 (one failing run of two checked), the findings must report the 1:1 ratio, and WCAG 1.4.3 Contrast (Minimum), Level AA must be named in the verdict against color_contrast. This trap exists as the flawed twin of synthetic-151: the two slides differ only in the banner painted beneath the title, which is exactly the difference between invisible text and a false accusation.",
@@ -1383,6 +1439,11 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
     category: "color_contrast",
   },
   {
+    bad: "synthetic-152-pptx-typed-bullets.pptx",
+    good: "synthetic-153-pptx-real-list-twin.pptx",
+    category: "list_structure",
+  },
+  {
     bad: "synthetic-136-xlsx-headerless-table.xlsx",
     good: "synthetic-137-xlsx-header-table-twin.xlsx",
     category: "table_markup",
@@ -1495,6 +1556,14 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-149-pptx-long-line-not-a-heading.pptx": {
     label: "PowerPoint: a long sentence set large — emphasis, not a heading",
+    chip: "held",
+  },
+  "synthetic-152-pptx-typed-bullets.pptx": {
+    label: "PowerPoint: agenda points typed with dashes instead of real bullets",
+    chip: "caught",
+  },
+  "synthetic-153-pptx-real-list-twin.pptx": {
+    label: "PowerPoint: the same agenda as a real bulleted list",
     chip: "held",
   },
   "synthetic-150-pptx-white-on-white.pptx": {

@@ -207,13 +207,30 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
   let score = 100;
   const findings: string[] = [`${a.tables.length} defined table(s) found.`];
 
-  const headerless = a.tables.filter((t) => !t.hasHeaderRow);
+  // Mirrors the conformance gate (2026-09-01): a SINGLE-COLUMN defined table
+  // carries no data-cell/header association to break, so the gate exempts it
+  // from 1.3.1 — and a deduction the verdict cannot attribute may not move
+  // the grade. (columnCount ?? 2) is the gate's own default for unparseable
+  // refs.
+  const headerless = a.tables.filter((t) => !t.hasHeaderRow && (t.columnCount ?? 2) >= 2);
+  const singleColumnHeaderless = a.tables.filter(
+    (t) => !t.hasHeaderRow && (t.columnCount ?? 2) < 2,
+  );
   if (headerless.length > 0) {
     score -= 30 * headerless.length;
     findings.push(
       `${headerless.length} table(s) have no header row: ${headerless
         .map((t) => `"${t.name}" on "${t.sheetName}"`)
         .join(", ")}. In Excel: select the table → Table Design → check "Header Row".`,
+    );
+  }
+  if (singleColumnHeaderless.length > 0) {
+    findings.push(
+      `Advisory — not scored: ${singleColumnHeaderless.length} single-column table(s) have the header row off (${singleColumnHeaderless
+        .map((t) => `"${t.name}" on "${t.sheetName}"`)
+        .join(
+          ", ",
+        )}). A one-column list carries no data-cell/header association to break, so your grade is not affected — but marking the header row still helps screen readers announce what the list holds.`,
     );
   }
 

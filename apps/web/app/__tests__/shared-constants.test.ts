@@ -58,13 +58,18 @@ describe("@file-audit/shared scoring constants", () => {
 
   it("every positively-weighted strict category has a WCAG map entry", () => {
     // pdf_ua_compliance and color_contrast carry weight 0 in strict;
-    // pdf_ua_compliance deliberately has no WCAG mapping.
+    // pdf_ua_compliance deliberately has no WCAG mapping. bookmarks is the
+    // one weighted exception (2026-09-01): its own finding says no WCAG 2.1
+    // criterion requires bookmarks in a single document, so the map carries
+    // no entry — a 2.4.5 chip beside that sentence contradicted it.
     const weightedKeys = Object.entries(SCORING_PROFILES.strict.weights)
       .filter(([, w]) => w > 0)
-      .map(([k]) => k);
+      .map(([k]) => k)
+      .filter((k) => k !== "bookmarks");
     for (const k of weightedKeys) {
       expect(WCAG_CATEGORY_MAP[k], k).toBeDefined();
     }
+    expect(WCAG_CATEGORY_MAP.bookmarks).toBeUndefined();
     expect(WCAG_CATEGORY_MAP.list_structure).toBeDefined(); // DOCX-only category
   });
 });

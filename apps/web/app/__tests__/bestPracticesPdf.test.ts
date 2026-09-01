@@ -520,10 +520,18 @@ describe("bookmarks", () => {
     expect(run("bookmarks", [], 0).status).toBe("not-checked");
   });
 
-  it("defers to the score on an empty outline — scoring/pdf.ts:1444 scores that 40", () => {
-    const r = run("bookmarks", ["Outline structure present but contains no entries"], 12);
-    expect(r.status).toBe("not-applicable");
-    expect(r.evidence.join(" ")).toMatch(/counted in your score/);
+  it("an empty outline dictionary is NOT MET — bookmarks are counted never, in every branch (2026-09-01)", () => {
+    // The scored-40 branch this row used to defer to was the one scored path
+    // left inside the "counted never" category; it is an advisory now, and
+    // an empty Bookmarks panel is exactly the work this row calls worth doing.
+    const r = run(
+      "bookmarks",
+      [
+        "Advisory — not scored: this document has 12 pages and an outline dictionary with no entries — readers see an empty Bookmarks panel and effectively no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them.",
+      ],
+      12,
+    );
+    expect(r.status).toBe("not-met");
   });
 
   it("is NOT APPLICABLE on the analyzer's own short-document line, even when a stored pageCount is 0", () => {

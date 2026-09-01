@@ -159,6 +159,50 @@ function baseAnalysis(over: Partial<XlsxAnalysis> = {}): XlsxAnalysis {
   };
 }
 
+describe("scoreXlsx — gate/scorer mirrors (2026-09-01)", () => {
+  it("a single-column headerless table deducts nothing — the gate exempts it, so the scorer must too", () => {
+    // conformance.ts gates only (columnCount ?? 2) >= 2: a one-column list
+    // has no data-cell/header association to break. The scorer deducted 30
+    // anyway — an 89/B with zero failures.
+    const r = scoreXlsx(
+      baseAnalysis({
+        tables: [{ sheetName: "FY26 Grants", name: "T", hasHeaderRow: false, columnCount: 1 }],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "table_markup")!;
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/not scored|single-column/i);
+    expect(r.conformance.failures.map((f) => f.category)).not.toContain("table_markup");
+  });
+
+  it("a multi-column headerless table keeps the deduction and its 1.3.1", () => {
+    const r = scoreXlsx(
+      baseAnalysis({
+        tables: [{ sheetName: "FY26 Grants", name: "T", hasHeaderRow: false, columnCount: 3 }],
+      }),
+    );
+    expect(r.categories.find((c) => c.id === "table_markup")!.score).toBe(70);
+    expect(
+      r.conformance.failures.some((f) => f.sc === "1.3.1" && f.category === "table_markup"),
+    ).toBe(true);
+  });
+
+  it("an unresolved link is excluded from the 4.1.2 verdict exactly as it is from the score", () => {
+    // The scorer excludes links whose text could not be resolved from the
+    // file; the gate classified ALL links, so an unresolved link produced a
+    // confirmed 4.1.2 failure beside a link category that lost nothing.
+    const unresolvedOnly = scoreXlsx(
+      baseAnalysis({ links: [{ text: "", url: "https://example.org", resolved: false }] }),
+    );
+    expect(unresolvedOnly.conformance.failures.some((f) => f.sc === "4.1.2")).toBe(false);
+
+    const trulyUnnamed = scoreXlsx(
+      baseAnalysis({ links: [{ text: "", url: "https://example.org", resolved: true }] }),
+    );
+    expect(trulyUnnamed.conformance.failures.some((f) => f.sc === "4.1.2")).toBe(true);
+  });
+});
+
 describe("scoreXlsx", () => {
   it("scores a clean workbook high, in the shared result shape", () => {
     const r = scoreXlsx(baseAnalysis());

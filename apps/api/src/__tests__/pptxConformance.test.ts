@@ -50,6 +50,19 @@ describe("evaluatePptxConformance", () => {
     ]);
   });
 
+  it("fires 1.3.1 for hand-typed bullets — the scorer deducts, so the verdict must attribute", () => {
+    // The Word gate has carried this rule since 2026-08-31; PowerPoint's
+    // scorer deducts identically (list_structure down to 0) but the pptx
+    // gate had no list rule at all — a deck capped at D with no criterion.
+    const v = evaluatePptxConformance(
+      analysis({ lists: { realListItems: 0, manualBulletParagraphs: 3 } }),
+    );
+    expect(v.status).toBe("fail");
+    expect(
+      v.failures.some((f) => f.sc === "1.3.1" && f.category === "list_structure"),
+    ).toBe(true);
+  });
+
   it("does NOT fire for untitled slides (scoring-only) and lists media as not assessed", () => {
     const v = evaluatePptxConformance(
       analysis({

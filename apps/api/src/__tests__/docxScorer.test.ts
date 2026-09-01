@@ -35,6 +35,57 @@ function analysis(over: Partial<DocxAnalysis> = {}): DocxAnalysis {
   };
 }
 
+describe("scoreDocxTitleLanguage — parse-degraded parts deduct nothing", () => {
+  // The gate withholds 2.4.2/3.1.1 when the part that would carry the value
+  // could not be read ('"the part said nothing" and "the part could not be
+  // read" must not produce the same confirmed claim'); the scorer deducted
+  // 50+50 regardless — 0/Critical with zero failures on a corrupt core.xml.
+  it("an unreadable core.xml is NOT a missing title or language", () => {
+    const r = scoreDocx(
+      analysis({
+        metadata: { title: null, creator: null, language: null, pageCount: 2, wordCount: 500 },
+        parse: { documentOk: true, stylesState: "unparseable", coreState: "unparseable" },
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "title_language")!;
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/could not be read.*not scored/i);
+    expect(r.conformance.failures.map((f) => f.category)).not.toContain("title_language");
+  });
+
+  it("an unreadable styles.xml alone withholds only the language half", () => {
+    const r = scoreDocx(
+      analysis({
+        metadata: { title: null, creator: null, language: null, pageCount: 2, wordCount: 500 },
+        parse: { documentOk: true, stylesState: "unparseable", coreState: "ok" },
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "title_language")!;
+    // Title readable and absent → its 50 stays lost; language unreadable →
+    // not deducted.
+    expect(cat.score).toBe(50);
+    expect(cat.findings.join(" ")).toMatch(/language could not be read/i);
+    expect(
+      r.conformance.failures.some((f) => f.sc === "2.4.2" && f.category === "title_language"),
+    ).toBe(true);
+    expect(r.conformance.failures.some((f) => f.sc === "3.1.1")).toBe(false);
+  });
+
+  it("readable parts with missing values keep both deductions and both criteria", () => {
+    const r = scoreDocx(
+      analysis({
+        metadata: { title: null, creator: null, language: null, pageCount: 2, wordCount: 500 },
+      }),
+    );
+    expect(r.categories.find((c) => c.id === "title_language")!.score).toBe(0);
+    const scs = r.conformance.failures
+      .filter((f) => f.category === "title_language")
+      .map((f) => f.sc)
+      .sort();
+    expect(scs).toEqual(["2.4.2", "3.1.1"]);
+  });
+});
+
 describe("scoreDocx", () => {
   it("scores a clean, accessible document as grade A with no failures", () => {
     const r = scoreDocx(
