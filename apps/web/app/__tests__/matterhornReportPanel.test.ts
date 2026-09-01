@@ -410,20 +410,23 @@ describe("buildMatterhornProjection — veraPDF mapping and the tri-state", () =
     expect(p.unmapped[0]!.label).toContain("future rule");
   });
 
-  it("marks veraPDF-only checkpoints 'unchecked' when the verdict is absent, available:false, or could-not-validate", () => {
+  it("projects 05/24/29 as 'human' in every veraPDF state — the UA-1 profile has no rules for them (2026-09-01)", () => {
+    // These three carried coverage:"verapdf" until 2026-09-01, projecting
+    // "unchecked" (and, with a verdict present, a green "clean") for checks
+    // veraPDF could never run — its PDF/UA-1 profile has no rules for
+    // clauses 7.14/7.19 or action accessibility. They are human review in
+    // every verdict state now.
     for (const verdict of [
       undefined,
       null,
       { available: false, failures: [], totalFailureCount: 0 },
       { available: true, error: "veraPDF timed out", totalFailureCount: 0, failures: [] },
+      { available: true, passed: true, totalFailureCount: 0, failures: [] },
     ]) {
       const p = buildMatterhornProjection(pdfReport({ pdfUaVerdict: verdict }))!;
-      expect(p.veraPdfRan, JSON.stringify(verdict)).toBe(false);
-      // 05 Sound and 24 Non-Interactive Forms are veraPDF-only (10 and 21
-      // were promoted to engine-partial in v1.94.0 and now read "clean"
-      // from the engine's own coverage).
-      expect(rowById(p, "05").status, JSON.stringify(verdict)).toBe("unchecked");
-      expect(rowById(p, "24").status, JSON.stringify(verdict)).toBe("unchecked");
+      expect(rowById(p, "05").status, JSON.stringify(verdict)).toBe("human");
+      expect(rowById(p, "24").status, JSON.stringify(verdict)).toBe("human");
+      expect(rowById(p, "29").status, JSON.stringify(verdict)).toBe("human");
     }
   });
 
@@ -452,7 +455,8 @@ describe("buildMatterhornProjection — REAL captured payload (marker-drift guar
     expect(rowById(p, "11").status).toBe("issues");
     // Captured before veraPDF ran on audits → tri-state false → unchecked.
     expect(p.veraPdfRan).toBe(false);
-    expect(rowById(p, "05").status).toBe("unchecked");
+    // 05 is human review (no UA-1 rules exist for it — see above).
+    expect(rowById(p, "05").status).toBe("human");
     // RB-review F7: the fixture also predates the engine censuses (no
     // matterhornCensusGeneration), so the census-promoted checkpoints demote
     // to veraPDF-era coverage — "unchecked" here, never a green "clean" for

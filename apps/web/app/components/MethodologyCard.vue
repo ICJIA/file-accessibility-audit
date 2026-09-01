@@ -137,13 +137,13 @@ const libraries = computed(() =>
       <strong>slide titles</strong>
       (every slide needs a unique title placeholder — Microsoft's highest-severity PowerPoint rule)
       and a title-first
-      <strong>reading order</strong> check; checks that have no PowerPoint equivalent (heading
-      structure, bookmarks) are not part of its category set, form fields are always reported as Not
-      Assessed, and a category that simply doesn't apply to a given deck counts as passing rather
-      than shrinking the score's base. Color contrast is checked directly, because PowerPoint stores
-      explicit and theme colors. Machine checks are benchmarked against Microsoft's own
-      Accessibility Checker rules for PowerPoint. This score is the compliance benchmark for
-      publication.
+      <strong>reading order</strong> check (reported as an advisory, never scored); checks that have
+      no PowerPoint equivalent (heading structure, bookmarks) are not part of its category set, form
+      fields are always reported as Not Assessed, and a category that simply doesn't apply to a
+      given deck counts as passing rather than shrinking the score's base. Color contrast is checked
+      directly, because PowerPoint stores explicit and theme colors. Machine checks are benchmarked
+      against Microsoft's own Accessibility Checker rules for PowerPoint. This score is the
+      compliance benchmark for publication.
     </p>
     <p v-else-if="isXlsx" class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
       Seven categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (the standard

@@ -446,7 +446,7 @@
                   <code>/Outlines</code> → <code>/First</code>/<code>/Next</code>
                   chain
                 </td>
-                <td class="px-4 py-2">Bookmark count for navigation scoring</td>
+                <td class="px-4 py-2">Bookmark count for the navigation advisory</td>
               </tr>
               <tr class="border-b border-[var(--border-subtle)]">
                 <td class="px-4 py-2">Tables &amp; structure</td>
@@ -994,10 +994,10 @@
               <strong>PowerPoint (.pptx) — 9 scored categories:</strong> the same eight
               <em>minus Heading Structure</em> — slides carry titles, not a heading hierarchy —
               <em>plus</em> a presentation-specific <strong>Slide Titles</strong> check (every slide
-              needs a distinct title placeholder so screen-reader users can tell slides apart) and
-              an actively-scored <strong>Reading Order</strong> category (whether each slide's title
-              reads first in tab order). Heading Structure, Bookmarks and Form Accessibility are not
-              scored for a presentation.
+              needs a distinct title placeholder so screen-reader users can tell slides apart) and a
+              <strong>Reading Order</strong> category that verifies each slide's title reads first
+              in tab order — reported as a clearly labelled advisory, never counted. Heading
+              Structure, Bookmarks and Form Accessibility are not scored for a presentation.
             </li>
             <li>
               <strong>Excel (.xlsx) — 7 scored categories:</strong> Text Extractability, Title &amp;
@@ -1110,8 +1110,8 @@
               tags at all in a substantive document (multi-page or paragraph-heavy), a confirmed
               1.3.1 failure: the sections exist only visually. Everything about the outline's
               <em>shape</em> — level skips (W3C's own guidance: not a WCAG failure), multiple H1s,
-              generic <code>/H</code> tags, mixing conventions (PDF/UA 7.4 / Matterhorn 14-002), and
-              whether the headings' text reads like headings — is
+              generic <code>/H</code> tags, mixing conventions (PDF/UA 7.4.4 / Matterhorn 14-007),
+              and whether the headings' text reads like headings — is
               <strong>reported as clearly labelled advisories and never scored</strong>.
             </p>
           </div>
@@ -1193,11 +1193,15 @@
               <em>How it's scored:</em> <strong>N/A</strong> if no links. What is scored is
               <strong>untagged links</strong> — annotations no <code>/Link</code> structure element
               claims, which a screen reader following the tags never encounters (a confirmed 1.3.1
-              failure). Link <em>wording</em> — raw URLs as text, or vague phrases like "click here"
-              — is <strong>reported as an advisory and never scored</strong>: WCAG 2.4.4 (Level A)
-              allows a link's purpose to come from its surrounding context, which no text-only check
-              can weigh; judging the text alone is 2.4.9, a AAA criterion. PDF.js extracts the
-              visible text overlapping each link annotation using spatial coordinate matching.
+              failure) — and <strong>links with no text at all</strong>, which reach a screen reader
+              with no name to announce (a confirmed 4.1.2 Name, Role, Value failure, Level A). A
+              link whose text this tool could not attribute — rotated text, image-only links — is
+              flagged for hand-checking, never scored. Link <em>wording</em> — raw URLs as text, or
+              vague phrases like "click here" — is
+              <strong>reported as an advisory and never scored</strong>: WCAG 2.4.4 (Level A) allows
+              a link's purpose to come from its surrounding context, which no text-only check can
+              weigh; judging the text alone is 2.4.9, a AAA criterion. PDF.js extracts the visible
+              text overlapping each link annotation using spatial coordinate matching.
             </p>
           </div>
           <div
@@ -1256,8 +1260,9 @@
         </h4>
         <p class="text-xs text-[var(--text-muted)] mb-3">
           In addition to the nine PDF categories scored above, the tool appends additional findings
-          to relevant categories. Most are informational only, but some (marked below) do affect
-          scoring. These provide deeper insight into the document's accessibility posture.
+          to relevant categories. These are informational — the one exception that can affect
+          scoring is the alt-text quality census (whitespace-only or boilerplate descriptions). They
+          provide deeper insight into the document's accessibility posture.
         </p>
         <div class="rounded-lg border border-[var(--border-subtle)] overflow-x-auto">
           <table class="w-full text-xs">
@@ -1423,16 +1428,16 @@
   Text Extractability      20%     100
   Title &amp; Language         15%      75
   Heading Structure        15%      55
-  Alt Text                 15%     100
-  Reading Order            10%      85
-  Bookmarks                 5%      45
+  Alt Text                 15%      90
+  Reading Order            10%     100
+  Bookmarks                 5%     100
   Table Markup             10%     <span class="text-emerald-300">n/a → passing</span> ┐
   Link Quality              5%     <span class="text-emerald-300">n/a → passing</span> ├─ no such content =
   Form Accessibility        5%     <span class="text-emerald-300">n/a → passing</span> ┘  no such problem (counts as 100)
 
-  Weighted sum = (100×20 + 75×15 + 55×15 + 100×15 + 85×10 + 45×5 + 100×10 + 100×5 + 100×5) ÷ 100
-               = 8525 ÷ 100
-               = 85.3  →  85 before the severity cap
+  Weighted sum = (100×20 + 75×15 + 55×15 + 90×15 + 100×10 + 100×5 + 100×10 + 100×5 + 100×5) ÷ 100
+               = 8800 ÷ 100
+               = 88 before the severity cap
 
   <span class="text-amber-300">Severity cap:</span> the score may never outrank the worst open finding (Minor 89 ·
   Moderate 79 · Critical 69). The broken heading hierarchy here is a Moderate

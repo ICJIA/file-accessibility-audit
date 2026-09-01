@@ -68,6 +68,17 @@ describe("matterhorn.ts — the checkpoint data", () => {
     expect(byId("22")?.coverage).toBe("human");
   });
 
+  // 05 (Sound), 24 (Non-Interactive Forms), 29 (Actions) carried
+  // coverage:"verapdf" until 2026-09-01 — but veraPDF's PDF/UA-1 profile has
+  // NO rules for clauses 7.14/7.19 or action accessibility, so the landing
+  // page promised a machine check that could never fire. Same overclaim
+  // class, different engine.
+  it("never claims veraPDF coverage for checkpoints its UA-1 profile cannot fire on (05, 24, 29)", () => {
+    expect(byId("05")?.coverage).toBe("human");
+    expect(byId("24")?.coverage).toBe("human");
+    expect(byId("29")?.coverage).toBe("human");
+  });
+
   // Checkpoint 10 (Character Mappings): promoted in v1.94.0 — the engine now
   // censuses PUA/replacement characters in the extracted text (the
   // extraction-visible face of a missing ToUnicode/cmap); veraPDF still
@@ -140,12 +151,16 @@ describe("MatterhornChecklist.vue", () => {
     expect(w.text()).toMatch(/it informs, it\s+never grades/);
   });
 
-  it("explains all four coverage mechanisms in the legend", () => {
+  it("explains the three populated coverage mechanisms — and hides the empty veraPDF-only bucket", () => {
     const w = mount(MatterhornChecklist);
     expect(w.text()).toContain("Audit engine");
     expect(w.text()).toContain("Engine + veraPDF");
-    expect(w.text()).toMatch(/independent checker described above/);
     expect(w.text()).toContain("Human review");
+    // The veraPDF-only bucket is empty since 2026-09-01 (05/24/29 have no
+    // UA-1 rules and moved to human review); an "(0)" legend row would
+    // promise a mechanism that never fires.
+    expect(w.text()).not.toMatch(/independent checker described above/);
+    expect(w.text()).not.toContain("(0)");
     // The human-review line must name the manual-review card — the honest
     // "no software can do this" pressure valve.
     expect(w.text()).toMatch(/manual-review card/);

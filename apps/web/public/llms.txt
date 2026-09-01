@@ -49,8 +49,10 @@ Approximate category weights by format:
 The application exposes a REST API. There are no accounts and no sign-in: every endpoint is public and rate-limited per IP, so no credential is required. (Deployments may configure a single privileged fleet service token — `Authorization: Bearer <API_PRIVILEGED_TOKEN>` — which unlocks a generous rate tier and the URL-allowlist bypass on the URL-audit endpoints; it is a service credential for fleet automation, not a user account.)
 
 - POST /api/analyze - Upload a PDF, Word, PowerPoint, or Excel file for analysis (multipart/form-data, field: "file", max 25 MB)
+- POST /api/analyze-job + GET /api/analyze-job/:id - The same analysis as an async job: the POST returns 202 with a jobId immediately, the GET polls per-step progress until the full result is ready (what the web UI uses)
 - POST /api/analyze-url - Audit a document (any of the four formats) by URL instead of upload (JSON body: `{ "url": "..." }`); returns the same result shape as /api/analyze
 - POST /api/audit-url - Audit a document by URL and persist a shareable report in one call, for fleet-inventory automation (returns score, grade, and a reportUrl)
+- POST /api/audit-url-page - Audit an HTML page (not a document) by URL: renders it in headless Chromium, runs axe-core, persists a shareable report; companion to /api/audit-url for fleet page audits (JSON body: `{ "url": "..." }`)
 - POST /api/bulk-from-inventory - Score every file (any of the four formats) in a filecap NDJSON inventory in one request; returns a summary + per-file results manifest
 - POST /api/reports - Create a shareable report link (JSON body: `{ "report": ... }`)
 - GET /api/reports/:id - Retrieve a shared report by ID

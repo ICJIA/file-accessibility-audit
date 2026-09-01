@@ -90,7 +90,11 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "05",
     name: "Sound",
-    coverage: "verapdf",
+    // Human-only: veraPDF's PDF/UA-1 profile carries no rules for clause
+    // 7.14 (media alternatives), so a "checked by veraPDF" label could
+    // never fire — it read as machine coverage that does not exist
+    // (corrected 2026-09-01).
+    coverage: "human",
     summary: "Audio content carries text alternatives.",
   },
   {
@@ -205,7 +209,8 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "24",
     name: "Non-Interactive Forms",
-    coverage: "verapdf",
+    // Human-only: no UA-1 rules for clause 7.19 (corrected 2026-09-01).
+    coverage: "human",
     summary: "Print-and-fill form layouts are marked as such.",
   },
   {
@@ -235,7 +240,8 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "29",
     name: "Actions",
-    coverage: "verapdf",
+    // Human-only: no UA-1 rules cover action accessibility (corrected 2026-09-01).
+    coverage: "human",
     summary: "Scripted actions stay accessible.",
   },
   {

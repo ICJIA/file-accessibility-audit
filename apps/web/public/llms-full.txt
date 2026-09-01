@@ -45,7 +45,7 @@ Category weights by format (a scored category's weights within one format always
 | Alt Text on Images | 15% | 18% | 18% | 18% | 1.1.1 (A) |
 | Table Markup | 10% | 12% | 10% | 25% | 1.3.1 (A) |
 | Reading Order | 10% | not assessed | 10% | — | 1.3.2 (A) |
-| Bookmarks / Navigation | 5% | — | — | — | 2.4.5 (AA) |
+| Bookmarks / Navigation | 5% | — | — | — | — (best practice; never scored) |
 | Color Contrast | not assessed | 12% | 10% | 12% | 1.4.3 (AA) |
 | List Structure | — | 9% | 7% | — | 1.3.1 (A) |
 | Link & URL Quality | 5% | 8% | 8% | 10% | 2.4.4 (A) |
@@ -63,11 +63,11 @@ Checks the document's metadata for a title (the first thing a screen reader anno
 
 ### Heading Structure
 PDF 15% · Word 18%. WCAG 1.3.1 Info and Relationships (A), 2.4.6 Headings and Labels (AA).
-Checks for a real, logically-ordered heading hierarchy — H1-H6 structure tags in PDF, "Heading 1"-"Heading 6" paragraph styles in Word — flagging skipped levels and, for PDF, generic unleveled heading tags (including MIXING generic H tags with numbered H1-H6 in one document, which PDF/UA prohibits — Matterhorn 14-002). Word additionally flags "fake headings": text visually formatted to look like a heading (bold, larger font) without a real Heading style applied, which is invisible to assistive technology even though it looks like a heading on screen. Not applicable to PowerPoint (which has Slide Titles instead, PowerPoint's outline mechanism) or Excel.
+Checks for a real, logically-ordered heading hierarchy — H1-H6 structure tags in PDF, "Heading 1"-"Heading 6" paragraph styles in Word — flagging skipped levels and, for PDF, generic unleveled heading tags (including MIXING generic H tags with numbered H1-H6 in one document, which PDF/UA prohibits — Matterhorn 14-007). Word additionally flags "fake headings": text visually formatted to look like a heading (bold, larger font) without a real Heading style applied, which is invisible to assistive technology even though it looks like a heading on screen. Not applicable to PowerPoint (which has Slide Titles instead, PowerPoint's outline mechanism) or Excel.
 
 ### Slide Titles
 PowerPoint 18% only — PowerPoint-specific; there is no separate Heading Structure category for slides. WCAG 1.3.1 (A), 2.4.6 (AA).
-Every slide needs a title placeholder — PowerPoint's equivalent of a heading — so screen-reader users can tell slides apart in the outline and jump directly to one. Flags slides with no title and slides that duplicate another slide's title.
+Every slide needs a title placeholder — PowerPoint's equivalent of a heading — so screen-reader users can tell slides apart in the outline and jump directly to one. What is scored (since v1.150.0) is a heading typed into a plain text box instead of the title placeholder — visually a title, invisible to the outline (WCAG 1.3.1, Level A, 15 points per slide up to 40). Slides with no title at all, and slides that duplicate another slide's title, are reported as clearly labelled advisories and never scored.
 
 ### Sheet Names
 Excel 18% only — Excel-specific. WCAG 2.4.6 Headings and Labels (AA).
@@ -85,12 +85,12 @@ PDF 10% · Word 12% · PowerPoint 10% · Excel 25%. WCAG 1.3.1 Info and Relation
 Checks that data tables have a marked header row/cell so screen readers can associate each cell with its row/column header as a user navigates. Word and PowerPoint also flag nested tables as hard to navigate. Excel weights this category highest of any format (25%) — whether tabular data is a real Excel Table object with a header row, versus a plain unstructured range of typed cells, is the single biggest accessibility factor for a spreadsheet; Excel also flags merged cells as an advisory finding (not a hard penalty), since they can confuse screen-reader cell navigation; since v1.95.0 Word tables get the same merged-cell advisory (gridSpan + vMerge) plus a note for entirely empty spacing rows, and Excel additionally discloses hidden sheets (excluded from the audit) and data that starts far from cell A1.
 
 ### Reading Order
-PDF 10% (active) · PowerPoint 10% (active) · Word: always "not assessed" · not applicable to Excel. WCAG 1.3.2 Meaningful Sequence (A).
-For PDF, this checks structure-tree depth and content ordering (MCID sequence) against the page's content stream. For PowerPoint, it checks that each slide's title is the first shape in that slide's shape/tab order, so a screen reader announces the title before the body content — dense slides (10+ shapes) get an additional advisory to check manually. For Word, the linear document flow generally preserves reading order automatically; since v1.95.0 floating (anchored) objects are counted and named for manual review, but their placement is not evaluated, so the category is always shown as "not assessed" rather than scored (this is the one category where PowerPoint is scored but Word — otherwise the more fully-scored Office format — is not).
+PDF 10% · PowerPoint 10% · Word: always "not assessed" · not applicable to Excel. WCAG 1.3.2 Meaningful Sequence (A).
+For PDF, the scored condition is a document with no structure tree at all — assistive technology then has no reading order to follow; structure-tree depth and content ordering (MCID sequence) inform advisories. For PowerPoint, the category verifies that each slide's title is the first shape in that slide's shape/tab order, so a screen reader announces the title before the body content — reported as a clearly labelled advisory, never counted (the category scores 100 whenever it is assessable); dense slides (10+ shapes) get an additional advisory to check manually. For Word, the linear document flow generally preserves reading order automatically; since v1.95.0 floating (anchored) objects are counted and named for manual review, but their placement is not evaluated, so the category is always shown as "not assessed" rather than scored (this is the one category where PowerPoint is scored but Word — otherwise the more fully-scored Office format — is not).
 
 ### Bookmarks / Navigation
 PDF 5% only — not present at all in the Word, PowerPoint, or Excel category sets. WCAG 2.4.5 Multiple Ways (AA).
-Checks for outline/bookmark entries, but only for PDFs of 10 or more pages; shorter documents score "not applicable" rather than being penalized for missing bookmarks.
+Checks for outline/bookmark entries in PDFs of 10 or more pages; shorter documents score "not applicable". No bookmark finding of any kind is scored — a missing outline and an entry-less outline dictionary are both reported as clearly labelled advisories, and the category always contributes its weight at 100. WCAG 2.1 A/AA does not require bookmarks in a document (2.4.5 Multiple Ways is scoped to sets of web pages), which is why this is disclosed as best-practice advice rather than counted.
 
 ### Color Contrast
 PDF: always "not assessed" (rendered-PDF contrast analysis is not yet implemented — this is the one category never computed for PDF at all). Word 12% · PowerPoint 10% · Excel 12%. WCAG 1.4.3 Contrast (Minimum) (AA).
@@ -102,7 +102,7 @@ Distinguishes real list formatting (Word's Bullets/Numbering styles; PowerPoint'
 
 ### Link & URL Quality
 PDF 5% · Word 8% · PowerPoint 8% · Excel 10%. WCAG 2.4.4 Link Purpose (In Context) (A).
-The percentage of hyperlinks that use descriptive text rather than a raw URL or a vague phrase ("click here", "read more", "this link") — link text that's meaningless when a screen-reader user pulls up a list of links out of context. Not applicable if the document has no links.
+What is scored for PDF: untagged links — link annotations no /Link structure element claims, which a screen reader following the tags never encounters (WCAG 1.3.1, A) — and links with no text at all, which reach a screen reader with no name to announce (WCAG 4.1.2 Name, Role, Value, A). A link whose text the tool could not attribute (rotated text, image-only links) is flagged for hand-checking, never scored. Link wording — raw URLs as text, or vague phrases ("click here", "read more", "this link") — is reported as a clearly labelled advisory and never scored: WCAG 2.4.4 (A) allows a link's purpose to come from surrounding context, which no text-only check can weigh. For Word/PowerPoint/Excel, wording-quality findings are likewise advisories. Not applicable if the document has no links.
 
 ### Form Accessibility
 PDF 5% (scored) · always "not assessed" for Word, PowerPoint, and Excel. WCAG 1.3.1 (A), 3.3.2 Labels or Instructions (A), 4.1.2 Name, Role, Value (A).
@@ -139,7 +139,7 @@ Each category also carries an individual severity label, derived from that categ
 
 ## Standards Alignment
 
-- **WCAG 2.1 Level AA** — the default, operative standard, and the version ADA Title II and the Illinois IITAA both name (WCAG 2.2 is a strict superset of it; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can revert its displayed standard to WCAG 2.1 via the `WCAG_VERSION=2.1` environment variable.
+- **WCAG 2.1 Level AA** — the default, operative standard, and the version ADA Title II and the Illinois IITAA both name (WCAG 2.2 is a strict superset of it; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can display WCAG 2.2 instead via the `WCAG_VERSION=2.2` environment variable (2.1 is the default).
 - **ADA Title II** — the U.S. Department of Justice's digital accessibility rule for state and local government, requiring WCAG 2.1 AA. Compliance is due April 26, 2027 for entities with a population of 50,000 or more, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026).
 - **Illinois IITAA 2.1** (§E205.4) — the Illinois Information Technology Accessibility Act; frames final non-web document accessibility through WCAG 2.1 AA, the standard this tool reports against by default.
 - **Section 508** — the U.S. federal accessibility standard, aligned with WCAG 2.0/2.1 AA.

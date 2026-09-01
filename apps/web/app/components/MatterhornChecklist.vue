@@ -357,7 +357,11 @@ const coverageCount = computed(() => {
                 can check ({{ coverageCount["engine-partial"] }})</span
               >
             </li>
-            <li class="flex items-start gap-2">
+            <!-- Empty since 2026-09-01: the three checkpoints that carried this
+                 label (05, 24, 29) have no rules in veraPDF's PDF/UA-1 profile,
+                 so the promise could never fire — they are human review now.
+                 The bucket stays for any future checkpoint that earns it. -->
+            <li v-if="coverageCount.verapdf > 0" class="flex items-start gap-2">
               <span
                 class="mt-px inline-block shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border-amber-500/40 bg-amber-500/10 text-amber-300"
                 >veraPDF</span
