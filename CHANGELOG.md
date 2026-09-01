@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.152.0] - 2026-08-31
+
+### Fixed
+
+- **The AI summary named a criterion that was not failing.** Found on a real Word bio: the file has no document title but declares its language correctly, so it fails WCAG 2.4.2 and nothing else. The summary listed **both** 2.4.2 and 3.1.1 Language of Page under the failing category, and printed the evidence line "Document language: en-US" beneath a heading reading "these are what fails WCAG 2.1 here". The language is fine. Anyone pasting that into an assistant was being told to fix correct markup. The cause was the summary listing every criterion a category *can* fail rather than the ones the conformance verdict actually attributed to it — the checker already knew the difference. Reports saved before per-criterion attribution existed fall back to the old list, labelled as "criteria this category covers", never as failures.
+- **The findings list no longer claims to be a list of failures.** A category's findings mix the defect with census lines the checker always emits, and it cannot tell them apart from the text alone. It now says so, and points at the criteria block as the authoritative list.
+
+### Added
+
+- **The AI summary now carries the optional work too, fenced off from the legal part.** Two new sections below the failing categories: best practices that are *not met*, and — for PDFs — veraPDF's independent PDF/UA verdict. Both state plainly that nothing in them is scored or required by the ADA Title II rule or the IITAA. Only not-met rows appear: a practice the document already satisfies is noise in a remediation request, and the filter has a second benefit — the era gate that ages out a stale "met" on an old saved report cannot affect a not-met row, so the summary stays honest on reports of any age without needing to know when they were made.
+- **veraPDF's section prints only when veraPDF actually ran.** The verdict is attached even when the checker was unavailable, so that a report can disclose the gap rather than hide it; saying nothing there is right, and implying a pass would not be.
+- **A document that passes WCAG outright no longer reports that there is nothing to do.** That branch ended at "no remediation is needed" while the report on screen listed real optional work — the exact case the `synthetic-125` control document was built to represent. It now says no *WCAG 2.1* remediation is needed, and lists the optional items.
+- **A sixth instruction to the assistant, making the separation structural.** The fifth already stated the principle — WCAG is the law, PDF/UA is industry best practice. The sixth tells the assistant to keep the optional sections out of its prioritised list entirely, because a model given only the principle still tends to merge the two over a long answer.
+
 ## [1.151.1] - 2026-08-31
 
 ### Fixed

@@ -1338,6 +1338,22 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.152.0 — 2026-08-31 · The AI summary named a criterion that was not failing (no new attack surface)
+
+No new attack surface: presentation only. `aiAnalysis.ts` builds a text blob from a payload the app already holds; no new data path, input, output or endpoint.
+
+**The defect.** `Jayden Anderson-Baker Bio.docx` has an empty `<dc:title>` and a correctly declared `w:lang="en-US"`. The analyzer got it exactly right — `conformance.failures` held **one** entry, `2.4.2`. The AI export then printed `getWcagCriteriaStrings("title_language")`, which returns the whole static map for that category: **2.4.2 AND 3.1.1 Language of Page**. Under a heading inside "Failing categories", with the category's own evidence line `"Document language: en-US"` filed beneath **"Findings (these are what fails WCAG 2.1 here)"**.
+
+That is the one export built to be pasted into an LLM, so it was an instruction to "fix" markup that was already correct. Criteria now come from the conformance verdict; stored reports predating per-criterion attribution fall back to the map, labelled "criteria this category covers" — never as failures. The findings heading no longer claims the list *is* the failures, because a category's findings legitimately mix the defect with unconditional census lines and the export cannot tell them apart from text alone.
+
+**Added, at the user's request: the optional work, fenced.** Two sections below the failing categories — best practices reading NOT MET, and veraPDF's PDF/UA verdict for PDFs — each stating that nothing in it is scored or required by the ADA Title II rule or the IITAA. **Not-met rows only**: a met row is noise in a remediation prompt, and the filter also makes the export era-safe, since the best-practice era gate only ever downgrades a *met* row. veraPDF prints only when `available` — the verdict is attached even when it did not run (v1.91.0) so a report can disclose the gap, and implying a pass there would be worse than silence.
+
+**The clean-document branch was lying by omission.** With no failing categories it short-circuited to "No remediation is needed at this time" while the on-screen report listed real optional work — the `synthetic-125` case exactly. Now "No WCAG 2.1 remediation is needed", followed by the optional items.
+
+Instruction 5 is new and structural ("do not put anything from those sections in your prioritised list"); the old 5 becomes 6 and still states the principle. Both are needed: a model given only the principle merges the two over a long answer.
+
+**Three sabotage proofs**, each failing its own named test and nothing else: print veraPDF when it never ran; include met rows; restore the static criteria map. Two of the tests were rewritten first because they proved nothing — one had been commented out entirely by a literal `\n` in the patch that wrote it, and the other asserted on the word "MET" which the export never prints. Tests 3,437.
+
 ### v1.151.1 — 2026-08-31 · What a page-level contrast sweep cannot see (no new attack surface)
 
 No new attack surface: presentation only. Two CSS rules, one style binding, two hex values.

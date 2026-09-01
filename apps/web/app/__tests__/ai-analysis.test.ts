@@ -127,9 +127,12 @@ describe("buildAiAnalysis", () => {
 
   it("includes WCAG references for failing categories", () => {
     const out = buildAiAnalysis(baseResult());
-    // alt_text maps to WCAG 1.1.1; default version is 2.1 (since 2026-08-31)
-    expect(out).toContain("WCAG 2.1 references"); // the cited criteria are 2.1-pure
+    // alt_text maps to WCAG 1.1.1; default version is 2.1 (since 2026-08-31).
+    // This fixture carries no conformance verdict, so it takes the FALLBACK
+    // branch — which must never claim the listed criteria are the failures.
+    expect(out).toContain("WCAG 2.1 criteria this category covers"); // the cited criteria are 2.1-pure
     expect(out).toMatch(/1\.1\.1/);
+    expect(out).not.toContain("criteria this category fails");
   });
 
   it("short-circuits to a compact message when nothing fails", () => {
@@ -168,7 +171,7 @@ describe("buildAiAnalysis", () => {
         ],
       }),
     );
-    expect(out).toContain("No remediation is needed");
+    expect(out).toContain("No WCAG 2.1 remediation is needed");
     expect(out).toContain("Scored categories passed: 2");
     // No detailed sections for a clean document
     expect(out).not.toContain("## Failing categories");
@@ -177,14 +180,225 @@ describe("buildAiAnalysis", () => {
     expect(out).not.toContain("WCAG 2.1 references");
   });
 
-  it("includes the five remediation questions, ending with the standards guardrail", () => {
+  it("includes the six remediation questions, ending with the standards guardrail", () => {
     const out = buildAiAnalysis(baseResult());
     expect(out).toContain("## What I'd like from you");
     expect(out).toMatch(/1\. .+/);
-    // #5 (v1.141.0): the AI must never present PDF/UA or "not scored" items
-    // as legally required — WCAG 2.1 is the law, PDF/UA is best practice.
-    expect(out).toMatch(/5\. Keep the two standards straight/);
+    // #5 states the separation STRUCTURALLY (keep optional work out of the
+    // prioritised list); #6 states the principle behind it. Both are needed:
+    // an LLM given only the principle still tends to merge the two over a
+    // long answer, which is the whole risk of carrying best practice here.
+    expect(out).toMatch(/5\. Do NOT put anything from the "Also worth doing"/);
+    expect(out).toMatch(/6\. Keep the two standards straight/);
     expect(out).toMatch(/never present it as legally required/);
+  });
+
+  describe("extra credit — best practice and PDF/UA, fenced off from the legal section", () => {
+    const withRawUrls = (extra: any = {}) =>
+      baseResult({
+        fileType: "pdf",
+        categories: [
+          ...baseResult().categories,
+          {
+            id: "link_quality",
+            label: "Link Quality",
+            score: 100,
+            grade: "A",
+            severity: "No issues found",
+            findings: ["4 links use the raw URL as their visible text."],
+            explanation: "Checks link text.",
+          },
+        ],
+        ...extra,
+      });
+
+    it("lists a not-met best practice, labelled as neither scored nor required", () => {
+      const out = buildAiAnalysis(withRawUrls());
+      expect(out).toContain(
+        "Also worth doing — best practice, NOT scored and NOT required by WCAG 2.1",
+      );
+      expect(out).toContain("Link text is not a raw URL");
+      expect(out).toMatch(/4 links in this document use the raw web address/);
+      // It must never be presented as a failure or as law.
+      const legalBlock = out.split("## Also worth doing")[0]!;
+      expect(legalBlock).not.toContain("Link text is not a raw URL");
+    });
+
+    it("omits MET rows — a remediation prompt only wants what is left to do", () => {
+      // The fixture must actually PRODUCE a met row, or this proves nothing:
+      // "all fonts are embedded" on text_extractability is font-embedding's
+      // MET witness. Sabotage check: widen the filter to include "met" and
+      // the "Fonts are embedded" assertion below fails.
+      const out = buildAiAnalysis(
+        withRawUrls({
+          categories: [
+            {
+              id: "text_extractability",
+              label: "Text Extractability",
+              score: 90,
+              grade: "A",
+              severity: "Pass",
+              findings: ["Text is selectable on all pages.", "All fonts are embedded."],
+              explanation: "Checks whether the PDF exposes real text.",
+            },
+            {
+              id: "alt_text",
+              label: "Alt Text",
+              score: 20,
+              grade: "F",
+              severity: "Critical",
+              findings: ["3 images missing alt text"],
+              explanation: "Ensures non-decorative images have alt text.",
+            },
+            {
+              id: "link_quality",
+              label: "Link Quality",
+              score: 100,
+              grade: "A",
+              severity: "No issues found",
+              findings: ["4 links use the raw URL as their visible text."],
+              explanation: "Checks link text.",
+            },
+          ],
+        }),
+      );
+      // The not-met row is there...
+      expect(out).toContain("Link text is not a raw URL");
+      // ...and the met one is not.
+      expect(out).not.toContain("Fonts are embedded");
+    });
+
+    it("prints the veraPDF verdict only when veraPDF actually ran", () => {
+      const ran = buildAiAnalysis(
+        withRawUrls({
+          pdfUaVerdict: {
+            available: true,
+            passed: false,
+            profile: "PDF/UA-1",
+            totalFailureCount: 7,
+            distinctRuleCount: 2,
+            failures: [
+              { ruleId: "7.1-1", clause: "7.1", description: "Content not tagged.", count: 5 },
+              { ruleId: "7.2-1", clause: "7.2", description: "Heading nesting.", count: 2 },
+            ],
+          },
+        }),
+      );
+      expect(ran).toContain(
+        "Independent PDF/UA check (veraPDF) — ISO 14289, NOT the legal standard",
+      );
+      expect(ran).toMatch(/Clause 7\.1 \(7\.1-1\) ×5/);
+      expect(ran).toMatch(/7 failure\(s\) across 2 distinct rule\(s\)/);
+
+      // available:false is attached DELIBERATELY (v1.91.0) so a report can
+      // disclose the gap. Saying nothing is right; implying a pass is not.
+      const didNotRun = buildAiAnalysis(
+        withRawUrls({
+          pdfUaVerdict: {
+            available: false,
+            passed: false,
+            profile: "PDF/UA-1",
+            totalFailureCount: 0,
+            failures: [],
+          },
+        }),
+      );
+      // Assert on the SECTION HEADING. Instruction #5 quotes this phrase
+      // verbatim, so a bare substring check matches the instruction instead
+      // of the section and passes no matter what the guard does.
+      expect(didNotRun).not.toContain("## Independent PDF/UA check");
+      // "Verdict:" is NOT a usable signal here — the File block already
+      // carries "- Verdict: Not accessible" for every report.
+      expect(didNotRun).not.toContain("machine-checkable conditions");
+      expect(didNotRun).not.toContain("PASSED");
+    });
+
+    it("still lists optional work when nothing fails WCAG — the synthetic-125 case", () => {
+      // A document can pass 2.1 outright and still have real best-practice
+      // debt. This branch used to short-circuit to "no remediation needed"
+      // while the on-screen report listed items.
+      const clean = withRawUrls({
+        grade: "A",
+        overallScore: 100,
+        categories: [
+          {
+            id: "text_extractability",
+            label: "Text Extractability",
+            score: 100,
+            grade: "A",
+            severity: "Pass",
+            findings: ["Text is selectable on all pages."],
+            explanation: "Checks whether the PDF exposes real text.",
+          },
+          {
+            id: "link_quality",
+            label: "Link Quality",
+            score: 100,
+            grade: "A",
+            severity: "No issues found",
+            findings: ["4 links use the raw URL as their visible text."],
+            explanation: "Checks link text.",
+          },
+        ],
+      });
+      const out = buildAiAnalysis(clean);
+      expect(out).toContain("No WCAG 2.1 remediation is needed");
+      expect(out).toContain("Also worth doing");
+      expect(out).toContain("Link text is not a raw URL");
+    });
+
+    it("instructs the AI to keep optional work out of the prioritised list", () => {
+      const out = buildAiAnalysis(withRawUrls());
+      expect(out).toMatch(/Do NOT put anything from the "Also worth doing"/);
+      expect(out).toMatch(/label them optional/);
+    });
+  });
+
+  it("names only the criteria the verdict attributes, not every criterion the category covers", () => {
+    // THE BUG (2026-08-31, found on a real Word bio): title_language maps to
+    // BOTH 2.4.2 (title) and 3.1.1 (language). A document with no title but a
+    // correctly declared `w:lang` fails ONLY 2.4.2 — yet the export printed the
+    // whole map under a heading inside "Failing categories", telling the reader
+    // a perfectly good language declaration was a Level A failure. This export
+    // exists to be pasted into an LLM, so that was an instruction to "fix"
+    // correct markup. Sabotage check: restore `getWcagCriteriaStrings(c.id)` as
+    // the primary source and the 3.1.1 assertion below fails.
+    const r = baseResult({
+      categories: [
+        {
+          id: "title_language",
+          label: "Title & Language",
+          score: 50,
+          severity: "Moderate",
+          explanation: "A meaningful title and a declared language are announced on open.",
+          findings: ["No document title is set.", "Document language: en-US"],
+        },
+      ],
+      conformance: {
+        status: "fail",
+        failures: [
+          {
+            sc: "2.4.2",
+            name: "Page Titled",
+            level: "A",
+            category: "title_language",
+            issue: "The document has no title in its properties.",
+          },
+        ],
+        notAssessed: [],
+        headline: "1 confirmed failure.",
+      },
+    } as Parameters<typeof baseResult>[0]);
+    const out = buildAiAnalysis(r);
+
+    expect(out).toContain("WCAG 2.1 criteria this category fails");
+    expect(out).toMatch(/2\.4\.2 Page Titled \(Level A\)/);
+    // The language is DECLARED. It must not be named as a failing criterion.
+    expect(out).not.toMatch(/3\.1\.1/);
+    expect(out).not.toContain("Language of Page");
+    // And the evidence line must not sit under a claim that it is a failure.
+    expect(out).not.toMatch(/these are what fails/);
+    expect(out).toContain("Document language: en-US");
   });
 
   it("splits not-scored best-practice lines out of a failing category's findings", () => {
@@ -204,7 +418,7 @@ describe("buildAiAnalysis", () => {
       ],
     });
     const out = buildAiAnalysis(r);
-    expect(out).toMatch(/Findings \(these are what fails WCAG 2\.1 here\):/);
+    expect(out).toMatch(/What the checker reported in this category/);
     expect(out).toMatch(/best practice, NOT scored and NOT required by WCAG 2\.1:/);
     // The not-scored line must appear ONLY under the best-practice header.
     const legalBlock = out.split("Also reported")[0]!;

@@ -61,6 +61,27 @@ export interface NotAssessedCriterion {
   url: string;
 }
 
+/** One machine-checkable PDF/UA-1 rule veraPDF found failing. */
+export interface PdfUaRuleFailure {
+  ruleId: string;
+  clause: string;
+  description: string;
+  count: number;
+}
+
+/** veraPDF's PDF/UA-1 (ISO 14289-1) verdict. Machine-checkable conditions
+ *  only — never a claim of full PDF/UA conformance, and never part of the
+ *  score: the law names WCAG, not PDF/UA. */
+export interface PdfUaVerdict {
+  available: boolean;
+  passed: boolean;
+  profile: string;
+  failures: PdfUaRuleFailure[];
+  totalFailureCount: number;
+  distinctRuleCount?: number;
+  error?: string;
+}
+
 export interface ConformanceVerdict {
   status: "fail" | "no-automated-failures" | "incomplete";
   failures: ConformanceFinding[];
@@ -83,6 +104,11 @@ export interface ReportResult {
   scoringMode?: ScoringMode;
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
   conformance?: ConformanceVerdict;
+  /** veraPDF's PDF/UA-1 machine check. PDF results only, and absent on stored
+   *  reports from before v1.91.0 — the AI export prints the section only when
+   *  it is present AND `available`, so an older payload says nothing rather
+   *  than implying the check passed. */
+  pdfUaVerdict?: PdfUaVerdict;
   fileType?: "pdf" | "docx" | "pptx" | "xlsx";
   /** Stored PDF document info; `creator` drives the plan's InDesign-aware
    *  source steps. Optional — OOXML reports and old stored PDFs lack it. */

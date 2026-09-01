@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.152.0",
+    meta: "Reviewed <strong>2026-08-31</strong> &middot; scope: the plain-text summary offered for pasting into an AI assistant.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: presentation only. The summary is assembled from information the report already contains &mdash; no new data is collected, stored or sent anywhere.",
+      },
+      {
+        kind: "p",
+        html: "A Word document submitted for checking had no title but did declare its language correctly. The checker judged this exactly right and recorded a single failure. The summary offered for pasting into an assistant, however, listed <strong>two</strong> rules as failing &mdash; adding one about language &mdash; and printed the line &ldquo;Document language: en-US&rdquo; underneath a heading saying those were the failures. The language was fine. Anyone following that summary would have been told to change something that was already correct.",
+      },
+      {
+        kind: "p",
+        html: "The cause was the summary listing every rule a category <em>can</em> fail rather than the ones actually found failing, which the report already knew. It now takes them from the verdict itself. Reports saved before that detail was recorded fall back to the older list, clearly labelled as rules the category covers rather than as failures.",
+      },
+      {
+        kind: "p",
+        html: "The summary also gained two clearly separated sections, at a reader&rsquo;s request: work that is worth doing but is not required by law, and the independent PDF/UA check for PDF files. Both state plainly that nothing in them is scored or legally required, and the summary now instructs the assistant to keep them out of its priority list. A document that passes outright no longer says there is nothing to do when there is optional work worth listing.",
+      },
+    ],
+  },
+  {
     version: "v1.151.1",
     meta: "Reviewed <strong>2026-08-31</strong> &middot; scope: the pop-up panels, which the previous review could not see.",
     body: [
