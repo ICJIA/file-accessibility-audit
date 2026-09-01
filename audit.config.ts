@@ -258,6 +258,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "title-nobody-hears-2026-09-01",
+    badge: "Scoring",
+    text: "A title nobody hears now counts as half a title \u2014 some PDF scores will move. A PDF can have a perfectly good title and still tell every PDF viewer to show the filename instead; that is what an unset \u201cshow document title\u201d preference does, and for someone using a screen reader the result is the same as having no title at all. The W3C\u2019s own accessibility technique for PDF titles is to switch that preference on, and it is a two-click fix in Acrobat (Document Properties \u2192 Initial View \u2192 Show: Document Title). Until now the report mentioned it as a best practice and charged nothing; a title that is set but hidden now earns half of the title\u2019s points instead of all of them, and the finding tells you exactly where the switch is. Most well-made documents already have it right \u2014 in our reference corpus, 43 of the 47 titled documents did. The same review also fixed accusations in the other direction: a white slide title sitting on a dark banner is no longer misread as white-on-white, a lone typed \u201c1.\u201d is no longer treated as a broken list, and titles stored only in a PDF\u2019s newer metadata block are finally read at all.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "September 1, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "light-mode-contrast-2026-08-31",
     badge: "Fixed",
     text: "Light mode had never been tested, and it was hard to read. This app opens in dark mode, so every automatic check it runs on itself had only ever looked at the dark version \u2014 including the checks behind the claim that both were fine. Switching the default and re-testing found 136 places where text was too faint against its background, most of them on the data-retention page, and one on this page at roughly a quarter of the required contrast. All are fixed, and every page now passes in both appearances. Publishing the number rather than quietly correcting it seemed the only consistent thing to do, given that faint text is one of the things this tool checks other people's documents for.",

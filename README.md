@@ -1378,6 +1378,12 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.153.0 — 2026-09-01 · Fresh-eyes accuracy audit, DisplayDocTitle scoring, documentation sweep (no new attack surface)
+
+No new attack surface: scoring logic, report copy, and documentation only — no new endpoint, input, output, storage, or dependency. The release also records the security review that accompanied the audit: the 108 commits from the two preceding days (v1.148.x through v1.152.0) were read for injection surfaces, new data paths, and privilege changes, with no finding at reportable confidence. The one new browser-side persistence from that window — the audit-survives-leaving session store — is written only by the audit page, holds a server-produced payload, renders through the same escaped components as a live result, and is cleared when the tab closes.
+
+**What changed here.** The DisplayDocTitle viewer preference joins the scored tier under WCAG 2.4.2 (a set title the viewer never displays earns half credit), links with no announceable text are scored under 4.1.2, and the accuracy fixes from the fresh-eyes audit are named in the CHANGELOG. The legal-basis CI gate now checks both directions (deduction without criterion, criterion without deduction). The Matterhorn checklist no longer claims veraPDF coverage for three checkpoints its profile has no rules for — an overclaim in the tool's favour, now pinned closed by tests.
+
 ### v1.152.0 — 2026-08-31 · The AI summary named a criterion that was not failing (no new attack surface)
 
 No new attack surface: presentation only. `aiAnalysis.ts` builds a text blob from a payload the app already holds; no new data path, input, output or endpoint.

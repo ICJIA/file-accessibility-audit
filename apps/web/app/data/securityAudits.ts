@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.153.0",
+    meta: "Reviewed <strong>2026-09-01</strong> &middot; scope: a fresh-eyes accuracy audit of the product, plus a security read of the two preceding days' changes.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: this release is scoring logic, report copy, and documentation — no new endpoint, input, output, storage, or dependency. It also records the security review that ran alongside the accuracy audit: the 108 commits from the two preceding days (v1.148.x through v1.152.0) were read for injection surfaces, new data paths, and privilege changes.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>No finding at reportable confidence.</strong> The one new browser-side persistence in the reviewed window — the store that lets an audit survive leaving the page — is written only by the audit page itself, holds a server-produced payload, renders through the same escaped components as a live result, and is cleared when the tab closes. Nothing user-supplied gains a new path into markup.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>An overclaim in the tool's favour, closed.</strong> The Matterhorn checklist labelled three checkpoints \u201cchecked by veraPDF\u201d that its PDF/UA-1 profile has no rules for, so the promise could never fire and reports rendered them as machine-clean. All three now read \u201chuman review\u201d, and tests pin the correction.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>The legal-basis CI gate now checks both directions.</strong> A deduction must name a failing WCAG criterion, and a criterion the verdict names must correspond to a deduction \u2014 the converse check found eleven real documents where a link census and the criterion disagreed, all corrected in this release.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.152.0",
     meta: "Reviewed <strong>2026-08-31</strong> &middot; scope: the plain-text summary offered for pasting into an AI assistant.",
     body: [
