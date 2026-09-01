@@ -38,7 +38,18 @@ export interface PdfjsResult {
   // lies inside its /Rect (approximate — it can include neighbouring words)
   // and is `tagged: false`, which is its real defect. `tagged` and `page` are
   // absent on stored reports from before this census existed.
-  links: Array<{ url: string; text: string; tagged?: boolean; page?: number }>;
+  links: Array<{
+    url: string;
+    text: string;
+    tagged?: boolean;
+    page?: number;
+    /** The text above is only the URL standing in for ABSENT text (no tag
+     *  text, no page text under the rectangle, on a page whose text
+     *  attribution is reliable) — an image-only or invisible link. The
+     *  scorer treats these as UNNAMED (WCAG 4.1.2, F89), never as the
+     *  raw-URL advisory. Absent on stored reports from before 2026-09-01. */
+    textIsUrlFallback?: boolean;
+  }>;
   // Link-annotation tagging census across all pages: visible /Link
   // annotations (external AND internal), and how many of them no structure
   // element references. Absent (undefined) on pre-census stored reports, so
@@ -253,6 +264,37 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       }
     } catch {}
 
+    // dc:title fallback (2026-09-01). Acrobat displays the XMP dc:title,
+    // PDF/UA requires it, and PDF 2.0 deprecates the Info dictionary — yet
+    // the title was read from Info.Title alone, so a PDF titled only in its
+    // XMP was accused of having no title (a confirmed 2.4.2 failure worth up
+    // to 21 points). The Info /Title stays authoritative when present.
+    try {
+      if (!result.title) {
+        const xmp = (metadata as any)?.metadata;
+        let t: unknown = xmp && typeof xmp.get === "function" ? xmp.get("dc:title") : undefined;
+        if ((t == null || `${t}`.trim() === "") && xmp && typeof xmp.getAll === "function") {
+          t = (xmp.getAll() || {})["dc:title"];
+        }
+        if ((t == null || `${t}`.trim() === "") && xmp && typeof xmp.getRaw === "function") {
+          const raw = xmp.getRaw();
+          if (typeof raw === "string" && raw.includes("dc:title")) {
+            // Scope the rdf:li search to the dc:title ELEMENT — an unset
+            // title is a self-closing <rdf:li/>, and a packet-wide greedy
+            // match ran through it into dc:creator and captured tag soup as
+            // the "title" (caught on three real corpus documents).
+            const titleBlock = raw.match(/<dc:title>([\s\S]*?)<\/dc:title>/i)?.[1];
+            const m =
+              (titleBlock ? titleBlock.match(/<rdf:li[^>]*>([\s\S]*?)<\/rdf:li>/i) : null) ??
+              raw.match(/dc:title\s*=\s*["']([^"']+)["']/i) ??
+              raw.match(/<dc:title[^>]*\/?>([^<]+)<\/dc:title>/i);
+            if (m && !m[1].includes("<")) t = m[1];
+          }
+        }
+        if (typeof t === "string" && t.trim()) result.title = t.trim();
+      }
+    } catch {}
+
     // Classify (but never erase) titles that look like filenames. The old
     // behavior nulled any no-space title (/^[a-z0-9_-]+$/), which erased
     // legitimate titles like "Introduction" or "Budget2024" and produced a
@@ -361,25 +403,35 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
             ),
           ];
           if (urls.length === 0) continue; // internal (GoTo) link, or no annotation at all
-          const text =
+          const derived =
             sl.text ||
             annots
               .map((a: any) => findLinkText(a, textItems))
               .filter(Boolean)
-              .join(" ") ||
-            urls[0];
-          for (const url of urls) result.links.push({ url, text, tagged: true, page: i });
+              .join(" ");
+          const text = derived || urls[0];
+          // No tag text and no page text under the rectangle: an image-only
+          // or invisible link. The URL stands in for display; the flag lets
+          // the scorer treat it as UNNAMED (F89) rather than a raw-URL
+          // advisory — but only on a page whose text attribution is
+          // reliable, because on a page we could not read, absent text
+          // proves nothing (the Canva empty-pairs shape).
+          const textIsUrlFallback = !derived && pageTextReliable ? true : undefined;
+          for (const url of urls)
+            result.links.push({ url, text, tagged: true, page: i, textIsUrlFallback });
         }
         let untagged = 0;
         for (const annot of linkAnnots) {
           if (claimed.has(annot)) continue;
           untagged++;
           if (annot.url) {
+            const found = findLinkText(annot, textItems);
             result.links.push({
               url: annot.url,
-              text: findLinkText(annot, textItems) || annot.url,
+              text: found || annot.url,
               tagged: false,
               page: i,
+              textIsUrlFallback: !found && pageTextReliable ? true : undefined,
             });
           }
         }

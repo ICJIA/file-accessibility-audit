@@ -2009,7 +2009,19 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   const untagged = taggingKnown ? pdfjs.links.filter((l) => l.tagged === false) : [];
   const assessable = taggingKnown ? pdfjs.links.filter((l) => l.tagged !== false) : pdfjs.links;
 
-  const classified = assessable.map((link) => ({
+  // Links whose "text" is only the URL standing in for text this tool could
+  // not attribute. NOT judged on wording in either direction (2026-09-01):
+  // filing them under the raw-URL advisory claimed "this satisfies WCAG
+  // 2.4.4" about text the reader never sees, and scoring them as unnamed
+  // 4.1.2 failures accused real documents falsely — probed on a real fact
+  // sheet, the flagged links were ROTATED credit lines whose text exists
+  // visually but defeats axis-aligned attribution. A genuinely image-only
+  // link with no alt IS F89, but this tool cannot tell that apart from
+  // rotated text, so these are reported for hand review, never scored.
+  const unattributed = assessable.filter((l) => l.textIsUrlFallback === true);
+  const attributable = assessable.filter((l) => l.textIsUrlFallback !== true);
+
+  const classified = attributable.map((link) => ({
     link,
     cls: classifyLinkText(link.text),
   }));
@@ -2041,7 +2053,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   const score = Math.floor(((total - failing) / total) * 100);
   const findings: string[] = [];
 
-  if (failing === 0 && rawUrls.length === 0 && vague.length === 0) {
+  if (failing === 0 && rawUrls.length === 0 && vague.length === 0 && unattributed.length === 0) {
     findings.push(`All ${total} link(s) use descriptive text`);
     findings.push(`--- Link Details ---`);
     for (const { link } of classified.slice(0, 20)) {
@@ -2113,6 +2125,18 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
       }
       if (rawUrls.length > 10) {
         findings.push(`  ... and ${rawUrls.length - 10} more`);
+      }
+    }
+    if (unattributed.length > 0) {
+      findings.push(
+        `Advisory — not scored: ${unattributed.length} link(s) expose no text this tool could attribute — often rotated text, or an image-only link. If one of these is genuinely an image with no alternative text, that is a WCAG 4.1.2 / 1.1.1 failure (F89); rotated text reads fine and merely defeats automated attribution. This tool cannot tell the two apart, so your grade is not affected — verify these by hand.`,
+      );
+      findings.push(`--- Links With No Attributable Text ---`);
+      for (const link of unattributed.slice(0, 10)) {
+        findings.push(`  (no attributable text)${linkPageSuffix(link)} → ${link.url}`);
+      }
+      if (unattributed.length > 10) {
+        findings.push(`  ... and ${unattributed.length - 10} more`);
       }
     }
     if (descriptive.length > 0) {

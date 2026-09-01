@@ -403,8 +403,16 @@ export function evaluateConformance(
   // about the tag tree, this one about the name) and from vague text, which
   // stays unscored because 2.4.4 lets context supply the purpose.
   {
+    // Mirrors the scorer exactly (2026-09-01): assessable links only, and a
+    // link whose text is only the URL fallback (textIsUrlFallback) is
+    // EXCLUDED — its text could not be attributed (rotated text defeats
+    // axis-aligned attribution on real documents), which is not evidence of
+    // an unnamed link. Those are reported as an unscored advisory instead.
     const unnamedLinks = (pdfjs.links ?? []).filter(
-      (l) => classifyLinkText(l.text ?? "") === "unnamed",
+      (l) =>
+        l.tagged !== false &&
+        l.textIsUrlFallback !== true &&
+        classifyLinkText(l.text ?? "") === "unnamed",
     ).length;
     if (unnamedLinks > 0) {
       add(

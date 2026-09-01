@@ -255,6 +255,12 @@ describe("analyzeWithPdfjs — link text and tagging census", () => {
     expect(r.untaggedLinkAnnotationCount).toBe(1);
   }, 30_000);
 
+  it("a tagged link WITH text never carries the URL-fallback flag", async () => {
+    const r = await analyzeWithPdfjs(pdf);
+    const tagged = r.links.find((l) => l.url === "https://example.org/annual-report");
+    expect(tagged!.textIsUrlFallback).toBeUndefined();
+  }, 30_000);
+
   it("emits exactly one entry per link (not one per annotation or per text run)", async () => {
     const r = await analyzeWithPdfjs(pdf);
     expect(r.links).toHaveLength(2);
@@ -335,4 +341,38 @@ describe("attribution reliability — link text", () => {
     const links = collectStructTreeLinks(altTree, byId, { textReliable: false });
     expect(links[0]!.text).toBe("Annual report portal");
   });
+});
+
+describe("analyzeWithPdfjs — the URL-fallback flag (image-only links, 2026-09-01)", () => {
+  // A <Link> element whose only kid is the OBJR — no content text, no /Alt —
+  // whose annotation sits over empty page area: nothing anywhere supplies a
+  // name, which is F89's case. The URL stands in as display text and the
+  // flag marks it as a fallback so the scorer files it UNNAMED.
+  const content = [
+    "/P << /MCID 0 >> BDC BT /F1 12 Tf 72 700 Td (Ordinary page text, well away from the link.) Tj ET EMC",
+    "",
+  ].join("\n");
+  const pdf = buildPdf([
+    "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [12 0 R] >>",
+    `<< /Length ${content.length} >>\nstream\n${content}endstream`,
+    "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 10 0 R >>",
+    "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+    "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+    "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [<< /Type /OBJR /Obj 12 0 R /Pg 3 0 R >>] >>",
+    "<< /Nums [0 [7 0 R 8 0 R]] >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Annot /Subtype /Link /Rect [300 300 340 320] /Border [0 0 0] /A << /S /URI /URI (https://example.org/logo) >> /StructParent 1 >>",
+  ]);
+
+  it("marks the link as a URL fallback and keeps the URL as display text", async () => {
+    const r = await analyzeWithPdfjs(pdf);
+    expect(r.error).toBeNull();
+    const link = r.links.find((l) => l.url === "https://example.org/logo");
+    expect(link).toBeDefined();
+    expect(link!.text).toBe("https://example.org/logo");
+    expect(link!.textIsUrlFallback).toBe(true);
+  }, 30_000);
 });

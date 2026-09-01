@@ -574,6 +574,57 @@ describe("scoreDocument — mixed results", () => {
     expect(result.conformance.failures.map((f) => f.category)).not.toContain("link_quality");
   });
 
+  it("a link whose text could not be attributed is an ADVISORY — neither 'satisfies 2.4.4' nor a 4.1.2 accusation", () => {
+    // pdfjsService falls back to the URL when neither the <Link> tag nor the
+    // page yields text. Probed on a real fact sheet, such links were ROTATED
+    // credit lines — text that exists visually and defeats axis-aligned
+    // attribution — so calling them unnamed (F89) would accuse real
+    // documents falsely, and filing them under the raw-URL advisory claimed
+    // 2.4.4 was satisfied by text the reader never sees. They are reported
+    // for hand review and never scored, in either direction.
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 9000,
+      pageCount: 10,
+      links: [
+        {
+          url: "https://example.org/logo-link",
+          text: "https://example.org/logo-link",
+          tagged: true,
+          page: 1,
+          textIsUrlFallback: true,
+        },
+        { url: "https://example.org/b", text: "Report B", tagged: true, page: 2 },
+      ],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "link_quality");
+    expect(cat.score).toBe(100);
+    const text = cat.findings.join(" ");
+    expect(text).toMatch(/no text this tool could attribute/i);
+    expect(text).toMatch(/not scored/i);
+    expect(text).not.toMatch(/satisfies WCAG 2\.4\.4/i);
+    expect(result.conformance.failures.some((f) => f.sc === "4.1.2")).toBe(false);
+  });
+
+  it("a URL genuinely painted as the link's text keeps the raw-URL advisory and its 2.4.4 claim", () => {
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 9000,
+      pageCount: 10,
+      links: [
+        { url: "https://example.org/a", text: "https://example.org/a", tagged: true, page: 1 },
+      ],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "link_quality");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/satisfies WCAG 2\.4\.4/i);
+    expect(result.conformance.failures.some((f) => f.sc === "4.1.2")).toBe(false);
+  });
+
   it("per-link untagged records still assert 1.3.1 beside the deduction", () => {
     const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
     const pdfjs = makePdfjs({
