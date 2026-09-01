@@ -84,6 +84,12 @@ const props = defineProps<{
     available?: boolean;
     passed?: boolean;
     failures?: Array<{ count?: number }>;
+    /** Whole-document totals — the stored failure list is truncated to the
+     *  top 20 rules, so these are the numbers to display when present. */
+    totalFailureCount?: number;
+    distinctRuleCount?: number;
+    /** Set when veraPDF started but could not finish (crash/timeout). */
+    error?: string;
   } | null;
 }>();
 
@@ -121,8 +127,22 @@ const pdfUaVerdictLine = computed(() => {
   const v = props.pdfUaVerdict;
   if (!v?.available) return "Not checked on this document";
   if (v.passed) return "No PDF/UA failures found";
-  const items = (v.failures ?? []).reduce((n, f) => n + (f.count ?? 1), 0);
-  const rules = (v.failures ?? []).length;
+  // Whole-document totals when the verdict carries them — the stored
+  // failure list is truncated to the top 20 rules, so summing it undercounts
+  // busy documents. Fall back to summing for older stored payloads.
+  const items =
+    typeof v.totalFailureCount === "number" && v.totalFailureCount > 0
+      ? v.totalFailureCount
+      : (v.failures ?? []).reduce((n, f) => n + (f.count ?? 1), 0);
+  const rules =
+    typeof v.distinctRuleCount === "number" && v.distinctRuleCount > 0
+      ? v.distinctRuleCount
+      : (v.failures ?? []).length;
+  // Every error path returns available:true, passed:false, failures:[] —
+  // which used to render "0 items across 0 rules", a clean-looking line
+  // beside the panel's own "Could not validate". A check that did not finish
+  // is not a result.
+  if (v.error || (items === 0 && rules === 0)) return "Could not be checked on this document";
   return `${items} ${items === 1 ? "item" : "items"} across ${rules} ${rules === 1 ? "rule" : "rules"}`;
 });
 </script>

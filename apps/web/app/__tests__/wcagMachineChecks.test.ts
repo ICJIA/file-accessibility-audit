@@ -85,6 +85,39 @@ describe("WcagMachineChecks — render states", () => {
     expect(w.text()).toContain("Clause 7.1");
   });
 
+  it("three-segment ISO clauses are never labeled WCAG — there is no WCAG 7.18.5", async () => {
+    // The old test was /^\d+\.\d+\.\d+$/, which 7.18.5, 7.21.7, 7.4.4 all
+    // match. A success criterion's first segment is a principle, 1–4.
+    const w = mount(WcagMachineChecks, {
+      props: {
+        verdict: verdict({
+          passed: false,
+          failures: [
+            {
+              ruleId: "7.18.5-1",
+              clause: "7.18.5",
+              description: "Links shall be tagged according to ISO 32000-1:2008",
+              count: 110,
+            },
+            {
+              ruleId: "7.21.7-1",
+              clause: "7.21.7",
+              description: "The Font dictionary of all fonts shall define the map",
+              count: 2,
+            },
+          ],
+          totalFailureCount: 112,
+          distinctRuleCount: 2,
+        }),
+      },
+    });
+    await w.find("button").trigger("click");
+    expect(w.text()).toContain("Clause 7.18.5");
+    expect(w.text()).toContain("Clause 7.21.7");
+    expect(w.text()).not.toContain("WCAG 7.18.5");
+    expect(w.text()).not.toContain("WCAG 7.21.7");
+  });
+
   it("RB: a forged shared-report payload with thousands of failure rows renders at most the top 20", async () => {
     const flood = Array.from({ length: 5000 }, (_, i) => ({
       ruleId: `9.9-${i}`,

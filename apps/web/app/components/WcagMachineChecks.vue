@@ -54,7 +54,11 @@ const truncated = computed(() => distinctRuleCount.value > sortedFailures.value.
 // contrast rule reads "WCAG 1.4.3", never a bare number a reader must guess
 // at.
 function clauseLabel(clause: string): string {
-  return /^\d+\.\d+\.\d+$/.test(clause) ? `WCAG ${clause}` : `Clause ${clause}`;
+  // A WCAG success criterion's first segment is a PRINCIPLE, 1–4. ISO
+  // 14289-1 clauses (5.x, 6.x, 7.x) also come in three segments — 7.18.5,
+  // 7.21.7, 7.4.4 — and there is no "WCAG 7.18.5"; labelling them so put a
+  // nonexistent criterion number in front of readers (found 2026-09-01).
+  return /^[1-4]\.\d+\.\d+$/.test(clause) ? `WCAG ${clause}` : `Clause ${clause}`;
 }
 
 function fmt(n: number): string {

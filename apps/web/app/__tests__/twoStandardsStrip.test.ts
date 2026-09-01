@@ -43,6 +43,26 @@ describe("the WCAG 2.1 side — what the grade measures", () => {
     expect(strip({ conformance: clean }).html()).toMatch(/No automated failures found/i);
     expect(strip({ conformance: failing }).html()).toMatch(/2 criteria failing/i);
   });
+
+  it("counts DISTINCT criteria — 1.3.1 failing in two categories is one criterion", () => {
+    // Found 2026-09-01 on a real report: headings and tables both failed
+    // 1.3.1 plus 2.4.2 and 1.1.1 elsewhere, and the strip said "4 criteria
+    // failing" over a list a reader can count three distinct criteria in.
+    const html = strip({
+      conformance: {
+        status: "fail",
+        failures: [
+          { sc: "1.3.1", category: "heading_structure" },
+          { sc: "1.3.1", category: "table_markup" },
+          { sc: "2.4.2", category: "title_language" },
+        ],
+        notAssessed: [],
+        headline: "",
+      } as never,
+    }).html();
+    expect(html).toMatch(/2 criteria failing in 3 categories/i);
+    expect(html).not.toMatch(/3 criteria failing/i);
+  });
 });
 
 describe("the PDF/UA side — reported, never counted", () => {
@@ -73,6 +93,42 @@ describe("the PDF/UA side — reported, never counted", () => {
     const html = strip({ conformance: clean, fileType: "pdf", pdfUaVerdict: null }).html();
     expect(html).toMatch(/Not checked on this document/i);
     expect(html).not.toMatch(/No PDF\/UA failures found/i);
+  });
+
+  it("a veraPDF error verdict says the check could not run — never '0 items across 0 rules'", () => {
+    // Every error path returns available:true, passed:false, failures:[] —
+    // which the strip rendered as "0 items across 0 rules", a clean-looking
+    // line directly contradicting the panel's own "Could not validate".
+    const html = strip({
+      conformance: clean,
+      fileType: "pdf",
+      pdfUaVerdict: {
+        available: true,
+        passed: false,
+        failures: [],
+        totalFailureCount: 0,
+        distinctRuleCount: 0,
+        error: "veraPDF invocation failed",
+      },
+    }).html();
+    expect(html).toMatch(/could not be checked/i);
+    expect(html).not.toMatch(/0 items across 0 rules/i);
+    expect(html).not.toMatch(/No PDF\/UA failures found/i);
+  });
+
+  it("uses the verdict's own totals when the stored failure list is truncated to the top 20", () => {
+    const html = strip({
+      conformance: clean,
+      fileType: "pdf",
+      pdfUaVerdict: {
+        available: true,
+        passed: false,
+        failures: [{ count: 17 }],
+        totalFailureCount: 500,
+        distinctRuleCount: 37,
+      },
+    }).html();
+    expect(html).toMatch(/500 items across 37 rules/i);
   });
 
   it("says the standard does not apply to a Word file", () => {

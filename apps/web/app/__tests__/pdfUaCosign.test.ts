@@ -82,28 +82,73 @@ const mountPlanWithResult = (result: unknown) =>
 // the rendered output.
 const cosign = (verdict: unknown) => mountPlan(verdict).findAll('[data-testid="pdfua-cosign"]');
 
-describe("pdfUaCategoryFor — conservative, description-keyword matching", () => {
-  it("maps the Scope rule to tables (before the generic table rule can claim it)", () => {
+describe("pdfUaCategoryFor — conservative, rule-id matching", () => {
+  it("maps the Scope rule to tables", () => {
     expect(pdfUaCategoryFor(SCOPE_FAILURE)).toBe("table_markup");
   });
 
   it("maps figure alt-text and link-description rules to their own categories", () => {
     expect(
-      pdfUaCategoryFor({ description: "A Figure structure element shall have an Alt entry" }),
+      pdfUaCategoryFor({
+        ruleId: "7.3-1",
+        clause: "7.3",
+        description: "A Figure structure element shall have an Alt entry",
+      }),
     ).toBe("alt_text");
     expect(
       pdfUaCategoryFor({
+        ruleId: "7.18.5-2",
+        clause: "7.18.5",
         description: "Links shall contain an alternate description via their Contents key",
       }),
     ).toBe("link_quality");
   });
 
+  it("the figure-alt rule's 'Table 323' ISO citation must not file it under tables", () => {
+    // 2026-09-01: keyword matching sent this rule — ×16 on a real annual
+    // report — to the Tables step as "independently confirmed", and its
+    // Fix: line said to repair the table tags.
+    expect(
+      pdfUaCategoryFor({
+        ruleId: "7.3-1",
+        clause: "7.3",
+        description:
+          "Figure tags shall include an alternative representation or replacement text that represents the contents marked with the Figure tag as noted in ISO 32000-1:2008, 14.7.2, Table 323",
+      }),
+    ).toBe("alt_text");
+  });
+
+  it("the general annotation rule maps to nothing of ours — it spans link, media and file annotations", () => {
+    expect(
+      pdfUaCategoryFor({
+        ruleId: "7.18.1-2",
+        clause: "7.18.1",
+        description:
+          "An annotation (except Widget annotations or hidden annotations) shall have either Contents key or an Alt entry in the enclosing structure element",
+      }),
+    ).toBeNull();
+  });
+
+  it("font rules corroborate text extraction, not tables", () => {
+    expect(
+      pdfUaCategoryFor({
+        ruleId: "7.21.4.1-1",
+        clause: "7.21.4.1",
+        description:
+          "The font programs for all fonts used for rendering within a conforming file shall be embedded within that file, as defined in ISO 32000-1:2008, 9.9",
+      }),
+    ).toBe("text_extractability");
+  });
+
   it("returns null for a rule that maps to nothing of ours — never guesses", () => {
     expect(
       pdfUaCategoryFor({
+        ruleId: "5-1",
+        clause: "5",
         description: "The PDF/UA version and conformance level of a file shall be specified",
       }),
     ).toBeNull();
+    expect(pdfUaCategoryFor({ description: "no rule id at all" })).toBeNull();
   });
 
   it("groups only a document's own failures", () => {
@@ -498,6 +543,7 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
         steps: [step],
         pdfUaVerdict: verdict([
           {
+            ruleId: "7.1-3",
             clause: "7.1",
             description: "Content shall be marked as Artifact or tagged as real content",
             count: 247,
@@ -534,7 +580,7 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
     expect(w.find('[data-testid="plan-vera-detail"]').text()).not.toMatch(/How to fix/);
   });
 
-  it("keyword ordering: the Form/widget rule maps to form advice, not annotation advice", () => {
+  it("rule-id routing: the Form rule maps to form advice although its text says \"widget annotation\"", () => {
     // Its description contains "widget annotation" — a naive match order
     // would send it to the annotation route.
     const w = mount(ActionPlan, {
@@ -542,6 +588,7 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
         steps: [step],
         pdfUaVerdict: verdict([
           {
+            ruleId: "7.18.4-2",
             clause: "7.18.4",
             description:
               "If the Form element omits a Role attribute (Table 348), it shall have only one child: an object reference identifying the widget annotation",
@@ -555,12 +602,13 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
     expect(fix.text()).not.toMatch(/review annotations/);
   });
 
-  it("keyword ordering: the Tabs rule maps to tab-order advice, not annotation advice", () => {
+  it("rule-id routing: the Tabs rule maps to tab-order advice although its text says \"annotation\"", () => {
     const w = mount(ActionPlan, {
       props: {
         steps: [step],
         pdfUaVerdict: verdict([
           {
+            ruleId: "7.18.3-1",
             clause: "7.18.3",
             description:
               "Every page on which there is an annotation shall contain in its page dictionary the key Tabs, and its value shall be S",
@@ -578,6 +626,7 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
         steps: [step],
         pdfUaVerdict: verdict([
           {
+            ruleId: "5-1",
             clause: "5",
             description:
               "The PDF/UA version and conformance level of a file shall be specified using the PDF/UA Identification extension schema",
