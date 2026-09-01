@@ -193,7 +193,6 @@ function applyProfileWeights(categories: CategoryResult[], mode: ScoringMode): v
   }
 }
 
-
 const TEXT_EXTRACTABILITY_EXPLANATION =
   "Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.";
 
@@ -475,9 +474,7 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     severity: getSeverity(score),
     findings,
     explanation: TEXT_EXTRACTABILITY_EXPLANATION,
-    helpLinks: [
-      ...TEXT_EXTRACTABILITY_HELP,
-    ],
+    helpLinks: [...TEXT_EXTRACTABILITY_HELP],
   };
 }
 

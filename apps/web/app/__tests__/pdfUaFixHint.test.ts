@@ -170,7 +170,8 @@ describe("pdfUaFixHint — routed by rule id", () => {
     const hint = pdfUaFixHint({
       ruleId: "13.7-1",
       clause: "13.7",
-      description: "Document shall not contain any bookmarks pointing to non-existent destinations.",
+      description:
+        "Document shall not contain any bookmarks pointing to non-existent destinations.",
     });
     expect(hint).toContain("13.7");
     expect(hint).toMatch(/Acrobat/i);
@@ -206,6 +207,8 @@ describe("pdfUaFixRoutes — routed by rule id", () => {
   });
 
   it("an unknown rule id routes to nothing — wrong advice under the referee's words is worse than none", () => {
-    expect(pdfUaFixRoutes({ ruleId: "13.7-1", clause: "13.7", description: "future rule" })).toBeNull();
+    expect(
+      pdfUaFixRoutes({ ruleId: "13.7-1", clause: "13.7", description: "future rule" }),
+    ).toBeNull();
   });
 });

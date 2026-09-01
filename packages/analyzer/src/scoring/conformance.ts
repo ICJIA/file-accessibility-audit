@@ -512,7 +512,7 @@ export function evaluateConformance(
       "Info and Relationships",
       "A",
       "heading_structure",
-      "No heading tags (H1–H6) exist in this document\'s structure, so its sections exist only visually — assistive technology receives no outline to navigate by. Tag the section titles as headings (Acrobat: Tags panel, or re-export from the source with heading styles).",
+      "No heading tags (H1–H6) exist in this document's structure, so its sections exist only visually — assistive technology receives no outline to navigate by. Tag the section titles as headings (Acrobat: Tags panel, or re-export from the source with heading styles).",
     );
   }
 

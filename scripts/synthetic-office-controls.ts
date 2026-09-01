@@ -1183,7 +1183,8 @@ const SAMPLES: Sample[] = [
       const c = cat("color_contrast")(r);
       if (!c || c.score === null)
         return "color_contrast was not assessed — the banner's solid fill should resolve the pair";
-      if (c.score !== 100) return `white on a dark banner scored ${c.score} — the false 1:1 is back`;
+      if (c.score !== 100)
+        return `white on a dark banner scored ${c.score} — the false 1:1 is back`;
       const f = allFindings(r);
       if (!/all meet the WCAG contrast minimum/i.test(f))
         return "the clean contrast result is not stated";

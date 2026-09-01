@@ -166,10 +166,15 @@ describe("buildActionPlan", () => {
   it("falls back to the category map for a step whose category carries no failure entry", () => {
     // Legal-basis guarantees modern payloads a failure per failing category;
     // this guards stored payloads from before that gate.
-    const steps = buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf", null, {
-      status: "fail",
-      failures: [{ sc: "2.4.2", name: "Page Titled", level: "A", category: "title_language" }],
-    });
+    const steps = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical")],
+      "pdf",
+      null,
+      {
+        status: "fail",
+        failures: [{ sc: "2.4.2", name: "Page Titled", level: "A", category: "title_language" }],
+      },
+    );
     expect(steps[0]!.wcagRefs).toEqual([{ sc: "1.1.1", name: "Non-text Content" }]);
   });
 

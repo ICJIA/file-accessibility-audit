@@ -75,8 +75,8 @@
       <p class="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed max-w-3xl">
         {{ criteria.length }} WCAG {{ wcagVersion }} criteri{{ criteria.length === 1 ? "on" : "a" }}
         {{ criteria.length === 1 ? "was" : "were" }} not machine-checked by this audit — each row
-        below says why, and some (contrast among them) other tools do measure. They are not
-        failures — they are simply unexamined here.
+        below says why, and some (contrast among them) other tools do measure. They are not failures
+        — they are simply unexamined here.
       </p>
       <ul class="mt-3 space-y-2">
         <li v-for="n in criteria" :key="n.sc" class="text-xs text-[var(--text-secondary)]">

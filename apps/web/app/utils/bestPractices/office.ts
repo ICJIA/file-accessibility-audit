@@ -167,7 +167,6 @@ function docxHeadingOutlineBlock(ctx: DetectContext): EvidenceBlock | undefined 
 const OFFICE_FIX_APP =
   "Office documents are fixed at the source, not after export — make the change and re-export (or re-save) the file.";
 
-
 /** The descriptive-link twin, one per Office format (2026-09-01). The
  *  analyzer's vague-link advisory ("click here") shipped for all three
  *  formats on 2026-08-31, but no practice read it and uncoveredNotScored()
@@ -197,7 +196,10 @@ function descriptiveLinkTwin(format: "docx" | "pptx" | "xlsx"): BestPractice {
     ],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no link-quality data for this document.", "not-run");
+        return notChecked(
+          "This report contains no link-quality data for this document.",
+          "not-run",
+        );
       }
       const line = matchAdvisory(ctx, "non-descriptive text");
       if (line) {

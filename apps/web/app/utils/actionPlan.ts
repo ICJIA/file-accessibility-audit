@@ -914,7 +914,7 @@ export function buildActionPlan(
    *  headings" step wore a WCAG 2.4.6 chip, though Understanding 2.4.6 says
    *  in terms it does not require headings; found 2026-09-01). The map stays
    *  the fallback for stored payloads that predate the verdict. */
-  conformance?: { failures?: unknown } | null,
+  conformance?: { status?: unknown; failures?: unknown } | null,
 ): PlanStep[] {
   if (!Array.isArray(categories)) return [];
   const ft = normalizeFileType(fileType);

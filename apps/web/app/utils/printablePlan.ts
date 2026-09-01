@@ -360,10 +360,9 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
       `<ul class="na">` +
       (o.notAssessed ?? [])
         .map((n) => {
+          const rawReason = (n as unknown as { reason?: unknown }).reason;
           const reason =
-            typeof (n as { reason?: unknown }).reason === "string"
-              ? ` — <em>${escapeHtml((n as { reason: string }).reason)}</em>`
-              : "";
+            typeof rawReason === "string" ? ` — <em>${escapeHtml(rawReason)}</em>` : "";
           const inner = `<code>WCAG ${escapeHtml(n.sc)}</code> ${escapeHtml(n.name)} (Level ${escapeHtml(n.level)})${reason}`;
           // The server sends each criterion's Understanding URL; on the
           // shared page it arrives from attacker-controlled stored JSON, so

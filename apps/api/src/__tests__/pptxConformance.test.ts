@@ -58,9 +58,7 @@ describe("evaluatePptxConformance", () => {
       analysis({ lists: { realListItems: 0, manualBulletParagraphs: 3 } }),
     );
     expect(v.status).toBe("fail");
-    expect(
-      v.failures.some((f) => f.sc === "1.3.1" && f.category === "list_structure"),
-    ).toBe(true);
+    expect(v.failures.some((f) => f.sc === "1.3.1" && f.category === "list_structure")).toBe(true);
   });
 
   it("does NOT fire for untitled slides (scoring-only) and lists media as not assessed", () => {

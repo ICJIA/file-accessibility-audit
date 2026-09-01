@@ -51,7 +51,9 @@ describe("descriptive-link-text — one twin per Office format", () => {
 
   it.each(["docx", "pptx", "xlsx"] as const)("%s: vague link text is WORTH DOING", (fmt) => {
     const witness =
-      fmt === "xlsx" ? "2 link(s) assessed; 0 with no link text at all." : "3 link(s) found; 0 with no link text at all.";
+      fmt === "xlsx"
+        ? "2 link(s) assessed; 0 with no link text at all."
+        : "3 link(s) found; 0 with no link text at all.";
     const r = run(`${fmt}-descriptive-link-text`, [witness, ADVISORY]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2\.4\.4|purpose/i);
@@ -61,8 +63,10 @@ describe("descriptive-link-text — one twin per Office format", () => {
     "%s: the link census with no advisory is MET",
     (fmt) => {
       const witness =
-        fmt === "xlsx" ? "2 link(s) assessed; 0 with no link text at all." : "3 link(s) found; 0 with no link text at all.",
-      r = run(`${fmt}-descriptive-link-text`, [witness]);
+          fmt === "xlsx"
+            ? "2 link(s) assessed; 0 with no link text at all."
+            : "3 link(s) found; 0 with no link text at all.",
+        r = run(`${fmt}-descriptive-link-text`, [witness]);
       expect(r.status).toBe("met");
     },
   );

@@ -580,7 +580,7 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
     expect(w.find('[data-testid="plan-vera-detail"]').text()).not.toMatch(/How to fix/);
   });
 
-  it("rule-id routing: the Form rule maps to form advice although its text says \"widget annotation\"", () => {
+  it('rule-id routing: the Form rule maps to form advice although its text says "widget annotation"', () => {
     // Its description contains "widget annotation" — a naive match order
     // would send it to the annotation route.
     const w = mount(ActionPlan, {
@@ -602,7 +602,7 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
     expect(fix.text()).not.toMatch(/review annotations/);
   });
 
-  it("rule-id routing: the Tabs rule maps to tab-order advice although its text says \"annotation\"", () => {
+  it('rule-id routing: the Tabs rule maps to tab-order advice although its text says "annotation"', () => {
     const w = mount(ActionPlan, {
       props: {
         steps: [step],

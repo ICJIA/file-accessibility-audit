@@ -445,9 +445,7 @@ describe("scoreDocument — mixed results", () => {
     expect(cat.notAssessed).toBe(true);
     expect(cat.severity).toBeNull();
     expect(cat.findings.join(" ")).toMatch(/too little/i);
-    expect(result.conformance.failures.map((f) => f.category)).not.toContain(
-      "text_extractability",
-    );
+    expect(result.conformance.failures.map((f) => f.category)).not.toContain("text_extractability");
   });
 
   it("zero extractable text with a struct tree stays scored — the gate attributes that case", () => {
