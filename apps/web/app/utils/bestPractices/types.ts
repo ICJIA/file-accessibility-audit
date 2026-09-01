@@ -146,7 +146,7 @@ export interface BestPractice {
   description: string;
   /** Who it helps and how, in plain language. */
   why: string;
-  /** "PDF/UA (ISO 14289) clause 7.4 · Matterhorn 14-002" */
+  /** "PDF/UA (ISO 14289) clause 7.4 · Matterhorn 14-007" */
   standard?: string;
   links: BestPracticeLink[];
   /** WCAG Understanding pages this practice cites. Resolved at RENDER time,

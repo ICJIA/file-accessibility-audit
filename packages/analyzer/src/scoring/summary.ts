@@ -24,10 +24,25 @@ export function generateSummary(
   // A confirmed, machine-checkable WCAG failure outranks the score — a high
   // grade with a confirmed failure is still a failure.
   if (conformance.status === "fail") {
-    const n = conformance.failures.length;
+    // DISTINCT criteria (1.3.1 failing in two categories is one criterion),
+    // bridged to the category count when the two differ — the same counting
+    // the standards strip uses, so no surface contradicts another. Entries
+    // without an sc (forged/legacy payloads) fall back to the entry count.
     // 2.1 by name — the failing criteria are 2.1 criteria (wcag21Purity),
-    // and 2.1 is the standard the law cites.
-    return `This ${noun} scored ${score}/100 (grade ${grade}) for overall readiness, but automated checks confirmed ${n} WCAG 2.1 ${n === 1 ? "failure" : "failures"} — so it does not yet meet WCAG 2.1 Level AA, the standard the ADA Title II rule and the Illinois IITAA require. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
+    // and 2.1 is the standard the law cites. The score is not a separate
+    // "readiness" measure: under the legal-only model the score and the
+    // failing criteria are one measurement, so the sentence no longer sets
+    // them against each other with a "but".
+    const entries = conformance.failures.length;
+    const scList = conformance.failures.map((f) => f.sc).filter(Boolean);
+    const n = scList.length === entries ? new Set(scList).size : entries;
+    const catList = conformance.failures.map((f) => f.category).filter(Boolean);
+    const cats = new Set(catList).size;
+    const bridge =
+      catList.length === entries && cats !== n
+        ? ` in ${cats} ${cats === 1 ? "category" : "categories"}`
+        : "";
+    return `This ${noun} scored ${score}/100 (grade ${grade}). Automated checks confirmed ${n} WCAG 2.1 ${n === 1 ? "criterion" : "criteria"} failing${bridge} — it does not yet meet WCAG 2.1 Level AA, the standard the ADA Title II rule and the Illinois IITAA require. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
   }
 
   // Analysis could not complete — no honest verdict, and no readiness claim.
@@ -48,7 +63,7 @@ export function generateSummary(
   // the table shows as Critical/Moderate — a 91/A with a Critical reading-
   // order category falls through to the severity branches below instead.
   if (grade === "A" && critical.length === 0 && moderate.length === 0) {
-    return `This ${noun} scored ${score}/100 (grade ${grade}) and cleared every automated WCAG check across all ${applicable.length} assessed categories — a strong result. This is not a determination of conformance: confirm color contrast and the correctness of alt text, headings, and reading order in a manual review before publishing.`;
+    return `This ${noun} scored ${score}/100 (grade ${grade}) and cleared every automated WCAG check across all ${applicable.length} assessed categories. This is not a determination of conformance: confirm color contrast and the correctness of alt text, headings, and reading order in a manual review before publishing.`;
   }
 
   if (grade === "B" && critical.length === 0) {

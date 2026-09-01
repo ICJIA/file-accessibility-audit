@@ -354,12 +354,17 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
 
   const na = (o.notAssessed ?? []).length
     ? `<h2>Not checked by this tool at all</h2>` +
-      `<p class="sub">These need a person or a live interaction to judge, so no automated tool ` +
-      `reports on them. They are not failures — they are simply unexamined.</p>` +
+      `<p class="sub">These were not machine-checked by this audit — each row says why, and ` +
+      `some (contrast among them) other tools do measure. They are not failures — they are ` +
+      `simply unexamined here.</p>` +
       `<ul class="na">` +
       (o.notAssessed ?? [])
         .map((n) => {
-          const inner = `<code>WCAG ${escapeHtml(n.sc)}</code> ${escapeHtml(n.name)} (Level ${escapeHtml(n.level)})`;
+          const reason =
+            typeof (n as { reason?: unknown }).reason === "string"
+              ? ` — <em>${escapeHtml((n as { reason: string }).reason)}</em>`
+              : "";
+          const inner = `<code>WCAG ${escapeHtml(n.sc)}</code> ${escapeHtml(n.name)} (Level ${escapeHtml(n.level)})${reason}`;
           // The server sends each criterion's Understanding URL; on the
           // shared page it arrives from attacker-controlled stored JSON, so
           // a non-http(s) address is dropped rather than linked or printed.

@@ -195,7 +195,7 @@ describe("scoreDocument — fully accessible PDF", () => {
   });
 
   it("executive summary is positive but does not claim conformance", () => {
-    expect(result.executiveSummary).toContain("strong result");
+    expect(result.executiveSummary).toContain("cleared every automated WCAG check");
     expect(result.executiveSummary).toContain("not a determination of conformance");
   });
 
@@ -1105,7 +1105,7 @@ describe("executive summary", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("no-automated-failures");
-    expect(result.executiveSummary).toContain("strong result");
+    expect(result.executiveSummary).toContain("cleared every automated WCAG check");
     expect(result.executiveSummary).toContain("manual review");
   });
 
@@ -1132,7 +1132,7 @@ describe("executive summary", () => {
     expect(result.conformance.status).toBe("fail");
     expect(result.conformance.failures.length).toBeGreaterThan(1);
     expect(result.executiveSummary).toContain(`does not yet meet WCAG 2.1 Level AA`);
-    expect(result.executiveSummary).toContain(`WCAG 2.1 failures`);
+    expect(result.executiveSummary).toContain(`WCAG 2.1 criteria failing`);
   });
 
   it("an unreadable document yields an incomplete-analysis summary", () => {
@@ -1155,8 +1155,11 @@ function summaryVerdict(
 ): ConformanceVerdict {
   return {
     status,
+    // Distinct criteria per entry: the summary counts DISTINCT failing
+    // criteria (2026-09-01), so a factory that repeated one sc would make
+    // the pluralisation test assert a sentence the code rightly refuses.
     failures: Array.from({ length: failureCount }, (_, i) => ({
-      sc: "1.1.1",
+      sc: ["1.1.1", "1.3.1", "2.4.2", "3.1.1", "4.1.2"][i % 5]!,
       name: "Non-text Content",
       level: "A" as const,
       category: "alt_text",
@@ -1186,13 +1189,13 @@ describe("generateSummary", () => {
   it("a confirmed conformance failure outranks a high grade", () => {
     const s = generateSummary(95, "A", false, [], summaryVerdict("fail", 1));
     expect(s).toContain(`does not yet meet WCAG 2.1 Level AA`);
-    expect(s).toContain(`1 WCAG 2.1 failure`);
+    expect(s).toContain(`1 WCAG 2.1 criterion failing`);
     expect(s).not.toContain("strong result");
   });
 
   it("pluralises multiple confirmed failures", () => {
     const s = generateSummary(70, "C", false, [], summaryVerdict("fail", 3));
-    expect(s).toContain(`3 WCAG 2.1 failures`);
+    expect(s).toContain(`3 WCAG 2.1 criteria failing`);
   });
 
   it("an incomplete verdict makes no readiness claim", () => {
@@ -1305,12 +1308,12 @@ describe("scoreHeadingStructure edge cases", () => {
     expect(cat.findings.some((f) => /PDF\/UA only — not scored:/i.test(f))).toBe(true);
   });
 
-  // v1.92.0 (Matterhorn 14-002): mixing generic /H with numbered /H1–/H6 is a
+  // v1.92.0 (Matterhorn 14-007): mixing generic /H with numbered /H1–/H6 is a
   // PDF/UA-1 failure this category previously TOLERATED (the old pin here was
   // "proper hierarchy → 100"). A generic <H> conveys no level, so the outline
   // has holes exactly where those headings sit — scored at the hierarchy-skip
   // tier (60), above the all-generic 40 but never a clean 100.
-  it("mixed generic /H and numbered headings → 100 with a PDF/UA-only 14-002 finding", () => {
+  it("mixed generic /H and numbered headings → 100 with a PDF/UA-only 14-007 finding", () => {
     const qpdf = makeQpdf({
       headings: [
         { level: "H", tag: "/H" },
@@ -1320,10 +1323,10 @@ describe("scoreHeadingStructure edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // Matterhorn 14-002 is PDF/UA by name — reported, never scored.
+    // Matterhorn 14-007 is PDF/UA by name — reported, never scored.
     const cat = findCategory(result, "heading_structure");
     expect(cat.score).toBe(100);
-    expect(cat.findings.some((f) => f.includes("14-002"))).toBe(true);
+    expect(cat.findings.some((f) => f.includes("14-007"))).toBe(true);
     expect(cat.findings.some((f) => /PDF\/UA only — not scored:/i.test(f))).toBe(true);
   });
 
@@ -1339,7 +1342,7 @@ describe("scoreHeadingStructure edge cases", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "heading_structure");
     expect(cat.score).toBe(100);
-    expect(cat.findings.some((f) => f.includes("14-002"))).toBe(false);
+    expect(cat.findings.some((f) => f.includes("14-007"))).toBe(false);
   });
 
   // Multiple-H1 behavior is pinned by "multiple H1s are advisory, not scored"

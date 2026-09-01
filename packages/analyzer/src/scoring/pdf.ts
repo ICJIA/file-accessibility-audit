@@ -913,7 +913,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     // documents; requiring numbered levels is PDF/UA 7.4 / Matterhorn 14,
     // not a WCAG 2.1 criterion.
     findings.push(
-      "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.",
+      "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — and PDF/UA requires them only for documents that are not strongly structured (ISO 14289-1, 7.4.2/7.4.4).",
     );
     findings.push(
       "How to fix (optional): In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
@@ -956,8 +956,8 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   // HTML-era convention 75 was denying a conformance-clean document its A:
   // controls/DVFR_Biennial_2024 (5×H1, no other finding) graded B for it.
   // Hierarchy SKIPS keep their penalty — that one has a standards basis
-  // (Matterhorn 14 — Headings; W3C technique G141, which is a SUFFICIENT
-  // technique for 1.3.1, not a criterion). This cited checkpoint 13 until
+  // (Matterhorn 14 — Headings; W3C technique G141 is ADVISORY for 1.3.1 —
+  // it is sufficient only for 2.4.10 Section Headings, Level AAA
   // 2026-08-31; 13 is GRAPHICS (see apps/web/app/data/matterhorn.ts), so
   // every heading finding here pointed a reader at the wrong checkpoint.
   if (h1Count > 1) {
@@ -966,7 +966,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     );
   }
 
-  // Mixed conventions (v1.92.0 — Matterhorn 14-002): generic <H> headings
+  // Mixed conventions (v1.92.0 — Matterhorn 14-007): generic <H> headings
   // alongside numbered <H1>–<H6>. PDF/UA-1 requires a document to pick ONE
   // convention; a generic <H> conveys no level, so the outline a screen
   // reader announces has holes exactly where those headings sit. Scored at
@@ -976,7 +976,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   const mixedConventions = genericHCount > 0;
   if (mixedConventions) {
     findings.push(
-      `PDF/UA only — not scored: ${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.`,
+      `PDF/UA only — not scored: ${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-007); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.`,
     );
     findings.push(
       "How to fix (optional): In the Tags panel, change each generic <H> tag to the specific level (H1–H6) that matches its place in the outline.",

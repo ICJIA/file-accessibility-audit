@@ -852,7 +852,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
             phrase
               ? `This presentation's ${phrase}.`
               : "At least one slide in this presentation has no title placeholder.",
-            "A slide can still carry its heading in a body placeholder, but a title placeholder is what gives screen-reader users a navigable outline of the whole presentation.",
+            "Requiring a heading to exist on every slide is WCAG 2.4.10 Section Headings, Level AAA — outside the legal floor this tool scores. A title placeholder is what gives screen-reader users a navigable outline of the whole presentation.",
           ],
           fix: {
             source:

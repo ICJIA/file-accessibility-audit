@@ -774,10 +774,16 @@ export const PDF_PRACTICES: BestPractice[] = [
       // are not required", never "no bookmarks".
       const missing = matchAdvisory(ctx, "pages", "no bookmarks");
       if (missing) {
+        // The advisory line itself carries the real page count; a stored
+        // payload can arrive with pageCount 0, and "This 0-page document"
+        // is a sentence no report should print (2026-09-01).
+        const pages = firstNumber(missing) ?? (ctx.pageCount > 0 ? ctx.pageCount : null);
         return {
           status: "not-met",
           evidence: [
-            `This ${ctx.pageCount}-page document has no bookmarks.`,
+            pages !== null
+              ? `This ${pages}-page document has no bookmarks.`
+              : "This document has no bookmarks.",
             "Nothing in WCAG 2.1 requires them for a single document, but a long PDF without them is markedly harder to move around in.",
           ],
           fix: {

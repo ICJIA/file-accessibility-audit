@@ -520,6 +520,22 @@ describe("bookmarks", () => {
     expect(run("bookmarks", [], 0).status).toBe("not-checked");
   });
 
+  it("reads the page count from the advisory itself when the stored pageCount is 0 — never '0-page'", () => {
+    // The advisory line carries the real count ('this document has 41 pages
+    // and no bookmarks'); interpolating a missing pageCount rendered 'This
+    // 0-page document has no bookmarks.' on stored payloads.
+    const r = run(
+      "bookmarks",
+      [
+        "Advisory — not scored: this document has 41 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected.",
+      ],
+      0,
+    );
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/41-page/);
+    expect(r.evidence.join(" ")).not.toMatch(/0-page/);
+  });
+
   it("an empty outline dictionary is NOT MET — bookmarks are counted never, in every branch (2026-09-01)", () => {
     // The scored-40 branch this row used to defer to was the one scored path
     // left inside the "counted never" category; it is an advisory now, and

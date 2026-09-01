@@ -74,8 +74,9 @@
       </h3>
       <p class="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed max-w-3xl">
         {{ criteria.length }} WCAG {{ wcagVersion }} criteri{{ criteria.length === 1 ? "on" : "a" }}
-        need a person or a live interaction to judge, so no automated tool can report on them. They
-        are not failures — they are simply unexamined.
+        {{ criteria.length === 1 ? "was" : "were" }} not machine-checked by this audit — each row
+        below says why, and some (contrast among them) other tools do measure. They are not
+        failures — they are simply unexamined here.
       </p>
       <ul class="mt-3 space-y-2">
         <li v-for="n in criteria" :key="n.sc" class="text-xs text-[var(--text-secondary)]">
@@ -86,6 +87,7 @@
             class="font-mono font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >{{ n.sc }} {{ n.name }}</a
           ><span class="text-[var(--text-muted)]"> (Level {{ n.level }})</span>
+          <span v-if="n.reason" class="block mt-0.5 text-[var(--text-muted)]">{{ n.reason }}</span>
         </li>
       </ul>
     </div>
