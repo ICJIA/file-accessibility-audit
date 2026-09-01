@@ -907,10 +907,32 @@ export function buildActionPlan(
    *  value — Word, a scanner, null, old reports — leaves today's copy
    *  untouched, so a missed match can only reproduce the status quo. */
   creator?: string | null,
+  /** The conformance verdict, when the payload carries one. A step then
+   *  cites the criteria that actually FAILED in its category — the category
+   *  map lists every criterion a category RELATES to, and rendering those as
+   *  step chips claimed requirements the document was not failing (the "no
+   *  headings" step wore a WCAG 2.4.6 chip, though Understanding 2.4.6 says
+   *  in terms it does not require headings; found 2026-09-01). The map stays
+   *  the fallback for stored payloads that predate the verdict. */
+  conformance?: { failures?: unknown } | null,
 ): PlanStep[] {
   if (!Array.isArray(categories)) return [];
   const ft = normalizeFileType(fileType);
   const fromInDesign = ft === "pdf" && isInDesignCreator(creator);
+
+  // Failing criteria per category, deduplicated by SC, order preserved.
+  const failingRefs = new Map<string, { sc: string; name: string }[]>();
+  const rawFailures = Array.isArray(conformance?.failures) ? conformance.failures : [];
+  for (const f of rawFailures) {
+    if (!f || typeof f !== "object") continue;
+    const { sc, name, category } = f as { sc?: unknown; name?: unknown; category?: unknown };
+    if (typeof sc !== "string" || typeof name !== "string" || typeof category !== "string") {
+      continue;
+    }
+    const list = failingRefs.get(category) ?? [];
+    if (!list.some((r) => r.sc === sc)) list.push({ sc, name });
+    failingRefs.set(category, list);
+  }
 
   const issues = categories.filter(
     (c): c is { id: string; label: string; severity: PlanSeverity; findings?: unknown } =>
@@ -984,7 +1006,8 @@ export function buildActionPlan(
       title: entry?.title ?? `Fix: ${label}`,
       why: entry?.why ?? (firstActionableFinding(findings) || label),
       severity: c.severity,
-      wcagRefs: (WCAG_CATEGORY_MAP[id] ?? []).map(({ sc, name }) => ({ sc, name })),
+      wcagRefs:
+        failingRefs.get(id) ?? (WCAG_CATEGORY_MAP[id] ?? []).map(({ sc, name }) => ({ sc, name })),
       routes,
       detailAnchor: `#cat-${id}`,
     };

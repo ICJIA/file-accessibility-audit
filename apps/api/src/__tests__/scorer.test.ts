@@ -2848,6 +2848,18 @@ describe("bookmarks framing — best practice, not a WCAG requirement", () => {
     );
     expect(cat.findings.some((f) => /Acrobat/.test(f))).toBe(true);
   });
+
+  it("the bookmarks card carries NO WCAG criteria chip — its own finding says no criterion applies", () => {
+    // Found 2026-09-01: the category map still attached 2.4.5 Multiple Ways,
+    // so the card rendered a "WCAG 2.4.5" chip directly beside the finding
+    // "No WCAG 2.1 criterion requires bookmarks…". Both cannot stand.
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
+    const pdfjs = makePdfjs({ pageCount: 40, hasText: true, textLength: 9000 });
+    const cat = findCategory(scoreDocument(qpdf, pdfjs), "bookmarks") as {
+      wcagCriteria?: unknown[];
+    };
+    expect(cat.wcagCriteria ?? []).toEqual([]);
+  });
 });
 
 describe("alt text that declares itself decorative", () => {

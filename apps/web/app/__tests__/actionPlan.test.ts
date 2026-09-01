@@ -123,8 +123,53 @@ describe("buildActionPlan", () => {
     expect(steps[0]!.wcagRefs).toEqual([]);
   });
 
-  it("attaches WCAG refs from WCAG_CATEGORY_MAP", () => {
+  it("attaches WCAG refs from WCAG_CATEGORY_MAP when no conformance verdict is stored", () => {
     const steps = buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf");
+    expect(steps[0]!.wcagRefs).toEqual([{ sc: "1.1.1", name: "Non-text Content" }]);
+  });
+
+  it("cites the criteria that actually FAILED when the conformance verdict is supplied", () => {
+    // Found 2026-09-01 on a real report: the 'no headings' step carried a
+    // WCAG 2.4.6 chip from the category map, though Understanding 2.4.6 says
+    // in terms it 'does not require headings' — only 1.3.1 was failing.
+    const steps = buildActionPlan(
+      [cat("heading_structure", "Heading Structure", "Critical")],
+      "pdf",
+      null,
+      {
+        status: "fail",
+        failures: [
+          {
+            sc: "1.3.1",
+            name: "Info and Relationships",
+            level: "A",
+            category: "heading_structure",
+            issue: "No heading tags.",
+          },
+        ],
+      },
+    );
+    expect(steps[0]!.wcagRefs).toEqual([{ sc: "1.3.1", name: "Info and Relationships" }]);
+  });
+
+  it("deduplicates a criterion failing twice in the same category", () => {
+    const steps = buildActionPlan([cat("table_markup", "Table Markup", "Moderate")], "pdf", null, {
+      status: "fail",
+      failures: [
+        { sc: "1.3.1", name: "Info and Relationships", level: "A", category: "table_markup" },
+        { sc: "1.3.1", name: "Info and Relationships", level: "A", category: "table_markup" },
+      ],
+    });
+    expect(steps[0]!.wcagRefs).toEqual([{ sc: "1.3.1", name: "Info and Relationships" }]);
+  });
+
+  it("falls back to the category map for a step whose category carries no failure entry", () => {
+    // Legal-basis guarantees modern payloads a failure per failing category;
+    // this guards stored payloads from before that gate.
+    const steps = buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf", null, {
+      status: "fail",
+      failures: [{ sc: "2.4.2", name: "Page Titled", level: "A", category: "title_language" }],
+    });
     expect(steps[0]!.wcagRefs).toEqual([{ sc: "1.1.1", name: "Non-text Content" }]);
   });
 

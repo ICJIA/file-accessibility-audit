@@ -147,9 +147,12 @@ describe("the PDF/UA side — reported, never counted", () => {
 });
 
 describe("the criteria count bridges to categories when they differ (v1.139.1)", () => {
-  it("says 'in N categories' when one category fails two criteria", () => {
+  it("counts distinct criteria across categories — and bridges only when the counts differ", () => {
     // The Violence Prevention Plan case: 4 Critical + 1 Moderate tiles = 5
-    // categories, but title_language fails 2.4.2 AND 3.1.1 → 6 criteria.
+    // categories; title_language fails 2.4.2 AND 3.1.1, and 1.3.1 fails in
+    // two categories — so the DISTINCT criteria are five, same as the
+    // categories. The strip used to say "6 criteria failing in 5
+    // categories", counting the 1.3.1 entry twice (fixed 2026-09-01).
     const conformance = {
       status: "fail",
       failures: [
@@ -164,7 +167,23 @@ describe("the criteria count bridges to categories when they differ (v1.139.1)",
       headline: "",
     } as never;
     const html = strip({ conformance, fileType: "pdf" }).html();
-    expect(html).toMatch(/6 criteria failing in 5 categories/);
+    expect(html).toMatch(/5 criteria failing/);
+    expect(html).not.toMatch(/6 criteria/);
+  });
+
+  it("bridges when a category fails two criteria and no criterion repeats", () => {
+    const conformance = {
+      status: "fail",
+      failures: [
+        { sc: "3.1.1", category: "title_language" },
+        { sc: "2.4.2", category: "title_language" },
+        { sc: "1.1.1", category: "alt_text" },
+      ],
+      notAssessed: [],
+      headline: "",
+    } as never;
+    const html = strip({ conformance, fileType: "pdf" }).html();
+    expect(html).toMatch(/3 criteria failing in 2 categories/);
   });
 
   it("stays terse when the two counts agree", () => {

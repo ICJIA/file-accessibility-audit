@@ -88,6 +88,9 @@ const props = withDefaults(
       }>;
       conformance?: {
         notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
+        /** Failing criteria — a plan step cites the ones for its own
+         *  category instead of the category map's full related list. */
+        failures?: Array<{ sc?: string; name?: string; category?: string }>;
       } | null;
       /** Stored PDF document info; `creator` picks the InDesign-aware source
        *  steps. Absent on OOXML reports and old stored PDFs. */
@@ -116,7 +119,12 @@ const props = withDefaults(
 
 const categories = computed(() => props.result?.categories ?? []);
 const steps = computed(() =>
-  buildActionPlan(categories.value, props.result?.fileType, props.result?.pdfMetadata?.creator),
+  buildActionPlan(
+    categories.value,
+    props.result?.fileType,
+    props.result?.pdfMetadata?.creator,
+    props.result?.conformance,
+  ),
 );
 const checks = computed(() => manualChecks(categories.value, props.result?.fileType));
 const notAssessed = computed(() => props.result?.conformance?.notAssessed ?? []);

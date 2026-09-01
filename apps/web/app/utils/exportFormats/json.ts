@@ -3,6 +3,32 @@
  * (Task F5). Pure function: no DOM, no Vue, no side effects.
  */
 import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
+
+/** The criteria that actually FAILED in one category, formatted like
+ *  getWcagCriteriaStrings — or null when the payload carries no verdict for
+ *  it, so the caller falls back to the category map (legacy payloads). The
+ *  map lists every criterion a category RELATES to; a remediation step that
+ *  printed those claimed requirements the document was not failing. */
+function failingCriteriaStrings(
+  conformance: { failures?: unknown } | null | undefined,
+  catId: string,
+): string[] | null {
+  if (!Array.isArray(conformance?.failures)) return null;
+  const out: string[] = [];
+  for (const f of conformance.failures) {
+    if (!f || typeof f !== "object") continue;
+    const { sc, name, level, category } = f as {
+      sc?: unknown;
+      name?: unknown;
+      level?: unknown;
+      category?: unknown;
+    };
+    if (category !== catId || typeof sc !== "string" || typeof name !== "string") continue;
+    const s = `${sc} ${name}${typeof level === "string" ? ` (Level ${level})` : ""}`;
+    if (!out.includes(s)) out.push(s);
+  }
+  return out.length ? out : null;
+}
 import { fileTypeLabel, pageNoun } from "~/utils/reportBanner";
 import {
   type ReportResult,
@@ -98,7 +124,8 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
           category: cat.label,
           currentScore: cat.score,
           severity: cat.severity,
-          wcagCriteria: getWcagCriteriaStrings(cat.id),
+          wcagCriteria:
+            failingCriteriaStrings(result.conformance, cat.id) ?? getWcagCriteriaStrings(cat.id),
           action:
             WCAG_MAP[cat.id]?.remediation ||
             "Review findings and remediate in the source application.",

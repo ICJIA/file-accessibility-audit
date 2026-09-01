@@ -105,7 +105,12 @@ const outstandingMinor = computed(() => stillFlagged.value.filter((o) => o.sever
 // line these rows up one-to-one against the audit's fix list.
 const planStepById = computed(() => {
   const map = new Map<string, { title: string; why: string }>();
-  for (const s of buildActionPlan(afterCategories.value, "pdf")) {
+  for (const s of buildActionPlan(
+    afterCategories.value,
+    "pdf",
+    null,
+    receipt.value?.outputAudit?.conformance ?? null,
+  )) {
     map.set(s.categoryId, { title: s.title, why: s.why });
   }
   return map;

@@ -99,14 +99,11 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
       "Use PAC or Acrobat to review tagging, MarkInfo, tab order, PDF/UA metadata, and list/table legality. In this app, treat this as a Practical-mode PDF/UA-oriented readiness category rather than a final conformance verdict.",
   },
   bookmarks: {
-    criteria: [
-      {
-        id: "2.4.5",
-        name: "Multiple Ways",
-        level: "AA",
-        slug: "multiple-ways",
-      },
-    ],
+    // NO criteria: no WCAG 2.1 criterion requires bookmarks in a single
+    // document (2.4.5 Multiple Ways is scoped to a SET of documents, per
+    // WCAG2ICT), and the category's own finding says so — citing 2.4.5
+    // beside that sentence contradicted it on one card (2026-09-01).
+    criteria: [],
     principle: "Operable",
     remediation:
       "Open the Bookmarks panel. Create bookmarks for each major section, or auto-generate from heading tags (Options → New Bookmarks from Structure). This is a PDF-specific navigation feature — Word, PowerPoint, and Excel files are not scored on bookmarks.",

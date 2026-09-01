@@ -183,6 +183,7 @@ const planSteps = computed(() =>
     displayedCategories.value,
     props.result.fileType,
     props.result.pdfMetadata?.creator,
+    props.result.conformance,
   ),
 );
 

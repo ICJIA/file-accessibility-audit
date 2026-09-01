@@ -99,18 +99,25 @@ const lawVerdict = computed(() => {
   const c = props.conformance;
   if (!c) return "Checked against the legal standard";
   if (c.status === "fail") {
-    const n = c.failures.length;
+    // DISTINCT criteria, not failure entries: 1.3.1 failing in headings AND
+    // tables is one criterion twice, and a reader who counts the listed
+    // criteria must land on this number (2026-09-01: "4 criteria failing"
+    // over a list of three). Entries without an sc (forged/legacy payloads)
+    // keep the entry count rather than fabricate a smaller number.
+    const entries = c.failures.length;
+    const scList = c.failures.map((f) => (f as { sc?: string }).sc).filter(Boolean);
+    const n = scList.length === entries ? new Set(scList).size : entries;
     // One category can fail two criteria (a missing title AND a missing
-    // language both live in Title & Language), so the criteria count can
-    // exceed the severity tiles a reader just added up. Bridge the two
-    // numbers whenever they differ (user report 2026-08-29: "4+1 = 5 …
-    // but this says 6").
+    // language both live in Title & Language), and one criterion can fail in
+    // two categories — so the criteria count can differ from the severity
+    // tiles a reader just added up. Bridge the two numbers whenever they
+    // differ (user report 2026-08-29: "4+1 = 5 … but this says 6").
     const catList = c.failures.map((f) => f.category).filter(Boolean);
     const cats = new Set(catList).size;
     // Bridge only when every failure carries a category (old stored reports
     // may not) — never let missing data fabricate a smaller-looking number.
     const bridge =
-      catList.length === n && cats !== n
+      catList.length === entries && cats !== n
         ? ` in ${cats} ${cats === 1 ? "category" : "categories"}`
         : "";
     return `${n} ${n === 1 ? "criterion" : "criteria"} failing${bridge}`;

@@ -233,7 +233,10 @@ export const WCAG_CATEGORY_MAP: Record<
     { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
   ],
   alt_text: [{ sc: "1.1.1", name: "Non-text Content", level: "A" }],
-  bookmarks: [{ sc: "2.4.5", name: "Multiple Ways", level: "AA" }],
+  // bookmarks carries NO entry: no WCAG 2.1 criterion requires bookmarks in
+  // a single document (2.4.5 Multiple Ways is scoped to a SET of documents,
+  // per WCAG2ICT), and the category's own finding says so — a 2.4.5 chip
+  // rendered beside that sentence contradicted it on one card (2026-09-01).
   table_markup: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
   // 4.1.2 added 2026-08-31: a link with NO text has no accessible name, which
   // is the one link-text defect this tool scores. 2.4.4 stays because the
