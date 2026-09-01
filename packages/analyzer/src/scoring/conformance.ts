@@ -318,6 +318,27 @@ export function evaluateConformance(
     );
   }
 
+  // 4c. Title set but never displayed (2.4.2, Level A — 2026-09-01). With
+  //     DisplayDocTitle off or ViewerPreferences absent, viewers title the
+  //     window with the FILENAME and screen readers announce it — the same
+  //     harm rule 5 below asserts for a missing title. W3C technique PDF18
+  //     (sufficient for 2.4.2 in PDF) sets this flag. MIRRORS the
+  //     scoring/pdf.ts title branch — change them together.
+  if (
+    !qpdf.error &&
+    pdfjs.title &&
+    pdfjs.title.trim().length > 0 &&
+    qpdf.displayDocTitle !== true
+  ) {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      "The document has a title, but the DisplayDocTitle viewer preference is off, so a screen reader announces the filename instead — the same experience as no title. W3C's PDF technique PDF18 sets this flag (Acrobat: Document properties → Initial View → Show: Document Title).",
+    );
+  }
+
   // 5. No document title.
   if (!(pdfjs.title && pdfjs.title.trim().length > 0)) {
     add(

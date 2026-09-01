@@ -545,7 +545,10 @@ describe("docx lists", () => {
 
   it("a typed item BESIDE a real list continues that list and stays counted — the trap-140 shape", async () => {
     const buf = await buildDocx({
-      body: listItem("Requirement one") + listItem("Requirement two") + paragraph("- A completed application form"),
+      body:
+        listItem("Requirement one") +
+        listItem("Requirement two") +
+        paragraph("- A completed application form"),
     });
     const r = await analyzeDocx(buf);
     expect(r.lists.realListItems).toBe(2);

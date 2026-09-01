@@ -516,6 +516,19 @@ describe("bookmarks", () => {
     expect(r.evidence.join(" ")).not.toMatch(/1 pages/);
   });
 
+  it("display-doc-title defers to the score on a current-era payload — the flag is scored 2.4.2 now (2026-09-01)", () => {
+    const r = run(
+      "display-doc-title",
+      [
+        'Document title: "A Good Title"',
+        "The title is set, but the DisplayDocTitle viewer preference is off, so viewers and screen readers announce the FILENAME instead — the same experience as no title. W3C's own PDF technique for 2.4.2 (PDF18) sets this flag.",
+      ],
+      12,
+    );
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/i);
+  });
+
   it("is NOT CHECKED — not NOT APPLICABLE — at pageCount 0: that is a missing field defaulting to 0, not a real 0-page document", () => {
     expect(run("bookmarks", [], 0).status).toBe("not-checked");
   });

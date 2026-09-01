@@ -317,17 +317,27 @@ describe("qpdfService — JavaScript, multimedia, and optional-content censuses"
 
 describe("title_language — /Lang value shape (Matterhorn 11)", () => {
   it('half-credits a declaration that is not a usable code ("english") with a targeted fix', () => {
-    const qpdf = makeQpdf({ hasLang: true, lang: "english", hasStructTree: true });
+    const qpdf = makeQpdf({
+      hasLang: true,
+      lang: "english",
+      hasStructTree: true,
+      displayDocTitle: true,
+    });
     const result = scoreDocument(qpdf, makePdfjs({ title: "T" }));
     const cat = findCategory(result, "title_language");
-    // Title present but DisplayDocTitle unset → 35; language declared but
-    // unusable → 25.
-    expect(cat.score).toBe(75); // 25 lang (unusable) + 50 title (DDT is PDF/UA-only now)
+    // DisplayDocTitle is set so the title earns its full 50 (scored under
+    // 2.4.2 since 2026-09-01); the unusable language value half-credits at 25.
+    expect(cat.score).toBe(75);
     expect(cat.findings.some((f) => f.includes("not a usable language code"))).toBe(true);
   });
 
   it('gives full language credit to a normal code ("en-US")', () => {
-    const qpdf = makeQpdf({ hasLang: true, lang: "en-US", hasStructTree: true });
+    const qpdf = makeQpdf({
+      hasLang: true,
+      lang: "en-US",
+      hasStructTree: true,
+      displayDocTitle: true,
+    });
     const result = scoreDocument(qpdf, makePdfjs({ title: "T" }));
     expect(findCategory(result, "title_language").score).toBe(100);
   });

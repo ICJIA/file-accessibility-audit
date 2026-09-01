@@ -80,7 +80,7 @@ function linkDoc(linkText: string): Buffer {
     `/Link << /MCID 1 >> BDC\nBT /F1 11 Tf 72 680 Td (${linkText}) Tj ET\nEMC\n`;
   return buildPdf(
     [
-      "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+      "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
       "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
       "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [9 0 R] >>",
       stream(content),
@@ -132,7 +132,7 @@ function multiPageObjs(pageCount: number): { objs: string[]; catalogExtra: strin
   objs.push(FONT);
   return {
     objs,
-    catalogExtra: `/Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US)`,
+    catalogExtra: `/Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >>`,
   };
 }
 
@@ -192,7 +192,7 @@ const SAMPLES: Sample[] = [
       const content = `q 612 0 0 792 0 0 cm /Im1 Do Q\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>",
           GRAY_IMG(4),
@@ -218,7 +218,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 3 >> BDC\nq 40 0 0 40 272 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> /XObject << /Im1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -251,7 +251,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Language test")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (zx!!9) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (zx!!9) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -277,7 +277,7 @@ const SAMPLES: Sample[] = [
       const content = `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Only Heading) Tj ET\nEMC\n/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Cycle test")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -305,7 +305,7 @@ const SAMPLES: Sample[] = [
     build: () => {
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Deep nesting")}) Tj ET\nEMC\n`;
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 68 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -348,7 +348,7 @@ const SAMPLES: Sample[] = [
       content += `/P << /MCID 7 >> BDC\nBT /F1 11 Tf 72 500 Td (${LONG("One honest paragraph")}) Tj ET\nEMC\n`;
       const kids = ["7 0 R", "8 0 R", "9 0 R", "10 0 R", "11 0 R", "12 0 R", "13 0 R", "14 0 R"];
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 16 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -386,7 +386,7 @@ const SAMPLES: Sample[] = [
           mcid++;
         }
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 25 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -434,7 +434,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Empty table")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -461,7 +461,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 2 >> BDC\nq 60 0 0 60 72 580 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> /XObject << /Im1 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -504,7 +504,7 @@ const SAMPLES: Sample[] = [
         `BT /F1 11 Tf 72 670 Td (${LONG("And so is this one which is also invisible to a reader")}) Tj ET\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -534,7 +534,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 2 >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> /XObject << /Im1 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -581,7 +581,7 @@ const SAMPLES: Sample[] = [
         kids.push(`${7 + i * 2} 0 R`, `${8 + i * 2} 0 R`);
       }
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 30 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -615,7 +615,7 @@ const SAMPLES: Sample[] = [
         `/Lbody << /MCID 3 >> BDC\nBT /F1 11 Tf 100 680 Td (First list item body text here.) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 13 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -658,7 +658,7 @@ const SAMPLES: Sample[] = [
         content += `BT /F1 11 Tf 72 ${740 - i * 12} Td (Loose line ${i + 1} of ordinary page text) Tj ET\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -691,7 +691,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Application form")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /AcroForm << /Fields [8 0 R 9 0 R 10 0 R] >> >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /AcroForm << /Fields [8 0 R 9 0 R 10 0 R] >> /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [8 0 R 9 0 R 10 0 R] >>",
           stream(content),
@@ -721,7 +721,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Proper form")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /AcroForm << /Fields [8 0 R 9 0 R] >> >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /AcroForm << /Fields [8 0 R 9 0 R] >> /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 13 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [8 0 R 9 0 R] /Tabs /S >>",
           stream(content),
@@ -758,7 +758,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("Rasterized letterhead")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> /XObject << /Im1 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -798,7 +798,7 @@ const SAMPLES: Sample[] = [
       });
       content += `/P << /MCID 6 >> BDC\nBT /F1 11 Tf 72 480 Td (${LONG("Level skips")}) Tj ET\nEMC\n`;
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 15 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -835,7 +835,7 @@ const SAMPLES: Sample[] = [
       content += `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 540 Td (${LONG("Generic H")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -872,7 +872,7 @@ const SAMPLES: Sample[] = [
       content += `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 540 Td (${LONG("Mixed conventions")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -903,7 +903,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Filename title")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -920,7 +920,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-23-title-display-off.pdf",
     truth:
-      "A good title the viewer is told NOT to display — DisplayDocTitle unset means readers hear the filename anyway.",
+      "A good title the viewer is told NOT to display — DisplayDocTitle unset means readers hear the filename anyway: the same experience as no title, scored under WCAG 2.4.2 since 2026-09-01 (W3C's PDF18 sets this flag; PAC and veraPDF's WCAG profile check it). title_language must land at 75 and the verdict must name 2.4.2 with the flag in its words.",
     build: () => {
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Display off")}) Tj ET\nEMC\n`;
       return buildPdf(
@@ -937,10 +937,16 @@ const SAMPLES: Sample[] = [
         "<< /Title (A Perfectly Good Title) >>",
       );
     },
-    check: (r) =>
-      /DisplayDocTitle|title display|document title/i.test(allFindings(r))
-        ? null
-        : "OBSERVE: DisplayDocTitle-unset not mentioned",
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score !== 75) return `title set + flag off scored ${c?.score}, not 75`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (x) => String(x.sc ?? "") === "2.4.2" && /DisplayDocTitle/i.test(String(x.issue ?? "")),
+      );
+      return failing ? null : "points lost with no 2.4.2 DisplayDocTitle failure attributed";
+    },
   },
   {
     file: "synthetic-24-th-without-scope.pdf",
@@ -1011,7 +1017,7 @@ const SAMPLES: Sample[] = [
       content += `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 640 Td (${LONG("Fake bullets")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1043,7 +1049,7 @@ const SAMPLES: Sample[] = [
         `/TD << /MCID 2 >> BDC\nBT /F1 10 Tf 200 660 Td (Inner cell) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 13 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1074,7 +1080,7 @@ const SAMPLES: Sample[] = [
         content += `/TD << /MCID ${i} >> BDC\nBT /F1 10 Tf ${72 + ((i - 1) % 5) * 90} ${660 - Math.floor((i - 1) / 5) * 24} Td (Cell ${i}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 18 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1129,7 +1135,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Untagged link")}) Tj ET\nEMC\nBT /F1 11 Tf 72 680 Td (Visit our site today) Tj ET\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [8 0 R] >>",
           stream(content),
@@ -1159,7 +1165,7 @@ const SAMPLES: Sample[] = [
       content += `/P << /MCID 8 >> BDC\nBT /F1 11 Tf 72 690 Td (Short body line) Tj ET\nEMC\n`;
       const kids = Array.from({ length: 9 }, (_, i) => `${7 + i} 0 R`);
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 17 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -1194,7 +1200,7 @@ const SAMPLES: Sample[] = [
         `/Note << /MCID 1 >> BDC\nBT /F1 9 Tf 72 100 Td (1. The footnote text sits here.) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1219,7 +1225,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Layer test")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /OCProperties << /OCGs [8 0 R] /D << /Order [8 0 R] >> >> >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /OCProperties << /OCGs [8 0 R] /D << /Order [8 0 R] >> >> /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1245,7 +1251,7 @@ const SAMPLES: Sample[] = [
       const content = `/AA << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Circular map")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1270,7 +1276,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Standard remap")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1295,7 +1301,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Script test")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /OpenAction 8 0 R >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /OpenAction 8 0 R /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1321,7 +1327,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Tab order")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1345,7 +1351,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 1 >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> /XObject << /Im1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1378,7 +1384,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("Artifact twin")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> /XObject << /Im1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1491,7 +1497,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 12 Tf 72 660 Td (${LONG("Prepared by the research unit")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1522,7 +1528,7 @@ const SAMPLES: Sample[] = [
         `/Artifact << /Type /Layout >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> /XObject << /Im1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1584,7 +1590,7 @@ const SAMPLES: Sample[] = [
         `/Formula << /MCID 1 >> BDC\nBT /F1 14 Tf 72 680 Td (E = mc2) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1609,7 +1615,7 @@ const SAMPLES: Sample[] = [
         `/Formula << /MCID 1 >> BDC\nBT /F1 14 Tf 72 680 Td (E = mc2) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1644,7 +1650,7 @@ const SAMPLES: Sample[] = [
         `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 162 540 Td (Cell B) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 13 0 R >> /XObject << /Im1 14 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1745,7 +1751,7 @@ const SAMPLES: Sample[] = [
         `BT /F1 11 Tf 72 380 Td (${LONG("Free services")}) Tj ET\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> /XObject << /Im1 6 0 R >> >> /Contents 4 0 R >>",
           stream(content),
@@ -1771,7 +1777,7 @@ const SAMPLES: Sample[] = [
         `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Neighborhood Newsletter) Tj ET\nEMC\n` +
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("This month")}) Tj ET\nEMC\n`;
       return buildPdf([
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -1798,7 +1804,7 @@ const SAMPLES: Sample[] = [
         content += `/Figure << /MCID ${i + 1} >> BDC\nq 12 0 0 12 ${80 + i * 40} 640 cm /Im1 Do Q\nEMC\n`;
       content += `/Figure << /MCID 13 >> BDC\nq 80 0 0 80 72 520 cm /Im1 Do Q\nEMC\n`;
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -1867,7 +1873,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("The details")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1902,7 +1908,7 @@ const SAMPLES: Sample[] = [
         `<< /Type /Annot /Subtype /Link /Rect [72 ${y} 300 ${y + 16}] /A << /S /URI /URI (https://example.org/p${n}) >> /F 4 /StructParent ${n} >>`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [8 0 R 9 0 R 10 0 R] >>",
           stream(content),
@@ -1938,7 +1944,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Welcome aboard")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -1997,7 +2003,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("The festival")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2043,7 +2049,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 1 >> BDC\nq 60 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2076,7 +2082,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Second paragraph")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2109,7 +2115,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG(seed)}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 11 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 11 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R 6 0 R 7 0 R] /Count 5 >>",
           pg(1, " /Resources << /Font << /F1 17 0 R >> >> /Contents 8 0 R /StructParents 0"),
           pg(2, ""),
@@ -2145,7 +2151,7 @@ const SAMPLES: Sample[] = [
         content += `/H1 << /MCID ${i} >> BDC\nBT /F1 16 Tf 72 ${740 - i * 30} Td (Section Heading Number ${i + 1}) Tj ET\nEMC\n`;
       content += `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 560 Td (${LONG("Body under")}) Tj ET\nEMC\n`;
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -2231,7 +2237,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 1 >> BDC\nq 60 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2331,7 +2337,7 @@ const SAMPLES: Sample[] = [
         `/Body-Text << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("The program")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2366,7 +2372,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Mapped style")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2397,7 +2403,7 @@ const SAMPLES: Sample[] = [
         content += `/Figure << /MCID ${i + 1} >> BDC\nq 60 0 0 60 ${72 + i * 90} 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2485,7 +2491,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 640 Td (${LONG("Preface")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2521,7 +2527,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 2 >> BDC\nBT /F1 11 Tf 72 640 Td (${LONG("Preface")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [10 0 R] >>",
           stream(content),
@@ -2558,7 +2564,7 @@ const SAMPLES: Sample[] = [
         `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 200 680 Td (12,400) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2593,7 +2599,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("First frame")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2656,7 +2662,7 @@ const SAMPLES: Sample[] = [
       const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Live page")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /Outlines 9 0 R >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /Outlines 9 0 R /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2687,7 +2693,7 @@ const SAMPLES: Sample[] = [
         `/Caption << /MCID 2 >> BDC\nBT /F1 9 Tf 72 605 Td (Figure 1: The survey site at dawn.) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2724,7 +2730,7 @@ const SAMPLES: Sample[] = [
         spanRefs.push(`${9 + i} 0 R`);
       }
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -2758,7 +2764,7 @@ const SAMPLES: Sample[] = [
         `/H2 << /MCID 4 >> BDC\nBT /F1 14 Tf 72 650 Td (Spending Detail) Tj ET\nEMC\n` +
         `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 620 Td (${LONG("Spending rose")}) Tj ET\nEMC\n`;
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -2825,7 +2831,7 @@ const SAMPLES: Sample[] = [
         `q 1 0 0 1 72 600 cm /Fx1 Do Q\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Fx1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2856,7 +2862,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Plain second paragraph")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2931,7 +2937,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("Meeting agenda")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2965,7 +2971,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("Notes on the figures")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -2999,7 +3005,7 @@ const SAMPLES: Sample[] = [
         `/Figure << /MCID 1 >> BDC\nq 80 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -3041,7 +3047,7 @@ const SAMPLES: Sample[] = [
         }
       }
       const objs = [
-        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
         stream(content),
@@ -3080,7 +3086,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("The reviewed text")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [9 0 R 10 0 R] >>",
           stream(content),
@@ -3159,7 +3165,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 600 Td (- typed dash item three) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -3196,7 +3202,7 @@ const SAMPLES: Sample[] = [
         `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 200 660 Td (5,300) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -3236,7 +3242,7 @@ const SAMPLES: Sample[] = [
         `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Retention rules")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
           "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
           stream(content),
@@ -3265,7 +3271,7 @@ const SAMPLES: Sample[] = [
         `BT /F1 11 Tf 72 700 Td (${LONG("Please note")}) Tj ET\n` +
         `BT /F1 11 Tf 72 680 Td (${LONG("Also note")}) Tj ET\n`;
       return buildPdf([
-        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Catalog /Pages 2 0 R /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
         stream(content),
@@ -3351,7 +3357,7 @@ const SAMPLES: Sample[] = [
       const p3 = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Ordinary final page")}) Tj ET\nEMC\n`;
       return buildPdf(
         [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 9 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 9 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
           "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>",
           `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ${pgRes("/XObject << /Im1 13 0 R >> ")}/Contents 6 0 R >>`,
           `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ${pgRes("/XObject << /Im1 13 0 R >> ")}/Contents 7 0 R /StructParents 0 >>`,
@@ -3906,7 +3912,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-125-wcag-clean-bp-debt.pdf",
     truth:
-      "A document can satisfy WCAG 2.1 completely and still carry best-practice work. This one is tagged, marked, titled, language-tagged, nested into sections, and its one figure is described — no WCAG criterion fails, so it must land in the A band with no Critical or Moderate category and an empty conformance-failure list. It nonetheless skips a heading level (H1 -> H3), runs past the bookmark threshold with no bookmarks, and leaves DisplayDocTitle off. None of those is a WCAG 2.1 failure, so none may move the score — and all three must still be reported, each carrying a not-scored prefix. This is the corpus proof of the Best Practices claim: a clean grade and work worth doing can be true at the same time.",
+      "A document can satisfy WCAG 2.1 completely and still carry best-practice work. This one is tagged, marked, titled (and displayed — DisplayDocTitle is on, scored under 2.4.2 since 2026-09-01), language-tagged, nested into sections, and its one figure is described — no WCAG criterion fails, so it must land in the A band with no Critical or Moderate category and an empty conformance-failure list. It nonetheless skips a heading level (H1 -> H3) and runs past the bookmark threshold with no bookmarks. Neither is a WCAG 2.1 failure, so neither may move the score — and both must still be reported, each carrying a not-scored prefix. This is the corpus proof of the Best Practices claim: a clean grade and work worth doing can be true at the same time.",
     build: () => {
       // Painted line by line, as every real exporter does: one unbroken Tj
       // run wider than the page comes back from pdf.js truncated at ~112
@@ -3939,9 +3945,10 @@ const SAMPLES: Sample[] = [
       const parentTree = pRest(PAGES - 2) + 1;
 
       const objs: string[] = [];
-      // No /ViewerPreferences: DisplayDocTitle is off, defect three.
+      // DisplayDocTitle ON: the flag is SCORED under 2.4.2 since 2026-09-01,
+      // so it can no longer serve as unscored best-practice debt.
       objs.push(
-        `<< /Type /Catalog /Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>`,
+        `<< /Type /Catalog /Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>`,
       );
       objs.push(
         `<< /Type /Pages /Kids [${Array.from({ length: PAGES }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count ${PAGES} >>`,
@@ -4020,15 +4027,14 @@ const SAMPLES: Sample[] = [
       const notScored = r.categories
         .flatMap((c) => c.findings)
         .filter((f) => /^(pdf\/ua only|advisory|note) — not scored/i.test(f.trim()));
-      // EXACTLY three, not "at least" (2026-08-30): the trap's public label
-      // on the /trust page says "three things worth doing". An at-least
-      // assertion would let one unrelated future advisory stale that copy
-      // silently — the class of drift this project's trust-page stats rule
-      // exists to stop. The truth is three named defects; pin three.
-      if (notScored.length !== 3)
-        return `expected exactly 3 not-scored items, found ${notScored.length}`;
+      // EXACTLY two, not "at least" (2026-08-30 doctrine; two since
+      // 2026-09-01, when DisplayDocTitle moved to the scored tier): an
+      // at-least assertion would let one unrelated future advisory stale the
+      // trust-page copy silently. The truth is two named defects; pin two.
+      if (notScored.length !== 2)
+        return `expected exactly 2 not-scored items, found ${notScored.length}`;
       const all = notScored.join("\n").toLowerCase();
-      for (const needle of ["level order has gaps", "no bookmarks", "displaydoctitle"]) {
+      for (const needle of ["level order has gaps", "no bookmarks"]) {
         if (!all.includes(needle)) return `missing the designed advisory: ${needle}`;
       }
       return null;
@@ -4451,7 +4457,7 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-125-wcag-clean-bp-debt.pdf": {
     label:
-      "Passes WCAG 2.1 outright, and still has three things worth doing — a clean grade beside real advice",
+      "Passes WCAG 2.1 outright, and still has two things worth doing — a clean grade beside real advice",
     chip: "held",
     chipText: "HELD \u00b7 SCORED 100",
   },

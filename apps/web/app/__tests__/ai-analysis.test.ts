@@ -150,7 +150,12 @@ describe("buildAiAnalysis", () => {
               explanation: "",
             },
           ],
-          conformance: { status: "no-automated-failures", failures: [], notAssessed: [], headline: "" },
+          conformance: {
+            status: "no-automated-failures",
+            failures: [],
+            notAssessed: [],
+            headline: "",
+          },
         }),
       );
       expect(out).toContain("Verdict: Accessible");

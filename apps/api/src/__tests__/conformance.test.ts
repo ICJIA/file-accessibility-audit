@@ -311,7 +311,9 @@ describe("conformance gate — XFA forms", () => {
     // accessible Designer forms.
     const evaluate = await loadGate();
     const v = evaluate(
-      makeQpdf({ hasXfa: true, needsRendering: false, hasStructTree: true }),
+      // displayDocTitle true keeps this fixture clean under the 2026-09-01
+      // 2.4.2 flag rule — this test is about XFA, not titles.
+      makeQpdf({ hasXfa: true, needsRendering: false, hasStructTree: true, displayDocTitle: true }),
       makePdfjs(),
       cleanCategories,
     );

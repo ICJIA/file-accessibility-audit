@@ -901,14 +901,13 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "A PDF can be set to show its own descriptive title in the viewer's title bar and tabs, instead of the filename.",
     why: 'Screen readers announce whatever the viewer displays first. Without this preference set, someone opening the file hears the filename ("report_v3_final.pdf") instead of a title that says what the document actually is.',
-    // The internal inconsistency this row must not hide: when the /Title
-    // merely LOOKS like a filename, scoring/pdf.ts:423 gives 25/50 and
-    // conformance.ts:462-469 records a 2.4.2 / F25 Level A failure. With this
-    // flag off the reader is handed the actual filename — the same outcome,
-    // full credit. Defensible (2.4.2 asks for a title, which exists), but the
-    // row may not present it as settled.
+    // Scored since 2026-09-01: with the flag off the reader is handed the
+    // filename — the same harm as no title, and the inconsistency this row
+    // used to have to disclose. Current-era payloads emit a SCORED finding
+    // (diverted below); the old unscored advisory keeps its not-met branch
+    // for stored payloads that predate the change.
     standard:
-      "PDF/UA (ISO 14289) clause 7.1. WCAG's own PDF technique for 2.4.2 (PDF18) sets this flag too, and some evaluators record a 2.4.2 (Level A) failure when the viewer shows the filename. This tool does not count it, because 2.4.2 asks that the document have a title — and it does.",
+      "PDF/UA (ISO 14289) clause 7.1 — and since 2026-09-01 this tool also counts the flag under WCAG 2.4.2 (Level A): W3C's own PDF technique for 2.4.2 (PDF18) sets it, and with it off, screen readers announce the filename.",
     links: [],
     wcagSlugs: [{ slug: "page-titled", label: "WCAG 2.4.2: Page Titled — Level A" }],
     detect(ctx) {
@@ -924,6 +923,15 @@ export const PDF_PRACTICES: BestPractice[] = [
       // The other DisplayDocTitle line ("shown by viewers — DisplayDocTitle
       // is set") does not contain "viewer preference is", so this stays as
       // narrow as it was.
+      // Current-era payloads: the flag is SCORED (2.4.2) and the finding
+      // carries no not-scored prefix — that work belongs to the action plan,
+      // not to extra credit.
+      if (matchMain(ctx, "so viewers and screen readers announce the filename instead")) {
+        return {
+          status: "not-applicable",
+          evidence: [`Whether viewers display this document's title is ${SCORED_IN_PLAN}`],
+        };
+      }
       const off = matchAdvisory(ctx, "displaydoctitle viewer preference is");
       if (off) {
         return {

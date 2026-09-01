@@ -496,17 +496,22 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
       findings.push(
         'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
       );
-    } else if (qpdf.displayDocTitle !== true) {
-      // NOT SCORED (2026-08-29, the legal-only sweep): DisplayDocTitle is
-      // PDF/UA clause 7.1's requirement, checked by veraPDF under that
-      // clause. WCAG 2.1's 2.4.2 asks for a describing title, which this
-      // document HAS — the viewer-preference flag is how one PDF technique
-      // exposes it, not the criterion itself. Full credit; reported as an
-      // unscored PDF/UA item.
-      score += 50;
+    } else if (!qpdf.error && qpdf.displayDocTitle !== true) {
+      // (!qpdf.error: with the structure analyzer down the flag state is a
+      // DEFAULT, not an observation — the analyzer-failure rule applies.)
+      // SCORED under 2.4.2 (2026-09-01, reversing the 2026-08-29 stance).
+      // With the flag off — or no ViewerPreferences at all — every viewer
+      // shows the FILENAME in its title bar, and screen readers announce it:
+      // the same experience this scorer counts as a 2.4.2 failure when no
+      // title exists. W3C's PDF18, the sufficient technique for 2.4.2 in
+      // PDF, sets the flag; PAC and veraPDF's WCAG profile check it the
+      // same way. Half the title credit: the title exists (searchable,
+      // shown in properties), the reader just never hears it. Mirrored by
+      // the conformance gate — change them together.
+      score += 25;
       findings.push(`Document title: "${pdfjs.title}"`);
       findings.push(
-        "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off, so viewers show the FILENAME in the title bar instead of this title. WCAG 2.1 asks for a describing title, which this document has — your grade is not affected. PDF/UA (clause 7.1) requires the flag as well.",
+        "The title is set, but the DisplayDocTitle viewer preference is off, so viewers and screen readers announce the FILENAME instead — the same experience as no title. W3C's own PDF technique for 2.4.2 (PDF18) sets this flag.",
       );
       findings.push(
         "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",

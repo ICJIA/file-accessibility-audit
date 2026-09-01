@@ -701,6 +701,7 @@ const props = withDefaults(
   {
     showStandardsStrip: true,
     showScoreTable: true,
+    analyzedAt: null,
   },
 );
 

@@ -433,6 +433,48 @@ describe("scoreDocument — mixed results", () => {
     );
   });
 
+  describe("DisplayDocTitle is scored under 2.4.2 (2026-09-01)", () => {
+    // With the flag off, viewers show the FILENAME in the title bar and
+    // screen readers announce it — the same experience this tool scores as
+    // a 2.4.2 failure when no title exists at all. W3C's PDF18 (the
+    // sufficient technique for 2.4.2 in PDF) sets the flag; PAC and
+    // veraPDF's WCAG profile check it. The old unscored stance gave full
+    // credit for a title no reader ever hears.
+    const base = () => ({
+      qpdf: makeQpdf({ hasStructTree: true, hasLang: true, lang: "en-US", paragraphCount: 30 }),
+      pdfjs: makePdfjs({ hasText: true, textLength: 9000, pageCount: 10, title: "A Good Title" }),
+    });
+
+    it("title set but flag off → 75 and an attributed 2.4.2 citing the displayed-title harm", () => {
+      const { qpdf, pdfjs } = base();
+      qpdf.displayDocTitle = false;
+      const result = scoreDocument(qpdf, pdfjs);
+      expect(findCategory(result, "title_language").score).toBe(75);
+      const f = result.conformance.failures.find(
+        (x) => x.sc === "2.4.2" && x.category === "title_language",
+      );
+      expect(f).toBeDefined();
+      expect(f!.issue).toMatch(/DisplayDocTitle/i);
+      expect(f!.issue).toMatch(/PDF18/);
+    });
+
+    it("no ViewerPreferences at all is the same off state", () => {
+      const { qpdf, pdfjs } = base();
+      qpdf.displayDocTitle = null;
+      const result = scoreDocument(qpdf, pdfjs);
+      expect(findCategory(result, "title_language").score).toBe(75);
+      expect(result.conformance.failures.some((x) => x.sc === "2.4.2")).toBe(true);
+    });
+
+    it("flag on → clean 100 and no 2.4.2", () => {
+      const { qpdf, pdfjs } = base();
+      qpdf.displayDocTitle = true;
+      const result = scoreDocument(qpdf, pdfjs);
+      expect(findCategory(result, "title_language").score).toBe(100);
+      expect(result.conformance.failures.some((x) => x.sc === "2.4.2")).toBe(false);
+    });
+  });
+
   it("a tagged PDF with a little text (1–49 chars) is not assessed — never Critical with no criterion", () => {
     // pdf.ts scored this 25/Critical ("limited assessable content rather
     // than a confirmed barrier" — its own words) while the gate attributes
@@ -776,7 +818,7 @@ describe("weight renormalization", () => {
     expect(findCategory(result, "heading_structure").score).toBe(0);
   });
 
-  it("DisplayDocTitle off → full credit with a PDF/UA-only advisory (legal-only sweep)", () => {
+  it("DisplayDocTitle off → 75 and a scored 2.4.2 line (scored 2026-09-01, reversing the sweep's stance)", () => {
     const base = {
       hasStructTree: true,
       hasLang: true,
@@ -793,12 +835,13 @@ describe("weight renormalization", () => {
     const withFlag = scoreDocument(makeQpdf({ ...base, displayDocTitle: true }), pdfjs);
     expect(findCategory(withFlag, "title_language").score).toBe(100);
 
-    const withoutFlag = scoreDocument(makeQpdf(base), pdfjs);
+    const withoutFlag = scoreDocument(makeQpdf({ ...base, displayDocTitle: false }), pdfjs);
     const cat = findCategory(withoutFlag, "title_language");
-    expect(cat.score).toBe(100); // 50 title (DDT is PDF/UA 7.1, unscored) + 50 language
-    expect(cat.findings.some((f) => /PDF\/UA only — not scored:.*DisplayDocTitle/i.test(f))).toBe(
-      true,
-    );
+    expect(cat.score).toBe(75);
+    const text = cat.findings.join(" ");
+    expect(text).toMatch(/announce the FILENAME instead/);
+    expect(text).toMatch(/PDF18/);
+    expect(text).not.toMatch(/not scored/i);
   });
 
   it("counts painted images beyond the tagged figures against coverage, not as full coverage", () => {

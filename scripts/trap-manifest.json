@@ -555,7 +555,7 @@
     },
     {
       "file": "synthetic-125-wcag-clean-bp-debt.pdf",
-      "label": "Passes WCAG 2.1 outright, and still has three things worth doing — a clean grade beside real advice",
+      "label": "Passes WCAG 2.1 outright, and still has two things worth doing — a clean grade beside real advice",
       "chip": "held",
       "chipText": "HELD · SCORED 100"
     }

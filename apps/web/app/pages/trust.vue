@@ -58,7 +58,7 @@ function onTrustBodyClick(e: MouseEvent) {
 
 <template>
   <!-- eslint-disable-next-line vue/no-v-html — repo-authored generated body, see header comment -->
-  <div class="trust-page -mx-3 sm:-mx-6" v-html="TRUST_BODY" @click="onTrustBodyClick"></div>
+  <div class="trust-page -mx-3 sm:-mx-6" @click="onTrustBodyClick" v-html="TRUST_BODY"></div>
 </template>
 
 <style>

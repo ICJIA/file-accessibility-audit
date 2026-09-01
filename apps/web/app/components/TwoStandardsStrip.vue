@@ -46,8 +46,8 @@
           <strong class="font-semibold"
             >This report predates the current scoring model ({{ legalOnlySince }}).</strong
           >
-          {{ " " }}Its grade may include items today's reports list without counting — re-upload
-          the document for a grade measured only against WCAG 2.1 A/AA.
+          {{ " " }}Its grade may include items today's reports list without counting — re-upload the
+          document for a grade measured only against WCAG 2.1 A/AA.
         </template>
         <template v-if="lawFailing">
           {{ " " }}
@@ -72,8 +72,8 @@
         >
         {{ " " }}<span class="text-[var(--text-secondary)]">{{ pdfUaVerdictLine }}</span
         >. The PDF industry's own standard (ISO 14289), checked by veraPDF. Where one of its rules
-        overlaps WCAG 2.1, your grade already counts this tool's own check of that point; the
-        PDF/UA verdict itself is extra credit.
+        overlaps WCAG 2.1, your grade already counts this tool's own check of that point; the PDF/UA
+        verdict itself is extra credit.
         <strong class="font-semibold text-[var(--text-secondary)]"
           >Not counted in your score.</strong
         >

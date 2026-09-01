@@ -44,7 +44,7 @@ describe("dc:title from XMP (2026-09-01)", () => {
   it("reads the element-form dc:title when the Info dictionary has none", async () => {
     const buf = pdfWithXmpTitle(
       ' <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">\n' +
-        "  <dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Annual Report 2024</rdf:li></rdf:Alt></dc:title>\n" +
+        '  <dc:title><rdf:Alt><rdf:li xml:lang="x-default">Annual Report 2024</rdf:li></rdf:Alt></dc:title>\n' +
         " </rdf:Description>",
     );
     const r = await analyzeWithPdfjs(buf);
@@ -64,7 +64,7 @@ describe("dc:title from XMP (2026-09-01)", () => {
   it("the Info dictionary's /Title wins when both exist", async () => {
     const buf = pdfWithXmpTitle(
       ' <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">\n' +
-        "  <dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">XMP Title</rdf:li></rdf:Alt></dc:title>\n" +
+        '  <dc:title><rdf:Alt><rdf:li xml:lang="x-default">XMP Title</rdf:li></rdf:Alt></dc:title>\n' +
         " </rdf:Description>",
       "<< /Title (Info Title) >>",
     );
