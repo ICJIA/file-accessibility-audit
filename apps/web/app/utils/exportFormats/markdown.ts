@@ -122,12 +122,12 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
   // in a separate "Not Included in Scoring" list ("Not assessed" vs "Not applicable").
   const mdScored = result.categories.filter((c) => c.score !== null);
   const mdNa = result.categories.filter((c) => c.score === null);
-  lines.push("| Category | Score | Grade | Severity |");
-  lines.push("|----------|-------|-------|----------|");
+  // No per-category letter (2026-09-01): it gets read as the document's grade.
+  lines.push("| Category | Score | Severity |");
+  lines.push("|----------|-------|----------|");
   for (const cat of mdScored) {
-    const grade = cat.grade || "—";
     const sev = cat.severity ? `${severityEmoji(cat.severity)} ${cat.severity}` : "N/A";
-    lines.push(`| ${cat.label} | ${cat.score}/100 | ${grade} | ${sev} |`);
+    lines.push(`| ${cat.label} | ${cat.score}/100 | ${sev} |`);
   }
   lines.push("");
   if (mdNa.length) {
@@ -146,7 +146,7 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
   lines.push("");
 
   for (const cat of mdScored) {
-    const scoreStr = `${cat.score}/100 (${cat.grade})`;
+    const scoreStr = `${cat.score}/100`;
     lines.push(`### ${cat.label} — ${scoreStr}`);
     lines.push("");
 

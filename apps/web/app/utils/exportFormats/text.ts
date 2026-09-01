@@ -89,9 +89,9 @@ export function buildText(result: ReportResult, branding: BrandingInfo): string 
   const txtNa = result.categories.filter((c) => c.score === null);
   for (const cat of txtScored) {
     const score = `${cat.score}/100`;
-    const grade = cat.grade || "-";
     const sev = cat.severity || "N/A";
-    out.push(`  ${cat.label.padEnd(26)} ${score.padStart(7)}  ${grade.padEnd(2)} ${sev}`);
+    // No per-category letter (2026-09-01): it gets read as the document's grade.
+    out.push(`  ${cat.label.padEnd(26)} ${score.padStart(7)}  ${sev}`);
   }
   out.push("");
   if (txtNa.length) {
@@ -106,7 +106,7 @@ export function buildText(result: ReportResult, branding: BrandingInfo): string 
   out.push("DETAILED FINDINGS");
   out.push(RULE);
   for (const cat of txtScored) {
-    const scoreStr = `${cat.score}/100 (${cat.grade})`;
+    const scoreStr = `${cat.score}/100`;
     out.push("");
     out.push(`${cat.label} — ${scoreStr}`);
     out.push(SUB);

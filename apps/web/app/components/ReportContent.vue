@@ -25,7 +25,7 @@
       </div>
       <table class="w-full text-sm min-w-[420px]">
         <caption class="sr-only">
-          Accessibility category scores: category, score, grade, and severity
+          Accessibility category scores: category, score, and severity
         </caption>
         <thead>
           <tr
@@ -33,7 +33,6 @@
           >
             <th scope="col" class="text-left px-3 sm:px-5 py-2 font-medium">Category</th>
             <th scope="col" class="text-center px-2 sm:px-3 py-2 font-medium">Score</th>
-            <th scope="col" class="text-center px-2 sm:px-3 py-2 font-medium">Grade</th>
             <th scope="col" class="text-center px-2 sm:px-3 py-2 font-medium">Severity</th>
           </tr>
         </thead>
@@ -56,18 +55,9 @@
             <td v-else class="text-center px-2 sm:px-3 py-2.5 font-mono">
               <NaCell :cat-id="cat.id" :not-assessed="cat.notAssessed" />
             </td>
-            <td class="text-center px-2 sm:px-3 py-2.5">
-              <span
-                v-if="cat.grade"
-                class="inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
-                :style="{
-                  backgroundColor: withAlpha(catColor(cat), 12),
-                  color: catColor(cat),
-                }"
-                >{{ cat.grade }}</span
-              >
-              <span v-else class="text-[var(--text-muted)]" aria-hidden="true">—</span>
-            </td>
+            <!-- No per-category letter since 2026-09-01: it was read as the
+                 DOCUMENT's grade. The score keeps the band colour; the
+                 severity chip is the row's judgment. -->
             <td class="text-center px-2 sm:px-3 py-2.5">
               <span
                 v-if="cat.severity"
@@ -85,7 +75,7 @@
         <tbody v-if="naCategories.length">
           <tr class="border-t border-[var(--border)]">
             <td
-              colspan="4"
+              colspan="3"
               class="px-3 sm:px-5 py-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide bg-[var(--surface-deep)]"
             >
               Not Included in Scoring

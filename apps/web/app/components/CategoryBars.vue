@@ -33,12 +33,11 @@
           aria-hidden="true"
           >{{ cat.score }}</span
         >
-        <span
-          class="inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center flex-shrink-0"
-          :style="{ backgroundColor: withAlpha(barColor(cat), 12), color: barColor(cat) }"
-          aria-hidden="true"
-          >{{ cat.grade || "—" }}</span
-        >
+        <!-- NO per-category letter (2026-09-01): a letter beside a category
+             score gets read as the DOCUMENT's grade — the product's own
+             author read a B report as a C off the title row's chip. The bar
+             colour still encodes the band; score + severity say the rest.
+             The overall grade keeps its letter in the hero alone. -->
         <!-- FIXED WIDTH, and ALWAYS RENDERED (2026-08-31 bug report). The
              track above is flex-1, so anything variable to its right changes
              how much room the track gets — and the fill is a percentage OF
@@ -118,6 +117,6 @@ function sevColor(severity: string): string {
 }
 function rowLabel(cat: BarCategory): string {
   const sev = cat.severity ? `, severity ${cat.severity}` : "";
-  return `${cat.label}: ${cat.score} out of 100, grade ${cat.grade ?? "none"}${sev}`;
+  return `${cat.label}: ${cat.score} out of 100${sev}`;
 }
 </script>

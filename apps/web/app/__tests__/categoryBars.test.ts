@@ -24,15 +24,61 @@ const cats = [
   { id: "color_contrast", label: "Color Contrast", score: null, grade: null, severity: null },
 ];
 
+// 2026-09-01: the per-category letter chip was READ AS THE DOCUMENT'S GRADE —
+// by the product's own author, on a B document whose title row showed a C.
+// The 2026-08-07 scoring rework already established the pattern ("any figure
+// out of 100 beside a letter grade is read as the grade"); this was the same
+// hazard one level down. Score + severity carry the row's whole message.
+describe("CategoryBars — no per-category letter (2026-09-01)", () => {
+  it("renders score and severity but NO letter chip on a scored row", () => {
+    const w = mount(CategoryBars, {
+      props: {
+        categories: [
+          {
+            id: "title_language",
+            label: "Document Title & Language",
+            score: 75,
+            grade: "C",
+            severity: "Minor",
+          },
+        ],
+      },
+    });
+    const row = w.find('[data-testid="bar-row"]');
+    expect(row.text()).toMatch(/^Document Title & Language\s*75\s*Minor$/);
+  });
+
+  it("the row's accessible label names score and severity, never a grade", () => {
+    const w = mount(CategoryBars, {
+      props: {
+        categories: [
+          {
+            id: "alt_text",
+            label: "Alt Text on Images",
+            score: 70,
+            grade: "C",
+            severity: "Moderate",
+          },
+        ],
+      },
+    });
+    const row = w.find('[data-testid="bar-row"]');
+    expect(row.attributes("aria-label")).toBe(
+      "Alt Text on Images: 70 out of 100, severity Moderate",
+    );
+  });
+});
+
 describe("CategoryBars", () => {
-  it("renders one bar row per scored category with score, grade AND severity (table parity)", () => {
+  it("renders one bar row per scored category with score and severity (table parity)", () => {
+    // Per-category letters were removed 2026-09-01 (see the describe above):
+    // parity with the Detailed table is now Category / Score / Severity.
     const w = mount(CategoryBars, { props: { categories: cats } });
     const rows = w.findAll("[data-testid='bar-row']");
     expect(rows.length).toBe(3);
     const alt = rows[1]!;
     expect(alt.text()).toContain("Alt Text on Images");
     expect(alt.text()).toContain("70");
-    expect(alt.text()).toContain("C");
     expect(alt.text()).toContain("Moderate");
     const fill = alt.find("[data-testid='bar-fill']");
     expect(fill.attributes("style")).toContain("width: 70%");
@@ -41,7 +87,7 @@ describe("CategoryBars", () => {
   it("gives every row a full-sentence aria-label", () => {
     const w = mount(CategoryBars, { props: { categories: cats } });
     expect(w.findAll("[data-testid='bar-row']")[0]!.attributes("aria-label")).toBe(
-      "Text Extractability: 0 out of 100, grade F, severity Critical",
+      "Text Extractability: 0 out of 100, severity Critical",
     );
   });
 

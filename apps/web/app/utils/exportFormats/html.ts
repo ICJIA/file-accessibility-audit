@@ -72,19 +72,19 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   const catRows = scoredCats
     .map((cat) => {
       const score = escapeHtml(String(cat.score));
-      const grade = escapeHtml(cat.grade || "—");
       const sev = cat.severity || "N/A";
+      // No per-category letter (2026-09-01): it gets read as the document's
+      // grade. The score keeps the band colour; severity is the judgment.
       return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #222">${escapeHtml(cat.label)}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;font-family:monospace;color:${gc(cat.grade || "")}">${score}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;font-weight:bold;color:${gc(cat.grade || "")}">${grade}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center"><span style="color:${sc(cat.severity)};background:${sc(cat.severity)}15;padding:2px 8px;border-radius:12px;font-size:12px">${escapeHtml(sev)}</span></td>
     </tr>`;
     })
     .join("\n");
 
   const naRows = naCats.length
-    ? `<tr><td colspan="4" style="padding:8px 12px;border-top:1px solid #333;background:#161616;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888">Not Included in Scoring</td></tr>` +
+    ? `<tr><td colspan="3" style="padding:8px 12px;border-top:1px solid #333;background:#161616;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888">Not Included in Scoring</td></tr>` +
       naCats
         .map((cat) => {
           const naLabel = cat.notAssessed ? "Not assessed" : "Not applicable";
@@ -92,7 +92,6 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
           return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #222;color:#888">${escapeHtml(cat.label)}<div style="font-size:11px;color:#666;margin-top:2px">${escapeHtml(reason)}</div></td>
       <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;color:#888;font-size:12px">${escapeHtml(naLabel)}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;color:#666">—</td>
       <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;color:#666">—</td>
     </tr>`;
         })
@@ -104,7 +103,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   // inline in the table above).
   const detailSections = scoredCats
     .map((cat) => {
-      const scoreStr = cat.score !== null ? escapeHtml(`${cat.score}/100 (${cat.grade})`) : "N/A";
+      const scoreStr = cat.score !== null ? escapeHtml(`${cat.score}/100`) : "N/A";
 
       const findingsHtml = cat.findings
         .map((f) => {
@@ -332,7 +331,6 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
       <tr style="background:#222">
         <th style="padding:8px 12px;text-align:left;font-size:12px;color:#aaa;text-transform:uppercase">Category</th>
         <th style="padding:8px 12px;text-align:center;font-size:12px;color:#aaa;text-transform:uppercase">Score</th>
-        <th style="padding:8px 12px;text-align:center;font-size:12px;color:#aaa;text-transform:uppercase">Grade</th>
         <th style="padding:8px 12px;text-align:center;font-size:12px;color:#aaa;text-transform:uppercase">Severity</th>
       </tr>
     </thead>

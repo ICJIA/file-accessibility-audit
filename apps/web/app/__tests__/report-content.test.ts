@@ -54,6 +54,29 @@ function mountReport(categories: unknown[], extra: Record<string, unknown> = {})
   });
 }
 
+describe("ReportContent — no per-category letter in the score table (2026-09-01)", () => {
+  // The Grade column's letter chip was read as the DOCUMENT's grade (a B
+  // document whose title row chip said C). Score + severity carry the row.
+  it("the Category Scores table has exactly Category, Score, Severity columns", () => {
+    const wrapper = mountReport([cat({ score: 75, grade: "C", severity: "Minor" })]);
+    const headers = wrapper.findAll("thead th").map((th) => th.text());
+    expect(headers).toEqual(["Category", "Score", "Severity"]);
+  });
+
+  it("a scored row renders no standalone letter", () => {
+    const wrapper = mountReport([
+      cat({ label: "Document Title & Language", score: 75, grade: "C", severity: "Minor" }),
+    ]);
+    const row = wrapper.find("tbody tr");
+    expect(row.text()).toMatch(/^Document Title & Language\s*75\s*Minor$/);
+  });
+
+  it("the table caption does not promise a grade column", () => {
+    const wrapper = mountReport([cat()]);
+    expect(wrapper.find("caption").text()).not.toMatch(/grade/i);
+  });
+});
+
 describe("ReportContent — score table", () => {
   it("renders one row per scored category with the grade color", () => {
     const wrapper = mountReport([

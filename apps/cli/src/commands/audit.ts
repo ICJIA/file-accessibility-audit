@@ -14,7 +14,7 @@ import {
 } from "../lib/colors.js";
 import { VERSION } from "../version.js";
 
-function printResult(result: AnalysisResult): void {
+export function printResult(result: AnalysisResult): void {
   const line = "\u2501";
   const thinLine = "\u2500";
 
@@ -35,15 +35,16 @@ function printResult(result: AnalysisResult): void {
 
   const colLabel = 24;
   const colScore = 7;
-  const colGrade = 7;
+  // No per-category letter (2026-09-01): a letter beside a category score
+  // gets read as the DOCUMENT's grade. Score keeps the band colour; the
+  // overall "Grade:" line above is the only letter printed.
   console.log(
-    `  ${BOLD}${padRight("Category", colLabel)}${padRight("Score", colScore)}${padRight("Grade", colGrade)}Severity${RESET}`,
+    `  ${BOLD}${padRight("Category", colLabel)}${padRight("Score", colScore)}Severity${RESET}`,
   );
-  console.log(`  ${DIM}${thinLine.repeat(colLabel + colScore + colGrade + 10)}${RESET}`);
+  console.log(`  ${DIM}${thinLine.repeat(colLabel + colScore + 10)}${RESET}`);
 
   for (const cat of result.categories) {
     const scoreStr = cat.score !== null ? String(cat.score) : "N/A";
-    const gradeStr = cat.grade ?? "\u2014";
     const sevStr = cat.severity ?? "\u2014";
     const sc = gradeColor(cat.grade);
     const sevc = severityColor(cat.severity);
@@ -51,7 +52,6 @@ function printResult(result: AnalysisResult): void {
     console.log(
       `  ${padRight(cat.label, colLabel)}` +
         `${sc}${padRight(scoreStr, colScore)}${RESET}` +
-        `${sc}${padRight(gradeStr, colGrade)}${RESET}` +
         `${sevc}${sevStr}${RESET}`,
     );
   }
