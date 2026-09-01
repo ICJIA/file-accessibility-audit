@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-08-31",
+  "blessed": "2026-09-01",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -485,6 +485,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "Copperhead-Figma-Is-The-Guide.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "0|Critical",
+        "heading_structure": "70|Minor",
+        "alt_text": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "85|Minor",
+        "list_structure": "100|No issues found",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "Cumberland-2.pdf": {
       "score": 89,
       "grade": "B",
@@ -514,6 +530,20 @@
         "color_contrast": "50|Moderate",
         "list_structure": "100|No issues found",
         "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "DVFRWebsite Changes.xlsx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "sheet_names": "100|No issues found",
+        "table_markup": "100|No scored issues",
+        "alt_text": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -933,6 +963,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "Jayden Anderson-Baker Bio.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "100|No issues found",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "Juvenile Justice System and Risk Factor Data 2007 Annual Report.pdf": {
       "score": 67,
       "grade": "D",
@@ -1058,6 +1104,22 @@
         "list_structure": "null|none",
         "link_quality": "100|No scored issues",
         "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Reentry_Quarterly_Newsletter_43ed98ed00.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "0|Critical",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1398,6 +1460,22 @@
         "link_quality": "null|none",
         "reading_order": "null|none",
         "form_accessibility": "100|No scored issues"
+      }
+    },
+    "i2i Website Annotations.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "0|Critical",
+        "alt_text": "64|Moderate",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
       }
     },
     "icjia-PHA-2025-report.pdf": {
