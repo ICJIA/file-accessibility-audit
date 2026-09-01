@@ -23,6 +23,8 @@
  * to uphold.
  */
 
+import { hasUnscoredAdvisory } from "@file-audit/shared";
+
 export interface ManualCheck {
   /** Category id, so the caller can pair this with the category's own label. */
   id: string;
@@ -63,7 +65,11 @@ export const MANUAL_CHECKS: Record<string, Omit<ManualCheck, "id">> = {
       "Read each description and ask whether it tells someone who cannot see the image what the image is doing there. “Image”, “logo” and a filename all pass this check and convey nothing. Charts and maps usually need a sentence, not a phrase.",
   },
   reading_order: {
-    verified: "The document has a tagged reading order, and it matches the visual layout.",
+    // Only what the analyzer verified: the tag structure EXISTS. Whether its
+    // order matches the visual layout is precisely the judgment this card
+    // hands to a person — the old wording claimed it as verified on reports
+    // whose own findings listed pages of reading-order drift.
+    verified: "The document has a tagged reading order.",
     confirm:
       "Check any page that isn't a single column — sidebars, pull quotes, captions, multi-column text and anything in a text box. Confirm each lands where a reader would expect rather than at the end of the page.",
   },
@@ -94,12 +100,26 @@ export const MANUAL_CHECKS: Record<string, Omit<ManualCheck, "id">> = {
   },
 };
 
+/** Per-format overrides for MANUAL_CHECKS. PowerPoint has no tag structure —
+ *  its reading-order check is that each slide's title placeholder reads
+ *  first — so the PDF sentence ("tagged reading order") is false there. */
+const MANUAL_CHECKS_BY_TYPE: Record<string, Record<string, Omit<ManualCheck, "id">>> = {
+  pptx: {
+    reading_order: {
+      verified: "Every slide's title placeholder is first in its reading order.",
+      confirm:
+        "Open the Selection Pane (Home → Arrange → Selection Pane) on a few busy slides and read the shapes bottom to top — that is the order a screen reader follows. Confirm each slide reads its title first, then the body, then supporting content, and that grouped or floating shapes land where a listener would expect.",
+    },
+  },
+};
+
 interface CategoryLike {
   id?: string;
   label?: string;
   score?: number | null;
   severity?: string | null;
   notAssessed?: boolean | null;
+  findings?: readonly string[] | null;
 }
 
 /**
@@ -134,19 +154,29 @@ const NOT_ASSESSED_CHECKS: Record<string, Omit<ManualCheck, "id">> = {
  * most to a reader come first).
  *
  * "Passed" is score 100 — the same bar `SEVERITY_THRESHOLDS` uses for
- * "No issues found". A category scoring 90 has a real finding and belongs in
- * the action plan instead.
+ * "No issues found" — AND nothing reported-but-unscored beneath it. Since the
+ * legal-only sweep, a category whose defects are advisory (bookmarks, reading
+ * order) is ALWAYS 100; the ✓ card asserted "the document has bookmarks" on
+ * documents with none. A 100 that carries an unscored advisory verified
+ * nothing, so it contributes no card: the advisory already speaks, in the
+ * findings and in the Best-practices section. Two signals cover both eras —
+ * the "No scored issues" severity (v1.149+) and the not-scored phrase in the
+ * findings themselves (stored payloads from before the label existed).
  */
 export function manualChecks(
   categories: ReadonlyArray<CategoryLike> | null | undefined,
+  fileType?: string | null,
 ): Array<ManualCheck & { label: string }> {
   if (!Array.isArray(categories)) return [];
+  const overrides = MANUAL_CHECKS_BY_TYPE[fileType ?? ""] ?? {};
   const out: Array<ManualCheck & { label: string }> = [];
   for (const c of categories) {
     if (!c || typeof c.id !== "string") continue;
     const label = typeof c.label === "string" && c.label ? c.label : c.id;
     if (c.score === 100) {
-      const copy = MANUAL_CHECKS[c.id];
+      if (c.severity === "No scored issues") continue;
+      if (hasUnscoredAdvisory(c.findings ?? undefined)) continue;
+      const copy = overrides[c.id] ?? MANUAL_CHECKS[c.id];
       if (copy) out.push({ id: c.id, label, ...copy });
     } else if (c.score === null && c.notAssessed === true) {
       const copy = NOT_ASSESSED_CHECKS[c.id];

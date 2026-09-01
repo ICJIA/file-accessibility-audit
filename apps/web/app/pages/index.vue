@@ -244,6 +244,7 @@
               v-if="result?.categories"
               :categories="result.categories"
               :conformance="result.conformance"
+              :file-type="result.fileType"
               class="mb-8"
             />
 

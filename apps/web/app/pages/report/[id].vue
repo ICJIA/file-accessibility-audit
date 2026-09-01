@@ -165,6 +165,7 @@
               v-if="data?.report?.categories"
               :categories="data.report.categories"
               :conformance="data.report.conformance"
+              :file-type="data.report.fileType"
               class="mb-8"
             />
 

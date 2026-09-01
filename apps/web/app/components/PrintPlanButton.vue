@@ -118,7 +118,7 @@ const categories = computed(() => props.result?.categories ?? []);
 const steps = computed(() =>
   buildActionPlan(categories.value, props.result?.fileType, props.result?.pdfMetadata?.creator),
 );
-const checks = computed(() => manualChecks(categories.value));
+const checks = computed(() => manualChecks(categories.value, props.result?.fileType));
 const notAssessed = computed(() => props.result?.conformance?.notAssessed ?? []);
 // evaluateBestPractices narrows `unknown` itself and never throws (a
 // page-audit row, a null result, or a forged stored report all resolve to

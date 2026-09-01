@@ -118,6 +118,73 @@ describe("manualChecks — built from what PASSED", () => {
   });
 });
 
+describe("manualChecks — a 100 that carries an unscored advisory is not a verified pass", () => {
+  // Found 2026-09-01 on a real report: since the legal-only sweep unscored
+  // bookmarks and reading-order defects, those categories are ALWAYS 100 —
+  // and this card then asserted "The document has bookmarks for navigation"
+  // on a 41-page annual report with none, three rows above a Best-practices
+  // row saying "Bookmarks for navigation — WORTH DOING". A ✓ card may only
+  // state what the analyzer actually verified: a 100 whose findings are an
+  // unscored advisory verified nothing.
+  it('skips a 100 category whose severity is "No scored issues"', () => {
+    const out = manualChecks([
+      { ...cat("bookmarks", 100, "Bookmarks / Navigation"), severity: "No scored issues" },
+    ]);
+    expect(out).toEqual([]);
+  });
+
+  it("skips a legacy 100 whose findings carry a not-scored advisory under the old label", () => {
+    // Stored payloads from before v1.149 still say "No issues found" while
+    // carrying the advisory line — the findings are the durable signal.
+    const out = manualChecks([
+      {
+        ...cat("bookmarks", 100, "Bookmarks / Navigation"),
+        severity: "No issues found",
+        findings: [
+          "Advisory — not scored: this document has 41 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document.",
+        ],
+      },
+    ]);
+    expect(out).toEqual([]);
+  });
+
+  it("keeps the card for a 100 whose findings are the positive census", () => {
+    const out = manualChecks([
+      {
+        ...cat("bookmarks", 100, "Bookmarks / Navigation"),
+        severity: "No issues found",
+        findings: ["12 bookmark(s) found — the outline covers the document's sections."],
+      },
+    ]);
+    expect(out.map((c) => c.id)).toEqual(["bookmarks"]);
+    expect(out[0]!.verified).toMatch(/has bookmarks/i);
+  });
+
+  it("the reading-order card claims only what the analyzer verified — a tagged order exists", () => {
+    // "…and it matches the visual layout" was rendered on a report whose own
+    // findings listed eleven pages of reading-order drift below 80%.
+    expect(MANUAL_CHECKS.reading_order!.verified).not.toMatch(/matches the visual layout/i);
+    expect(MANUAL_CHECKS.reading_order!.verified).toMatch(/tagged reading order/i);
+  });
+});
+
+describe("manualChecks — copy is format-aware", () => {
+  it("PowerPoint reading order speaks of slides, not of tags", () => {
+    // PowerPoint files have no tag structure; the analyzer's check is that
+    // each slide's title placeholder reads first. The PDF sentence ("tagged
+    // reading order") rendered verbatim on PowerPoint reports.
+    const out = manualChecks([cat("reading_order", 100, "Reading Order")], "pptx");
+    expect(out).toHaveLength(1);
+    expect(out[0]!.verified).toMatch(/slide/i);
+    expect(out[0]!.verified).not.toMatch(/tag/i);
+  });
+
+  it("PDF keeps the tagged-order wording", () => {
+    const out = manualChecks([cat("reading_order", 100, "Reading Order")], "pdf");
+    expect(out[0]!.verified).toMatch(/tagged reading order/i);
+  });
+});
+
 describe("manualChecks — images excluded from scoring still get a prompt", () => {
   // Found in controls/: 2026_dvfrc_biennial_report.pdf scores 100/A with four
   // images hidden as /Artifact — one a half-page cover image marked as a

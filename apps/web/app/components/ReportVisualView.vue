@@ -74,6 +74,7 @@
       <ManualReviewCard
         :categories="displayedCategories"
         :conformance="result.conformance"
+        :file-type="result.fileType"
         class="mb-6"
       />
 

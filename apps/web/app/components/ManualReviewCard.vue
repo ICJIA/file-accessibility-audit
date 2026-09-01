@@ -110,16 +110,21 @@ const props = defineProps<{
     id?: string;
     label?: string;
     score?: number | null;
+    severity?: string | null;
     notAssessed?: boolean | null;
+    findings?: readonly string[] | null;
   }>;
   conformance?: ConformanceVerdict | null;
+  /** Steers per-format wording (PowerPoint has no tag structure, so its
+   *  reading-order card must not speak of tags). */
+  fileType?: string | null;
 }>();
 
 // Read rather than receive: this card renders on both report views and on two
 // pages, and neither page had a wcag binding to thread through.
 const wcagVersion = useWcag().version;
 
-const checks = computed(() => manualChecks(props.categories));
+const checks = computed(() => manualChecks(props.categories, props.fileType));
 const criteria = computed(() => props.conformance?.notAssessed ?? []);
 const hasFindings = computed(() =>
   props.categories.some((c) => c && typeof c.score === "number" && c.score < 100),
