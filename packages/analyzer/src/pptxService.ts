@@ -593,8 +593,16 @@ function collectSlideContent(
       }
     }
   }
+  // Two passes, mirroring the Word walk (2026-09-01): classify every
+  // paragraph, then count typed enumerators only when ADJACENT to another —
+  // a list has at least two items, and a lone "- see appendix" line is a
+  // label, not visual list structure.
+  const paraStatus: Array<"real" | "manual" | "text" | "transparent"> = [];
   for (const p of descendants(slideRoot, "p")) {
-    if (titleParagraphs.has(p)) continue;
+    if (titleParagraphs.has(p)) {
+      paraStatus.push("text");
+      continue;
+    }
     const pPr = firstChild(p, "pPr");
     const hasExplicitBullet =
       !!pPr && (!!firstChild(pPr, "buChar") || !!firstChild(pPr, "buAutoNum"));
@@ -605,8 +613,31 @@ function collectSlideContent(
       placeholderParagraphs.has(p) &&
       masterBodyBullets.get(level) === "bullet" &&
       textOf(p).trim().length > 0;
-    if (hasExplicitBullet || inheritsBullet) analysis.lists.realListItems++;
-    else if (!hasExplicitNone && MANUAL_BULLET_RE.test(textOf(p))) {
+    if (hasExplicitBullet || inheritsBullet) paraStatus.push("real");
+    else if (!hasExplicitNone && MANUAL_BULLET_RE.test(textOf(p))) paraStatus.push("manual");
+    else if (!textOf(p).trim()) paraStatus.push("transparent");
+    else paraStatus.push("text");
+  }
+  const isListEvidence = (v: string | null) => v === "real" || v === "manual";
+  const nearEvidence = (i: number): boolean => {
+    for (const dir of [-1, 1]) {
+      let steps = 0;
+      for (let j = i + dir; j >= 0 && j < paraStatus.length; j += dir) {
+        const v = paraStatus[j];
+        if (v === "transparent") continue; // empties/images don't consume distance
+        steps++;
+        if (isListEvidence(v)) return true;
+        if (steps >= 2) break;
+      }
+    }
+    return false;
+  };
+  for (let i = 0; i < paraStatus.length; i++) {
+    if (paraStatus[i] === "real") analysis.lists.realListItems++;
+    // Same neighborhood rule as the Word walk (see docxService.extractLists):
+    // a typed enumerator counts only with another typed item or a real list
+    // item within two non-transparent paragraphs.
+    else if (paraStatus[i] === "manual" && nearEvidence(i)) {
       analysis.lists.manualBulletParagraphs++;
     }
   }

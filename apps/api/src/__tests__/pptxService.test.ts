@@ -132,7 +132,34 @@ describe("pptxService: images, tables, links, lists, media", () => {
       ],
     });
     const a = await analyzePptx(buf);
+    // The typed bullet sits directly beside two REAL list items — it
+    // continues that list (the trap-140 truth), so it stays counted.
     expect(a.lists).toEqual({ realListItems: 2, manualBulletParagraphs: 1 });
+  });
+
+  it("counts ADJACENT typed bullets as a hand-typed list, and separated ones not at all", async () => {
+    const adjacent = await analyzePptx(
+      await buildPptx({
+        slides: [
+          { title: "T", body: bodyShape(para("- one") + para("- two") + para("closing sentence")) },
+        ],
+      }),
+    );
+    expect(adjacent.lists.manualBulletParagraphs).toBe(2);
+
+    const separated = await analyzePptx(
+      await buildPptx({
+        slides: [
+          {
+            title: "T",
+            body: bodyShape(
+              para("- one") + para("between") + para("also between") + para("- two, too far"),
+            ),
+          },
+        ],
+      }),
+    );
+    expect(separated.lists.manualBulletParagraphs).toBe(0);
   });
 
   it("flags media presence from slide relationships", async () => {

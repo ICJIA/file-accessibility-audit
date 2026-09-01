@@ -487,23 +487,53 @@ function hasDirectNumbering(p: PONode): boolean {
 }
 
 function extractLists(paragraphs: PONode[], styleInfo: StyleInfo): DocxAnalysis["lists"] {
-  let realListItems = 0;
-  let manualBulletParagraphs = 0;
-  for (const p of paragraphs) {
+  // Two passes: classify every paragraph, then count typed enumerators only
+  // when ADJACENT to another one (2026-09-01). A list has at least two items
+  // by nature; a lone "1. Call to order" or "- see note" is a label, and a
+  // single such line used to zero the category and cap the document at D.
+  const status: Array<"real" | "manual" | "text" | "transparent"> = paragraphs.map((p) => {
     const styleId = paragraphStyleId(p);
     // Built-in List Bullet / List Number carry their numbering on the STYLE,
     // not the paragraph — the most common real-list form in agency documents.
     const styleNumbered = !!styleId && styleInfo.numberedStyles.has(styleId);
-    if (hasDirectNumbering(p) || styleNumbered) {
-      realListItems++;
-    } else if (styleId && styleInfo.headingLevels.has(styleId)) {
-      // A numbered HEADING ("1. Introduction") is outline numbering, not a
-      // hand-typed list — counting it as a manual bullet zeroed the list
-      // category on properly structured policy documents.
-      continue;
-    } else if (MANUAL_BULLET_RE.test(textOf(p))) {
-      manualBulletParagraphs++;
+    if (hasDirectNumbering(p) || styleNumbered) return "real";
+    // A numbered HEADING ("1. Introduction") is outline numbering, not a
+    // hand-typed list — counting it as a manual bullet zeroed the list
+    // category on properly structured policy documents.
+    if (styleId && styleInfo.headingLevels.has(styleId)) return "text";
+    if (MANUAL_BULLET_RE.test(textOf(p))) return "manual";
+    // Empty and image-only paragraphs are TRANSPARENT for the neighborhood
+    // test below — a quick guide's screenshot between steps does not break
+    // its numbered list.
+    if (!textOf(p).trim()) return "transparent";
+    return "text";
+  });
+  const isListEvidence = (v: string | null) => v === "real" || v === "manual";
+  const nearEvidence = (i: number): boolean => {
+    for (const dir of [-1, 1]) {
+      let steps = 0;
+      for (let j = i + dir; j >= 0 && j < status.length; j += dir) {
+        const v = status[j];
+        if (v === "transparent") continue; // empties/images don't consume distance
+        steps++;
+        if (isListEvidence(v)) return true;
+        if (steps >= 2) break;
+      }
     }
+    return false;
+  };
+  let realListItems = 0;
+  let manualBulletParagraphs = 0;
+  for (let i = 0; i < status.length; i++) {
+    if (status[i] === "real") realListItems++;
+    // A typed enumerator counts only with LIST EVIDENCE nearby — another
+    // typed item or a real list item within two non-transparent paragraphs
+    // (2026-09-01). Calibrated on three real shapes: a lone "1. Call to
+    // order" amid minutes prose is a label and zeroed the category for one
+    // line; a typed item directly beside a real list continues it (trap
+    // 140); and the Freshservice guide's "1. step / explanation / 2. step"
+    // pattern is one numbered list with body text between items.
+    else if (status[i] === "manual" && nearEvidence(i)) manualBulletParagraphs++;
   }
   return { realListItems, manualBulletParagraphs };
 }

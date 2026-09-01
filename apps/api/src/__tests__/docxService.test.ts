@@ -502,6 +502,73 @@ describe("docx lists", () => {
     expect(r.lists.manualBulletParagraphs).toBe(0);
   });
 
+  it("a LONE typed enumerator is a label, not a list — lists have at least two items (2026-09-01)", async () => {
+    // "1. Call to order at 9:00 a.m." as a single paragraph zeroed the list
+    // category (0/Critical) and capped the whole document at D — for one
+    // line that is a numbered label, not visual list structure.
+    const buf = await buildDocx({
+      body:
+        paragraph("Minutes of the meeting.") +
+        paragraph("1. Call to order at 9:00 a.m.") +
+        paragraph("The meeting proceeded as planned."),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.manualBulletParagraphs).toBe(0);
+  });
+
+  it("typed steps ONE explanatory paragraph apart are still a list — the quick-guide shape", async () => {
+    // Real pattern (ICJIA Freshservice guide): "1. Open the portal" /
+    // explanation / "2. Select Forgot Password?" — a numbered list with body
+    // text between items. Within a two-paragraph neighborhood, another
+    // enumerator (or a real list item) proves the list.
+    const buf = await buildDocx({
+      body:
+        paragraph("- First point") +
+        paragraph("Ordinary connecting sentence.") +
+        paragraph("- Second point"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.manualBulletParagraphs).toBe(2);
+  });
+
+  it("a typed enumerator two or more prose paragraphs from any other stays uncounted", async () => {
+    const buf = await buildDocx({
+      body:
+        paragraph("- First point") +
+        paragraph("One connecting sentence.") +
+        paragraph("Another connecting sentence.") +
+        paragraph("- Second point, too far away"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.manualBulletParagraphs).toBe(0);
+  });
+
+  it("a typed item BESIDE a real list continues that list and stays counted — the trap-140 shape", async () => {
+    const buf = await buildDocx({
+      body: listItem("Requirement one") + listItem("Requirement two") + paragraph("- A completed application form"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.realListItems).toBe(2);
+    expect(r.lists.manualBulletParagraphs).toBe(1);
+  });
+
+  it("empty paragraphs between typed steps are transparent — they do not break the list", async () => {
+    const buf = await buildDocx({
+      body:
+        paragraph("- First point") + paragraph("") + paragraph("") + paragraph("- Second point"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.manualBulletParagraphs).toBe(2);
+  });
+
+  it("ADJACENT typed enumerators are a hand-typed list and stay counted", async () => {
+    const buf = await buildDocx({
+      body: paragraph("- First point") + paragraph("- Second point") + paragraph("Afterword."),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.manualBulletParagraphs).toBe(2);
+  });
+
   it("flags manual-bullet paragraphs that are not real lists", async () => {
     const buf = await buildDocx({
       body:
