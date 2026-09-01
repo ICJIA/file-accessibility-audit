@@ -19,6 +19,7 @@
       :wcag-version="wcag.version"
       :file-type="result.fileType"
       :pdf-ua-verdict="result.pdfUaVerdict"
+      :analyzed-at="analyzedAt"
       class="mb-6"
     />
 

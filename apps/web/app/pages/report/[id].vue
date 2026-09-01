@@ -245,7 +245,7 @@
 
             <MethodologyCard :file-type="data.report.fileType" />
 
-            <ReportContent :result="data.report" />
+            <ReportContent :result="data.report" :analyzed-at="data.createdAt" />
           </template>
         </div>
         <!-- /report content -->

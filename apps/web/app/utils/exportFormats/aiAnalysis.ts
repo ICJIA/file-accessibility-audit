@@ -77,11 +77,28 @@ export function buildAiAnalysis(
   const lines: string[] = [];
   const scoreProfiles = getScoreProfiles(result, wcagVersion);
   const remediationProfile = scoreProfiles.find((profile) => profile.mode === "remediation");
-  const isAccessible = result.grade === "A" || result.grade === "B";
+  // A confirmed WCAG 2.1 failure outranks the grade band (2026-09-01). Every
+  // Office missing-alt case caps its category at 85 = Minor while carrying a
+  // 1.1.1 Level A failure — and this export used to tell the LLM "No WCAG
+  // 2.1 remediation is needed … Verdict: Accessible" about exactly those
+  // documents, because its filter looked only at Moderate/Critical severity.
+  const conformanceFailures = Array.isArray(result.conformance?.failures)
+    ? result.conformance.failures
+    : [];
+  const conformanceFails = result.conformance?.status === "fail" && conformanceFailures.length > 0;
+  const isAccessible = (result.grade === "A" || result.grade === "B") && !conformanceFails;
   const verdict = isAccessible ? "Accessible" : "Not accessible";
 
   const scored = result.categories.filter((c) => c.score !== null);
-  const failing = scored.filter((c) => c.severity === "Moderate" || c.severity === "Critical");
+  const failingCategoryIds = new Set(
+    conformanceFailures.map((f) => f?.category).filter((x): x is string => typeof x === "string"),
+  );
+  const failing = scored.filter(
+    (c) =>
+      c.severity === "Moderate" ||
+      c.severity === "Critical" ||
+      (conformanceFails && failingCategoryIds.has(c.id)),
+  );
   const criticalCount = scored.filter((c) => c.severity === "Critical").length;
   const moderateCount = scored.filter((c) => c.severity === "Moderate").length;
   const passingCount = scored.length - failing.length;
@@ -89,7 +106,7 @@ export function buildAiAnalysis(
   lines.push(`# ${fileTypeLabel(result.fileType)} Accessibility Audit — For AI Analysis`);
   lines.push("");
 
-  if (failing.length === 0) {
+  if (!conformanceFails && failing.length === 0) {
     lines.push(
       `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check; the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require (the audit's checklist basis is WCAG ${wcagVersion} Level AA). No WCAG 2.1 remediation is needed.`,
     );
@@ -129,7 +146,7 @@ export function buildAiAnalysis(
   const formatLabel = fileTypeLabel(result.fileType);
   const isPdfResult = !result.fileType || result.fileType === "pdf";
   lines.push(
-    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks documents against WCAG ${wcagVersion} Level AA, but the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks documents against WCAG ${wcagVersion} Level AA, but the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require. Only categories with a confirmed WCAG 2.1 criterion failure, or Critical/Moderate severity, are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
   );
   lines.push("");
   lines.push(

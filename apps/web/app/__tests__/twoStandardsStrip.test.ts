@@ -66,14 +66,20 @@ describe("the WCAG 2.1 side — what the grade measures", () => {
 });
 
 describe("the PDF/UA side — reported, never counted", () => {
-  it("always states that it does not affect the score", () => {
+  it("always states that it does not affect the score — without calling the whole bundle optional", () => {
+    // veraPDF's list routinely contains rules that ARE WCAG 2.1 A/AA
+    // territory (7.3-1 figure alt ↔ 1.1.1) — the grade counts this tool's
+    // own check of those points. Calling the bundle "a best practice, not
+    // required by WCAG 2.1" was true of the SCORE and false of the STANDARD
+    // (found 2026-09-01); the copy now says where the overlap lives.
     const html = strip({
       conformance: clean,
       fileType: "pdf",
       pdfUaVerdict: { available: true, passed: false, failures: [{ count: 5 }] },
     }).html();
     expect(html).toMatch(/not counted in your score/i);
-    expect(html).toMatch(/not\s+required by WCAG 2\.1/i);
+    expect(html).toMatch(/overlaps WCAG 2\.1/i);
+    expect(html).not.toMatch(/a best practice, not\s+required by WCAG 2\.1/i);
   });
 
   it("counts items across rules when veraPDF failed the document", () => {
@@ -143,6 +149,35 @@ describe("the PDF/UA side — reported, never counted", () => {
       pdfUaVerdict: { available: true, passed: true, failures: [] },
     }).html();
     expect(html).toMatch(/No PDF\/UA failures found/i);
+  });
+});
+
+describe("the legal-only claim is era-gated for stored reports (2026-09-01)", () => {
+  // Shared reports live 365 days and are regraded on read from their STORED
+  // category scores. A payload analysed before the legal-only sweep
+  // (2026-08-29) carries deductions today's model reports without counting —
+  // bookmarks at 0/Critical, say — and the strip rendered "Nothing beyond
+  // WCAG 2.1 A/AA is counted" over exactly that grade.
+  it("a pre-sweep stored report gets the era wording, not the absolute claim", () => {
+    const html = strip({ conformance: clean, fileType: "pdf", analyzedAt: "2026-08-01" }).html();
+    expect(html).toMatch(/predates the current scoring model/i);
+    expect(html).not.toMatch(/Nothing beyond WCAG 2\.1 A\/AA is counted/);
+    expect(html).not.toMatch(/only this — is what your grade measures/i);
+  });
+
+  it("a post-sweep stored report keeps the absolute claim", () => {
+    const html = strip({ conformance: clean, fileType: "pdf", analyzedAt: "2026-09-01" }).html();
+    expect(html).toMatch(/Nothing beyond WCAG 2\.1 A\/AA is counted/);
+  });
+
+  it("a live analysis (no analyzedAt) keeps the absolute claim", () => {
+    const html = strip({ conformance: clean, fileType: "pdf" }).html();
+    expect(html).toMatch(/Nothing beyond WCAG 2\.1 A\/AA is counted/);
+  });
+
+  it("an unparseable stored date is treated as pre-sweep — never overclaim on a forged payload", () => {
+    const html = strip({ conformance: clean, fileType: "pdf", analyzedAt: "garbage" }).html();
+    expect(html).not.toMatch(/Nothing beyond WCAG 2\.1 A\/AA is counted/);
   });
 });
 

@@ -76,6 +76,88 @@ describe("buildAiAnalysis", () => {
     expect(outB).toContain("Verdict: Accessible");
   });
 
+  describe("a confirmed WCAG failure outranks the grade band (2026-09-01)", () => {
+    // Every Office missing-alt case caps at 85 = Minor and carries a 1.1.1
+    // Level A failure. This export told the LLM "No WCAG 2.1 remediation is
+    // needed … Verdict: Accessible" about exactly those documents, because
+    // its failing-categories filter looked only at Moderate/Critical
+    // severity — on the one surface built to be pasted into another tool.
+    const minorOnlyWithFailure = () =>
+      baseResult({
+        grade: "B",
+        overallScore: 91,
+        categories: [
+          {
+            id: "text_extractability",
+            label: "Text Extractability",
+            score: 100,
+            grade: "A",
+            severity: "No issues found",
+            findings: ["Text is selectable."],
+            explanation: "",
+          },
+          {
+            id: "alt_text",
+            label: "Alt Text",
+            score: 85,
+            grade: "B",
+            severity: "Minor",
+            findings: ["9 of 10 image(s) have alt text."],
+            explanation: "Ensures non-decorative images have alt text.",
+          },
+        ],
+        conformance: {
+          status: "fail",
+          failures: [
+            {
+              sc: "1.1.1",
+              name: "Non-text Content",
+              level: "A",
+              category: "alt_text",
+              issue: "1 image(s) have no alternative text.",
+            },
+          ],
+          notAssessed: [],
+          headline: "",
+        },
+      });
+
+    it("never claims no remediation is needed beside a confirmed Level A failure", () => {
+      const out = buildAiAnalysis(minorOnlyWithFailure());
+      expect(out).not.toContain("No WCAG 2.1 remediation is needed");
+      expect(out).not.toContain("passed every applicable check");
+      expect(out).toContain("## Failing categories (1 to fix)");
+      expect(out).toContain("1.1.1 Non-text Content (Level A)");
+    });
+
+    it("the verdict is Not accessible whatever the letter says", () => {
+      expect(buildAiAnalysis(minorOnlyWithFailure())).toContain("Verdict: Not accessible");
+    });
+
+    it("a grade-B document whose verdict PASSES keeps Accessible and the clean framing", () => {
+      const out = buildAiAnalysis(
+        baseResult({
+          grade: "B",
+          overallScore: 92,
+          categories: [
+            {
+              id: "alt_text",
+              label: "Alt Text",
+              score: 92,
+              grade: "B",
+              severity: "Minor",
+              findings: ["Minor advisory only."],
+              explanation: "",
+            },
+          ],
+          conformance: { status: "no-automated-failures", failures: [], notAssessed: [], headline: "" },
+        }),
+      );
+      expect(out).toContain("Verdict: Accessible");
+      expect(out).toContain("No WCAG 2.1 remediation is needed");
+    });
+  });
+
   it("emits only the Strict score header (v1.21+: Practical retired)", () => {
     const out = buildAiAnalysis(
       baseResult({

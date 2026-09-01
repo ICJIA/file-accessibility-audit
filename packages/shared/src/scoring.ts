@@ -111,6 +111,16 @@ export const SCORING_WEIGHTS = SCORING_PROFILES.strict.weights;
 //   and shared reports that reference grade letters. Don't do this.
 // ---------------------------------------------------------------------------
 
+/**
+ * The date the legal-only scoring model shipped (v1.136.0): from this day on,
+ * only WCAG 2.1 A/AA failures move a score. Stored reports live 365 days and
+ * are regraded on read from their STORED category scores, so a payload
+ * analysed before this date carries deductions today's model reports without
+ * counting — surfaces that claim "nothing beyond WCAG 2.1 is counted" must
+ * era-gate that claim against this date (TwoStandardsStrip does).
+ */
+export const LEGAL_ONLY_SCORING_SINCE = "2026-08-29";
+
 export const GRADE_THRESHOLDS = [
   { min: 90, grade: "A" as const, color: "#22c55e", label: "Excellent" },
   { min: 80, grade: "B" as const, color: "#14b8a6", label: "Good" },

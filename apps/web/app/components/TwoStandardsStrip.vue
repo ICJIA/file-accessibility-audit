@@ -37,9 +37,18 @@
         {{ lawVerdict }}
       </p>
       <p class="text-sm text-[var(--text-secondary)] mt-1">
-        <strong class="font-semibold">This — and only this — is what your grade measures.</strong>
-        {{ " " }}Nothing beyond WCAG 2.1 A/AA is counted — not the criteria WCAG 2.2 added, not
-        PDF/UA.
+        <template v-if="currentEra">
+          <strong class="font-semibold">This — and only this — is what your grade measures.</strong>
+          {{ " " }}Nothing beyond WCAG 2.1 A/AA is counted — not the criteria WCAG 2.2 added, not
+          PDF/UA.
+        </template>
+        <template v-else>
+          <strong class="font-semibold"
+            >This report predates the current scoring model ({{ legalOnlySince }}).</strong
+          >
+          {{ " " }}Its grade may include items today's reports list without counting — re-upload
+          the document for a grade measured only against WCAG 2.1 A/AA.
+        </template>
         <template v-if="lawFailing">
           {{ " " }}
           <a href="#action-plan" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -62,8 +71,9 @@
           >PDF/UA best practice — extra credit:</span
         >
         {{ " " }}<span class="text-[var(--text-secondary)]">{{ pdfUaVerdictLine }}</span
-        >. The PDF industry's own standard (ISO 14289), checked by veraPDF — a best practice, not
-        required by WCAG 2.1.
+        >. The PDF industry's own standard (ISO 14289), checked by veraPDF. Where one of its rules
+        overlaps WCAG 2.1, your grade already counts this tool's own check of that point; the
+        PDF/UA verdict itself is extra credit.
         <strong class="font-semibold text-[var(--text-secondary)]"
           >Not counted in your score.</strong
         >
@@ -73,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+import { LEGAL_ONLY_SCORING_SINCE } from "@file-audit/shared";
 import { computed } from "vue";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
@@ -91,7 +102,26 @@ const props = defineProps<{
     /** Set when veraPDF started but could not finish (crash/timeout). */
     error?: string;
   } | null;
+  /** The stored row's createdAt on /report/[id]; absent for a live analysis.
+   *  Gates the "nothing beyond WCAG 2.1 is counted" claim: a payload
+   *  analysed before the legal-only sweep carries deductions today's model
+   *  reports without counting, and the absolute sentence was false over
+   *  exactly those grades. */
+  analyzedAt?: string | null;
 }>();
+
+// Live analyses (no analyzedAt) are always current-era. A stored date is
+// compared as its ISO day; anything unparseable is treated as PRE-sweep —
+// a forged or legacy payload must never earn the absolute claim.
+const currentEra = computed(() => {
+  const at = props.analyzedAt;
+  if (at === undefined || at === null) return true;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(at)) return false;
+  return at.slice(0, 10) >= LEGAL_ONLY_SCORING_SINCE;
+});
+
+// Exposed for the era sentence in the template.
+const legalOnlySince = LEGAL_ONLY_SCORING_SINCE;
 
 const lawFailing = computed(() => props.conformance?.status === "fail");
 

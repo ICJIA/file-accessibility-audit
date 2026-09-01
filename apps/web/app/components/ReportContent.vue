@@ -11,6 +11,7 @@
       :wcag-version="wcag.version"
       :file-type="result.fileType"
       :pdf-ua-verdict="result.pdfUaVerdict"
+      :analyzed-at="analyzedAt"
       class="mb-8"
     />
 
@@ -689,7 +690,14 @@ interface ReportLike {
 }
 
 const props = withDefaults(
-  defineProps<{ result: ReportLike; showScoreTable?: boolean; showStandardsStrip?: boolean }>(),
+  defineProps<{
+    result: ReportLike;
+    showScoreTable?: boolean;
+    showStandardsStrip?: boolean;
+    /** The stored row's createdAt on /report/[id]; absent for a live
+     *  analysis. Threads to the strip's era gate. */
+    analyzedAt?: string | null;
+  }>(),
   {
     showStandardsStrip: true,
     showScoreTable: true,
