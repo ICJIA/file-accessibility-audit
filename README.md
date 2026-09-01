@@ -867,7 +867,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,541 tests** across 204 test files (API 1,687 · Web 1,804 · CLI 50) — plus the **accuracy gates**, ten corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,568 tests** across 205 test files (API 1,687 · Web 1,831 · CLI 50) — plus the **accuracy gates**, ten corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1378,6 +1378,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.154.0 — 2026-09-01 · Fix-time estimates in the action plan (no new attack surface)
+
+No new attack surface: presentation only. A new pure utility (`apps/web/app/utils/fixTime.ts`) derives per-step time estimates from finding strings the report already holds — nothing new is accepted, stored, or sent, and no dependency was added. Estimate text reaches the page through the same escaped surfaces as every other plan string; the printable plan passes it through `escapeHtml` like the rest of the step head. Advisory and evidence lines are excluded from the counts by the same prefix conventions the best-practices matchers rely on, so unscored text can never inflate an estimate.
 
 ### v1.153.0 — 2026-09-01 · Fresh-eyes accuracy audit, DisplayDocTitle scoring, documentation sweep (no new attack surface)
 

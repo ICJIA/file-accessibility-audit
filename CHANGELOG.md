@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.154.0] - 2026-09-01
+
+### Added
+
+- **Every fix now says how long it takes — because "accessibility takes forever" is the myth that keeps documents broken.** Built the same afternoon a one-page flyer scored an F and turned out, verified fix by fix, to be about ten minutes of work in Word. Each action-plan step carries a hands-on time chip derived from this document's own counts — nine typed bullets ≈ 3 minutes, four low-contrast runs ≈ 4 — and the plan header totals them ("typically under 15 minutes") only when every step has a summable bound, because a partial sum presented as the total would overclaim. Three honesty rules govern the numbers: counts drive them (no parseable count, no chip — which also keeps years-old stored reports safe by construction); the format matters (PDF estimates are limited to mechanical Acrobat fixes, because a number on structural tag surgery would be the estimate that discredits the rest); and judgment is never timed (alt text gets an apply-only figure whose caveat rides beside it — writing the text is the real work). Totals round up: a five-minute sum says "under 10", never "under 5". The printable plan carries the same chips and total, so the sheet next to the keyboard answers "can I do this now?" before anyone opens a menu.
+
 ## [1.153.0] - 2026-09-01
 
 A fresh-eyes audit of the whole product — every WCAG 2.1 finding, every best practice, every veraPDF surface, read against primary sources and against real documents — and then every finding closed. Most of the fixes below shipped to production during the audit itself under the previous version label; this release names them, adds the one scoring change that came out of the audit's decision items, and corrects the documentation to match.

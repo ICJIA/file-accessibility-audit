@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.154.0",
+    meta: "Reviewed <strong>2026-09-01</strong> &middot; scope: fix-time estimates in the report's action plan.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: presentation only. The action plan now shows how long each fix should take, computed inside your browser from numbers the report already contains — the app accepts nothing new, stores nothing new, and sends nothing anywhere. The estimate text renders through the same escaping as every other line of the report, on the page and in the printable plan alike.",
+      },
+    ],
+  },
+  {
     version: "v1.153.0",
     meta: "Reviewed <strong>2026-09-01</strong> &middot; scope: a fresh-eyes accuracy audit of the product, plus a security read of the two preceding days' changes.",
     body: [

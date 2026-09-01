@@ -258,6 +258,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "fix-time-estimates-2026-09-01",
+    badge: "New",
+    text: "Your action plan now says how long each fix should take. Most document fixes are minutes of clicking, not an afternoon — a missing title is about two minutes in Word, nine hand-typed bullets about three — so each step now carries an estimate computed from your own document's counts, and the plan totals them when every step has one (for a typical short document: under 15 minutes). The numbers cover only the mechanical part; judgment work like writing good alt text is labelled, never timed, and a step with no defensible number simply shows none. The printable plan carries the same estimates, so the sheet beside your keyboard answers \u201ccan I do this now?\u201d",
+    linkText: "Release notes",
+    linkTo: "https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md",
+    /** External document — a full page load, never a router link. */
+    linkExternal: true,
+    wcagRefs: [],
+    date: "September 1, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "title-nobody-hears-2026-09-01",
     badge: "Scoring",
     text: "A title nobody hears now counts as half a title \u2014 some PDF scores will move. A PDF can have a perfectly good title and still tell every PDF viewer to show the filename instead; that is what an unset \u201cshow document title\u201d preference does, and for someone using a screen reader the result is the same as having no title at all. The W3C\u2019s own accessibility technique for PDF titles is to switch that preference on, and it is a two-click fix in Acrobat (Document Properties \u2192 Initial View \u2192 Show: Document Title). Until now the report mentioned it as a best practice and charged nothing; a title that is set but hidden now earns half of the title\u2019s points instead of all of them, and the finding tells you exactly where the switch is. Most well-made documents already have it right \u2014 in our reference corpus, 43 of the 47 titled documents did. The same review also fixed accusations in the other direction: a white slide title sitting on a dark banner is no longer misread as white-on-white, a lone typed \u201c1.\u201d is no longer treated as a broken list, and titles stored only in a PDF\u2019s newer metadata block are finally read at all.",
