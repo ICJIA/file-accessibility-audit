@@ -170,3 +170,65 @@ describe("ActionPlan", () => {
     expect(w.text()).not.toContain("contact IDS at ICJIA");
   });
 });
+
+describe("fix-time estimates", () => {
+  const withEstimate = (
+    rank: number,
+    id: string,
+    estimate?: { label: string; maxMinutes: number | null; note?: string },
+  ): PlanStep => ({ ...step(rank, id, "Critical"), estimate });
+
+  it("renders a time chip on estimated steps and none on unestimated ones", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [
+          withEstimate(1, "list_structure", { label: "~3 min", maxMinutes: 3 }),
+          withEstimate(2, "text_extractability"),
+        ],
+      },
+    });
+    const chips = w.findAll('[data-testid="step-time-chip"]');
+    expect(chips.length).toBe(1);
+    expect(chips[0]!.text()).toBe("~3 min");
+  });
+
+  it("shows the plan total only when every step carries a summable estimate", () => {
+    const all = mount(ActionPlan, {
+      props: {
+        steps: [
+          withEstimate(1, "title_language", { label: "~2 min", maxMinutes: 2 }),
+          withEstimate(2, "list_structure", { label: "~3 min", maxMinutes: 3 }),
+        ],
+      },
+    });
+    expect(all.find('[data-testid="plan-time-total"]').text()).toContain(
+      "typically under 10 minutes",
+    );
+
+    const partial = mount(ActionPlan, {
+      props: {
+        steps: [
+          withEstimate(1, "title_language", { label: "~2 min", maxMinutes: 2 }),
+          withEstimate(2, "text_extractability"),
+        ],
+      },
+    });
+    expect(partial.find('[data-testid="plan-time-total"]').exists()).toBe(false);
+  });
+
+  it("spells out an apply-only note in the step body", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [
+          withEstimate(1, "alt_text", {
+            label: "~5 min",
+            maxMinutes: null,
+            note: "to apply the text — writing good alt text is the real work",
+          }),
+        ],
+      },
+    });
+    const note = w.find('[data-testid="step-time-note"]');
+    expect(note.text()).toBe("~5 min to apply the text — writing good alt text is the real work");
+  });
+});

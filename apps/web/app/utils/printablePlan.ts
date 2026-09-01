@@ -24,6 +24,7 @@
  * document-derived strings (findings quote alt text, link labels, titles).
  */
 import { escapeHtml } from "~/utils/escapeHtml";
+import { planTimeTotal } from "~/utils/fixTime";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
@@ -92,6 +93,8 @@ li.step{border:1px solid #bbb;border-radius:8px;padding:14px 16px;margin:0 0 14p
  font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
 .sev{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
  border:1px solid #111;border-radius:999px;padding:1px 7px}
+.time{font-size:11px;color:#444;border:1px solid #bbb;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.time-total{color:#333;margin:10px 0 0;font-size:13px}
 .why{color:#333;margin:0 0 10px}
 .route{margin:10px 0 0;padding:10px 12px;background:#f4f4f4;border-radius:6px}
 .route-label{font-weight:700;font-size:13px;margin:0 0 6px}
@@ -165,6 +168,13 @@ function renderStep(step: PlanStep, criterionHref: (sc: string) => string | null
     `<span class="num">${step.rank}</span>` +
     `<h3>${escapeHtml(step.title)}</h3>` +
     `<span class="sev">${escapeHtml(severityWord(step.severity))}</span>` +
+    // On paper the time answers "can I do this now, or do I schedule it?" —
+    // an apply-only note (alt text) rides with its number (utils/fixTime.ts).
+    (step.estimate
+      ? `<span class="time">${escapeHtml(
+          step.estimate.note ? `${step.estimate.label} ${step.estimate.note}` : step.estimate.label,
+        )}</span>`
+      : "") +
     `</div>` +
     `<p class="why">${escapeHtml(step.why)}</p>` +
     routes +
@@ -389,6 +399,14 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
     o.reportUrl ? ` · <a href="${escapeHtml(o.reportUrl)}">${escapeHtml(o.reportUrl)}</a>` : ""
   }</p>
 ${gradeBit ? `<p class="verdict">${gradeBit}${o.verdict ? ` — ${escapeHtml(o.verdict)}` : ""}</p>` : ""}
+${(() => {
+  // Same all-or-nothing contract as the on-screen plan (utils/fixTime.ts):
+  // a partial sum presented as the total would overclaim.
+  const total = planTimeTotal(o.steps);
+  return total
+    ? `<p class="time-total">Hands-on fix time: <strong>${escapeHtml(total.label)}</strong> — estimated from this document's own counts; the clicks, not the judgment calls.</p>`
+    : "";
+})()}
 ${
   // On every plan since v1.102.0 (it used to print only beside A/B grades):
   // the printout travels to whoever does the fixing, and they need the

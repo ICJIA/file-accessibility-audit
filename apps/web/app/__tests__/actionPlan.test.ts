@@ -1017,3 +1017,26 @@ describe("the criterion chip links the rule it names (standing rule, 2026-08-31)
     expect(src).toMatch(/return slug \? wcag\.understandingUrl\(slug\) : null;/);
   });
 });
+
+describe("buildActionPlan — fix-time estimates", () => {
+  it("attaches a count-driven estimate parsed from the category's own findings", () => {
+    const steps = buildActionPlan(
+      [
+        cat("list_structure", "List Structure", "Critical", [
+          "0 real list item(s); 9 manually-typed bullet/number paragraph(s).",
+          "9 paragraph(s) use typed bullets or numbers instead of Word's list formatting, so they are not announced as a list. Use the Bullets/Numbering buttons.",
+        ]),
+      ],
+      "docx",
+    );
+    expect(steps[0]!.estimate).toEqual({ label: "~3 min", maxMinutes: 3 });
+  });
+
+  it("leaves estimate undefined when no honest number exists", () => {
+    const steps = buildActionPlan(
+      [cat("text_extractability", "Text Extractability", "Critical", ["Scanned document."])],
+      "pdf",
+    );
+    expect(steps[0]!.estimate).toBeUndefined();
+  });
+});

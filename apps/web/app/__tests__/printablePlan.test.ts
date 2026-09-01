@@ -450,3 +450,50 @@ describe("the printed header link", () => {
     expect(tag.slice(0, tag.indexOf("/>"))).not.toContain("show-url");
   });
 });
+
+describe("fix-time estimates in the printout", () => {
+  it("prints each step's time and the plan total when every step is estimated", () => {
+    const html = buildPrintablePlan({
+      filename: "report.docx",
+      steps: [
+        step({ estimate: { label: "~2 min", maxMinutes: 2 } }),
+        step({
+          rank: 2,
+          categoryId: "list_structure",
+          title: "Use real lists",
+          estimate: { label: "~3 min", maxMinutes: 3 },
+        }),
+      ],
+      generatedAt: AT,
+    });
+    expect(html).toContain("~2 min");
+    expect(html).toContain("~3 min");
+    expect(html).toContain("typically under 10 minutes");
+  });
+
+  it("prints the apply-only caveat with its step and withholds the total", () => {
+    const html = buildPrintablePlan({
+      filename: "report.docx",
+      steps: [
+        step({
+          categoryId: "alt_text",
+          title: "Describe the images",
+          estimate: {
+            label: "~5 min",
+            maxMinutes: null,
+            note: "to apply the text — writing good alt text is the real work",
+          },
+        }),
+      ],
+      generatedAt: AT,
+    });
+    expect(html).toContain("~5 min to apply the text");
+    expect(html).not.toContain("typically under");
+  });
+
+  it("prints no time text at all for unestimated steps", () => {
+    const html = buildPrintablePlan({ filename: "report.pdf", steps: [step()], generatedAt: AT });
+    expect(html).not.toContain("min</");
+    expect(html).not.toContain("Hands-on fix time");
+  });
+});

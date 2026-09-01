@@ -9,7 +9,23 @@
     </h2>
 
     <template v-if="steps.length">
-      <p class="text-xs text-[var(--text-muted)] mt-0.5 mb-5">{{ subtitle }}</p>
+      <p class="text-xs text-[var(--text-muted)] mt-0.5" :class="timeTotal ? 'mb-1' : 'mb-5'">
+        {{ subtitle }}
+      </p>
+      <!-- The estimate exists to correct "accessibility takes forever" — so it
+           must never overclaim in the other direction: the total renders only
+           when every step has a summable upper bound, and the sentence names
+           what the numbers cover (the clicks) and what they never will (the
+           judgment). Copy rules: fixTime.ts. -->
+      <p
+        v-if="timeTotal"
+        data-testid="plan-time-total"
+        class="text-xs text-[var(--text-muted)] mb-5"
+      >
+        Hands-on fix time:
+        <span class="font-semibold text-[var(--text-heading)]">{{ timeTotal.label }}</span>
+        — estimated from this document's own counts; the clicks, not the judgment calls.
+      </p>
 
       <ol class="relative pl-14 sm:pl-16 space-y-3 list-none m-0 p-0" role="list">
         <!-- the rail -->
@@ -72,6 +88,17 @@
                   >RECOMMENDED</span
                 >
               </span>
+              <!-- Time chip: same fixed-slot discipline as the chips above so
+                   the column stays a clean vertical line; the slot itself only
+                   exists when some step earned a chip. -->
+              <span v-if="anyEstimates" class="hidden sm:flex w-[76px] justify-end flex-shrink-0">
+                <span
+                  v-if="step.estimate"
+                  data-testid="step-time-chip"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--border-subtle)] text-[var(--text-muted)]"
+                  >{{ step.estimate.label }}</span
+                >
+              </span>
               <span class="flex w-[92px] justify-end flex-shrink-0">
                 <span
                   class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -93,6 +120,16 @@
               class="plan-step-body px-3 pb-3"
             >
               <p class="text-xs text-[var(--text-muted)] mb-2">{{ step.why }}</p>
+              <!-- An apply-only estimate says what its minutes cover (alt
+                   text: the applying, never the writing) — the caveat rides
+                   with the number instead of a footnote nobody finds. -->
+              <p
+                v-if="step.estimate?.note"
+                data-testid="step-time-note"
+                class="text-xs text-[var(--text-muted)] mb-2"
+              >
+                {{ step.estimate.label }} {{ step.estimate.note }}
+              </p>
 
               <!-- "Says who?" — answered by someone else. When veraPDF (the
                    PDF Association's own validator, which this project did not
@@ -414,6 +451,7 @@ import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
 import { pdfUaFixRoutes } from "./pdfUaFixHint";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
+import { planTimeTotal } from "~/utils/fixTime";
 import BestPracticesSection from "~/components/BestPracticesSection.vue";
 import { evaluateBestPractices } from "~/utils/bestPractices";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
@@ -524,6 +562,14 @@ function isRequiredStep(s: { categoryId: string }): boolean {
   return failingCategories.value.has(s.categoryId);
 }
 const requiredCount = computed(() => props.steps.filter((s) => isRequiredStep(s)).length);
+
+/** Plan-wide hands-on time — only when EVERY step carries a summable
+ *  estimate; a partial sum shown as the total would overclaim (fixTime.ts). */
+const timeTotal = computed(() => planTimeTotal(props.steps));
+/** The chip column renders only when some step has a chip to put in it, so
+ *  estimate-less reports (old stored payloads, scanned PDFs) keep today's
+ *  layout instead of an empty aligned column. */
+const anyEstimates = computed(() => props.steps.some((s) => s.estimate));
 
 const subtitle = computed(() => {
   const n = props.steps.length;

@@ -9,6 +9,7 @@
  */
 import { WCAG_CATEGORY_MAP } from "@file-audit/shared";
 import { firstActionableFinding, partitionCardFindings } from "~/utils/findings";
+import { estimateFixTime, type FixTimeEstimate } from "~/utils/fixTime";
 import { tallySeverity } from "~/utils/severityTally";
 
 export type PlanSeverity = "Critical" | "Moderate" | "Minor";
@@ -31,6 +32,10 @@ export interface PlanStep {
   routes: FixRoute[];
   /** Anchor of the category's evidence card inside the technical report. */
   detailAnchor: string;
+  /** Honest hands-on time for this step, when one exists (utils/fixTime.ts).
+   *  Absent whenever no defensible number can be derived from this report's
+   *  own findings — an absent chip, never a made-up one. */
+  estimate?: FixTimeEstimate;
 }
 
 interface PlanCopyEntry {
@@ -1010,6 +1015,7 @@ export function buildActionPlan(
         failingRefs.get(id) ?? (WCAG_CATEGORY_MAP[id] ?? []).map(({ sc, name }) => ({ sc, name })),
       routes,
       detailAnchor: `#cat-${id}`,
+      estimate: estimateFixTime(id, findings, ft) ?? undefined,
     };
   });
 }
