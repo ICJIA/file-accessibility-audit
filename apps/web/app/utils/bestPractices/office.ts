@@ -167,6 +167,71 @@ function docxHeadingOutlineBlock(ctx: DetectContext): EvidenceBlock | undefined 
 const OFFICE_FIX_APP =
   "Office documents are fixed at the source, not after export — make the change and re-export (or re-save) the file.";
 
+
+/** The descriptive-link twin, one per Office format (2026-09-01). The
+ *  analyzer's vague-link advisory ("click here") shipped for all three
+ *  formats on 2026-08-31, but no practice read it and uncoveredNotScored()
+ *  suppressed it as "covered" — so a document with CLICK HERE links showed
+ *  "Link text is not a raw URL — MET" and nothing else, while the PDF
+ *  catalog has carried descriptive-link-text all along. */
+function descriptiveLinkTwin(format: "docx" | "pptx" | "xlsx"): BestPractice {
+  const app = format === "docx" ? "Word" : format === "pptx" ? "PowerPoint" : "Excel";
+  const witness = format === "xlsx" ? "link(s) assessed" : "link(s) found";
+  return {
+    id: `${format}-descriptive-link-text`,
+    // The vague-link advisory this reads first shipped 2026-08-31; a stored
+    // payload analysed earlier cannot earn MET.
+    advisorySince: "2026-08-31",
+    formats: [format],
+    categoryId: "link_quality",
+    label: "Descriptive link text",
+    description:
+      "Link text like \u201cclick here\u201d or \u201cread more\u201d says nothing on its own; a label that names the destination serves screen-reader users pulling up a list of links.",
+    why: "WCAG 2.4.4 Link Purpose (In Context), Level A, DOES apply to link text — it is unscored here because the sentence around a link can supply its purpose, which no automated check can weigh, not because the law is silent. Judging the text alone is 2.4.9, Level AAA.",
+    links: [],
+    standard:
+      "Vague link text can fail WCAG 2.4.4 Link Purpose (In Context), Level A, when the surrounding sentence does not supply the purpose — a judgment this tool cannot make, so it reports rather than scores. Preferring self-sufficient text everywhere is 2.4.9 (Link Only), Level AAA.",
+    wcagSlugs: [
+      { slug: "link-purpose-in-context", label: "WCAG 2.4.4: Link Purpose (In Context) — Level A" },
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only) — Level AAA" },
+    ],
+    detect(ctx) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report contains no link-quality data for this document.", "not-run");
+      }
+      const line = matchAdvisory(ctx, "non-descriptive text");
+      if (line) {
+        const n = firstNumber(line);
+        return {
+          status: "not-met",
+          evidence: [
+            n !== null
+              ? `This document has ${n} link${n === 1 ? "" : "s"} with vague text such as \u201cclick here\u201d.`
+              : "Some links in this document use vague text such as \u201cclick here\u201d.",
+            "WCAG 2.4.4 (Level A) does apply to link purpose — it is unscored only because the sentence around a link can supply the purpose, which no automated check can weigh. Check each in place, and prefer a label naming the destination.",
+          ],
+          fix: {
+            source: `In ${app}, select each link and change its visible text to a short label naming the destination.`,
+            app: OFFICE_FIX_APP,
+          },
+        };
+      }
+      if (matchMain(ctx, "no hyperlinks were found")) {
+        return { status: "not-applicable", evidence: ["This document has no links."] };
+      }
+      if (matchMain(ctx, witness)) {
+        return {
+          status: "met",
+          evidence: [
+            "This document's links were checked, and none uses a vague phrase such as \u201cclick here\u201d as its text.",
+          ],
+        };
+      }
+      return notChecked("This report contains no finding about this document's link text.");
+    },
+  };
+}
+
 export const OFFICE_PRACTICES: BestPractice[] = [
   // =========================================================================
   // WORD
@@ -656,6 +721,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       return notChecked("This report contains no finding about empty table rows in this document.");
     },
   },
+  descriptiveLinkTwin("docx"),
   {
     id: "docx-raw-url-link-text",
     advisorySince: "2026-06-05",
@@ -892,6 +958,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       );
     },
   },
+  descriptiveLinkTwin("pptx"),
   {
     id: "pptx-raw-url-link-text",
     advisorySince: "2026-06-05",
@@ -1402,6 +1469,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       return notChecked("This report contains no finding about merged cells in this workbook.");
     },
   },
+  descriptiveLinkTwin("xlsx"),
   {
     id: "xlsx-raw-url-link-text",
     advisorySince: "2026-06-05",

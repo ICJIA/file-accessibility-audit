@@ -1280,6 +1280,42 @@ describe("an all-generic <H> document is NOT APPLICABLE for level order and conv
   });
 });
 
+describe("the mixed-tables census line is not the all-layout early return (2026-09-01)", () => {
+  // scoring/pdf.ts emits "treated as layout structures" in TWO lines: the
+  // all-tables-are-layout early return, and the mixed census "N single-column
+  // table(s) are treated as layout structures and excluded from the checks
+  // below; the M multi-column data table(s) are scored." The catalog's
+  // needle matched both, so any PDF with one single-column table beside real
+  // data tables had its three table practices declared not-applicable with a
+  // false sentence — and the extra-credit filter then dropped a genuine
+  // Scope advisory with no signal (three real corpus PDFs).
+  const MIXED_CENSUS =
+    "2 single-column table(s) are treated as layout structures and excluded from the checks below; the 3 multi-column data table(s) are scored.";
+  const SCOPE_ADVISORY =
+    "PDF/UA only — not scored: 3 header cell(s) across 1 table(s) have no /Scope. On a table with ONE header edge the direction is unambiguous, so this is a PDF/UA nicety, not a WCAG failure.";
+
+  it("table-scope-simple stays live on the mixed census and reads its advisory as WORTH DOING", () => {
+    const r = run("table-scope-simple", [MIXED_CENSUS, SCOPE_ADVISORY], 12);
+    expect(r.status).toBe("not-met");
+  });
+
+  it("nested-tables stays live on the mixed census and reads its witness as MET", () => {
+    const r = run("nested-tables", [MIXED_CENSUS, "No nested tables detected."], 12);
+    expect(r.status).toBe("met");
+  });
+
+  it("the ALL-layout early return still parks every table practice as not-applicable", () => {
+    const r = run(
+      "table-scope-simple",
+      [
+        "2 single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.",
+      ],
+      12,
+    );
+    expect(r.status).toBe("not-applicable");
+  });
+});
+
 describe("every PDF practice tells an absent category from silence", () => {
   it("returns reason 'not-run' — never the 'silent' reassurance — when the category is missing", () => {
     for (const p of PDF_PRACTICES) {
@@ -1302,7 +1338,11 @@ describe("advisorySince is declared on every witness-based PDF practice", () => 
       // These read a defect (or a census line) directly rather than inferring
       // MET from the ABSENCE of an advisory, so no era comparison applies.
       "heading-level-order",
-      "heading-numbered-levels",
+      // NOT here: heading-numbered-levels. Its MET is inferred from the
+      // ABSENCE of the mixed-convention advisory (scoring/pdf.ts:904, first
+      // shipped 2026-08-26) over the unconditional heading census witness —
+      // exactly the shape the era gate exists for. Listing it here let a
+      // pre-08-26 stored mixed H/Hn payload render MET (found 2026-09-01).
       "heading-content",
       "single-h1",
       "bookmarks",
@@ -1324,7 +1364,7 @@ describe("advisorySince is declared on every witness-based PDF practice", () => 
         `${id} is excluded here but no longer exists`,
       ).toContain(id);
     const witnessBased = PDF_PRACTICES.filter((p) => !NOT_WITNESS_BASED.includes(p.id));
-    expect(witnessBased.length).toBe(5);
+    expect(witnessBased.length).toBe(6);
     for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

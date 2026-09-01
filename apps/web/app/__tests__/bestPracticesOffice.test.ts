@@ -39,6 +39,47 @@ function formatOf(id: string): FileType {
 const run = (id: string, findings: string[]) =>
   practice(id).detect(buildContext({ findings }, formatOf(id), 0));
 
+// ---- descriptive link text — the Office twins (2026-09-01) ----------------
+// The analyzer's vague-link advisory ("click here") shipped for all three
+// Office formats on 2026-08-31, but no practice read it and
+// uncoveredNotScored() suppressed it as "covered" — so a document with
+// CLICK HERE links showed "Link text is not a raw URL — MET" and nothing
+// else. The PDF catalog has carried descriptive-link-text all along.
+describe("descriptive-link-text — one twin per Office format", () => {
+  const ADVISORY =
+    'Advisory — not scored against you: 1 link(s) use non-descriptive text ("CLICK HERE"). WCAG 2.4.4 lets the surrounding sentence supply a link\'s purpose, which an automated check cannot weigh, so this never affects your grade — but a descriptive label is kinder in a list of links.';
+
+  it.each(["docx", "pptx", "xlsx"] as const)("%s: vague link text is WORTH DOING", (fmt) => {
+    const witness =
+      fmt === "xlsx" ? "2 link(s) assessed; 0 with no link text at all." : "3 link(s) found; 0 with no link text at all.";
+    const r = run(`${fmt}-descriptive-link-text`, [witness, ADVISORY]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2\.4\.4|purpose/i);
+  });
+
+  it.each(["docx", "pptx", "xlsx"] as const)(
+    "%s: the link census with no advisory is MET",
+    (fmt) => {
+      const witness =
+        fmt === "xlsx" ? "2 link(s) assessed; 0 with no link text at all." : "3 link(s) found; 0 with no link text at all.",
+      r = run(`${fmt}-descriptive-link-text`, [witness]);
+      expect(r.status).toBe("met");
+    },
+  );
+
+  it.each(["docx", "pptx", "xlsx"] as const)("%s: no links is NOT APPLICABLE", (fmt) => {
+    expect(run(`${fmt}-descriptive-link-text`, ["No hyperlinks were found."]).status).toBe(
+      "not-applicable",
+    );
+  });
+
+  it("each twin is era-gated to the advisory's ship date", () => {
+    for (const fmt of ["docx", "pptx", "xlsx"] as const) {
+      expect(practice(`${fmt}-descriptive-link-text`).advisorySince).toBe("2026-08-31");
+    }
+  });
+});
+
 // ---- verbatim analyzer output, packages/analyzer/src/scoring/docx.ts ------
 
 const DOCX_NO_HEADINGS =
@@ -175,6 +216,9 @@ const XLSX_MERGED_ONE =
 const XLSX_RAW_URL =
   "Advisory — not scored against you: 5 link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.";
 
+const OFFICE_VAGUE_LINK =
+  'Advisory — not scored against you: 1 link(s) use non-descriptive text ("CLICK HERE"). WCAG 2.4.4 lets the surrounding sentence supply a link\'s purpose, which an automated check cannot weigh, so this never affects your grade — but a descriptive label is kinder in a list of links.';
+
 // A minimal NOT-MET-triggering fixture per practice, used only by the
 // forbidden-phrasing sweep below. Every line here is copied from the
 // fixtures used in that practice's own describe block above.
@@ -197,6 +241,9 @@ const NOT_MET_TRIGGERS: Record<string, string[]> = {
   "xlsx-data-start": [XLSX_TABLE_WITNESS, XLSX_DATA_START_ONE],
   "xlsx-merged-cells": [XLSX_TABLE_WITNESS, XLSX_MERGED_ONE],
   "xlsx-raw-url-link-text": [XLSX_LINK_WITNESS, XLSX_RAW_URL],
+  "docx-descriptive-link-text": [DOCX_LINK_WITNESS, OFFICE_VAGUE_LINK],
+  "pptx-descriptive-link-text": [PPTX_LINK_WITNESS, OFFICE_VAGUE_LINK],
+  "xlsx-descriptive-link-text": [XLSX_LINK_WITNESS, OFFICE_VAGUE_LINK],
 };
 
 describe("docx-first-heading-is-h1", () => {
@@ -789,7 +836,7 @@ describe("every Office practice", () => {
   it("has exactly the 18 catalogued practices", () => {
     // 19 until 2026-08-31, when docx-empty-headings became a scored WCAG
     // 1.3.1 (Level A) failure and left this catalog for the action plan.
-    expect(OFFICE_PRACTICES.length).toBe(18);
+    expect(OFFICE_PRACTICES.length).toBe(21);
     expect(OFFICE_PRACTICES.some((p) => p.id === "docx-empty-headings")).toBe(false);
   });
 
@@ -990,9 +1037,10 @@ describe("advisorySince is declared on every witness-based Office practice", () 
       (p) =>
         !["xlsx-sheet-names", "pptx-slide-titles", "pptx-distinct-slide-titles"].includes(p.id),
     );
-    // 15 since 2026-08-31: docx-empty-headings left this catalog when it became
-    // a scored WCAG 1.3.1 failure.
-    expect(witnessBased.length).toBe(15);
+    // 15 since 2026-08-31 (docx-empty-headings left this catalog when it
+    // became a scored WCAG 1.3.1 failure); 18 since 2026-09-01, when the
+    // three descriptive-link twins arrived — witness-based like the rest.
+    expect(witnessBased.length).toBe(18);
     for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

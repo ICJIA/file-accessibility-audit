@@ -110,7 +110,13 @@ function tableNotApplicable(ctx: DetectContext, aboutScope: boolean): BestPracti
   if (matchMain(ctx, "no tables detected in this document")) {
     return { status: "not-applicable", evidence: ["This document has no tables."] };
   }
-  if (matchMain(ctx, "treated as layout structures")) {
+  // Anchored to the ALL-layout early return's wording alone (2026-09-01):
+  // the mixed census line "N single-column table(s) are treated as layout
+  // structures and excluded from the checks below; the M multi-column data
+  // table(s) are scored" shares the shorter phrase, and matching it declared
+  // the table practices not-applicable on documents whose data tables were
+  // being scored — hiding a genuine Scope advisory with no signal.
+  if (matchMain(ctx, "detected — treated as layout structures rather than data tables")) {
     return {
       status: "not-applicable",
       evidence: [
@@ -371,6 +377,13 @@ export const PDF_PRACTICES: BestPractice[] = [
   },
   {
     id: "heading-numbered-levels",
+    // MET is inferred from the ABSENCE of the mixed-convention advisory,
+    // which first shipped 2026-08-26 — a stored payload analysed before that
+    // date cannot earn MET (the era gate compares this date).
+    advisorySince: "2026-08-26",
+    // MET is inferred from the ABSENCE of the mixed-convention advisory,
+    // which first shipped 2026-08-26 — a stored payload analysed before that
+    // date cannot earn MET (the era gate compares this date).
     formats: ["pdf"],
     categoryId: "heading_structure",
     label: "Numbered heading levels",
