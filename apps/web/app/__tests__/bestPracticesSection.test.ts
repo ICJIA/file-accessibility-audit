@@ -494,3 +494,56 @@ describe("the grade answer never contradicts the row above it (2026-08-31 WCAG a
     expect(row.text()).not.toMatch(/\boptional\b/i);
   });
 });
+
+describe("the waiting line — an empty section must not read as a clean bill (2026-09-02)", () => {
+  const brokenPdf = {
+    fileType: "pdf",
+    pageCount: 6,
+    categories: [
+      { id: "heading_structure", findings: ["No heading tags found in the document structure"] },
+      { id: "title_language", findings: ["No document title found in metadata"] },
+      { id: "text_extractability", findings: ["Font census: 4 font(s) — every one embedded."] },
+      {
+        id: "reading_order",
+        findings: ["No structure tree present — reading order cannot be determined"],
+      },
+    ],
+  };
+
+  it("says how many practices wait on the required fixes and how many could not be judged", () => {
+    const w = mountSection(brokenPdf);
+    const line = w.find('[data-testid="best-practices-waiting"]');
+    expect(line.exists()).toBe(true);
+    expect(line.text()).toMatch(/6 more practices are waiting on the required fixes above/);
+    expect(line.text()).toMatch(/\d+ could not be judged from this report/);
+  });
+
+  it("is absent when nothing is blocked — a document with headings and a title gets no such line", () => {
+    const cleanEnough = {
+      fileType: "pdf",
+      pageCount: 40,
+      categories: [
+        { id: "heading_structure", findings: ["Found 6 heading tags with logical hierarchy"] },
+        {
+          id: "title_language",
+          findings: ['Document title: "Annual Report" (shown by viewers — DisplayDocTitle is set)'],
+        },
+      ],
+    };
+    const w = mountSection(cleanEnough);
+    expect(w.find('[data-testid="best-practices-waiting"]').exists()).toBe(false);
+  });
+
+  it("renders the section for the waiting line alone — a document with no met and no worth-doing rows is not a clean bill", () => {
+    const allBlocked = {
+      fileType: "pdf",
+      pageCount: 6,
+      categories: [
+        { id: "heading_structure", findings: ["No heading tags found in the document structure"] },
+      ],
+    };
+    const w = mountSection(allBlocked);
+    expect(w.find('[data-testid="best-practices-waiting"]').exists()).toBe(true);
+    expect(w.findAll("li[data-practice]").length).toBe(0);
+  });
+});

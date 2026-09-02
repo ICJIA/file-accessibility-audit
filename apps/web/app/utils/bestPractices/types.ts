@@ -261,6 +261,15 @@ export function matchAdvisory(ctx: DetectContext, ...needles: string[]): string 
   return findIn([...ctx.notScored, ...ctx.main], needles, ctx.consumed);
 }
 
+/** `matchAdvisory` without the coverage side-effect: for a practice that only
+ *  READS an advisory to annotate its own evidence ("N links could not be
+ *  attributed — see Also noted") without being ABOUT it. A read through
+ *  `matchAdvisory` would strike the line from "Also noted", and the note
+ *  would point at a list the advisory had just vanished from (2026-09-02). */
+export function peekAdvisory(ctx: DetectContext, ...needles: string[]): string | null {
+  return findIn([...ctx.notScored, ...ctx.main], needles);
+}
+
 /** The lines `matchAdvisory` searches, for the two practices that need a
  *  REGEX over every advisory rather than one substring match (a per-sheet or
  *  per-duplicate-title line the analyzer pushes once per offender, where

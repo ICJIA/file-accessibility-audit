@@ -160,6 +160,46 @@ describe("conformance gate — the two rules that used to infer (2026-09-02)", (
   });
 });
 
+describe("conformance gate — links whose text could not be attributed are a manual-review item (2026-09-02)", () => {
+  it("lists 4.1.2 as not assessed, with the count and the F89 caveat, when any link has textIsUrlFallback", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf(),
+      makePdfjs({
+        links: [
+          {
+            url: "https://a.example",
+            text: "https://a.example",
+            tagged: true,
+            textIsUrlFallback: true,
+          },
+          { url: "https://b.example", text: "A descriptive label", tagged: true },
+        ],
+      }),
+      cleanCategories,
+    );
+    const na = v.notAssessed.find((n: any) => n.sc === "4.1.2");
+    expect(na).toBeDefined();
+    expect(na!.reason).toMatch(/1 link\(s\).*could not be attributed/i);
+    expect(na!.reason).toMatch(/F89/);
+    expect(na!.url).toMatch(/name-role-value/);
+    // Never a failure: the tool cannot tell rotated text from an image-only link.
+    expect(v.failures.some((f: any) => f.sc === "4.1.2")).toBe(false);
+  });
+
+  it("adds nothing when every link's text was attributed", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf(),
+      makePdfjs({
+        links: [{ url: "https://b.example", text: "A descriptive label", tagged: true }],
+      }),
+      cleanCategories,
+    );
+    expect(v.notAssessed.some((n: any) => n.sc === "4.1.2")).toBe(false);
+  });
+});
+
 describe("conformance gate — encryption accessibility permission", () => {
   it("asserts a confirmed Level A failure when security settings deny assistive technology", async () => {
     const evaluate = await loadGate();

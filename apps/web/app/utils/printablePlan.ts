@@ -29,7 +29,7 @@ import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
-import { sortBestPractices } from "~/utils/bestPractices";
+import { sortBestPractices, backlogSentence } from "~/utils/bestPractices";
 import type { BestPracticeStatus, EvaluatedPractice } from "~/utils/bestPractices";
 import { resolveRowLinks } from "~/utils/bestPractices/links";
 
@@ -44,6 +44,10 @@ export interface PrintablePlanOptions {
    *  show/hide on paper, and the holder of the printout may not be the
    *  person who chose which fix route to take. */
   bestPractices?: EvaluatedPractice[];
+  /** What the extra-credit filter hid, counted — printed as one sentence
+   *  under the heading when anything is blocked, exactly as on screen
+   *  (2026-09-02). */
+  bestPracticeBacklog?: { blocked: number; unjudged: number; notApplicable?: number };
   manualChecks?: Array<ManualCheck & { label: string }>;
   /** WCAG criteria the tool does not evaluate at all. `url` is the server's
    *  Understanding-page address; it is safeHttpUrl-guarded before rendering
@@ -318,23 +322,30 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
   // declaration order scattering the one or two actionable rows among
   // mostly "Does not apply"/"Not checked".
   const sortedPractices = sortBestPractices(o.bestPractices ?? []);
-  const practices = sortedPractices.length
-    ? `<h2>Best practices — not scored</h2>` +
-      // "everything here is optional work" was a LEGAL claim, and a stronger
-      // one than the catalog supports (2026-08-31 WCAG audit). Two different
-      // things sit in this list: items the law genuinely does not ask for
-      // (PDF/UA and industry practice), and items WCAG does ask for but whose
-      // judgment needs a human — vague link text meets 2.4.4 (Level A) when
-      // the surrounding sentence carries the purpose, which no automated
-      // check can read. Calling the second kind "optional" on paper, where
-      // there is no row detail to correct it, is the overclaim. The screen
-      // version makes only the score claim, which is true by construction.
-      `<p class="sub">None of this affected the grade. The fixes above are everything WCAG 2.1 ` +
-      `asks of this document that an automated check can find. Each practice below names the ` +
-      `standard behind it — some are industry practice beyond what the law requires, others are ` +
-      `things the law asks for that only a person can judge.</p>` +
-      `<ul class="bp">${sortedPractices.map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
-    : "";
+  const waiting = o.bestPracticeBacklog
+    ? backlogSentence({ notApplicable: 0, ...o.bestPracticeBacklog })
+    : null;
+  const practices =
+    sortedPractices.length || waiting
+      ? `<h2>Best practices — not scored</h2>` +
+        // "everything here is optional work" was a LEGAL claim, and a stronger
+        // one than the catalog supports (2026-08-31 WCAG audit). Two different
+        // things sit in this list: items the law genuinely does not ask for
+        // (PDF/UA and industry practice), and items WCAG does ask for but whose
+        // judgment needs a human — vague link text meets 2.4.4 (Level A) when
+        // the surrounding sentence carries the purpose, which no automated
+        // check can read. Calling the second kind "optional" on paper, where
+        // there is no row detail to correct it, is the overclaim. The screen
+        // version makes only the score claim, which is true by construction.
+        `<p class="sub">None of this affected the grade. The fixes above are everything WCAG 2.1 ` +
+        `asks of this document that an automated check can find. Each practice below names the ` +
+        `standard behind it — some are industry practice beyond what the law requires, others are ` +
+        `things the law asks for that only a person can judge.</p>` +
+        (waiting ? `<p class="sub">${escapeHtml(waiting)}</p>` : "") +
+        (sortedPractices.length
+          ? `<ul class="bp">${sortedPractices.map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
+          : "")
+      : "";
 
   const hasCaution = (o.manualChecks ?? []).some((c) => c.tone === "caution");
   const checks = (o.manualChecks ?? []).length

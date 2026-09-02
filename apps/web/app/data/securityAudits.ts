@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.155.1",
+    meta: "Reviewed <strong>2026-09-02</strong> &middot; scope: three report-copy follow-ups from reading a real report after v1.155.0.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: report copy and one additional not-assessed disclosure. The best-practices section now counts the practices it hides (waiting on the required fixes, or not judgeable yet) instead of reading as a clean bill; the link rows credit the links the tool could read and say how many it could not; and links whose text could not be attributed are listed for manual review under the name-role-value criterion. Every new sentence renders through the same escaped paths as the rest of the report; nothing new is accepted, stored, or sent.",
+      },
+    ],
+  },
+  {
     version: "v1.155.0",
     meta: "Reviewed <strong>2026-09-02</strong> &middot; scope: a second fresh-eyes audit of the product (accuracy, documentation, best practices, veraPDF) with a full security re-test.",
     body: [

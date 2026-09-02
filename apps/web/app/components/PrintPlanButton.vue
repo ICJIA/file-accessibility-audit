@@ -47,7 +47,7 @@ import { buildPrintablePlan, openPrintablePlan } from "~/utils/printablePlan";
 import { manualChecks, withVeraContrast } from "~/utils/manualReview";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { useWcag } from "~/composables/useWcag";
-import { evaluateBestPractices } from "~/utils/bestPractices";
+import { evaluateBestPractices, bestPracticeBacklog } from "~/utils/bestPractices";
 
 const wcag = useWcag();
 
@@ -181,6 +181,10 @@ function openPlan(): void {
       verdict: categories.value.length ? publicationVerdict(categories.value).text : null,
       steps: steps.value,
       bestPractices: bestPractices.value,
+      bestPracticeBacklog:
+        props.includeBestPractices === false
+          ? undefined
+          : bestPracticeBacklog(props.result, undefined, { analyzedAt: props.analyzedAt }),
       manualChecks: checks.value,
       notAssessed: notAssessed.value,
       reportUrl:

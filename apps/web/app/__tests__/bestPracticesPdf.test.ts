@@ -749,6 +749,36 @@ describe("pdf-first-heading-is-h1 (2026-09-02)", () => {
   });
 });
 
+describe("descriptive-link-text — the attributable links still earn MET beside an unattributable one (2026-09-02)", () => {
+  const ATTRIBUTABLE_OK = "1 of 1 attributable link(s) use descriptive text";
+  const UNATTRIBUTED =
+    "Advisory — not scored: 1 link(s) expose no text this tool could attribute — often rotated text, or an image-only link. If one of these is genuinely an image with no alternative text, that is a WCAG 4.1.2 / 1.1.1 failure (F89); rotated text reads fine and merely defeats automated attribution. This tool cannot tell the two apart, so your grade is not affected — verify these by hand.";
+
+  it("is MET, and its evidence names the link(s) it could not judge", () => {
+    const r = run("descriptive-link-text", [UNATTRIBUTED, ATTRIBUTABLE_OK]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/could attribute uses descriptive text/i);
+    expect(r.evidence.join(" ")).toMatch(/1 link\(s\) could not be attributed/i);
+  });
+
+  it("stays NOT CHECKED when the report carries only the unattributable advisory", () => {
+    expect(run("descriptive-link-text", [UNATTRIBUTED]).status).toBe("not-checked");
+  });
+});
+
+describe("raw-url-link-text — hedges when a link's text could not be read (2026-09-02)", () => {
+  const ATTRIBUTABLE_OK = "1 of 1 attributable link(s) use descriptive text";
+  const UNATTRIBUTED =
+    "Advisory — not scored: 1 link(s) expose no text this tool could attribute — often rotated text, or an image-only link.";
+
+  it("is MET for the links it could read, and says one could not be read", () => {
+    const r = run("raw-url-link-text", [UNATTRIBUTED, ATTRIBUTABLE_OK]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/could attribute uses its raw web address/i);
+    expect(r.evidence.join(" ")).toMatch(/1 link\(s\) could not be attributed/i);
+  });
+});
+
 describe("descriptive-title (2026-09-02)", () => {
   // The scorer's unscored advisory for a filename-SHAPED title that still
   // names the document (underscores, a hash, an export timestamp). It sits

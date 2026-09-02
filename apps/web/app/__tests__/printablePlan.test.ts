@@ -497,3 +497,32 @@ describe("fix-time estimates in the printout", () => {
     expect(html).not.toContain("Hands-on fix time");
   });
 });
+
+describe("printable plan — the best-practices waiting line (2026-09-02)", () => {
+  it("prints how many practices wait on the required fixes when the backlog says so", () => {
+    const html = buildPrintablePlan({
+      filename: "brief.pdf",
+      grade: "F",
+      score: 43,
+      verdict: null,
+      steps: [],
+      bestPractices: [],
+      bestPracticeBacklog: { blocked: 6, unjudged: 10 },
+    } as never);
+    expect(html).toMatch(/6 more practices are waiting on the required fixes above/);
+    expect(html).toMatch(/10 could not be judged from this report/);
+  });
+
+  it("prints no such line when nothing is blocked", () => {
+    const html = buildPrintablePlan({
+      filename: "brief.pdf",
+      grade: "A",
+      score: 100,
+      verdict: null,
+      steps: [],
+      bestPractices: [],
+      bestPracticeBacklog: { blocked: 0, unjudged: 3 },
+    } as never);
+    expect(html).not.toMatch(/waiting on the required fixes/);
+  });
+});

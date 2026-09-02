@@ -50,7 +50,7 @@
      controlled stored JSON, so nothing below may throw). -->
 <template>
   <section
-    v-if="rows.length"
+    v-if="rows.length || waitingLine"
     data-testid="best-practices"
     class="rounded-2xl border-2 border-sky-500/40 bg-sky-500/5 px-5 sm:px-6 py-5"
     aria-labelledby="best-practices-title"
@@ -93,6 +93,19 @@
         <span class="text-sky-400 font-bold">{{ chip.count }}</span> {{ chip.label }}
       </span>
     </div>
+
+    <!-- The rows the extra-credit filter hid, COUNTED (2026-09-02). "0 worth
+         doing · 1 met" on a 43/F untagged brief read as a nearly clean bill;
+         six rows were blocked by the scored heading failure and ten more
+         could not be judged until the document is tagged. The rows stay
+         hidden; the count is owed. Absent when nothing is blocked. -->
+    <p
+      v-if="waitingLine"
+      data-testid="best-practices-waiting"
+      class="mt-3 text-sm text-[var(--text-muted)] leading-relaxed"
+    >
+      {{ waitingLine }}
+    </p>
 
     <ul class="mt-4 space-y-2 list-none p-0 m-0">
       <li
@@ -316,6 +329,8 @@
 import { computed, ref } from "vue";
 import {
   evaluateBestPractices,
+  bestPracticeBacklog,
+  backlogSentence,
   sortBestPractices,
   summarizeBestPractices,
   uncoveredNotScored,
@@ -360,6 +375,10 @@ const rows = computed<DisplayRow[]>(() =>
 );
 
 const summary = computed(() => summarizeBestPractices(rows.value));
+
+const waitingLine = computed(() =>
+  backlogSentence(bestPracticeBacklog(props.result, undefined, { analyzedAt: props.analyzedAt })),
+);
 
 /** Not-scored lines from categories no practice covers (the static-XFA
  *  caveat lives in form_accessibility). The plan's beyond group used to list

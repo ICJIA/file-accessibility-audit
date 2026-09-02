@@ -29,6 +29,7 @@ import {
   summarizeBestPractices,
   sortBestPractices,
   type BestPracticeStatus,
+  bestPracticeBacklog,
 } from "../utils/bestPractices";
 
 const category = {
@@ -427,6 +428,26 @@ describe("uncoveredNotScored — what the analyzer said that no practice covers"
     expect(notes.some((n) => /generic <H>/.test(n.text))).toBe(false);
   });
 
+  it("an advisory a practice only READS to annotate its own evidence is still uncovered — the unattributable-link note stays listed beside a MET link row", () => {
+    // descriptive-link-text reads the unattributable advisory to say "N could
+    // not be attributed — see Also noted"; if that read counted as coverage
+    // the note would point at a list the advisory had just vanished from.
+    const unattributed =
+      "Advisory — not scored: 1 link(s) expose no text this tool could attribute — often rotated text, or an image-only link. If one of these is genuinely an image with no alternative text, that is a WCAG 4.1.2 / 1.1.1 failure (F89).";
+    const withMetLinks = {
+      ...report,
+      categories: [
+        ...report.categories,
+        {
+          id: "link_quality",
+          label: "Link Quality",
+          findings: ["1 of 1 attributable link(s) use descriptive text", unattributed],
+        },
+      ],
+    };
+    expect(uncoveredNotScored(withMetLinks).some((n) => n.text === unattributed)).toBe(true);
+  });
+
   it("excludes categories a practice already covers, and never throws on junk", () => {
     expect(uncoveredNotScored(report).some((n) => /generic <H>/.test(n.text))).toBe(false);
     expect(uncoveredNotScored(null)).toEqual([]);
@@ -816,5 +837,55 @@ describe("catalog copy guards (2026-09-02)", () => {
         `${id} cites no Microsoft page`,
       ).toBe(true);
     }
+  });
+});
+
+describe("bestPracticeBacklog — what the extra-credit filter hid, counted (2026-09-02)", () => {
+  // A 43/F untagged, untitled brief rendered "0 worth doing · 1 met", which
+  // reads as a nearly clean bill. In fact six rows were blocked by the scored
+  // heading failure and ten more could not be judged until the document is
+  // tagged. The rows stay hidden (the 2026-08-31 rule); the COUNT is owed.
+  const brokenPdf = {
+    fileType: "pdf",
+    pageCount: 6,
+    categories: [
+      { id: "heading_structure", findings: ["No heading tags found in the document structure"] },
+      { id: "title_language", findings: ["No document title found in metadata"] },
+      {
+        id: "link_quality",
+        findings: [
+          "Advisory — not scored: 1 link(s) expose no text this tool could attribute — often rotated text, or an image-only link.",
+        ],
+      },
+      { id: "text_extractability", findings: ["Font census: 4 font(s) — every one embedded."] },
+      {
+        id: "reading_order",
+        findings: ["No structure tree present — reading order cannot be determined"],
+      },
+      {
+        id: "table_markup",
+        findings: ["No tables detected in this document — this category does not affect the score"],
+      },
+      {
+        id: "bookmarks",
+        findings: ["Advisory — not scored: this 6-page document has no bookmarks"],
+      },
+    ],
+  };
+
+  it("counts rows blocked by a scored failure separately from rows the report could not judge", () => {
+    const b = bestPracticeBacklog(brokenPdf);
+    expect(b.blocked).toBe(6); // the six heading rows behind "No heading tags found"
+    expect(b.unjudged).toBeGreaterThanOrEqual(8);
+    expect(b.notApplicable).toBeGreaterThanOrEqual(3); // bookmarks (short), the table rows
+  });
+
+  it("returns zeros for a flawless report and for junk", () => {
+    expect(bestPracticeBacklog(null)).toEqual({ blocked: 0, unjudged: 0, notApplicable: 0 });
+    expect(bestPracticeBacklog({ fileType: "pdf", categories: "junk" })).toEqual({
+      blocked: 0,
+      unjudged: 0,
+      notApplicable: 0,
+    });
   });
 });

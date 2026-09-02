@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.155.1] - 2026-09-02
+
+Three follow-ups from reading a real 43/F brief's report after v1.155.0 shipped. None moves a score.
+
+### Fixed
+
+- **An empty best-practices section no longer reads as a clean bill.** An untagged, untitled six-page brief rendered "0 worth doing · 1 met" — technically true, since every unmet thing about it was a scored WCAG failure already in the action plan and nothing else could be judged, but it read like there was nothing left. The section now says what the extra-credit filter hid: "6 more practices are waiting on the required fixes above, and 7 could not be judged from this report — re-check after the fixes are made." The rows stay hidden (the 2026-08-31 rule); only the count is new, it appears only when something is blocked, the printable plan carries the same sentence, and a document with nothing met and nothing worth doing now shows the section for that line alone rather than vanishing.
+- **Links the tool could read still earn their credit when one link could not be read.** A link whose text could not be attributed (rotated text, or an image-only link) used to silence the whole link-text summary, so a document with one genuinely descriptive link and one unreadable one showed neither the "descriptive link text" nor the "not a raw URL" row. The analyzer now says "N of N attributable link(s) use descriptive text"; both rows read MET for the links that could be judged and say how many could not, and the advisory about the unreadable ones stays under "Also noted" — a row that merely quotes an advisory to annotate its own evidence no longer counts as covering it.
+- **Unattributable links reach the manual-review list.** The same links were excluded from the 4.1.2 count (the tool cannot tell rotated text from an image-only link with no alternative — F89) but were disclosed only in the link category's own findings, under a divider saying everything WCAG requires was above. The verdict now lists 4.1.2 as not assessed with the count and the caveat, so the manual-review card and the printable plan carry it.
+
 ## [1.155.0] - 2026-09-02
 
 A second fresh-eyes audit, one day after the first: five parallel reviewers (WCAG applicability, documentation, best practices, veraPDF, security), plus every real document in the control corpus run through the analyzer and read against what the rules asserted — and then every finding closed, in the order proposed. Two rules in the confirmed-failure tier were accusing documents of failures nobody had observed; three live documentation surfaces said the opposite of what the gate does; two veraPDF surfaces misreported; the page-audit SSRF guard let Chromium re-resolve a host it had just validated.

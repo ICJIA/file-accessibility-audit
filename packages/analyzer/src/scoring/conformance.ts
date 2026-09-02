@@ -743,6 +743,25 @@ export function evaluateConformance(
       url: wcagUrl("1.4.3"),
     },
   ];
+  // Links whose text could not be attributed (rotated text, or an image-only
+  // link with no alternative): excluded from the 4.1.2 count above because
+  // the tool cannot tell the two apart — so the criterion is not "passed",
+  // it is a hand check. Disclosed here so the manual-review card and the
+  // printable plan carry it, not only the link category's own advisory
+  // (2026-09-02).
+  {
+    const unattributable = (pdfjs.links ?? []).filter((l) => l.textIsUrlFallback === true).length;
+    if (unattributable > 0) {
+      notAssessed.push({
+        sc: "4.1.2",
+        name: "Name, Role, Value",
+        level: "A",
+        reason: `${unattributable} link(s) could not be attributed to any visible text — rotated text, or an image-only link. Rotated text reads fine and merely defeats automated attribution; an image-only link with no alternative text is a 4.1.2 / 1.1.1 failure (F89). This tool cannot tell the two apart, so verify each one by hand (they are listed under Link Quality).`,
+        url: wcagUrl("4.1.2"),
+      });
+    }
+  }
+
   const readingOrderCat = categories.find((c) => c.id === "reading_order");
   if (orderDivergencePct !== null) {
     notAssessed.push({

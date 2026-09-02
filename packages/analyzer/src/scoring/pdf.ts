@@ -2209,6 +2209,22 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
         findings.push(`  ... and ${unattributed.length - 10} more`);
       }
     }
+    // The attributable links still get their summary when the ONLY thing
+    // that kept the clean line above from firing is a link whose text could
+    // not be attributed (2026-09-02): a reader — and the best-practices row —
+    // should hear that every link this tool could read is descriptive.
+    if (
+      unattributed.length > 0 &&
+      failing === 0 &&
+      vague.length === 0 &&
+      rawUrls.length === 0 &&
+      descriptive.length > 0 &&
+      descriptive.length === attributable.length
+    ) {
+      findings.push(
+        `${descriptive.length} of ${attributable.length} attributable link(s) use descriptive text`,
+      );
+    }
     if (descriptive.length > 0) {
       findings.push(`--- Links With Descriptive Text ---`);
       for (const { link } of descriptive.slice(0, 10)) {

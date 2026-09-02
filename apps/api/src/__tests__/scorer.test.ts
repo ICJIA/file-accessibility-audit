@@ -605,6 +605,58 @@ describe("scoreDocument — mixed results", () => {
     });
   });
 
+  describe("link quality — the attributable links still get their summary when one link could not be attributed (2026-09-02)", () => {
+    it("emits 'N of N attributable link(s) use descriptive text' beside the unattributable advisory", () => {
+      const result = scoreDocument(
+        makeQpdf({ hasStructTree: true, hasLang: true, lang: "en" }),
+        makePdfjs({
+          hasText: true,
+          textLength: 3000,
+          links: [
+            {
+              url: "https://a.example/report.pdf",
+              text: "The Choice is Yours program evaluation",
+              tagged: true,
+            },
+            {
+              url: "https://b.example",
+              text: "https://b.example",
+              tagged: true,
+              textIsUrlFallback: true,
+            },
+          ],
+        }),
+      );
+      const text = findCategory(result, "link_quality").findings.join("\n");
+      expect(text).toMatch(/1 of 1 attributable link\(s\) use descriptive text/);
+      expect(text).toMatch(
+        /Advisory — not scored: 1 link\(s\) expose no text this tool could attribute/,
+      );
+    });
+
+    it("stays silent about descriptive text when an attributable link is vague — that advisory speaks instead", () => {
+      const result = scoreDocument(
+        makeQpdf({ hasStructTree: true }),
+        makePdfjs({
+          hasText: true,
+          textLength: 3000,
+          links: [
+            { url: "https://a.example", text: "click here", tagged: true },
+            {
+              url: "https://b.example",
+              text: "https://b.example",
+              tagged: true,
+              textIsUrlFallback: true,
+            },
+          ],
+        }),
+      );
+      const text = findCategory(result, "link_quality").findings.join("\n");
+      expect(text).not.toMatch(/attributable link\(s\) use descriptive text/);
+      expect(text).toMatch(/use non-descriptive text/);
+    });
+  });
+
   describe("DisplayDocTitle is scored under 2.4.2 (2026-09-01)", () => {
     // With the flag off, viewers show the FILENAME in the title bar and
     // screen readers announce it — the same experience this tool scores as

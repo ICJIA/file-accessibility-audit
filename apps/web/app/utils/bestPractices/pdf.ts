@@ -43,6 +43,7 @@ import {
   type BestPracticeResult,
   type DetectContext,
   type EvidenceBlock,
+  peekAdvisory,
 } from "./types";
 import { BLOCKED_BY_PLAN, SCORED_IN_PLAN } from "./types";
 import { matterhornLink, techniqueLink } from "./links";
@@ -1359,6 +1360,22 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       if (matchMain(ctx, "link(s) use descriptive text")) {
+        // "N of N attributable link(s)…" (2026-09-02): the links this tool
+        // could read are all descriptive, and some could not be read at all
+        // — say both, and point at where the unread ones are listed.
+        // peek, not match: this row is about the links it could read; the
+        // advisory about the ones it could not stays uncovered, so "Also
+        // noted" below still lists it (2026-09-02).
+        const unread = peekAdvisory(ctx, "expose no text this tool could attribute");
+        if (unread) {
+          const n = firstNumber(unread);
+          return {
+            status: "met",
+            evidence: [
+              `Every link this tool could attribute uses descriptive text; ${n ?? "some"} link(s) could not be attributed (rotated text, or an image-only link) — see "Also noted in this report" below.`,
+            ],
+          };
+        }
         return {
           status: "met",
           evidence: ["Every link in this document uses descriptive text."],
@@ -1420,6 +1437,16 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       if (matchMain(ctx, "link(s) use descriptive text")) {
+        const unread = peekAdvisory(ctx, "expose no text this tool could attribute");
+        if (unread) {
+          const n = firstNumber(unread);
+          return {
+            status: "met",
+            evidence: [
+              `No link this tool could attribute uses its raw web address as visible text; ${n ?? "some"} link(s) could not be attributed and are not judged here.`,
+            ],
+          };
+        }
         return {
           status: "met",
           evidence: ["No link in this document uses its raw web address as visible text."],

@@ -184,6 +184,68 @@ export function evaluateBestPractices(
     .filter(isExtraCredit);
 }
 
+/**
+ * What the extra-credit filter hid, counted (2026-09-02). A 43/F untagged,
+ * untitled brief rendered "0 worth doing · 1 met", which reads as a nearly
+ * clean bill; in fact six rows were blocked by the scored heading failure
+ * and ten more could not be judged until the document is tagged. The rows
+ * stay hidden — the 2026-08-31 rule — but the section owes the reader the
+ * count. `blocked` = not-checked because a scored failure got there first;
+ * `unjudged` = every other not-checked (the analyzer said nothing, or the
+ * report predates the check); `notApplicable` = nothing to do.
+ */
+export interface BestPracticeBacklog {
+  blocked: number;
+  unjudged: number;
+  notApplicable: number;
+}
+
+export function bestPracticeBacklog(
+  result: unknown,
+  catalog: BestPractice[] = CATALOG,
+  opts: EvaluateOptions = {},
+): BestPracticeBacklog {
+  const out: BestPracticeBacklog = { blocked: 0, unjudged: 0, notApplicable: 0 };
+  const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
+  if (!r) return out;
+  const fileType = r.fileType;
+  if (typeof fileType !== "string" || !FILE_TYPES.includes(fileType as FileType)) return out;
+  const ft = fileType as FileType;
+  const categories = Array.isArray(r.categories) ? r.categories : [];
+  if (categories.length === 0) return out;
+  const pageCount = typeof r.pageCount === "number" ? r.pageCount : 0;
+  const byId = new Map<string, unknown>();
+  for (const c of categories) {
+    if (c && typeof c === "object") {
+      const id = (c as Record<string, unknown>).id;
+      if (typeof id === "string") byId.set(id, c);
+    }
+  }
+  for (const practice of catalog) {
+    if (!practice.formats.includes(ft)) continue;
+    const ctx = buildContext(byId.get(practice.categoryId), ft, pageCount, opts.analyzedAt ?? null);
+    const outcome = eraGate(practice, ctx, runDetect(practice, ctx));
+    if (outcome.status === "not-applicable") out.notApplicable++;
+    else if (outcome.status === "not-checked") {
+      if (outcome.reason === "blocked") out.blocked++;
+      else out.unjudged++;
+    }
+  }
+  return out;
+}
+
+/** The one sentence both surfaces print for a backlog, or null when nothing
+ *  is blocked — a clean document gets no line at all. */
+export function backlogSentence(b: BestPracticeBacklog): string | null {
+  if (b.blocked <= 0) return null;
+  const more = `${b.blocked} more practice${b.blocked === 1 ? " is" : "s are"} waiting on the required fixes above`;
+  const rest =
+    b.unjudged > 0
+      ? `, and ${b.unjudged} could not be judged from this report — re-check after the fixes are made.`
+      : ".";
+  return more + rest;
+}
+
 // NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then
 // NOT CHECKED last — never by severity, because nothing here has one. The
 // ONE place this order is defined: BestPracticesSection.vue (the on-screen
