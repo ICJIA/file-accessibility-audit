@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { buildPrintablePlan, openPrintablePlan } from "~/utils/printablePlan";
-import { manualChecks } from "~/utils/manualReview";
+import { manualChecks, withVeraContrast } from "~/utils/manualReview";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { useWcag } from "~/composables/useWcag";
 import { evaluateBestPractices } from "~/utils/bestPractices";
@@ -127,7 +127,15 @@ const steps = computed(() =>
   ),
 );
 const checks = computed(() => manualChecks(categories.value, props.result?.fileType));
-const notAssessed = computed(() => props.result?.conformance?.notAssessed ?? []);
+// veraPDF's contrast rule can see what the 1.4.3 "not assessed" row cannot;
+// the printout says so exactly as the on-screen card does (2026-09-02).
+const notAssessed = computed(() =>
+  withVeraContrast(
+    props.result?.conformance?.notAssessed ?? [],
+    (props.result as { wcagVerdict?: Parameters<typeof withVeraContrast>[1] } | null)
+      ?.wcagVerdict ?? null,
+  ),
+);
 // evaluateBestPractices narrows `unknown` itself and never throws (a
 // page-audit row, a null result, or a forged stored report all resolve to
 // an empty list) — see bestPractices/types.ts's own doctrine comment.

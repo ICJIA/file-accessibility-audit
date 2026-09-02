@@ -65,6 +65,7 @@
       <span>validation_failed</span>
       <span>verapdf_passed</span>
       <span>verapdf_failed</span>
+      <span>verapdf_error</span>
       <span>verapdf_unavailable</span>
       <span>output_ready</span>
       <span>downloaded</span>

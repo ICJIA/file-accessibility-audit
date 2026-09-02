@@ -127,29 +127,31 @@ const libraries = computed(() =>
       (reading order, form fields) are always reported as Not Assessed and sit outside the weighted
       score; a category that simply doesn't apply to a given document (no tables, no images) counts
       as passing, so a document is never penalized for content it doesn't have. Unlike PDF, color
-      contrast is checked directly here, because Word stores explicit and theme colors. This score
-      is the compliance benchmark for publication.
+      contrast is checked directly here, because Word stores explicit and theme colors. The score
+      tracks remediation progress; the WCAG 2.1 verdict above is the compliance answer.
     </p>
     <p v-else-if="isPptx" class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
       Nine categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (the standard
       <strong>IITAA 2.1 §E205.4</strong> and ADA Title II both require) — the rules that govern
       non-web document accessibility in Illinois. PowerPoint-specific checks include
       <strong>slide titles</strong>
-      (every slide needs a unique title placeholder — Microsoft's highest-severity PowerPoint rule)
-      and a title-first
+      (every slide should have a unique title placeholder — Microsoft's highest-severity PowerPoint
+      rule; reported as an advisory, never scored — requiring a title to exist is WCAG 2.4.10, Level
+      AAA) and a title-first
       <strong>reading order</strong> check (reported as an advisory, never scored); checks that have
       no PowerPoint equivalent (heading structure, bookmarks) are not part of its category set, form
       fields are always reported as Not Assessed, and a category that simply doesn't apply to a
       given deck counts as passing rather than shrinking the score's base. Color contrast is checked
       directly, because PowerPoint stores explicit and theme colors. Machine checks are benchmarked
-      against Microsoft's own Accessibility Checker rules for PowerPoint. This score is the
-      compliance benchmark for publication.
+      against Microsoft's own Accessibility Checker rules for PowerPoint. The score tracks
+      remediation progress; the WCAG 2.1 verdict above is the compliance answer.
     </p>
     <p v-else-if="isXlsx" class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
       Seven categories are weighed against <strong>WCAG {{ wcag.version }} AA</strong> (the standard
       <strong>IITAA 2.1 §E205.4</strong> and ADA Title II both require) — the rules that govern
       non-web document accessibility in Illinois. Excel-specific checks include
-      <strong>sheet names</strong> (no default "Sheet1" tabs on visible sheets) and
+      <strong>sheet names</strong> (no default "Sheet1" tabs on visible sheets — an advisory, never
+      scored) and
       <strong>table markup</strong>
       (data in real table objects with header rows; merged cells are flagged as advisories). Excel
       stores no document-language property, so the language half of Title &amp; Language is reported
@@ -158,7 +160,8 @@ const libraries = computed(() =>
       always reported as Not Assessed, and a category that simply doesn't apply to a given workbook
       counts as passing rather than shrinking the score's base. Color contrast is checked directly
       from explicit font and fill colors. Machine checks are benchmarked against Microsoft's own
-      Accessibility Checker rules for Excel. This score is the compliance benchmark for publication.
+      Accessibility Checker rules for Excel. The score tracks remediation progress; the WCAG 2.1
+      verdict above is the compliance answer.
     </p>
     <p v-else class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
       Nine categories are weighed against
@@ -169,7 +172,7 @@ const libraries = computed(() =>
       penalized for content it doesn't have, and a simple document's one fault is never magnified by
       a shrunken base (the pre-v1.58.3 renormalization did exactly that, and was removed). Only
       checks the tool could not assess — color contrast on PDFs — sit outside the weighted score.
-      This score is the compliance benchmark for publication.
+      The score tracks remediation progress; the WCAG 2.1 verdict above is the compliance answer.
       <strong>PDF/UA-1 (ISO 14289-1)</strong> — a separate ISO standard for tagged PDFs — is
       verified with veraPDF on every PDF audit (the PDF/UA verdict on the report) and again by the
       optional remediation pipeline.

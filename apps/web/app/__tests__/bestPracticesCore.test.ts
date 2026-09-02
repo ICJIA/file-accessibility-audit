@@ -404,6 +404,29 @@ describe("uncoveredNotScored — what the analyzer said that no practice covers"
     const notes = uncoveredNotScored(report);
     expect(notes).toEqual([{ label: "Form Accessibility", text: xfa }]);
   });
+  it("covers per LINE, not per category: an advisory no practice reads surfaces even in a covered category (2026-09-02)", () => {
+    // link_quality is read by three practices, none of which reads the
+    // unattributable-link advisory — whose own text names an F89 candidate.
+    // Per-category coverage hid it entirely.
+    const unattributed =
+      "Advisory — not scored: 2 link(s) could not have their text attributed (rotated or image-only) and are shown with their URL instead. If one of these is genuinely an image with no alternative text, that is a WCAG 4.1.2 / 1.1.1 failure (F89) — verify by hand.";
+    const withLinks = {
+      ...report,
+      categories: [
+        ...report.categories,
+        {
+          id: "link_quality",
+          label: "Link Quality",
+          findings: ["3 link(s) found; 0 with no link text at all.", unattributed],
+        },
+      ],
+    };
+    const notes = uncoveredNotScored(withLinks);
+    expect(notes.some((n) => n.label === "Link Quality" && n.text === unattributed)).toBe(true);
+    // …while a line a practice DID read (generic <H>, heading-numbered-levels) stays out.
+    expect(notes.some((n) => /generic <H>/.test(n.text))).toBe(false);
+  });
+
   it("excludes categories a practice already covers, and never throws on junk", () => {
     expect(uncoveredNotScored(report).some((n) => /generic <H>/.test(n.text))).toBe(false);
     expect(uncoveredNotScored(null)).toEqual([]);
@@ -758,6 +781,40 @@ describe("this section holds only things above and beyond WCAG 2.1 (v1.148.1)", 
       expect(src, `${f} spells out the blocked sentence`).not.toContain(
         "so this could not be checked. That absence is in your action plan above",
       );
+    }
+  });
+});
+
+describe("catalog copy guards (2026-09-02)", () => {
+  it("the four raw-URL rows hedge 2.4.4 in `why` the way their `standard` does — 'usually', never flatly 'it meets'", () => {
+    const rows = CATALOG.filter((p) => /raw-url-link-text$/.test(p.id));
+    expect(rows.length).toBe(4);
+    for (const row of rows) {
+      expect(row.why, row.id).not.toMatch(/\bit meets WCAG 2\.4\.4\b/);
+      expect(row.why, row.id).toMatch(/usually/);
+    }
+  });
+
+  it("no row label asserts a review that never happened", () => {
+    for (const row of CATALOG) {
+      expect(row.label, row.id).not.toMatch(/reviewed/i);
+    }
+  });
+
+  it("rows whose only basis is Microsoft's own accessibility guidance link to it", () => {
+    for (const id of [
+      "pptx-distinct-slide-titles",
+      "docx-nested-tables",
+      "docx-merged-cells",
+      "xlsx-sheet-names",
+      "xlsx-merged-cells",
+    ]) {
+      const row = CATALOG.find((p) => p.id === id)!;
+      expect(row, id).toBeDefined();
+      expect(
+        row.links.some((l) => /support\.microsoft\.com/.test(l.url)),
+        `${id} cites no Microsoft page`,
+      ).toBe(true);
     }
   });
 });

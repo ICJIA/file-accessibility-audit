@@ -84,11 +84,11 @@ function buildLlmsTxt(): string {
     "",
     "1. Text Extractability (20%) - WCAG 1.3.1, 1.4.5",
     "2. Document Title & Language (15%) - WCAG 2.4.2, 3.1.1",
-    "3. Heading Structure (15%) - WCAG 1.3.1, 2.4.6",
+    "3. Heading Structure (15%) - WCAG 1.3.1",
     "4. Alt Text on Images (15%) - WCAG 1.1.1",
-    "5. Bookmarks / Navigation (10%) - WCAG 2.4.5",
+    "5. Bookmarks / Navigation (10%) - no WCAG 2.1 criterion (never scored)",
     "6. Table Markup (10%) - WCAG 1.3.1",
-    "7. Link & URL Quality (5%) - WCAG 2.4.4",
+    "7. Link & URL Quality (5%) - WCAG 1.3.1, 4.1.2; 2.4.4 reported, not scored",
     "8. Form Accessibility (5%) - WCAG 1.3.1, 4.1.2",
     "9. Reading Order (5%) - WCAG 1.3.2",
     "",
@@ -104,7 +104,6 @@ function buildLlmsTxt(): string {
     "",
     "- WCAG 2.1 Level AA",
     "- ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)",
-    "- Section 508",
     "- PDF/UA (ISO 14289-1)",
     "",
     "## API",
@@ -181,7 +180,7 @@ Scoring:
 Remediation: Set title in File > Properties > Description. Set language in File > Properties > Advanced > Language.
 
 ### 3. Heading Structure (15% weight)
-WCAG: 1.3.1 Info and Relationships (Level A), 2.4.6 Headings and Labels (Level AA)
+WCAG: 1.3.1 Info and Relationships (Level A); 2.4.6 is a human judgment, listed as not assessed
 Principle: Perceivable / Operable
 
 Checks for H1-H6 heading tags and validates the hierarchy (no skipped levels).
@@ -205,7 +204,7 @@ Scoring: Percentage of images with alt text (0-100)
 Remediation: In Tags panel, find <Figure> tags, right-click > Properties > enter Alternate Text.
 
 ### 5. Bookmarks / Navigation (10% weight)
-WCAG: 2.4.5 Multiple Ways (Level AA)
+WCAG: none asserted (2.4.5 Multiple Ways is scoped to a set of documents per WCAG2ICT; never scored)
 Principle: Operable
 
 Checks for bookmarks/outlines in documents with 10+ pages. N/A for shorter documents.
@@ -324,7 +323,7 @@ The JSON export includes machine-readable data designed for LLM consumption:
   "llmContext": {
     "description": "Structured context for LLMs",
     "prompt": "Pre-built prompt summarizing the audit",
-    "standards": ["WCAG 2.1 Level AA", "ADA Title II", "Section 508", "PDF/UA"],
+    "standards": ["WCAG 2.1 Level AA", "ADA Title II", "Illinois IITAA 2.1", "PDF/UA"],
     "scoringScale": {
       "pass": "90-100",
       "minor": "70-89",

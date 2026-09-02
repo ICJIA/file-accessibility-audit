@@ -224,31 +224,38 @@ export function summarizeBestPractices(rows: EvaluatedPractice[]): BestPracticeS
   return s;
 }
 
-/** Not-scored lines from categories NO practice for this format reads —
- *  today, for PDF: alt_text, color_contrast and form_accessibility (the
- *  static-XFA caveat lives there). Before this section existed the plan's
- *  "Above and beyond" group listed every such line; narrowing that group to
- *  veraPDF's verdict alone silently dropped them from the Visual view.
- *  BestPracticesSection renders these under "Also noted in this report" so
- *  nothing the analyzer chose to say goes unsaid. Same narrowing as
- *  evaluateBestPractices; never throws. */
+/** Not-scored lines NO practice for this format consumed — per LINE since
+ *  2026-09-02. Before, a category counted as "covered" when any practice read
+ *  it, so an advisory none of them matched vanished: the unattributable-link
+ *  advisory (whose own text names an F89 candidate) sat in link_quality,
+ *  which three link practices read for other lines. Every practice is run
+ *  here over the same context it gets on the page, and whatever it matched is
+ *  struck off; the rest is rendered by BestPracticesSection under "Also noted
+ *  in this report" so nothing the analyzer chose to say goes unsaid. Never
+ *  throws. */
 export function uncoveredNotScored(result: unknown): Array<{ label: string; text: string }> {
   const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
   if (!r) return [];
   const fileType = r.fileType;
   if (typeof fileType !== "string" || !FILE_TYPES.includes(fileType as FileType)) return [];
-  const covered = new Set(
-    CATALOG.filter((p) => p.formats.includes(fileType as FileType)).map((p) => p.categoryId),
-  );
+  const ft = fileType as FileType;
+  const practices = CATALOG.filter((p) => p.formats.includes(ft));
+  const pageCount = typeof r.pageCount === "number" ? r.pageCount : 0;
   const categories = Array.isArray(r.categories) ? r.categories : [];
   const out: Array<{ label: string; text: string }> = [];
   for (const c of categories) {
     if (!c || typeof c !== "object") continue;
     const cat = c as Record<string, unknown>;
-    if (typeof cat.id !== "string" || covered.has(cat.id)) continue;
-    const ctx = buildContext(cat, fileType as FileType, 0);
+    if (typeof cat.id !== "string") continue;
+    const ctx = buildContext(cat, ft, pageCount, (r.analyzedAt as string | undefined) ?? null);
+    for (const practice of practices) {
+      if (practice.categoryId !== cat.id) continue;
+      runDetect(practice, ctx);
+    }
     const label = typeof cat.label === "string" ? cat.label : cat.id;
-    for (const text of ctx.notScored) out.push({ label, text });
+    for (const text of ctx.notScored) {
+      if (!ctx.consumed.has(text)) out.push({ label, text });
+    }
   }
   return out;
 }

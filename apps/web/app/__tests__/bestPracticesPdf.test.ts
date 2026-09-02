@@ -114,6 +114,19 @@ const NOT_MET_TRIGGERS: Record<string, { findings: string[]; pageCount?: number 
       "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off, so viewers show the FILENAME in the title bar instead of this title. WCAG 2.1 asks for a describing title, which this document has — your grade is not affected. PDF/UA (clause 7.1) requires the flag as well.",
     ],
   },
+  "pdf-first-heading-is-h1": {
+    findings: [
+      "Found 4 heading tags with logical hierarchy",
+      "--- Heading Tree ---",
+      "  H2 → H3 → H3 → H2",
+    ],
+  },
+  "descriptive-title": {
+    findings: [
+      'Document title: "Annual_Report_2024_7c7ba4f4f0" (shown by viewers — DisplayDocTitle is set)',
+      'Advisory — not scored: the title "Annual_Report_2024_7c7ba4f4f0" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (Document properties → Description → Title).',
+    ],
+  },
   "table-scope-simple": {
     findings: [
       "PDF/UA only — not scored: 4 header cell(s) across 2 table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.",
@@ -299,13 +312,14 @@ describe("heading-numbered-levels", () => {
     expect(r.status).toBe("not-met");
   });
 
-  it("is NOT MET on a MIXED document, even though the unconditional hierarchy line is also present", () => {
+  it("on a MIXED document defers to heading-convention — one defect, one WORTH DOING chip (2026-09-02)", () => {
     // hasNumberedHeadings only needs ONE numbered heading, which a mixed
     // document has — so pdf.ts:924 is reached and coexists with the mixed
-    // advisory. Without the mixed check this reads MET here while
-    // heading-convention correctly reads NOT MET on the identical document.
+    // advisory. Reading MET here would be false; reading NOT MET here AND
+    // on heading-convention counted the same defect twice in the summary.
     const r = run("heading-numbered-levels", [MIXED, HEADING_OK]);
-    expect(r.status).toBe("not-met");
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/Heading convention/);
   });
 
   it("is MET when the analyzer says the hierarchy is sound (numbered levels present)", () => {
@@ -658,8 +672,30 @@ describe("display-doc-title", () => {
     expect(run("display-doc-title", [OFF_LINE]).status).toBe("not-met");
   });
 
-  it("is MET when DisplayDocTitle is set", () => {
-    expect(run("display-doc-title", [ON_LINE]).status).toBe("met");
+  // The flag has been SCORED (2.4.2, half the title credit) since
+  // 2026-09-01, so on a current-era payload "DisplayDocTitle is set" is the
+  // document earning its title points — counted, not extra credit. It used to
+  // render "MET · WCAG 2.4.2" directly under "None of this affected your
+  // grade." (fresh-eyes audit, 2026-09-02). The line's wording is identical
+  // in both eras, so only the analysis date can tell them apart.
+  it("a live result (no analyzedAt) with the flag set is COUNTED IN YOUR SCORE, not MET", () => {
+    const r = run("display-doc-title", [ON_LINE]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/i);
+  });
+
+  it("a stored payload analyzed on/after 2026-09-01 with the flag set is COUNTED IN YOUR SCORE", () => {
+    const r = practice("display-doc-title").detect(
+      buildContext({ findings: [ON_LINE] }, "pdf", 10, "2026-09-02T12:00:00Z"),
+    );
+    expect(r.status).toBe("not-applicable");
+  });
+
+  it("a stored payload from BEFORE the flag was scored is still MET — it was extra credit then", () => {
+    const r = practice("display-doc-title").detect(
+      buildContext({ findings: [ON_LINE] }, "pdf", 10, "2026-08-20T12:00:00Z"),
+    );
+    expect(r.status).toBe("met");
   });
 
   it("is NOT CHECKED — never MET — for a document with no title at all", () => {
@@ -672,6 +708,88 @@ describe("display-doc-title", () => {
 
   it("is NOT CHECKED for a filename-like title — also contains the word 'title'", () => {
     expect(run("display-doc-title", [FILENAME_TITLE_LINE]).status).toBe("not-checked");
+  });
+});
+
+describe("pdf-first-heading-is-h1 (2026-09-02)", () => {
+  // The PDF twin of docx-first-heading-is-h1. PDF/UA-1 clause 7.4.2 (veraPDF
+  // rule 7.4.2-1): "If any heading tags are used, H1 shall be the first."
+  // heading-level-order only looks at consecutive steps, so H2 → H3 → H2 read
+  // MET while the veraPDF panel on the same page failed the document.
+  const TREE = (flow: string) => ["--- Heading Tree ---", `  ${flow}`];
+
+  it("is NOT MET when the first heading is not H1, naming the level it found", () => {
+    const r = run("pdf-first-heading-is-h1", [HEADING_OK, ...TREE("H2 → H3 → H2")]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/starts at H2/);
+  });
+
+  it("is MET when the first heading is H1", () => {
+    expect(run("pdf-first-heading-is-h1", [HEADING_OK, ...TREE("H1 → H2 → H1")]).status).toBe(
+      "met",
+    );
+  });
+
+  it("is NOT CHECKED — blocked — when the document has no heading tags at all", () => {
+    expect(run("pdf-first-heading-is-h1", [NO_HEADINGS]).status).toBe("not-checked");
+  });
+
+  it("is NOT APPLICABLE for the short-document no-headings line", () => {
+    expect(run("pdf-first-heading-is-h1", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED when only generic <H> tags exist — a generic tag has no level to start at", () => {
+    expect(run("pdf-first-heading-is-h1", [HEADING_OK, ...TREE("H → H → H")]).status).toBe(
+      "not-checked",
+    );
+  });
+
+  it("carries the era date of the heading-tree flow line it reads", () => {
+    expect(practice("pdf-first-heading-is-h1").advisorySince).toBe("2026-03-12");
+  });
+});
+
+describe("descriptive-title (2026-09-02)", () => {
+  // The scorer's unscored advisory for a filename-SHAPED title that still
+  // names the document (underscores, a hash, an export timestamp). It sits
+  // in title_language, which display-doc-title already "covers", so without
+  // a row of its own the per-category catch-all would have hidden it.
+  const ADVISORY =
+    'Advisory — not scored: the title "Annual_Report_2024_7c7ba4f4f0" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (Document properties → Description → Title).';
+  const SCORED_F25 =
+    "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.";
+  const PLAIN = 'Document title: "Annual Report 2024" (shown by viewers — DisplayDocTitle is set)';
+
+  it("is NOT MET — worth doing — on the filename-shaped advisory, quoting the title", () => {
+    const r = run("descriptive-title", [
+      PLAIN.replace("Annual Report 2024", "Annual_Report_2024_7c7ba4f4f0"),
+      ADVISORY,
+    ]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toContain("Annual_Report_2024_7c7ba4f4f0");
+  });
+
+  it("defers to the score when the title is a bare file name / tool string (F25, scored)", () => {
+    const r = run("descriptive-title", ['Document title: "report_v3_final.pdf"', SCORED_F25]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/i);
+  });
+
+  it("is NOT CHECKED — never MET — for a plain title: whether a title is descriptive is a person's judgment", () => {
+    expect(run("descriptive-title", [PLAIN]).status).toBe("not-checked");
+  });
+
+  it("is NOT CHECKED for a document with no title at all (the score owns that)", () => {
+    expect(run("descriptive-title", ["No document title found in metadata"]).status).toBe(
+      "not-checked",
+    );
+  });
+
+  it("cites WCAG 2.4.2 as the criterion a person is judging against", () => {
+    expect(practice("descriptive-title").wcagSlugs?.some((w) => w.slug === "page-titled")).toBe(
+      true,
+    );
+    expect(practice("descriptive-title").advisorySince).toBe("2026-09-02");
   });
 });
 
@@ -744,8 +862,10 @@ describe("table-scope-with-headers", () => {
     expect(run("table-scope-with-headers", [TH_LINE]).status).toBe("met");
   });
 
-  it("is MET on the 'all tables associate' line only when no simple table lacks /Scope", () => {
-    expect(run("table-scope-with-headers", [ASSOC_LINE]).status).toBe("met");
+  it("on the 'all tables associate' line defers to the score — association IS the scored 1.3.1 condition, not extra credit (2026-09-02)", () => {
+    const r = run("table-scope-with-headers", [ASSOC_LINE]);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/counted in your score/i);
   });
 
   it("is NOT MET-nor-MET — NOT CHECKED — on controls/synthetic-121's shape: 'all tables associate' beside the simple-scope advisory", () => {
@@ -1169,8 +1289,8 @@ describe("footnote-ids", () => {
 });
 
 describe("every PDF practice", () => {
-  it("has exactly the 19 catalogued practices", () => {
-    expect(PDF_PRACTICES.length).toBe(19);
+  it("has exactly the 21 catalogued practices", () => {
+    expect(PDF_PRACTICES.length).toBe(21);
   });
 
   it("returns NOT CHECKED for an empty document — silence is never a pass", () => {
@@ -1393,7 +1513,7 @@ describe("advisorySince is declared on every witness-based PDF practice", () => 
         `${id} is excluded here but no longer exists`,
       ).toContain(id);
     const witnessBased = PDF_PRACTICES.filter((p) => !NOT_WITNESS_BASED.includes(p.id));
-    expect(witnessBased.length).toBe(6);
+    expect(witnessBased.length).toBe(8);
     for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

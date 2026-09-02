@@ -180,7 +180,7 @@ export async function runVeraPdfChecksOnBuffer(
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
   try {
-    fs.writeFileSync(tmpPath, buffer);
+    fs.writeFileSync(tmpPath, buffer, { mode: 0o600 });
   } catch {
     releaseSlot();
     // The message can carry the temp path; keep the client-visible string

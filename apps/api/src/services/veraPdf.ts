@@ -223,7 +223,10 @@ export function extractVerdict(
         clause,
         description:
           (r.description as string | undefined) ?? (r.message as string | undefined) ?? "",
-        count: (r.failedChecks as number | undefined) ?? (r.count as number | undefined) ?? 1,
+        // Default 0, never 1: a summary carrying neither figure is not a
+        // failure we can count (a `--passed`-style run or a format change
+        // would otherwise list passed rules as failing) — 2026-09-02.
+        count: (r.failedChecks as number | undefined) ?? (r.count as number | undefined) ?? 0,
       };
     })
     .filter((f) => f.count > 0);
@@ -246,9 +249,16 @@ export function extractVerdict(
       ? reportedFailedChecks
       : failures.reduce((s, f) => s + f.count, 0);
 
+  // Compliant JSON behind a non-zero exit is a contradiction, not a verdict:
+  // reported as an error so every surface takes its could-not-check path
+  // instead of rendering "0 occurrences across 0 failing rules" (2026-09-02).
+  const contradictory = isCompliant && fellbackToErrorStdout;
   return {
     available: true,
     passed: isCompliant && !fellbackToErrorStdout,
+    ...(contradictory
+      ? { error: "veraPDF reported the document compliant but exited with an error" }
+      : {}),
     profile: profileName,
     // Truncate to top 20 for storage compactness — DB payload stays
     // reasonable; the user can install veraPDF locally for the full

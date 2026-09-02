@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { slimIssue } from "../services/pageAuditor.js";
 
 describe("slimIssue", () => {
@@ -128,5 +128,67 @@ describe("slimIssue", () => {
       nodes: [],
     });
     expect(result.impact).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-02 fresh-eyes audit: the page-audit SSRF guard resolved a host in
+// Node and then let Chromium resolve it AGAIN on its own, with a per-page
+// cache widening the rebinding window. The document host is now pinned into
+// Chromium's resolver at launch, and every request is re-checked.
+// ---------------------------------------------------------------------------
+import { chromiumLaunchArgs, createRequestHandler } from "../services/pageAuditor.js";
+
+describe("chromiumLaunchArgs", () => {
+  it("pins the validated document host to the IP Node resolved, so Chromium cannot re-resolve it elsewhere", () => {
+    const args = chromiumLaunchArgs({ host: "icjia.illinois.gov", ip: "104.18.30.7" });
+    expect(args).toContain("--host-resolver-rules=MAP icjia.illinois.gov 104.18.30.7");
+  });
+  it("adds no resolver rule when nothing is pinned", () => {
+    expect(chromiumLaunchArgs().some((a) => a.startsWith("--host-resolver-rules"))).toBe(false);
+  });
+});
+
+describe("createRequestHandler — every request is judged afresh", () => {
+  const fakeReq = (url: string, type = "image") => {
+    const calls: string[] = [];
+    return {
+      req: {
+        url: () => url,
+        resourceType: () => type,
+        abort: async () => {
+          calls.push("abort");
+        },
+        continue: async () => {
+          calls.push("continue");
+        },
+      },
+      calls,
+    };
+  };
+
+  it("re-resolves the same host on every request — no per-page cache to rebind behind", async () => {
+    const resolver = vi.fn(async () => true);
+    const handler = createRequestHandler(() => true, resolver);
+    const a = fakeReq("https://cdn.example.gov/a.png");
+    const b = fakeReq("https://cdn.example.gov/b.png");
+    await handler(a.req as never);
+    await handler(b.req as never);
+    expect(resolver).toHaveBeenCalledTimes(2);
+    expect(a.calls).toEqual(["continue"]);
+    expect(b.calls).toEqual(["continue"]);
+  });
+
+  it("aborts a subresource whose host resolves private, and a document navigation off the allowlist", async () => {
+    const handler = createRequestHandler(
+      (u) => u.startsWith("https://icjia.illinois.gov/"),
+      async () => false,
+    );
+    const sub = fakeReq("https://internal.example/x.js", "script");
+    await handler(sub.req as never);
+    expect(sub.calls).toEqual(["abort"]);
+    const doc = fakeReq("https://evil.example/", "document");
+    await handler(doc.req as never);
+    expect(doc.calls).toEqual(["abort"]);
   });
 });

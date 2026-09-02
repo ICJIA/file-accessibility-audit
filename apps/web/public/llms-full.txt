@@ -39,9 +39,9 @@ Category weights by format (a scored category's weights within one format always
 | --- | :--: | :--: | :--: | :--: | --- |
 | Text Extractability | 20% | 5% | 5% | 5% | 1.1.1, 1.3.1 (A) |
 | Title & Language | 15% | 18% | 14% | 12%\* | 2.4.2, 3.1.1 (A) |
-| Heading Structure | 15% | 18% | — | — | 1.3.1 (A), 2.4.6 (AA) |
-| Slide Titles | — | — | 18% | — | 1.3.1 (A), 2.4.6 (AA) |
-| Sheet Names | — | — | — | 18% | 2.4.6 (AA) |
+| Heading Structure | 15% | 18% | — | — | 1.3.1 (A) |
+| Slide Titles | — | — | 18% | — | 1.3.1 (A) |
+| Sheet Names | — | — | — | 18% | — (advisory only; no criterion asserted) |
 | Alt Text on Images | 15% | 18% | 18% | 18% | 1.1.1 (A) |
 | Table Markup | 10% | 12% | 10% | 25% | 1.3.1 (A) |
 | Reading Order | 10% | not assessed | 10% | — | 1.3.2 (A) |
@@ -59,18 +59,18 @@ For PDF, this checks whether the document has real, selectable text and a tag st
 
 ### Title & Language
 PDF 15% · Word 18% · PowerPoint 14% · Excel 12%. WCAG 2.4.2 Page Titled (A), 3.1.1 Language of Page (A).
-Checks the document's metadata for a title (the first thing a screen reader announces) and a declared language (which controls pronunciation rules). For PDF, the language VALUE is also shape-checked: a declaration that is not a usable code ("english", "en_US") earns half the language credit with a targeted fix, since screen readers may ignore it — but it is never asserted as a 3.1.1 conformance failure, because a declaration does exist. PDF, Word, and PowerPoint split the score 50/50 between the two. Since v1.95.0, Word reports also disclose run-level languages that differ from the document default (WCAG 3.1.2 evidence — listed for human review, never scored). Excel workbooks have no document-language property, so this category scores on title presence alone (100 or 0) and WCAG 3.1.1 is always listed as "not assessed" for Excel specifically.
+Checks the document's metadata for a title (the first thing a screen reader announces) and a declared language (which controls pronunciation rules). For PDF, the language VALUE is also shape-checked: a declaration that is not a usable code ("english", "en_US") earns half the language credit with a targeted fix and is asserted as a confirmed 3.1.1 failure (the language cannot be programmatically determined from an unusable code); a declaration that contradicts the text's actual language (a stopword-based check with four guards against false accusations) is asserted the same way. A title that is set but not displayed (DisplayDocTitle off) earns half the title credit and is a confirmed 2.4.2 failure (W3C technique PDF18); a title that is only a filename or tool string is WCAG failure F25. PDF, Word, and PowerPoint split the score 50/50 between the two. Since v1.95.0, Word reports also disclose run-level languages that differ from the document default (WCAG 3.1.2 evidence — listed for human review, never scored). Excel workbooks have no document-language property, so this category scores on title presence alone (100 or 0) and WCAG 3.1.1 is always listed as "not assessed" for Excel specifically.
 
 ### Heading Structure
-PDF 15% · Word 18%. WCAG 1.3.1 Info and Relationships (A), 2.4.6 Headings and Labels (AA).
+PDF 15% · Word 18%. WCAG 1.3.1 Info and Relationships (A). Whether a heading describes its section (2.4.6, AA) is a human judgment, listed as not assessed on every report.
 Checks for a real, logically-ordered heading hierarchy — H1-H6 structure tags in PDF, "Heading 1"-"Heading 6" paragraph styles in Word — flagging skipped levels and, for PDF, generic unleveled heading tags (including MIXING generic H tags with numbered H1-H6 in one document, which PDF/UA prohibits — Matterhorn 14-007). Word additionally flags "fake headings": text visually formatted to look like a heading (bold, larger font) without a real Heading style applied, which is invisible to assistive technology even though it looks like a heading on screen. Not applicable to PowerPoint (which has Slide Titles instead, PowerPoint's outline mechanism) or Excel.
 
 ### Slide Titles
-PowerPoint 18% only — PowerPoint-specific; there is no separate Heading Structure category for slides. WCAG 1.3.1 (A), 2.4.6 (AA).
+PowerPoint 18% only — PowerPoint-specific; there is no separate Heading Structure category for slides. WCAG 1.3.1 (A) for a heading typed into a text box instead of the title placeholder; whether a slide HAS a title is 2.4.10 (AAA) and never scored.
 Every slide needs a title placeholder — PowerPoint's equivalent of a heading — so screen-reader users can tell slides apart in the outline and jump directly to one. What is scored (since v1.150.0) is a heading typed into a plain text box instead of the title placeholder — visually a title, invisible to the outline (WCAG 1.3.1, Level A, 15 points per slide up to 40). Slides with no title at all, and slides that duplicate another slide's title, are reported as clearly labelled advisories and never scored.
 
 ### Sheet Names
-Excel 18% only — Excel-specific. WCAG 2.4.6 Headings and Labels (AA).
+Excel 18% only — Excel-specific. No WCAG 2.1 A/AA criterion is asserted: default "Sheet1" tab names are an unscored advisory (whether a label is descriptive is 2.4.6, a human judgment).
 Checks that visible worksheets have descriptive names rather than Excel's defaults ("Sheet1", "Sheet2", ...). Sheet names are a workbook's primary navigation mechanism, announced by screen readers when switching between sheets.
 
 ### Alt Text on Images
@@ -89,7 +89,7 @@ PDF 10% · PowerPoint 10% · Word: always "not assessed" · not applicable to Ex
 For PDF, the scored condition is a document with no structure tree at all — assistive technology then has no reading order to follow; structure-tree depth and content ordering (MCID sequence) inform advisories. For PowerPoint, the category verifies that each slide's title is the first shape in that slide's shape/tab order, so a screen reader announces the title before the body content — reported as a clearly labelled advisory, never counted (the category scores 100 whenever it is assessable); dense slides (10+ shapes) get an additional advisory to check manually. For Word, the linear document flow generally preserves reading order automatically; since v1.95.0 floating (anchored) objects are counted and named for manual review, but their placement is not evaluated, so the category is always shown as "not assessed" rather than scored (this is the one category where PowerPoint is scored but Word — otherwise the more fully-scored Office format — is not).
 
 ### Bookmarks / Navigation
-PDF 5% only — not present at all in the Word, PowerPoint, or Excel category sets. WCAG 2.4.5 Multiple Ways (AA).
+PDF 5% only — not present at all in the Word, PowerPoint, or Excel category sets. No WCAG 2.1 criterion is asserted (2.4.5 Multiple Ways is scoped to a SET of documents per WCAG2ICT); the category is never scored below 100.
 Checks for outline/bookmark entries in PDFs of 10 or more pages; shorter documents score "not applicable". No bookmark finding of any kind is scored — a missing outline and an entry-less outline dictionary are both reported as clearly labelled advisories, and the category always contributes its weight at 100. WCAG 2.1 A/AA does not require bookmarks in a document (2.4.5 Multiple Ways is scoped to sets of web pages), which is why this is disclosed as best-practice advice rather than counted.
 
 ### Color Contrast
@@ -133,6 +133,7 @@ Each category also carries an individual severity label, derived from that categ
 | Severity | Score | Meaning |
 | --- | :--: | --- |
 | No issues found | 100 | The automated checks for this category found nothing — reserved for a perfect 100; a 90-99 still has at least one finding. |
+| No scored issues | 100 | Nothing was counted against the document, but an unscored advisory was reported (bookmarks, PDF/UA-only notes). |
 | Minor | 70-99 | Small improvements recommended. |
 | Moderate | 40-69 | Should be addressed before publishing. |
 | Critical | 0-39 | A significant barrier to access — must be fixed. |
@@ -142,7 +143,6 @@ Each category also carries an individual severity label, derived from that categ
 - **WCAG 2.1 Level AA** — the default, operative standard, and the version ADA Title II and the Illinois IITAA both name (WCAG 2.2 is a strict superset of it; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can display WCAG 2.2 instead via the `WCAG_VERSION=2.2` environment variable (2.1 is the default).
 - **ADA Title II** — the U.S. Department of Justice's digital accessibility rule for state and local government, requiring WCAG 2.1 AA. Compliance is due April 26, 2027 for entities with a population of 50,000 or more, and April 26, 2028 for smaller entities and special district governments (DOJ interim final rule, April 20, 2026).
 - **Illinois IITAA 2.1** (§E205.4) — the Illinois Information Technology Accessibility Act; frames final non-web document accessibility through WCAG 2.1 AA, the standard this tool reports against by default.
-- **Section 508** — the U.S. federal accessibility standard, aligned with WCAG 2.0/2.1 AA.
 - **PDF/UA** (ISO 14289-1) — referenced only for PDF (see "PDF-only signals" above); not applicable to Word, PowerPoint, or Excel reports.
 
 ---
@@ -232,7 +232,6 @@ This is the schema of the downloadable **JSON export** (the "Export as JSON" act
       "WCAG 2.1 Level AA",
       "ADA Title II (compliance due April 26, 2027 for entities of 50,000+; April 26, 2028 for smaller entities and special districts)",
       "Illinois IITAA 2.1 (§E205.4)",
-      "Section 508",
       "PDF/UA (ISO 14289-1)"
     ],
     "scoringScale": {

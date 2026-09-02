@@ -146,6 +146,20 @@ function universalNotAssessed(): NotAssessedCriterion[] {
         "Instructions that rely on shape, position, or size alone — “click the round button”, “see the box on the right” — can only be found by reading the content.",
       url: wcagUrl("1.3.3"),
     },
+    // Added 2026-09-02. The category maps had listed 2.4.6 as a criterion
+    // heading_structure, slide_titles and sheet_names EVALUATE, while no gate
+    // could ever assert it — Understanding 2.4.6: "This success criterion
+    // does not require headings or labels"; it asks that the ones present
+    // DESCRIBE their topic, which is a human judgment. Disclosed here instead,
+    // on every format, so the manual-review list is complete.
+    {
+      sc: "2.4.6",
+      name: "Headings and Labels",
+      level: "AA",
+      reason:
+        "Whether each heading, slide title, sheet name, or form label actually describes the content it introduces is a judgment about wording that only a person can make. This tool checks that headings and labels exist and are marked up; it never judges whether they are descriptive.",
+      url: wcagUrl("2.4.6"),
+    },
   ];
 }
 
@@ -215,7 +229,7 @@ export function evaluateConformance(
       "Non-text Content",
       "A",
       "text_extractability",
-      "The document's security settings deny assistive-technology access (the accessibility permission flag is off — PDF/UA 7.16 / Matterhorn 26-002). Screen readers in conforming viewers cannot read any of its content, regardless of tagging. Re-save the PDF without restrictive security, or enable text access for screen readers in the security settings.",
+      "The document's security settings deny assistive-technology access (the accessibility permission flag is off — PDF/UA 7.16 / Matterhorn 26-002). Screen readers in conforming viewers cannot read any of its content, regardless of tagging: to assistive technology the entire document is non-text content with no text alternative — the same barrier as a scanned image, which is why no WCAG criterion names the flag itself and it is asserted under 1.1.1. Re-save the PDF without restrictive security, or enable text access for screen readers in the security settings.",
     );
   }
 
@@ -263,8 +277,15 @@ export function evaluateConformance(
     );
   }
 
-  // 3. Tagged figures without alternative text.
-  const figuresMissingAlt = qpdf.images.filter((img) => img.ref && !img.hasAlt).length;
+  // 3. Tagged figures without alternative text — minus the <Figure>s that are
+  //    really text (Word text boxes, SmartArt): a screen reader reads their
+  //    text when no /Alt exists, so they are a retagging advisory, not a
+  //    1.1.1 failure. Mirrors scoreAltText's exclusion by count (2026-09-02).
+  const textBearingNoAlt = (pdfjs.textBearingFigures ?? []).filter((f) => !f.hasAlt).length;
+  const figuresMissingAlt = Math.max(
+    0,
+    qpdf.images.filter((img) => img.ref && !img.hasAlt).length - textBearingNoAlt,
+  );
   if (figuresMissingAlt > 0) {
     add(
       "1.1.1",
@@ -506,11 +527,14 @@ export function evaluateConformance(
     }
   }
 
-  // 5b. Title present but it is the filename / a tool string — WCAG's own
-  //     documented failure F25 for 2.4.2 (the title does not identify the
-  //     document). Mirrors scoreTitleLanguage's titleLooksLikeFilename
-  //     branch.
-  if (pdfjs.title && pdfjs.title.trim().length > 0 && pdfjs.titleLooksLikeFilename) {
+  // 5b. Title present but it is a bare file name / a tool default / a
+  //     placeholder / a pure stamp — WCAG's own documented failure F25 for
+  //     2.4.2 (the title does not identify the document). ONLY those shapes
+  //     (2026-09-02): a title that is filename-SHAPED but carries real words
+  //     identifies the document, and whether it does so well is a person's
+  //     judgment — the scorer reports it as an unscored advisory. Mirrors
+  //     scoreTitleLanguage's titleIsToolGenerated branch.
+  if (pdfjs.title && pdfjs.title.trim().length > 0 && pdfjs.titleIsToolGenerated) {
     add(
       "2.4.2",
       "Page Titled",
@@ -520,29 +544,31 @@ export function evaluateConformance(
     );
   }
 
-  // 6b. A substantive document with NO heading tags at all. Mirrors
-  //     scoreHeadingStructure's zero-headings branch (same `substantive`
-  //     expression): multi-page or paragraph-heavy documents visually carry
-  //     section headings, and zero <H1>–<H6> tags means that structure is
-  //     conveyed by presentation only — the textbook 1.3.1 failure, and the
-  //     textbook 1.3.1 failure. (This said "the one Acrobat's own checker
-  //     reports as an error" until 2026-08-31 — untrue, and contradicted by
-  //     our own adobeParity.ts, which correctly records that Acrobat has no
-  //     "document must contain headings" rule. Its only Headings rule is
-  //     "Appropriate nesting".)
-  if (
-    (qpdf.headings ?? []).length === 0 &&
-    ((qpdf.totalPageCount ?? 0) >= 4 ||
-      (qpdf.paragraphCount ?? 0) >= 20 ||
-      (qpdf.outlineCount ?? 0) > 0)
-  ) {
-    add(
-      "1.3.1",
-      "Info and Relationships",
-      "A",
-      "heading_structure",
-      "No heading tags (H1–H6) exist in this document's structure, so its sections exist only visually — assistive technology receives no outline to navigate by. Tag the section titles as headings (Acrobat: Tags panel, or re-export from the source with heading styles).",
-    );
+  // 6b. NO heading tags, and OBSERVED visual section headings (2026-09-02).
+  //     Mirrors scoreHeadingStructure's zero-headings branch exactly: the
+  //     pdfjs visual-heading census must have seen at least two lines that
+  //     are uniformly larger or bold and sit over body text. Until
+  //     2026-09-02 this fired on page/paragraph/bookmark counts alone and
+  //     told the author "its sections exist only visually" without ever
+  //     seeing one — the docstring at the top of this file had always said
+  //     that inference is exactly what the gate does not do. (Acrobat's own
+  //     checker has no "document must contain headings" rule either; see
+  //     adobeParity.ts.)
+  {
+    const visualCount = pdfjs.visualHeadingCandidateCount ?? 0;
+    if ((qpdf.headings ?? []).length === 0 && visualCount >= 2) {
+      const samples = (pdfjs.visualHeadingSamples ?? [])
+        .slice(0, 3)
+        .map((t) => `"${t.replace(/"/g, "'")}"`)
+        .join(", ");
+      add(
+        "1.3.1",
+        "Info and Relationships",
+        "A",
+        "heading_structure",
+        `No heading tags (H1–H6) exist in this document's structure, but ${visualCount} line(s) look like section headings — larger or bold text over body text${samples ? ` (e.g., ${samples})` : ""} — so the structure a sighted reader sees is conveyed by presentation only; assistive technology receives no outline to navigate by. Tag the section titles as headings (Acrobat: Tags panel, or re-export from the source with heading styles).`,
+      );
+    }
   }
 
   // 7c. Structural table defects beyond missing <TH>: rows not grouped in
@@ -771,13 +797,28 @@ export function evaluateConformance(
   const media = qpdf.mediaAnnotationCounts;
   const mediaTotal = media ? media.screen + media.movie + media.sound + media.richMedia : 0;
   if (mediaTotal > 0) {
-    notAssessed.push({
-      sc: "1.2.2",
-      name: "Captions (Prerecorded)",
-      level: "A",
-      reason: `This document embeds audio, video, or rich-media content (${mediaTotal} multimedia annotation${mediaTotal === 1 ? "" : "s"}); whether it provides captions or text alternatives is not machine-verified — manual review required.`,
-      url: wcagUrl("1.2.2"),
-    });
+    // Sound annotations alone are audio-only content — 1.2.1, not the
+    // captions criterion (1.2.2 covers synchronized media). Anything that
+    // can carry video (Screen, Movie, RichMedia) is disclosed under 1.2.2.
+    const soundOnly =
+      !!media && media.sound > 0 && media.screen + media.movie + media.richMedia === 0;
+    if (soundOnly) {
+      notAssessed.push({
+        sc: "1.2.1",
+        name: "Audio-only and Video-only (Prerecorded)",
+        level: "A",
+        reason: `This document embeds audio content (${mediaTotal} sound annotation${mediaTotal === 1 ? "" : "s"}); whether a text transcript or equivalent is provided is not machine-verified — manual review required.`,
+        url: wcagUrl("1.2.1"),
+      });
+    } else {
+      notAssessed.push({
+        sc: "1.2.2",
+        name: "Captions (Prerecorded)",
+        level: "A",
+        reason: `This document embeds audio, video, or rich-media content (${mediaTotal} multimedia annotation${mediaTotal === 1 ? "" : "s"}); whether it provides captions or text alternatives is not machine-verified — manual review required.`,
+        url: wcagUrl("1.2.2"),
+      });
+    }
   }
 
   // The universally-unassessed criteria, with 3.1.2 upgraded from an abstract
@@ -963,7 +1004,7 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       "Page Titled",
       "A",
       "title_language",
-      "The document has no title in its properties; a screen reader announces the filename instead. In Word: File → Info → Properties → Title.",
+      "The document has no title in its properties, so no programmatically determinable title exists — assistive technology, document listings, and the PDF exported from this file fall back to the filename. In Word: File → Info → Properties → Title.",
     );
   }
 
@@ -1160,7 +1201,7 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       "Page Titled",
       "A",
       "title_language",
-      "The presentation has no title in its properties; a screen reader announces the filename instead. In PowerPoint: File → Info → Properties → Title (Insert → Header & Footer is not a slide title — it only sets footer text — and a slide's own Title placeholder does not set this property either).",
+      "The presentation has no title in its properties, so no programmatically determinable title exists — assistive technology, document listings, and the PDF exported from this deck fall back to the filename. In PowerPoint: File → Info → Properties → Title (Insert → Header & Footer is not a slide title — it only sets footer text — and a slide's own Title placeholder does not set this property either).",
     );
   }
 
@@ -1336,7 +1377,7 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       "Page Titled",
       "A",
       "title_language",
-      "The workbook has no title in its properties; a screen reader announces the filename instead. In Excel: File → Info → Properties → Title.",
+      "The workbook has no title in its properties, so no programmatically determinable title exists — assistive technology, document listings, and the PDF exported from this workbook fall back to the filename. In Excel: File → Info → Properties → Title.",
     );
   }
 

@@ -98,7 +98,15 @@ function linkDoc(linkText: string): Buffer {
 
 /** A minimal N-page document: one tagged <P> of real text per page. Returns
  *  the object array and the index bases so callers can extend it. */
-function multiPageObjs(pageCount: number): { objs: string[]; catalogExtra: string } {
+/** `visualHeadings`: paint an 18-pt "Section N" line above each page's body
+ *  text, inside the SAME <P> — a section title conveyed by size alone, which
+ *  is the evidence the zero-heading-tags 1.3.1 rule requires since
+ *  2026-09-02. Without it these pages are plain 11-pt prose with nothing
+ *  visual to convey, and no heading criterion may be asserted. */
+function multiPageObjs(
+  pageCount: number,
+  opts: { visualHeadings?: boolean } = {},
+): { objs: string[]; catalogExtra: string } {
   // Layout: 1 catalog, 2 pages-node, then per page: page + content stream,
   // then structroot, document elem, per-page P elems, parenttree, font.
   const pageObj = (i: number) => 3 + i * 2;
@@ -114,7 +122,10 @@ function multiPageObjs(pageCount: number): { objs: string[]; catalogExtra: strin
     `<< /Type /Pages /Kids [${Array.from({ length: pageCount }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count ${pageCount} >>`,
   );
   for (let i = 0; i < pageCount; i++) {
-    const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG(`Page ${i + 1}`)}) Tj ET\nEMC\n`;
+    const heading = opts.visualHeadings
+      ? `BT /F1 18 Tf 72 745 Td (Section ${i + 1} Of The Story) Tj ET\n`
+      : "";
+    const content = `/P << /MCID 0 >> BDC\n${heading}BT /F1 11 Tf 72 720 Td (${LONG(`Page ${i + 1}`)}) Tj ET\nEMC\n`;
     objs.push(
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${contentObj(i)} 0 R /StructParents ${i} >>`,
     );
@@ -1445,9 +1456,9 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-41-long-doc-no-bookmarks.pdf",
     truth:
-      "Twelve substantive pages, no bookmarks, and no headings either. Since the legal-only sweep the missing BOOKMARKS may not move the grade (no WCAG 2.1 criterion requires them — reported as an advisory); the missing HEADINGS are the real 1.3.1 failure and still score 0/Critical, capping the document at 69/D. The trap now proves both halves: the advisory appears, and the grade that remains comes from the law.",
+      "Twelve substantive pages, no bookmarks, and no heading TAGS — but every page opens with an 18-pt section title painted as body text, so the sections are there for a sighted reader. Since the legal-only sweep the missing BOOKMARKS may not move the grade (no WCAG 2.1 criterion requires them — reported as an advisory); the untagged VISUAL headings are the real 1.3.1 failure and score 0/Critical, capping the document at 69/D. Since 2026-09-02 the rule needs that visual evidence (twin: synthetic-154, the same twelve pages with no visual headings, which may not be accused). The trap proves both halves: the advisory appears, and the grade that remains comes from the law.",
     build: () => {
-      const { objs, catalogExtra } = multiPageObjs(12);
+      const { objs, catalogExtra } = multiPageObjs(12, { visualHeadings: true });
       objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
       return buildPdf(objs, "<< /Title (Twelve Pages No Bookmarks) >>");
     },
@@ -1466,7 +1477,7 @@ const SAMPLES: Sample[] = [
     file: "synthetic-42-long-doc-with-bookmarks.pdf",
     truth: "GOOD TWIN: the same twelve pages WITH bookmarks — navigation must score clean.",
     build: () => {
-      const { objs, catalogExtra } = multiPageObjs(12);
+      const { objs, catalogExtra } = multiPageObjs(12, { visualHeadings: true });
       const outlines = objs.length + 1; // next object number after current list
       const item = (n: number) => outlines + n;
       objs[0] = `<< /Type /Catalog ${catalogExtra} /Outlines ${outlines} 0 R >>`;
@@ -2028,16 +2039,24 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-60-canva-one-giant-p.pdf",
     truth:
-      "Four pages of real prose with visual hierarchy only — sizes and colors, never a heading tag. A substantive document with no headings must be told so.",
+      "Four pages of real prose with visual hierarchy only — an 18-pt section title on every page, never a heading tag. The visual-heading census must SEE those titles and score the missing tags 0/Critical with a 1.3.1 attribution; a document whose only structure is visual is exactly the one 1.3.1 exists for.",
     build: () => {
-      const { objs, catalogExtra } = multiPageObjs(4);
+      const { objs, catalogExtra } = multiPageObjs(4, { visualHeadings: true });
       objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
       return buildPdf(objs, "<< /Title (All Style No Structure) >>");
     },
-    check: (r) =>
-      /No heading tags found|No headings were found/i.test(allFindings(r))
-        ? null
-        : "heading-free substantive document not flagged",
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 0)
+        return `visual-only headings not scored (heading_structure ${h?.score})`;
+      if (!/line\(s\) look like section headings/i.test(h.findings.join("\n")))
+        return "the census evidence is not named in the finding";
+      if (
+        !r.conformance.failures.some((f) => f.sc === "1.3.1" && f.category === "heading_structure")
+      )
+        return "no 1.3.1 attributed to the untagged visual headings";
+      return null;
+    },
   },
   {
     file: "synthetic-61-canva-dangling-pg.pdf",
@@ -2176,9 +2195,9 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-65-canva-story-no-bookmarks.pdf",
     truth:
-      "A Canva-style 12-page story export: no bookmarks (now an unscored advisory — no WCAG 2.1 criterion requires them) and no headings (the real 1.3.1 failure, still scored). The grade that remains comes from the law, not the best practice.",
+      "A Canva-style 12-page story export: no bookmarks (now an unscored advisory — no WCAG 2.1 criterion requires them) and no heading tags under a visible 18-pt title on every page (the real 1.3.1 failure, still scored — on the evidence of those titles since 2026-09-02). The grade that remains comes from the law, not the best practice.",
     build: () => {
-      const { objs, catalogExtra } = multiPageObjs(12);
+      const { objs, catalogExtra } = multiPageObjs(12, { visualHeadings: true });
       objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
       return buildPdf(objs, "<< /Title (Twelve Page Story) >>");
     },
@@ -4040,6 +4059,103 @@ const SAMPLES: Sample[] = [
       return null;
     },
   },
+  {
+    file: "synthetic-154-plain-prose-no-visual-headings.pdf",
+    truth:
+      "THE OLD PROXY CASE. Twelve pages of plain 11-pt prose, tagged, titled, in a language — and no heading tags, because there are no headings to tag: nothing on any page is larger or bolder than the body text. Until 2026-09-02 this was a confirmed WCAG 1.3.1 Level A failure ('its sections exist only visually') on page count alone, capping the document at 69/D. WCAG 1.3.1 fails only structure that IS conveyed visually; nothing is conveyed here, so heading_structure may not be scored and no 1.3.1 may be asserted. Twin of synthetic-41 (the same pages with visible section titles, which must still be accused).",
+    build: () => {
+      const { objs, catalogExtra } = multiPageObjs(12);
+      objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
+      return buildPdf(objs, "<< /Title (Twelve Pages Of Plain Prose) >>");
+    },
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== null)
+        return `heading-less prose accused (heading_structure ${h?.score})`;
+      if (!/treated as heading-less by design/i.test(h.findings.join("\n")))
+        return "the not-scored branch does not say why";
+      if (r.conformance.failures.some((f) => f.category === "heading_structure"))
+        return "1.3.1 asserted with no visual heading in evidence";
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      return bad.length === 0 ? null : `plain prose accused of ${bad.map((c) => c.id).join(", ")}`;
+    },
+  },
+  {
+    file: "synthetic-155-descriptive-title-export-stamp.pdf",
+    truth:
+      "A title that plainly names the document — 'Lewd Sexual Display in Prison 2024 Annual Report' — with the export timestamp a download tool glued onto it. Until 2026-09-02 the stamp alone made it a CONFIRMED 2.4.2 failure (F25) on a real corpus document. F25 is for titles that cannot identify the document (a bare file name, 'Untitled', a placeholder); this one does, and whether it does so well is a person's call. It must earn full title credit with no 2.4.2 failure, and the report must still say — unscored — that the title reads like a filename. Twin of synthetic-22, whose title IS a bare file name and stays F25.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 22 Tf 72 700 Td (Lewd Sexual Display in Prison) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 12 Tf 72 660 Td (${LONG("Prepared by the research unit")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Nums [0 [7 0 R 8 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808) >>",
+      );
+    },
+    check: (r) => {
+      const t = cat("title_language")(r)!;
+      if (t.score !== 100) return `descriptive title docked (title_language ${t.score})`;
+      if (r.conformance.failures.some((f) => f.sc === "2.4.2"))
+        return "2.4.2 asserted against a title that names the document";
+      if (!/Advisory — not scored: the title .* reads like a filename/i.test(t.findings.join("\n")))
+        return "the filename-shaped advisory is missing";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-156-one-page-chart-one-bookmark.pdf",
+    truth:
+      "A one-page funding chart: a large title, a few labelled rows, one bookmark to the page, and no heading tags — the shape of a real corpus document that was told 'its sections exist only visually' and scored 69/D because the single bookmark tripped the old proxy. One title is not sections. heading_structure may not be scored and no 1.3.1 may be asserted; the report names the one title it saw and moves on.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 20 Tf 72 740 Td (Federal Program Funding, FY 2026) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("Byrne JAG")}) Tj ET\nEMC\n` +
+        `/P << /MCID 2 >> BDC\nBT /F1 11 Tf 72 680 Td (${LONG("VOCA")}) Tj ET\nEMC\n` +
+        `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("STOP")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> /Outlines 12 0 R >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 10 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 9 0 R 14 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Nums [0 [7 0 R 8 0 R 9 0 R 14 0 R]] >>",
+          FONT,
+          "<< /Type /Outlines /First 13 0 R /Last 13 0 R /Count 1 >>",
+          "<< /Title (Funding chart) /Parent 12 0 R /Dest [3 0 R /Fit] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Federal Program Funding Chart) >>",
+      );
+    },
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== null) return `one-page chart accused (heading_structure ${h?.score})`;
+      if (!/One line looks like a visual heading/i.test(h.findings.join("\n")))
+        return "the single title was not named";
+      if (r.conformance.failures.some((f) => f.category === "heading_structure"))
+        return "1.3.1 asserted on one title and one bookmark";
+      return null;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4454,6 +4570,18 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
     label:
       "A one-row table misread as a crosstab — this trap was written first, watched fail, and forced the fix",
     chip: "bug",
+  },
+  "synthetic-154-plain-prose-no-visual-headings.pdf": {
+    label: "Twelve pages of plain prose, no headings to tag — not accused",
+    chip: "held",
+  },
+  "synthetic-155-descriptive-title-export-stamp.pdf": {
+    label: "A real title with a download timestamp glued on — not a failure",
+    chip: "held",
+  },
+  "synthetic-156-one-page-chart-one-bookmark.pdf": {
+    label: "A one-page chart with one bookmark — one title is not sections",
+    chip: "held",
   },
   "synthetic-125-wcag-clean-bp-debt.pdf": {
     label:

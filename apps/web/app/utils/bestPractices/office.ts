@@ -234,6 +234,19 @@ function descriptiveLinkTwin(format: "docx" | "pptx" | "xlsx"): BestPractice {
   };
 }
 
+const MS_WORD_A11Y = {
+  label: "Microsoft: Make your Word documents accessible",
+  url: "https://support.microsoft.com/en-us/office/make-your-word-documents-accessible-to-people-with-disabilities-d9bf3683-87ac-47ea-b91a-78dcacb3c66d",
+};
+const MS_PPT_A11Y = {
+  label: "Microsoft: Make your PowerPoint presentations accessible",
+  url: "https://support.microsoft.com/en-us/office/make-your-powerpoint-presentations-accessible-to-people-with-disabilities-6f7772b2-2f33-4bd2-8ca7-dae3b2b3ef25",
+};
+const MS_EXCEL_A11Y = {
+  label: "Microsoft: Make your Excel documents accessible",
+  url: "https://support.microsoft.com/en-us/office/make-your-excel-documents-accessible-to-people-with-disabilities-6cc05fc5-1314-48b5-8eb3-683e49b3e593",
+};
+
 export const OFFICE_PRACTICES: BestPractice[] = [
   // =========================================================================
   // WORD
@@ -430,7 +443,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     advisorySince: "2026-08-29",
     formats: ["docx"],
     categoryId: "table_markup",
-    label: "Bare layout grids reviewed",
+    label: "Bare layout grids",
     description:
       "A table-shaped grid with no table style, borders, shading, or header marks anywhere is usually a layout construct rather than a data table — worth a quick check that none of them actually holds data.",
     why: "A screen reader announces a real data table's header with each cell. A layout grid does not need one — but it is easy to build a genuine data table without ever applying a table style, which would leave it looking identical to a layout grid in the file.",
@@ -558,9 +571,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "No nested tables",
     description: "A table should not contain another table nested inside one of its cells.",
     why: "A nested table — one table inside another — is genuinely difficult to navigate by keyboard or by screen reader, even where both are properly built.",
-    links: [],
+    links: [MS_WORD_A11Y],
     standard:
-      "No standard forbids nesting — a navigability recommendation only. Each table keeps its own programmatically determinable relationships, which is what WCAG 1.3.1 asks.",
+      "No WCAG criterion or PDF/UA clause forbids nesting; Microsoft's own accessibility guidance for Word says to avoid nested tables (with split and merged cells) because screen readers lose their place in them. Each table keeps its own programmatically determinable relationships, which is what WCAG 1.3.1 asks.",
     wcagSlugs: [
       { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
     ],
@@ -615,7 +628,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     // No standard is cited: no WCAG criterion and no PDF/UA clause forbids a
     // merged cell. Microsoft's own checker flags them, and that is the whole
     // basis — say so in `why`, claim nothing more.
-    links: [],
+    links: [MS_WORD_A11Y],
     standard:
       "No WCAG 2.1 criterion or failure technique forbids merged cells. H43 and H63 are SUFFICIENT techniques for associating headers, and they are written for HTML — Word has no scope or headers mechanism to fail against in the first place.",
     detect(ctx) {
@@ -732,7 +745,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it usually meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
@@ -897,9 +910,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     description:
       "Where two or more slides share the exact same title, a screen-reader user browsing the outline cannot tell them apart.",
     why: "A distinct, descriptive title on each slide is what lets someone using a screen reader tell slides apart while browsing the outline instead of opening each one to check.",
-    links: [],
+    links: [MS_PPT_A11Y],
     standard:
-      "WCAG 2.4.6 Headings and Labels (Level AA) requires headings to DESCRIBE topic or purpose — never to be unique. A deck can honestly hold two slides both titled Q3 Results.",
+      "Microsoft's own accessibility guidance for PowerPoint: give every slide a unique title. WCAG 2.4.6 Headings and Labels (Level AA) requires headings to DESCRIBE topic or purpose — never to be unique. A deck can honestly hold two slides both titled Q3 Results.",
     wcagSlugs: [
       { slug: "headings-and-labels", label: "WCAG 2.4.6: Headings and Labels — Level AA" },
     ],
@@ -969,7 +982,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it usually meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",
@@ -1035,9 +1048,9 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     description:
       'A worksheet\'s name should describe its contents — not sit at an Excel default like "Sheet1".',
     why: "Sheet names are the workbook's navigation. A screen-reader user hears them announced when switching sheets, so a default name gives no clue what is on it.",
-    links: [],
+    links: [MS_EXCEL_A11Y],
     standard:
-      "No WCAG 2.1 A/AA criterion requires a descriptive sheet name. 2.4.6 Headings and Labels (Level AA) governs headings and labels that already exist; requiring descriptive names for sections is 2.4.10, Level AAA. Reasonable people read a sheet tab either way — this tool does not count it.",
+      "Microsoft's own accessibility guidance for Excel: give all worksheets unique names and remove blank ones. A sheet tab is arguably a label under WCAG 2.4.6 Headings and Labels (Level AA), which asks that labels DESCRIBE their content — but whether a name is descriptive is a judgment only a person can make, so this tool reports it and never scores it.",
     wcagSlugs: [
       { slug: "headings-and-labels", label: "WCAG 2.4.6: Headings and Labels — Level AA" },
       { slug: "section-headings", label: "WCAG 2.4.10: Section Headings — Level AAA" },
@@ -1198,13 +1211,22 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // measures, so it is matched here too.
       const noTablesAtAll = matchAdvisory(ctx, "no defined excel table anywhere");
       const someOutside = matchAdvisory(ctx, "sits outside the defined table");
-      if (noTablesAtAll || someOutside) {
+      if (noTablesAtAll) {
+        // One defect, one chip (2026-09-02): a workbook with no defined
+        // Table anywhere is the Defined tables row's own subject and reads
+        // NOT MET there; reading it here too doubled it in the summary.
+        return {
+          status: "not-applicable",
+          evidence: [
+            "This workbook has no defined Excel Table anywhere — reported under Defined tables, one row up.",
+          ],
+        };
+      }
+      if (someOutside) {
         return {
           status: "not-met",
           evidence: [
-            noTablesAtAll
-              ? "This workbook has no defined Excel Table anywhere, so its sizable data sits entirely outside one, as plain cell ranges."
-              : "This workbook has data sitting outside its defined tables, as plain cell ranges.",
+            "This workbook has data sitting outside its defined tables, as plain cell ranges.",
             "A screen reader can announce column headers while moving across a defined Table, but not across a plain range.",
           ],
           fix: {
@@ -1286,7 +1308,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     advisorySince: "2026-07-19",
     formats: ["xlsx"],
     categoryId: "table_markup",
-    label: "Pivot tables reviewed manually",
+    label: "Pivot tables need a hand check",
     description:
       "A pivot table cannot be converted into a defined Excel Table, so its readability for a screen-reader user has to be checked by hand.",
     why: "A defined Table's header association does not apply to a pivot table's own layout — someone has to confirm by hand, for example with a screen reader, that a pivot reads sensibly from top to bottom.",
@@ -1413,11 +1435,11 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     advisorySince: "2026-07-02",
     formats: ["xlsx"],
     categoryId: "table_markup",
-    label: "Merged cells reviewed",
+    label: "No merged cells",
     description:
       "A merged cell spans more than one row or column, so the grid a screen reader walks no longer matches the grid a sighted reader sees.",
     why: "Someone listening to a sheet moves cell by cell. Where cells are merged, that can confuse navigation — whether it actually causes trouble depends on where the merge sits, which is why this is reported for review rather than counted.",
-    links: [],
+    links: [MS_EXCEL_A11Y],
     standard:
       "No WCAG 2.1 criterion or failure technique forbids merged cells in a spreadsheet. Worth a look because merges can confuse screen-reader table navigation, but nothing in the standard is broken.",
     detect(ctx) {
@@ -1480,7 +1502,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it usually meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",

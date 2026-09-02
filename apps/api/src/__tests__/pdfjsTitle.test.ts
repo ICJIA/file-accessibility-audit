@@ -9,7 +9,11 @@
  * separate advisory flag.
  */
 import { describe, it, expect } from "vitest";
-import { isFilenameLikeTitle, analyzeWithPdfjs } from "../services/pdfjsService.js";
+import {
+  isFilenameLikeTitle,
+  classifyTitleShape,
+  analyzeWithPdfjs,
+} from "../services/pdfjsService.js";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
 
 /** A one-page PDF whose catalog carries an XMP metadata stream, with an
@@ -91,6 +95,88 @@ describe("dc:title from XMP (2026-09-01)", () => {
     const buf = pdfWithXmpTitle(' <rdf:Description rdf:about=""/>');
     const r = await analyzeWithPdfjs(buf);
     expect(r.title).toBeNull();
+  });
+});
+
+/**
+ * F25 (fetched 2026-09-02): a title fails 2.4.2 when it "does not identify
+ * the contents or purpose" — its examples are default authoring-tool titles
+ * ("Untitled Document"), placeholders, and "filenames that are not
+ * descriptive in their own right, such as report.html or spk12.html". A
+ * title with real words in it — however many underscores, hash suffixes or
+ * export timestamps surround them — DOES identify the document, and whether
+ * it does so well is a judgment for a person. Only the shapes that cannot
+ * possibly describe anything are asserted as the confirmed failure; the rest
+ * of the old heuristic's catch becomes an unscored advisory.
+ */
+describe("classifyTitleShape — confirmed F25 vs advisory vs descriptive", () => {
+  const TOOL_GENERATED = [
+    "Microsoft Word - Cook.doc",
+    "Microsoft Word - r-Cumberland.doc",
+    "report_v3_final.pdf",
+    "spk12.pdf",
+    "Untitled Document",
+    "Untitled",
+    "Document1",
+    "scan_001",
+    "IMG_2041",
+    "DSC_0001",
+    "210525T15080148",
+    "7c7ba4f4f0",
+    "20240115120000",
+  ];
+  const ADVISORY = [
+    "Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808",
+    "Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update",
+    "not-accessible_Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update",
+    "FY_22_ICJIA_Annual_Report_7c7ba4f4f0",
+    "WomenInPolicing2021-210525T15080148",
+    "Microsoft Word - Weisner & Adams (2019) A State and National Overview of Methamphetamine Trends_WithTextboxAtEnd",
+    "ILHEALSFallWinter2022FINAL",
+    "DVFR.BiennialReport.Cover/BackPages.2024",
+    "PDF brief-231021T16005363",
+    "SFY24-ICJIA-Annual-Report",
+    "Annual_Report_2024",
+  ];
+  const DESCRIPTIVE = [
+    "Annual Report 2024",
+    "COVID-19 Vaccination Guidance",
+    "Introduction",
+    "Well-Being",
+    "2024-2025 Budget",
+    "Budget2024",
+  ];
+
+  it.each(TOOL_GENERATED)("%s → tool-generated (confirmed F25)", (t) => {
+    expect(classifyTitleShape(t)).toBe("tool-generated");
+  });
+  it.each(ADVISORY)("%s → filename-shaped (advisory only: it still names the document)", (t) => {
+    expect(classifyTitleShape(t)).toBe("filename-shaped");
+  });
+  it.each(DESCRIPTIVE)("%s → descriptive", (t) => {
+    expect(classifyTitleShape(t)).toBe("descriptive");
+  });
+
+  it("analyzeWithPdfjs sets titleIsToolGenerated only for the confirmed shapes; titleLooksLikeFilename for both", async () => {
+    const tool = await analyzeWithPdfjs(
+      buildPdf(MINIMAL_DOC, "<< /Title (report_v3_final.pdf) >>"),
+    );
+    expect(tool.title).toBe("report_v3_final.pdf");
+    expect(tool.titleLooksLikeFilename).toBe(true);
+    expect(tool.titleIsToolGenerated).toBe(true);
+
+    const shaped = await analyzeWithPdfjs(
+      buildPdf(MINIMAL_DOC, "<< /Title (Annual_Report_2024) >>"),
+    );
+    expect(shaped.title).toBe("Annual_Report_2024");
+    expect(shaped.titleLooksLikeFilename).toBe(true);
+    expect(shaped.titleIsToolGenerated).toBeFalsy();
+
+    const plain = await analyzeWithPdfjs(
+      buildPdf(MINIMAL_DOC, "<< /Title (Annual Report 2024) >>"),
+    );
+    expect(plain.titleLooksLikeFilename).toBeFalsy();
+    expect(plain.titleIsToolGenerated).toBeFalsy();
   });
 });
 

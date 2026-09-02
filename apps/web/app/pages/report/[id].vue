@@ -166,6 +166,7 @@
               :categories="data.report.categories"
               :conformance="data.report.conformance"
               :file-type="data.report.fileType"
+              :wcag-verdict="data.report.wcagVerdict"
               class="mb-8"
             />
 

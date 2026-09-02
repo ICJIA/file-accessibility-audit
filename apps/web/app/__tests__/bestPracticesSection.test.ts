@@ -338,17 +338,23 @@ describe("BestPracticesSection", () => {
     ],
   };
 
-  it("the headline invariant: a flawless PDF shows 15 met, never 19 — the four it cannot vouch for are not listed", () => {
+  it("the headline invariant: a flawless PDF shows 14 met, never 20 — the six it cannot vouch for are not listed", () => {
     // Silence is not a pass. Four practices have no witness in this fixture,
     // so the checker cannot claim them — and since v1.148.2 a row it cannot
-    // claim is not shown at all rather than shown as NOT CHECKED. The
-    // invariant that matters is unchanged: the section must never read 19 met.
+    // claim is not shown at all rather than shown as NOT CHECKED. Two more
+    // (2026-09-02): display-doc-title is COUNTED IN YOUR SCORE on a live
+    // result (the flag has been scored since 09-01) and descriptive-title is
+    // never MET (whether a title describes its document is a person's
+    // judgment). The invariant that matters is unchanged: the section must
+    // never read 20 met.
     const w = mountSection(flawlessPdf);
     const cannotVouchFor = [
       "heading-content",
       "single-h1",
       "character-mapping",
       "content-in-tag-tree",
+      "display-doc-title",
+      "descriptive-title",
     ];
     for (const id of cannotVouchFor) {
       expect(w.find(`[data-practice="${id}"]`).exists(), id).toBe(false);
@@ -357,10 +363,10 @@ describe("BestPracticesSection", () => {
     // (a well-formed list with <Lbl> present) and no <Lbl> advisory.
     expect(w.find('[data-practice="list-labels"]').attributes("data-status")).toBe("met");
     expect(w.findAll('[data-status="not-checked"]').length).toBe(0);
-    expect(w.findAll('[data-status="met"]').length).toBe(15);
+    expect(w.findAll('[data-status="met"]').length).toBe(14);
     expect(w.findAll('[data-status="not-met"]').length).toBe(0);
     const summary = w.find('[data-testid="best-practices-summary"]');
-    expect(summary.text()).toContain("15");
+    expect(summary.text()).toContain("14");
   });
 });
 

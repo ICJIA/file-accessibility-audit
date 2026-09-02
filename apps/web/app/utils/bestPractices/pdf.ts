@@ -162,6 +162,11 @@ function scopeScoredFailure(ctx: DetectContext): BestPracticeResult | null {
   };
 }
 
+/** The day DisplayDocTitle started counting toward the title score (2.4.2,
+ *  W3C PDF18). Payloads from before it may still show the flag as extra
+ *  credit; from this day on it is the grade. */
+const DISPLAY_DOC_TITLE_SCORED_SINCE = new Date("2026-09-01T00:00:00Z");
+
 export const PDF_PRACTICES: BestPractice[] = [
   {
     id: "heading-level-order",
@@ -285,6 +290,72 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       return notChecked("This report contains no finding about this document's heading levels.");
+    },
+  },
+  {
+    id: "pdf-first-heading-is-h1",
+    formats: ["pdf"],
+    categoryId: "heading_structure",
+    label: "Outline starts at H1",
+    description: "The first heading tag in the document should be an H1.",
+    why: "A screen-reader user who lands on an H2 as the very first heading has to wonder what they missed; an outline that opens at H1 reads as complete. The step-by-step level check one row down cannot see this — H2 → H3 → H2 skips nothing — which is exactly how a document read as sound here while veraPDF failed it.",
+    standard:
+      'PDF/UA (ISO 14289) clause 7.4.2 — "if any heading tags are used, H1 shall be the first" (veraPDF rule 7.4.2-1). Not a WCAG 2.1 criterion: 1.3.1 asks that headings be marked up, not where the outline starts.',
+    links: links(matterhornLink("14-006")),
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
+    // The witness is the Heading Tree flow line ("H1 → H2 → …"), which the
+    // analyzer has emitted since v1.6.0 (2026-03-12).
+    advisorySince: "2026-03-12",
+    detect(ctx) {
+      if (categoryAbsent(ctx)) {
+        return notChecked(
+          "This report contains no heading-structure data for this document.",
+          "not-run",
+        );
+      }
+      if (matchMain(ctx, "no heading tags")) {
+        return {
+          status: "not-checked",
+          reason: "blocked",
+          evidence: [`This document has no heading tags at all, ${BLOCKED_BY_PLAN}`],
+        };
+      }
+      if (matchMain(ctx, "no headings were found")) {
+        return {
+          status: "not-applicable",
+          evidence: ["This document has no headings, so there is no outline to start."],
+        };
+      }
+      const flow = signalLines(ctx, "heading tree")[0] ?? "";
+      const first = /^\s*(H[1-6]?)\b/.exec(flow)?.[1];
+      if (!first) {
+        return notChecked("This report carries no heading-tree line to read the first level from.");
+      }
+      if (first === "H") {
+        return notChecked(
+          "This document's headings are generic <H> tags with no level, so the outline has nowhere in particular to start.",
+        );
+      }
+      if (first !== "H1") {
+        return {
+          status: "not-met",
+          evidence: [
+            `This document's outline starts at ${first} — its first heading tag is not an H1.`,
+            `Heading tree: ${flow.trim()}`,
+          ],
+          fix: {
+            source:
+              "In Word or InDesign, make the document's first heading a Heading 1 (or promote the opening heading), then re-export with tags on.",
+            app: "In Acrobat's Tags panel, change the first heading tag to H1 and adjust the levels beneath it.",
+          },
+        };
+      }
+      return {
+        status: "met",
+        evidence: ["This document's outline starts at H1."],
+      };
     },
   },
   {
@@ -436,17 +507,14 @@ export const PDF_PRACTICES: BestPractice[] = [
       // heading-convention correctly reads NOT MET one row below it.
       const mixed = matchAdvisory(ctx, "generic <h> heading(s) appear alongside");
       if (mixed) {
+        // One defect, one chip (2026-09-02): the mixed-convention advisory is
+        // heading-convention's own subject and reads NOT MET there; counting
+        // it here as well doubled it in the summary.
         return {
-          status: "not-met",
+          status: "not-applicable",
           evidence: [
-            "Some heading tags in this document are generic rather than numbered — this document mixes the two conventions.",
-            "A generic tag carries no level, so it does not count toward a fully numbered outline.",
+            "This document mixes generic and numbered heading tags — reported under Heading convention, one row up.",
           ],
-          fix: {
-            source:
-              "In Word or InDesign, apply the built-in numbered heading styles throughout — avoid a generic heading style — then re-export with tags on.",
-            app: "In Acrobat's Tags panel, change each generic heading tag to the specific level (H1–H6) that matches its place in the outline.",
-          },
         };
       }
       if (matchMain(ctx, "heading tags with logical hierarchy")) {
@@ -950,6 +1018,19 @@ export const PDF_PRACTICES: BestPractice[] = [
       // contain the word "title" and would otherwise read as a pass for a
       // document with no usable title at all.
       if (matchMain(ctx, "displaydoctitle is set")) {
+        // The flag has been SCORED (2.4.2, half the title credit) since
+        // 2026-09-01, so on a current-era payload this line is the document
+        // EARNING its title points — counted, not extra credit. The wording
+        // is identical in both eras; only the analysis date tells them
+        // apart, and a live result (no date) is by definition current.
+        if (!ctx.analyzedAt || ctx.analyzedAt >= DISPLAY_DOC_TITLE_SCORED_SINCE) {
+          return {
+            status: "not-applicable",
+            evidence: [
+              "Viewers show this document's title (DisplayDocTitle is set) — that is counted in your score as part of the title credit, so it is not extra credit.",
+            ],
+          };
+        }
         return {
           status: "met",
           evidence: ["This document's descriptive title is shown by viewers, not its filename."],
@@ -1075,6 +1156,16 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       if (matchMain(ctx, "all tables associate data cells with headers")) {
+        // Association IS the scored 1.3.1 condition for a complex table, so
+        // this line is the document earning its table points — counted, not
+        // extra credit (2026-09-02). Only the all-<TH>-scoped line above is
+        // the PDF/UA extra this row is about.
+        if (!matchAdvisory(ctx, "header cell(s) across", "have no /scope")) {
+          return {
+            status: "not-applicable",
+            evidence: [`Every table's header association is ${SCORED_IN_PLAN}`],
+          };
+        }
         if (matchAdvisory(ctx, "header cell(s) across", "have no /scope")) {
           return notChecked(
             "Some of this document's tables are simple ones with no /Scope; this report does not establish whether any complex table uses /Headers without /Scope.",
@@ -1154,6 +1245,65 @@ export const PDF_PRACTICES: BestPractice[] = [
     },
   },
   {
+    id: "descriptive-title",
+    formats: ["pdf"],
+    categoryId: "title_language",
+    label: "Descriptive document title",
+    description:
+      "The document's title should read like a title — not like the file name it was exported from.",
+    why: "A screen reader announces the title when the document opens and lists it in every recent-files and search result. A title built from a file name still identifies the document, but underscores, hash suffixes and export timestamps are read out letter by letter, and 'Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update' is a lot to sit through before the first sentence.",
+    // Since 2026-09-02 only a title that CANNOT describe the document — a
+    // bare file name, an authoring-tool default, a placeholder, a pure
+    // timestamp or hash — is the scored WCAG failure F25 (2.4.2). A title
+    // that carries real words inside the file-name machinery identifies the
+    // document; whether it describes it WELL is exactly the judgment F25's
+    // own test ("check whether the title identifies the contents or
+    // purpose") leaves to a person. The analyzer reports it unscored; this
+    // row is where that advisory lives, so the per-category catch-all cannot
+    // swallow it.
+    standard:
+      "WCAG 2.4.2 Page Titled (Level A) requires a title that describes the document's topic or purpose. A title that names the document inside file-name machinery meets it as far as a machine can tell; only a person can say whether it describes the document well.",
+    wcagSlugs: [{ slug: "page-titled", label: "WCAG 2.4.2: Page Titled — Level A" }],
+    links: [],
+    advisorySince: "2026-09-02",
+    detect(ctx) {
+      if (categoryAbsent(ctx)) {
+        return notChecked(
+          "This report contains no title-and-language data for this document.",
+          "not-run",
+        );
+      }
+      if (
+        matchMain(ctx, "is a filename or tool-generated string rather than a descriptive title")
+      ) {
+        return {
+          status: "not-applicable",
+          evidence: [`The title is a bare file name or tool string — that is ${SCORED_IN_PLAN}`],
+        };
+      }
+      const advisory = matchAdvisory(ctx, "reads like a filename or export string");
+      if (advisory) {
+        const m = /the title "([^"]+)" reads like/.exec(advisory);
+        return {
+          status: "not-met",
+          evidence: [
+            m
+              ? `The title "${m[1]}" names the document but reads like a file name — underscores, hyphen chains, a timestamp or a hash. It satisfies WCAG 2.4.2 as far as a machine can tell.`
+              : "The title names the document but reads like a file name.",
+          ],
+          fix: {
+            source:
+              "In the source document, set a plain-language title (Word: File → Info → Properties → Title) and re-export.",
+            app: "In Acrobat, open Document properties → Description → Title and replace it with a plain-language title.",
+          },
+        };
+      }
+      return notChecked(
+        "Whether this document's title describes it well is a judgment for a person; this report carries no finding suggesting otherwise.",
+      );
+    },
+  },
+  {
     id: "descriptive-link-text",
     formats: ["pdf"],
     categoryId: "link_quality",
@@ -1224,7 +1374,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     label: "Link text is not a raw URL",
     description:
       "A link's visible text can be the destination address itself, but a short descriptive label reads better in a list of links.",
-    why: "A raw URL as link text does tell a screen reader where a link goes, so it meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
+    why: "A raw URL as link text does tell a screen reader where a link goes, so it usually meets WCAG 2.4.4 Link Purpose (In Context), Level A — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     standard:
       "A readable address usually satisfies WCAG 2.4.4 Link Purpose (In Context), Level A, because the destination is the link text. A long or parameterised URL may not make the purpose determinable, and this tool does not judge which is which — check those in place. Preferring a short label over any address is 2.4.9 (Link Only), a AAA criterion outside the legal standard.",

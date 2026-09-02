@@ -1038,3 +1038,15 @@ describe("bulk-from-inventory: sanitizeStoredReport applied before shared_report
     }
   });
 });
+
+describe("bulk-from-inventory is an unauthenticated 100× fan-out and is limited as one (2026-09-02)", () => {
+  it("uses a dedicated bulk limiter, not the share-link limiter, and no longer claims auth is required", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "..", "routes", "bulk-from-inventory.ts"), "utf-8");
+    expect(src).toMatch(/bulkLimiter/);
+    expect(src).not.toMatch(/Auth required \(authMiddleware\)/);
+    const { RATE_LIMITS } = await import("#config");
+    expect((RATE_LIMITS as any).bulk.max).toBeLessThanOrEqual(5);
+  });
+});

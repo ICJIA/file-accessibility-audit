@@ -81,6 +81,24 @@ function stripUnsafeConformanceUrls(node: unknown): void {
   }
 }
 
+/**
+ * Page-audit payloads carry axe issues with a `helpUrl` each; the page-report
+ * view guards every sink with isSafeHttpUrl, but the guarantee should hold at
+ * rest too, like helpLinks and conformance URLs (2026-09-02). Full-tree walk;
+ * clears the field, keeps the issue.
+ */
+function stripUnsafeHelpUrls(node: unknown): void {
+  if (Array.isArray(node)) {
+    for (const item of node) stripUnsafeHelpUrls(item);
+    return;
+  }
+  if (node && typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+    if ("helpUrl" in obj && !isSafeHttpUrl(obj.helpUrl)) obj.helpUrl = "";
+    for (const key of Object.keys(obj)) stripUnsafeHelpUrls(obj[key]);
+  }
+}
+
 export function sanitizeStoredReport(report: unknown): SanitizeResult {
   if (report == null || typeof report !== "object") {
     return { ok: false, error: "report must be an object" };
@@ -103,5 +121,6 @@ export function sanitizeStoredReport(report: unknown): SanitizeResult {
   }
   stripUnsafeHelpLinks(cleaned);
   stripUnsafeConformanceUrls(cleaned);
+  stripUnsafeHelpUrls(cleaned);
   return { ok: true, report: cleaned };
 }

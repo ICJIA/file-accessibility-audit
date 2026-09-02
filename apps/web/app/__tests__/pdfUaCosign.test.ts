@@ -129,13 +129,23 @@ describe("pdfUaCategoryFor — conservative, rule-id matching", () => {
     ).toBeNull();
   });
 
-  it("font rules corroborate text extraction, not tables", () => {
+  it("only the ToUnicode font rule corroborates text extraction — embedding and glyph rules are points this checker never makes (2026-09-02)", () => {
+    // v1.131 removed the font-embedding cap as non-legal, yet every 7.21.*
+    // rule still routed to text_extractability and read "it failed the same
+    // point" under a step about bringing untagged text into the tag tree.
     expect(
       pdfUaCategoryFor({
         ruleId: "7.21.4.1-1",
         clause: "7.21.4.1",
         description:
           "The font programs for all fonts used for rendering within a conforming file shall be embedded within that file, as defined in ISO 32000-1:2008, 9.9",
+      }),
+    ).toBeNull();
+    expect(
+      pdfUaCategoryFor({
+        ruleId: "7.21.7-1",
+        clause: "7.21.7",
+        description: "The font dictionary shall include a ToUnicode entry",
       }),
     ).toBe("text_extractability");
   });
@@ -229,6 +239,11 @@ describe("the same co-sign appears in the DETAILED view's evidence card", () => 
     // The DoIT case: our link and font checks pass, veraPDF's PDF/UA rules
     // do not. Saying "independently confirmed" there would put words in the
     // referee's mouth about a finding we never made.
+    // The analyzer's REAL shape for a clean category: score 100 carries the
+    // severity STRING "No issues found" (shared SEVERITY_THRESHOLDS), never
+    // null. A fixture with `severity: null` let a truthiness branch pass
+    // this test while every real 100/A card said "Independently confirmed"
+    // (fresh-eyes audit, 2026-09-02).
     const passing = {
       ...result,
       categories: [
@@ -236,7 +251,7 @@ describe("the same co-sign appears in the DETAILED view's evidence card", () => 
           id: "link_quality",
           label: "Link & URL Quality",
           score: 100,
-          severity: null,
+          severity: "No issues found",
           explanation: "Link text should describe the destination.",
           findings: ["No issues found"],
         },
@@ -262,6 +277,46 @@ describe("the same co-sign appears in the DETAILED view's evidence card", () => 
     expect(block.html()).not.toMatch(/Independently confirmed/i);
     // And it must say the score did not move because of it.
     expect(block.html()).toMatch(/not counted in the score/i);
+  });
+
+  it("a 100 relabelled 'No scored issues' (advisory present, nothing counted) is still a pass — veraPDF is stricter, not confirming", () => {
+    const advisoryOnly = {
+      ...result,
+      categories: [
+        {
+          id: "text_extractability",
+          label: "Text Extractability",
+          score: 100,
+          severity: "No scored issues",
+          explanation: "Checks whether the PDF exposes real text.",
+          findings: ["Advisory — not scored: 2 fonts are not embedded."],
+        },
+      ],
+      pdfUaVerdict: {
+        available: true,
+        passed: false,
+        failures: [
+          {
+            ruleId: "7.21.7-1",
+            clause: "7.21.7",
+            description: "The font dictionary shall include a ToUnicode entry",
+            count: 2,
+          },
+        ],
+      },
+    };
+    const w = mount(ReportContent, { props: { result: advisoryOnly as never } });
+    const block = w.find('[data-testid="pdfua-cosign"]');
+    expect(block.exists()).toBe(true);
+    expect(block.html()).toMatch(/stricter here/i);
+    expect(block.html()).not.toMatch(/failed the same point/i);
+  });
+
+  it("DOES claim confirmation when the category actually lost points", () => {
+    const w = mount(ReportContent, { props: { result: result as never } });
+    const block = w.find('[data-testid="pdfua-cosign"]');
+    expect(block.html()).toMatch(/Independently confirmed/i);
+    expect(block.html()).toMatch(/failed the same point/i);
   });
 
   it("stays absent when veraPDF did not flag that category", () => {

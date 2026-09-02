@@ -97,9 +97,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { safeHttpUrl } from "@file-audit/shared";
-import { manualChecks } from "~/utils/manualReview";
+import { manualChecks, withVeraContrast } from "~/utils/manualReview";
 import { useWcag } from "~/composables/useWcag";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
+import type { PdfUaVerdict } from "@file-audit/shared";
 
 // A clean report used to end with a one-line green card and a list of bare
 // WCAG numbers, which tells an author nothing they can act on. These checks
@@ -120,6 +121,9 @@ const props = defineProps<{
   /** Steers per-format wording (PowerPoint has no tag structure, so its
    *  reading-order card must not speak of tags). */
   fileType?: string | null;
+  /** veraPDF's WCAG-profile pass, when it ran: its contrast rule can see
+   *  what this checker's 1.4.3 "not assessed" row cannot (2026-09-02). */
+  wcagVerdict?: Partial<PdfUaVerdict> | null;
 }>();
 
 // Read rather than receive: this card renders on both report views and on two
@@ -127,7 +131,9 @@ const props = defineProps<{
 const wcagVersion = useWcag().version;
 
 const checks = computed(() => manualChecks(props.categories, props.fileType));
-const criteria = computed(() => props.conformance?.notAssessed ?? []);
+const criteria = computed(() =>
+  withVeraContrast(props.conformance?.notAssessed ?? [], props.wcagVerdict ?? null),
+);
 const hasFindings = computed(() =>
   props.categories.some((c) => c && typeof c.score === "number" && c.score < 100),
 );

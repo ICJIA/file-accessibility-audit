@@ -138,6 +138,17 @@ interface StyleInfo {
   headingLevels: Map<string, number>;
   /** styleIds whose resolved pPr carries real numbering (style-level lists). */
   numberedStyles: Set<string>;
+  /** Paragraph styles that are structural without being headings — Word's
+   *  "Title" and "Subtitle" (by id or name). Their runs are large and bold by
+   *  design and must never read as fake headings (2026-09-02). */
+  structuralStyles: Set<string>;
+  /** Run properties a paragraph style contributes to its runs, resolved
+   *  through the basedOn chain: bold and size in half-points, null when the
+   *  chain never sets them. */
+  styleRun: Map<string, { bold: boolean | null; sizeHalfPt: number | null }>;
+  /** docDefaults rPrDefault size in half-points, if declared (Word's own
+   *  default is 22 = 11 pt when absent). */
+  defaultSizeHalfPt: number | null;
 }
 
 /**
@@ -152,7 +163,18 @@ interface StyleInfo {
 function buildStyleInfo(stylesRoot: PONode | undefined): StyleInfo {
   const headingLevels = new Map<string, number>();
   const numberedStyles = new Set<string>();
-  if (!stylesRoot) return { headingLevels, numberedStyles };
+  const structuralStyles = new Set<string>();
+  const styleRun = new Map<string, { bold: boolean | null; sizeHalfPt: number | null }>();
+  let defaultSizeHalfPt: number | null = null;
+  if (!stylesRoot)
+    return { headingLevels, numberedStyles, structuralStyles, styleRun, defaultSizeHalfPt };
+  {
+    const rPrDefault = descendants(stylesRoot, "rPrDefault")[0];
+    const rPr = rPrDefault ? firstChild(rPrDefault, "rPr") : undefined;
+    const sz = rPr ? firstChild(rPr, "sz") : undefined;
+    const val = sz ? Number(attrOf(sz, "val")) : NaN;
+    defaultSizeHalfPt = Number.isFinite(val) ? val : null;
+  }
 
   const styleNodes = new Map<string, PONode>();
   for (const style of descendants(stylesRoot, "style")) {
@@ -183,14 +205,35 @@ function buildStyleInfo(stylesRoot: PONode | undefined): StyleInfo {
     const byId = /^Heading([1-6])$/.exec(styleId);
     if (byName) level = Number(byName[1]);
     else if (byId) level = Number(byId[1]);
+    if (/^(title|subtitle)$/i.test(nameVal.trim()) || /^(Title|Subtitle)$/.test(styleId)) {
+      structuralStyles.add(styleId);
+    }
 
-    // Walk the basedOn chain (cycle-guarded) for outlineLvl and numbering.
+    // Walk the basedOn chain (cycle-guarded) for outlineLvl, numbering, and
+    // the run properties (bold, size) the style hands its runs.
     let numbered = false;
+    let runBold: boolean | null = null;
+    let runSize: number | null = null;
     let cursor: PONode | undefined = style;
     const seen = new Set<string>();
     for (let hop = 0; cursor && hop < 8; hop++) {
       if (level === null) level = ownOutlineLevel(cursor);
       if (!numbered) numbered = ownNumbering(cursor);
+      {
+        const rPr = firstChild(cursor, "rPr");
+        if (rPr) {
+          if (runBold === null && firstChild(rPr, "b")) {
+            const b = firstChild(rPr, "b")!;
+            const v = attrOf(b, "val");
+            runBold = !(v === "0" || v === "false");
+          }
+          if (runSize === null) {
+            const sz = firstChild(rPr, "sz");
+            const val = sz ? Number(attrOf(sz, "val")) : NaN;
+            if (Number.isFinite(val)) runSize = val;
+          }
+        }
+      }
       const basedOn = firstChild(cursor, "basedOn");
       const parentId: string | undefined = basedOn ? attrOf(basedOn, "val") : undefined;
       if (!parentId || seen.has(parentId)) break;
@@ -205,8 +248,9 @@ function buildStyleInfo(stylesRoot: PONode | undefined): StyleInfo {
 
     if (level) headingLevels.set(styleId, level);
     if (numbered) numberedStyles.add(styleId);
+    styleRun.set(styleId, { bold: runBold, sizeHalfPt: runSize });
   }
-  return { headingLevels, numberedStyles };
+  return { headingLevels, numberedStyles, structuralStyles, styleRun, defaultSizeHalfPt };
 }
 
 /** Default document language from styles docDefaults, if declared. */
@@ -277,9 +321,13 @@ function ownRunText(p: PONode): string {
 }
 
 /** Bold + large + short + styleless → looks like a heading but isn't tagged. */
-function isFakeHeading(p: PONode, headingStyles: Map<string, number>): boolean {
+function isFakeHeading(
+  p: PONode,
+  headingStyles: Map<string, number>,
+  structuralStyles: Set<string> = new Set(),
+): boolean {
   const styleId = paragraphStyleId(p);
-  if (styleId && headingStyles.has(styleId)) return false;
+  if (styleId && (headingStyles.has(styleId) || structuralStyles.has(styleId))) return false;
   const text = ownRunText(p).trim();
   if (!text || text.length > FAKE_HEADING_MAX_LEN) return false;
   return ownRuns(p).some((r) => {
@@ -421,8 +469,20 @@ function countEmptyTableRows(body: PONode): number {
 const HYPERLINK_INSTR_RE = /HYPERLINK\s+"([^"]+)"/i;
 
 function extractLinks(body: PONode, relMap: Map<string, string>): DocxAnalysis["links"] {
+  // A hyperlink wrapping a picture has no <w:t>; Word exposes the picture's
+  // alt text as the link's accessible name, and so must this census — a
+  // linked logo with alt used to be reported as a link with no name at all
+  // (WCAG 4.1.2), which it is not (2026-09-02). A linked picture WITHOUT
+  // alt stays empty: that one is the real F89 defect.
+  const pictureAlt = (h: PONode): string => {
+    for (const docPr of descendants(h, "docPr")) {
+      const { altText, decorative } = drawingAltText(docPr);
+      if (altText && !decorative) return altText.trim();
+    }
+    return "";
+  };
   const links: DocxAnalysis["links"] = descendants(body, "hyperlink").map((h) => {
-    const text = textOf(h).trim();
+    const text = textOf(h).trim() || pictureAlt(h);
     const id = attrOf(h, "id");
     const url = id && relMap.has(id) ? relMap.get(id)! : null;
     return { text, url };
@@ -578,12 +638,24 @@ function shdFill(propsNode: PONode | undefined, schemeMap: Map<string, string>):
   return resolveWordThemeColor(shd, schemeMap, "themeFill", "themeFillTint", "themeFillShade");
 }
 
-function isLargeRun(rPr: PONode | undefined): boolean {
-  if (!rPr) return false;
-  const szNode = firstChild(rPr, "sz");
-  const sz = szNode ? Number(attrOf(szNode, "val")) : NaN;
-  if (!Number.isFinite(sz)) return false;
-  const bold = !!firstChild(rPr, "b");
+/** WCAG's large-text exemption (≥18 pt, or ≥14 pt bold) resolved the way
+ *  Word resolves it: the run's own size and weight first, else the paragraph
+ *  style's (through basedOn), else docDefaults. Until 2026-09-02 only the
+ *  run-level `w:sz` counted, so a grey 16-pt bold Heading 1 whose size lived
+ *  in the style was held to 4.5:1 and accused of a 1.4.3 failure it did not
+ *  have. */
+function isLargeRun(
+  rPr: PONode | undefined,
+  inherited: { bold: boolean | null; sizeHalfPt: number | null } = { bold: null, sizeHalfPt: null },
+): boolean {
+  const szNode = rPr ? firstChild(rPr, "sz") : undefined;
+  const ownSz = szNode ? Number(attrOf(szNode, "val")) : NaN;
+  const sz = Number.isFinite(ownSz) ? ownSz : inherited.sizeHalfPt;
+  if (sz === null || !Number.isFinite(sz)) return false;
+  const bNode = rPr ? firstChild(rPr, "b") : undefined;
+  const bold = bNode
+    ? !(attrOf(bNode, "val") === "0" || attrOf(bNode, "val") === "false")
+    : (inherited.bold ?? false);
   return sz >= LARGE_HALF_PT || (bold && sz >= LARGE_BOLD_HALF_PT);
 }
 
@@ -606,7 +678,21 @@ function extractContrast(
   body: PONode | undefined,
   documentBg: string | null,
   schemeMap: Map<string, string>,
+  styleInfo?: StyleInfo,
 ): DocxAnalysis["contrast"] {
+  // What a paragraph's style hands its runs (bold, size), for the large-text
+  // exemption; docDefaults when the style says nothing.
+  const inheritedFor = (
+    pPr: PONode | undefined,
+  ): { bold: boolean | null; sizeHalfPt: number | null } => {
+    const pStyle = pPr ? firstChild(pPr, "pStyle") : undefined;
+    const styleId = pStyle ? attrOf(pStyle, "val") : undefined;
+    const fromStyle = styleId ? styleInfo?.styleRun.get(styleId) : undefined;
+    return {
+      bold: fromStyle?.bold ?? null,
+      sizeHalfPt: fromStyle?.sizeHalfPt ?? styleInfo?.defaultSizeHalfPt ?? null,
+    };
+  };
   let checkedRuns = 0;
   let unresolvedRuns = 0;
   const failing: DocxAnalysis["contrast"]["failing"] = [];
@@ -650,7 +736,7 @@ function extractContrast(
     }
     checkedRuns++;
     const ratio = contrastRatio(fg, bg);
-    const large = isLargeRun(rPr);
+    const large = isLargeRun(rPr, inheritedFor(pPr));
     const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
     if (ratio < min) {
       failing.push({
@@ -811,6 +897,29 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   const headings: DocxAnalysis["headings"] = [];
   const fakeHeadings: DocxAnalysis["fakeHeadings"] = [];
   const paragraphs = body ? descendants(body, "p") : [];
+  // Paragraphs hosted inside DATA-shaped tables (two or more rows AND
+  // columns — the only tables that have header cells) and inside text boxes
+  // are still walked for real headings, but never judged as FAKE ones: a
+  // bold 14-pt table header cell or callout box is not "text functioning as
+  // a heading" (F2), and a text box's mc:Choice/mc:Fallback twins would
+  // count the same line twice. A one-row or one-column table is a layout
+  // container — a banner holding the document's title in 22-pt bold IS a
+  // visual heading and stays in scope (2026-09-02).
+  const hostedParagraphs = new Set<PONode>();
+  if (body) {
+    for (const tbl of descendants(body, "tbl")) {
+      const rows = childrenOf(tbl).filter((c) => tagOf(c) === "tr");
+      const cols = Math.max(
+        0,
+        ...rows.map((r) => childrenOf(r).filter((c) => tagOf(c) === "tc").length),
+      );
+      if (rows.length < 2 || cols < 2) continue;
+      for (const hp of descendants(tbl, "p")) hostedParagraphs.add(hp);
+    }
+    for (const host of descendants(body, "txbxContent")) {
+      for (const hp of descendants(host, "p")) hostedParagraphs.add(hp);
+    }
+  }
 
   // Bound the extract passes: a doc within the size cap but made of millions of
   // tiny elements would still burn CPU/heap across the ~10 tree walks below.
@@ -871,7 +980,10 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
       if (text) headings.push({ level, text });
       else if (pictureHeadingText) headings.push({ level, text: pictureHeadingText });
       else if (!carriesNonTextContent) emptyHeadingCount++;
-    } else if (isFakeHeading(p, headingStyles)) {
+    } else if (
+      !hostedParagraphs.has(p) &&
+      isFakeHeading(p, headingStyles, styleInfo.structuralStyles)
+    ) {
       fakeHeadings.push({ text: textOf(p).trim() });
     }
   }
@@ -881,7 +993,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
 
   const images = body ? extractImages(body) : [];
   const links = body ? extractLinks(body, relMap) : [];
-  const contrast = extractContrast(body, documentBg, schemeMap);
+  const contrast = extractContrast(body, documentBg, schemeMap, styleInfo);
 
   // Auxiliary story parts — headers/footers (letterhead logos are the most
   // common image in agency documents), footnotes, and endnotes. Their
@@ -908,7 +1020,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     );
     images.push(...extractImages(partRoot));
     links.push(...extractLinks(partRoot, partRels));
-    const partContrast = extractContrast(partRoot, documentBg, schemeMap);
+    const partContrast = extractContrast(partRoot, documentBg, schemeMap, styleInfo);
     contrast.checkedRuns += partContrast.checkedRuns;
     contrast.unresolvedRuns += partContrast.unresolvedRuns;
     contrast.failing.push(...partContrast.failing);

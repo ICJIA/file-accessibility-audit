@@ -1,4 +1,5 @@
 import { Router, Request, Response, type IRouter } from "express";
+import { forLog } from "../services/logSanitize.js";
 import crypto from "node:crypto";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
@@ -167,7 +168,7 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
       // full error.
       const msg = err?.message ?? String(err);
       if (failure === "navigation-failed" || failure === "timeout") {
-        console.warn(`[audit-url-page] page audit failed (${failure}): ${msg}`);
+        console.warn(`[audit-url-page] page audit failed (${failure}): ${forLog(msg)}`);
       } else {
         console.error("audit-url-page: page audit failed:", err);
       }

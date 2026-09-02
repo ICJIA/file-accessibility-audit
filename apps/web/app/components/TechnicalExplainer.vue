@@ -1082,15 +1082,23 @@
               making it incomprehensible.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> 50 points for a meaningful document title — a
-              filename-as-title ("report_final.pdf") earns partial credit and is a confirmed 2.4.2
-              failure (WCAG's own documented failure F25) — plus 50 points for a usable language
-              declaration. The language <em>value</em> is checked two ways, each a confirmed 3.1.1
-              failure at half credit: a declaration that is not a usable code ("english", "en_US"),
-              and a declaration that <em>contradicts the text's actual language</em> (a
-              stopword-based check with four guards against false accusations). The
-              <code>DisplayDocTitle</code> viewer flag is PDF/UA clause 7.1, not a WCAG requirement
-              — reported, never scored. Checked in QPDF's catalog <code>/Lang</code>
+              <em>How it's scored:</em> 50 points for a document title — a title that cannot
+              describe anything (a bare file name such as "report_final.pdf", an authoring-tool
+              default such as "Microsoft Word - Cook.doc" or "Untitled", a placeholder, a pure
+              timestamp or hash) earns partial credit and is a confirmed 2.4.2 failure (WCAG's own
+              documented failure F25). A title that merely <em>looks</em> like a file name but
+              carries real words ("Annual_Report_2024", a real title with an export timestamp glued
+              on) names the document, so it earns full credit and is reported as an unscored
+              advisory — whether it describes the document well is a judgment for a person (since
+              2026-09-02). Plus 50 points for a usable language declaration. The language
+              <em>value</em> is checked two ways, each a confirmed 3.1.1 failure at half credit: a
+              declaration that is not a usable code ("english", "en_US"), and a declaration that
+              <em>contradicts the text's actual language</em> (a stopword-based check with four
+              guards against false accusations). The <code>DisplayDocTitle</code> viewer flag counts
+              too (since 2026-09-01): a title that is set but not displayed earns half the title
+              credit and is a confirmed 2.4.2 failure — W3C's own PDF technique for 2.4.2 (PDF18)
+              sets the flag, and with it off every viewer shows the filename instead. Checked in
+              QPDF's catalog <code>/Lang</code>
               and PDF.js metadata.
             </p>
           </div>
@@ -1107,11 +1115,16 @@
             <p class="text-xs text-[var(--text-muted)]">
               <em>How it's scored:</em> <strong>100</strong> = heading tags are present — the
               outline exists and is programmatically identifiable. <strong>0</strong> = no heading
-              tags at all in a substantive document (multi-page or paragraph-heavy), a confirmed
-              1.3.1 failure: the sections exist only visually. Everything about the outline's
-              <em>shape</em> — level skips (W3C's own guidance: not a WCAG failure), multiple H1s,
-              generic <code>/H</code> tags, mixing conventions (PDF/UA 7.4.4 / Matterhorn 14-007),
-              and whether the headings' text reads like headings — is
+              tags at all while the page itself shows section headings — at least two lines that
+              look like section headings (uniformly larger, or uniformly bold, text sitting over
+              body text), which the report names — a confirmed 1.3.1 failure: the structure a
+              sighted reader sees is conveyed by presentation only. A document with no heading tags
+              and no such lines has no visual structure to convey, so it is <em>not scored</em> on
+              headings (since 2026-09-02; before that the failure was inferred from page and
+              paragraph counts). Everything about the outline's <em>shape</em> — level skips (W3C's
+              own guidance: not a WCAG failure), multiple H1s, generic <code>/H</code> tags, mixing
+              conventions (PDF/UA 7.4.4 / Matterhorn 14-007), and whether the headings' text reads
+              like headings — is
               <strong>reported as clearly labelled advisories and never scored</strong>.
             </p>
           </div>
@@ -1166,9 +1179,9 @@
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected; one-row and
-              one-column constructs are layout scaffolds and are excluded (the same rule the
-              conformance gate has always applied). What is scored is what WCAG 1.3.1 requires:
-              <strong>header cells</strong> (<code>/TH</code> present),
+              one-column constructs are layout scaffolds and are excluded (the conformance gate
+              applies the identical rule, both halves mirrored since 2026-08-31). What is scored is
+              what WCAG 1.3.1 requires: <strong>header cells</strong> (<code>/TH</code> present),
               <strong>row structure</strong> (cells grouped in <code>/TR</code>),
               <strong>a regular grid</strong> (consistent column counts after row/column-span
               accounting), and — <em>only</em> for tables whose headers run along more than one edge
@@ -1256,13 +1269,100 @@
         <h4
           class="font-medium text-[var(--text-secondary)] mb-2 mt-4 text-xs uppercase tracking-wide"
         >
+          Thresholds and heuristics
+        </h4>
+        <div
+          class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-3"
+        >
+          <p class="text-xs text-[var(--text-muted)] mb-2">
+            Every scored rule that turns on a number is listed here with the number, so a reviewer
+            can reproduce any accusation the report makes. The values live in the analyzer and
+            <code>audit.config.ts</code>; this list is kept in step with them by a guard test.
+          </p>
+          <ul class="text-xs text-[var(--text-muted)] space-y-1.5 list-disc pl-5">
+            <li>
+              <strong>Visual headings (PDF, 1.3.1):</strong> a document with no heading tags is
+              scored 0 only when at least <strong>two</strong> lines look like section headings. A
+              line qualifies when it is 80 characters or shorter, every lettered run on it is at
+              least 1.5 pt larger than the document's body size (the size carrying the most letters)
+              or every run is bold at body size, its runs are contiguous (a gap wider than 1.5 × the
+              font size marks a table row, not a heading), and a body-size, non-bold line of 40+
+              characters follows it on the same page. Memo header lines ("TO: Jane Smith") and table
+              header rows are excluded by construction; one qualifying line is a title, not
+              sections.
+            </li>
+            <li>
+              <strong>Title shape (PDF, 2.4.2 / F25):</strong> confirmed only for a title that ends
+              in a document file extension, matches an authoring-tool default or placeholder
+              ("Untitled", "Document1", "scan_001", "Microsoft Word - X.doc"), or is a pure
+              timestamp / digit run / hash with fewer than two real words left once file-name
+              machinery is stripped. Anything else that looks like a file name (underscores, two or
+              more hyphens, a 20+ character token with digits, an export timestamp or hash beside
+              real words) is an unscored advisory.
+            </li>
+            <li>
+              <strong>Untagged visible text (PDF, 1.3.1):</strong> characters painted outside the
+              tag structure and not marked as artifacts fail when they are at least 2 % of the
+              visible text <em>and</em> at least 50 characters (score capped at 85); at 10 % and 200
+              characters the cap is 50.
+            </li>
+            <li>
+              <strong>Unmappable characters (PDF, 1.1.1):</strong> glyphs that extract as
+              private-use symbols fail when they are at least 100 characters <em>and</em> at least 5
+              % of the extracted text; smaller shares are an unscored advisory.
+            </li>
+            <li>
+              <strong>Large text (Word / PowerPoint / Excel, 1.4.3):</strong> 18 pt or larger, or 14
+              pt bold or larger, is held to 3:1 instead of 4.5:1. For Word the size is resolved
+              through the paragraph style and document defaults, not only the run.
+            </li>
+            <li>
+              <strong>Typed bullets (Word / PowerPoint, 1.3.1):</strong> a paragraph that starts
+              with a hand-typed bullet or enumerator counts only when another typed or real list
+              item sits within two non-empty paragraphs of it — a lone "1." is a label, not a list.
+            </li>
+            <li>
+              <strong>Word fake headings (1.3.1 / F2):</strong> a paragraph with no Heading style,
+              120 characters or shorter, whose own runs are bold at 14 pt or larger. Paragraphs
+              inside data-shaped tables (two or more rows and columns) and inside text boxes are not
+              counted — a title in a one-row banner table still is; "Title" and "Subtitle" styles
+              are structural.
+            </li>
+          </ul>
+        </div>
+
+        <h4
+          class="font-medium text-[var(--text-secondary)] mb-2 mt-4 text-xs uppercase tracking-wide"
+        >
+          How fix times are estimated
+        </h4>
+        <div
+          class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-3"
+        >
+          <p class="text-xs text-[var(--text-muted)] mb-2">
+            The action plan's minute figures count clicks, never judgment. Each estimate is the
+            document's own defect count multiplied by a per-item rate, rounded up to a floor:
+            headings 30 s each (floor 2 min), typed bullets 20 s (floor 2 min), contrast runs 60 s
+            (floor 2 min), header rows 60 s per table (floor 1 min), unnamed links 30 s (floor 1
+            min), alt text 60 s per image to <em>apply</em> — writing the description is not
+            counted, so alt-text steps never contribute to a total. Title and language are a flat 2
+            minutes; bookmarks a flat 5. For PDFs only the mechanical Acrobat steps (title,
+            language, bookmarks, applying alt text) carry an estimate; tag surgery depends on the
+            document's history, not its counts, and shows none.
+          </p>
+        </div>
+
+        <h4
+          class="font-medium text-[var(--text-secondary)] mb-2 mt-4 text-xs uppercase tracking-wide"
+        >
           Supplementary analysis
         </h4>
         <p class="text-xs text-[var(--text-muted)] mb-3">
           In addition to the nine PDF categories scored above, the tool appends additional findings
-          to relevant categories. These are informational — the one exception that can affect
-          scoring is the alt-text quality census (whitespace-only or boilerplate descriptions). They
-          provide deeper insight into the document's accessibility posture.
+          to relevant categories. These are informational and never move a score — the alt-text
+          quality census (boilerplate descriptions such as "image" or "picture") is reported for
+          review only; whitespace-only alternate text is treated as missing by the alt-text check
+          itself. They provide deeper insight into the document's accessibility posture.
         </p>
         <div class="rounded-lg border border-[var(--border-subtle)] overflow-x-auto">
           <table class="w-full text-xs">
@@ -1901,8 +2001,10 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
             open-source PDF/UA-1 conformance validator (from the PDF Association + Dual Lab).
             Configured via
             <code class="font-mono">REMEDIATION_VERAPDF_PATH</code>; optional — when not configured,
-            the receipt records <em>verapdf_unavailable</em> and skips this step. veraPDF's verdict
-            is <strong>informational, not blocking</strong>: even a PDF that veraPDF flags as
+            the receipt records <em>verapdf_unavailable</em> and skips this step; when the run
+            itself fails (a timeout, no output) it records <em>verapdf_error</em> and stores no
+            verdict at all — never a failure. veraPDF's verdict is
+            <strong>informational, not blocking</strong>: even a PDF that veraPDF flags as
             non-conformant is still served if the audit score didn't regress. The result page
             surfaces this honestly in the IITAA compliance disclaimer.
           </li>
@@ -1976,6 +2078,7 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
           <li>validation_failed</li>
           <li>verapdf_passed</li>
           <li>verapdf_failed</li>
+          <li>verapdf_error</li>
           <li>verapdf_unavailable</li>
           <li>output_ready</li>
           <li>downloaded</li>

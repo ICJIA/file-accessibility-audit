@@ -112,12 +112,20 @@ describe("alt_text — figures that contain text", () => {
     expect(acrobat).not.toMatch(/text box/i);
   });
 
-  it("keeps the score unchanged — the guidance is about the fix, not the finding", () => {
+  it("a text-bearing figure is NOT missing alt text: it leaves coverage and the 1.1.1 count (2026-09-02)", () => {
+    // A screen reader reads the text inside a <Figure> that has no /Alt;
+    // adding alt would hide it. The old rule counted it as missing alt AND
+    // told the author not to add any — a deduction with no fix.
     const a = withMissingAlt();
     const b = withMissingAlt();
     b.pdfjs.textBearingFigures = [{ page: 1, hasAlt: false, textLength: 50, preview: "Box" }];
-    expect(altCategory(scoreDocument(b.qpdf, b.pdfjs)).score).toBe(
-      altCategory(scoreDocument(a.qpdf, a.pdfjs)).score,
-    );
+    // 1 of 3 described → 33; with one of the two alt-less figures being a
+    // text box, 1 of 2 → 50, and the verdict counts ONE missing image.
+    expect(altCategory(scoreDocument(a.qpdf, a.pdfjs)).score).toBe(33);
+    const scored = scoreDocument(b.qpdf, b.pdfjs);
+    expect(altCategory(scored).score).toBe(50);
+    const f = scored.conformance.failures.find((x) => x.category === "alt_text");
+    expect(f?.issue).toMatch(/^1 image\(s\) tagged as <Figure>/);
+    expect(altCategory(scored).findings.join("\n")).toContain("--- Figures That Contain Text ---");
   });
 });

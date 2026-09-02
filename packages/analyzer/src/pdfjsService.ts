@@ -1,3 +1,5 @@
+import { visualHeadingCensus, type VisualTextItem } from "./visualHeadings.js";
+
 export interface PdfMetadata {
   creator: string | null;
   producer: string | null;
@@ -25,6 +27,19 @@ export interface PdfjsResult {
   // title is ALWAYS preserved in `title` — never nulled — so conformance
   // checks remain truthful about whether a title exists.
   titleLooksLikeFilename?: boolean;
+  /** The title is a shape that cannot describe anything — a bare file name
+   *  ("report_v3_final.pdf"), an authoring-tool default ("Untitled
+   *  Document", "Microsoft Word - Cook.doc"), a placeholder, or a pure
+   *  timestamp/hash. This is WCAG failure F25 and is SCORED; a title that is
+   *  merely filename-SHAPED but carries real words sets only
+   *  titleLooksLikeFilename and is an unscored advisory (2026-09-02). */
+  titleIsToolGenerated?: boolean;
+  /** Visual-heading census (2026-09-02): lines that look like section
+   *  headings — uniformly larger or bold text followed by body text — see
+   *  visualHeadings.ts. The EVIDENCE the zero-heading-tags 1.3.1 failure now
+   *  requires; absent on stored reports from before it existed. */
+  visualHeadingCandidateCount?: number;
+  visualHeadingSamples?: string[];
   author: string | null;
   subject: string | null;
   lang: string | null;
@@ -157,6 +172,11 @@ const MAX_HEADING_OUTLINE_ENTRIES = 300;
 // Same idea for the text-bearing figure census: the scorer lists ten.
 const MAX_TEXT_BEARING_FIGURES = 200;
 
+/** Largest image pdf.js may decode, in pixels (width × height). Text and
+ *  structure extraction never needs the pixels; the census only counts the
+ *  paint operations. 40 MP covers any legitimate scanned page. */
+const PDFJS_MAX_IMAGE_PIXELS = 40_000_000;
+
 export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
   // Dynamic import since pdfjs-dist is ESM-heavy
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -209,6 +229,12 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       data,
       useSystemFonts: true,
       verbosity: 0, // Suppress harmless TrueType font warnings
+      // Attacker bytes are parsed IN-PROCESS here (every other engine is a
+      // secret-stripped child): never compile PostScript/font programs with
+      // new Function, and bound image decoding so one giant image cannot
+      // balloon the API's memory (2026-09-02).
+      isEvalSupported: false,
+      maxImageSize: PDFJS_MAX_IMAGE_PIXELS,
     }).promise;
 
     result.pageCount = doc.numPages;
@@ -299,8 +325,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     // behavior nulled any no-space title (/^[a-z0-9_-]+$/), which erased
     // legitimate titles like "Introduction" or "Budget2024" and produced a
     // false "no title in metadata" WCAG 2.4.2 conformance failure.
-    if (result.title && isFilenameLikeTitle(result.title)) {
-      result.titleLooksLikeFilename = true;
+    if (result.title) {
+      const shape = classifyTitleShape(result.title);
+      if (shape !== "descriptive") result.titleLooksLikeFilename = true;
+      if (shape === "tool-generated") result.titleIsToolGenerated = true;
     }
 
     // Outlines/bookmarks
@@ -314,6 +342,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
 
     // Extract text and links from all pages
     let totalText = "";
+    // Visual-heading census input (2026-09-02): every painted text item with
+    // its rendered size, position, and — when the loaded font's name says so
+    // — boldness. Cheap (one entry per item already in hand).
+    const visualItems: VisualTextItem[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
 
@@ -323,6 +355,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       // keep their exact pre-existing semantics.
       const textContent = await page.getTextContent({ includeMarkedContent: true });
       const textItems = textContent.items.filter((item: any) => typeof item.str === "string");
+      collectVisualItems(page, i, textItems, visualItems);
       const pageText = textItems.map((item: any) => item.str || "").join(" ");
       totalText += pageText + " ";
 
@@ -646,6 +679,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       result.visibleTextFontNames = [...visibleTextFonts].sort();
     }
 
+    const visual = visualHeadingCensus(visualItems);
+    result.visualHeadingCandidateCount = visual.candidateCount;
+    result.visualHeadingSamples = visual.samples;
+
     result.textLength = totalText.trim().length;
     result.hasText = result.textLength > 50; // Minimum meaningful text
     result.textSample = totalText.trim().slice(0, 4000);
@@ -663,39 +700,134 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
   return result;
 }
 
-// Heuristic: does a /Info title look like a filename or tool-generated
-// string rather than a human-written title? Used as an ADVISORY signal only
-// (partial scoring credit + a finding) — a flagged title still counts as
-// present for conformance purposes, since WCAG 2.4.2 title *quality* is a
-// human judgment. Deliberately narrow: plain single words ("Introduction",
-// "Budget2024") and hyphenated words ("Well-Being") are NOT flagged.
-export function isFilenameLikeTitle(title: string): boolean {
+// ---------------------------------------------------------------------------
+// Title shape (2026-09-02 rewrite).
+//
+// WCAG failure F25 (2.4.2) covers titles that "do not identify the contents
+// or purpose": authoring-tool defaults ("Untitled Document"), placeholders,
+// and "filenames that are not descriptive in their own right, such as
+// report.html or spk12.html". Until 2026-09-02 one boolean drove both a
+// deduction and a CONFIRMED Level A failure, and it condemned "Lewd Sexual
+// Display in Prison 2024 Annual Report 1-26-25-250127T16462808" (an export
+// timestamp) and "Full_Report_Statewide_Violence_Prevention_Plan_2025-2029"
+// (underscores) — titles that plainly identify their documents. Whether such
+// a title describes the document WELL is a judgment for a person.
+//
+// Three shapes now:
+//   "tool-generated" — cannot describe anything: a bare file name (an
+//                      extension on the end, F25's own example), a tool or
+//                      placeholder default, or a pure timestamp/hash. SCORED
+//                      and asserted as F25.
+//   "filename-shaped" — carries the machinery of a file name (underscores,
+//                      hyphen chains, a stamp or hash, a tool prefix) but at
+//                      least two real words with it. Unscored advisory.
+//   "descriptive"     — everything else, including one-word titles
+//                      ("Introduction"), hyphenated words ("Well-Being") and
+//                      years ("2024-2025 Budget").
+// ---------------------------------------------------------------------------
+export type TitleShape = "descriptive" | "filename-shaped" | "tool-generated";
+
+const TITLE_EXTENSION_RE = /\.(pdf|docx?|xlsx?|pptx?|rtf|odt|indd|txt|html?)$/i;
+const TITLE_TOOL_PREFIX_RE =
+  /^(microsoft (word|excel|powerpoint|office)|libreoffice|openoffice(\.org)?|google (docs|sheets|slides)|adobe (indesign|illustrator|photoshop|acrobat)|apple (pages|numbers|keynote)|wordperfect)\s*[-–—:]\s*/i;
+const TITLE_PLACEHOLDER_RE =
+  /^(untitled\b.*|(new )?document\s*\d*|presentation\s*\d*|book\s*\d*|slide\s*\d*|(scan|img|image|dsc|dscn|pict|photo|page)[ _-]?\d+)$/i;
+/** Export/download timestamps ("Report-210525T15080148") and long datetime
+ *  digit runs ("…20240115120000") — filename machinery, never prose. */
+const TITLE_STAMP_RE = /\d{6}t\d{6,}/i;
+const TITLE_LONG_DIGITS_RE = /\d{12,}/;
+/** A hex hash token of 8+ characters containing at least one digit
+ *  ("7c7ba4f4f0"); a plain word like "deadbeef" is not one. */
+const TITLE_HEX_HASH_RE = /(?<![a-z0-9])(?=[0-9a-f]*\d)[0-9a-f]{8,}(?![a-z0-9])/i;
+
+/** Count the real words a title carries once its file-name machinery is
+ *  stripped: separators become spaces, CamelCase and letter/digit seams are
+ *  split, and a word is any run of two or more letters. */
+function descriptiveWordCount(title: string): number {
+  let t = title.trim().replace(TITLE_TOOL_PREFIX_RE, "").replace(TITLE_EXTENSION_RE, "");
+  t = t.replace(new RegExp(TITLE_STAMP_RE.source, "gi"), " ");
+  t = t.replace(new RegExp(TITLE_LONG_DIGITS_RE.source, "g"), " ");
+  t = t.replace(new RegExp(TITLE_HEX_HASH_RE.source, "gi"), " ");
+  t = t.replace(/[_./\\|:;,()[\]{}"'+&-]+/g, " ");
+  t = t
+    .replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2")
+    .replace(/(\p{L})(\d)/gu, "$1 $2")
+    .replace(/(\d)(\p{L})/gu, "$1 $2");
+  return t.split(/\s+/).filter((w) => (w.match(/\p{L}/gu) ?? []).length >= 2).length;
+}
+
+export function classifyTitleShape(title: string): TitleShape {
   const t = title.trim();
-  if (!t) return false;
-  // Ends in a common document-file extension.
-  if (/\.(pdf|docx?|xlsx?|pptx?|rtf|odt|indd|txt|html?)$/i.test(t)) return true;
-  // Classic tool-generated titles (Office prepends "<app> - <filename>").
-  if (
-    /^(microsoft (word|excel|powerpoint) - |untitled\b|document\d+$|scan[ _-]?\d|img[ _-]?\d|dsc[ _-]?\d)/i.test(
-      t,
-    )
-  ) {
-    return true;
-  }
-  // Export/download timestamps ("Report-210525T15080148") and long datetime
-  // digit runs ("…20240115120000") — filename machinery, never prose.
-  if (/\d{6}t\d{6,}/i.test(t) || /\d{12,}/.test(t)) return true;
+  if (!t) return "descriptive";
+  if (TITLE_PLACEHOLDER_RE.test(t)) return "tool-generated";
+  const hasExtension = TITLE_EXTENSION_RE.test(t);
+  const hasToolPrefix = TITLE_TOOL_PREFIX_RE.test(t);
+  const hasStamp =
+    TITLE_STAMP_RE.test(t) || TITLE_LONG_DIGITS_RE.test(t) || TITLE_HEX_HASH_RE.test(t);
   // No whitespace + filename separators: "annual_report", "budget-2024-final".
   // A single hyphen is NOT enough even with digits — "COVID-19",
   // "Section-508", "2024-2025" are legitimate document titles — but a LONG
   // no-space token containing digits is a filename shape, not a title.
-  if (!/\s/.test(t)) {
-    if (t.includes("_")) return true;
-    const hyphens = (t.match(/-/g) || []).length;
-    if (hyphens >= 2) return true;
-    if (t.length >= 20 && /\d/.test(t)) return true;
+  const noSpaceShape =
+    !/\s/.test(t) &&
+    (t.includes("_") || (t.match(/-/g) ?? []).length >= 2 || (t.length >= 20 && /\d/.test(t)));
+  if (!(hasExtension || hasToolPrefix || hasStamp || noSpaceShape)) return "descriptive";
+  // A file name as the title is F25's own example, whatever words it holds.
+  if (hasExtension) return "tool-generated";
+  return descriptiveWordCount(t) >= 2 ? "filename-shaped" : "tool-generated";
+}
+
+/** True for every shape that is not plainly descriptive — the broad flag
+ *  (advisory + scored cases together). Kept for callers and stored payloads
+ *  that predate classifyTitleShape. */
+export function isFilenameLikeTitle(title: string): boolean {
+  return classifyTitleShape(title) !== "descriptive";
+}
+
+/** Font-name boldness for the visual-heading census. pdf.js loads a page's
+ *  fonts into page.commonObjs during getTextContent; the loaded font's
+ *  PostScript name ("Arial-BoldMT", "Calibri,Bold") is the only bold signal a
+ *  PDF reliably carries. Unresolvable → not bold; size still counts. */
+function collectVisualItems(
+  page: any,
+  pageNumber: number,
+  textItems: any[],
+  out: VisualTextItem[],
+): void {
+  const boldByFont = new Map<string, boolean>();
+  const isBold = (fontName: unknown): boolean => {
+    if (typeof fontName !== "string") return false;
+    const cached = boldByFont.get(fontName);
+    if (cached !== undefined) return cached;
+    let bold: boolean;
+    try {
+      const fontObj = page.commonObjs?.has?.(fontName) ? page.commonObjs.get(fontName) : null;
+      const name = typeof fontObj?.name === "string" ? fontObj.name : "";
+      bold =
+        fontObj?.bold === true ||
+        /bold|black|heavy|semibold|demibold|extrabold|ultrabold/i.test(name) ||
+        /[,-]\s*(bd|bld)\b/i.test(name);
+    } catch {
+      bold = false;
+    }
+    boldByFont.set(fontName, bold);
+    return bold;
+  };
+  for (const item of textItems) {
+    const tr = item?.transform;
+    if (!Array.isArray(tr) || tr.length < 6) continue;
+    const size = Math.hypot(tr[0], tr[1]) || (typeof item.height === "number" ? item.height : 0);
+    if (!(size > 0)) continue;
+    out.push({
+      page: pageNumber,
+      str: String(item.str ?? ""),
+      size,
+      bold: isBold(item.fontName),
+      x: Number(tr[4]),
+      y: Number(tr[5]),
+      width: typeof item.width === "number" ? item.width : NaN,
+    });
   }
-  return false;
 }
 
 function findLinkText(annot: any, textItems: any[]): string {

@@ -198,6 +198,7 @@ export const SEVERITY_THRESHOLDS = [
  */
 export const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
   "1.1.1": "non-text-content",
+  "1.2.1": "audio-only-and-video-only-prerecorded",
   "1.2.2": "captions-prerecorded",
   "1.3.1": "info-and-relationships",
   "1.3.2": "meaningful-sequence",
@@ -238,10 +239,13 @@ export const WCAG_CATEGORY_MAP: Record<
     { sc: "2.4.2", name: "Page Titled", level: "A" },
     { sc: "3.1.1", name: "Language of Page", level: "A" },
   ],
-  heading_structure: [
-    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
-    { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
-  ],
+  // 2.4.6 REMOVED here, from slide_titles and from sheet_names (2026-09-02):
+  // no gate can assert it — Understanding 2.4.6 "does not require headings
+  // or labels"; whether the ones present DESCRIBE their content is a human
+  // judgment. It is disclosed on every verdict's not-assessed list instead
+  // (conformance.ts universalNotAssessed). A map entry is a claim that the
+  // score evaluates the criterion; this one never did.
+  heading_structure: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
   alt_text: [{ sc: "1.1.1", name: "Non-text Content", level: "A" }],
   // bookmarks carries NO entry: no WCAG 2.1 criterion requires bookmarks in
   // a single document (2.4.5 Multiple Ways is scoped to a SET of documents,
@@ -252,7 +256,11 @@ export const WCAG_CATEGORY_MAP: Record<
   // is the one link-text defect this tool scores. 2.4.4 stays because the
   // category still REPORTS weak-but-present text (never scored — context can
   // supply a link's purpose, and judging text alone is 2.4.9, Level AAA).
+  // 1.3.1 added 2026-09-02: an untagged link annotation (no <Link> element
+  // wrapping it) is what the gate actually asserts for this category —
+  // W3C technique PDF11 / PDF/UA 7.18.5 — and the docs listed only 2.4.4.
   link_quality: [
+    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
     { sc: "2.4.4", name: "Link Purpose (In Context)", level: "A" },
     { sc: "4.1.2", name: "Name, Role, Value", level: "A" },
   ],
@@ -265,11 +273,12 @@ export const WCAG_CATEGORY_MAP: Record<
   color_contrast: [{ sc: "1.4.3", name: "Contrast (Minimum)", level: "AA" }],
   // DOCX-specific category (real lists vs manually-typed bullets).
   list_structure: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
-  slide_titles: [
-    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
-    { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
-  ],
-  sheet_names: [{ sc: "2.4.6", name: "Headings and Labels", level: "AA" }],
+  // A heading typed into a text box instead of the title placeholder is the
+  // 1.3.1 (F2) the PowerPoint gate asserts; whether a slide HAS a title is
+  // 2.4.10 (AAA) and unscored.
+  slide_titles: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
+  // sheet_names carries NO entry (like bookmarks): default "Sheet1" tabs are
+  // an unscored advisory — no WCAG 2.1 A/AA criterion is asserted for them.
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -247,3 +247,30 @@ describe("the bridge pluralizes its category noun (v1.141.1)", () => {
     expect(html).not.toMatch(/1 categories/);
   });
 });
+
+describe("the clean line admits what veraPDF's WCAG pass saw (2026-09-02)", () => {
+  const flagged = {
+    available: true,
+    passed: false,
+    profile: "WCAG 2.2 machine",
+    failures: [{ ruleId: "1.4.3-1", clause: "1.4.3", description: "contrast", count: 12 }],
+    totalFailureCount: 12,
+  };
+  it("says 'by this checker' and points at the technical report when veraPDF flagged WCAG items", () => {
+    const html = strip({ conformance: clean, fileType: "pdf", wcagVerdict: flagged }).html();
+    expect(html).toMatch(/No automated failures found by this checker/);
+    expect(html).toMatch(/veraPDF[^<]*12/);
+  });
+  it("keeps the plain line when veraPDF's WCAG pass ran clean or did not run", () => {
+    expect(strip({ conformance: clean, fileType: "pdf" }).html()).toMatch(
+      /No automated failures found</,
+    );
+    expect(
+      strip({
+        conformance: clean,
+        fileType: "pdf",
+        wcagVerdict: { ...flagged, passed: true, failures: [], totalFailureCount: 0 },
+      }).html(),
+    ).toMatch(/No automated failures found</);
+  });
+});

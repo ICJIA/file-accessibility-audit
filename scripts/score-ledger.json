@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-09-01",
+  "blessed": "2026-09-02",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -153,7 +153,7 @@
         "text_extractability": "100|No scored issues",
         "title_language": "75|Minor",
         "heading_structure": "100|No issues found",
-        "alt_text": "5|Critical",
+        "alt_text": "7|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -310,12 +310,12 @@
       }
     },
     "ARIFactSheet-SFY26-20260427T20572257.pdf": {
-      "score": 63,
+      "score": 69,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "0|Critical",
+        "heading_structure": "null|none",
         "alt_text": "42|Moderate",
         "bookmarks": "null|none",
         "table_markup": "90|Minor",
@@ -332,7 +332,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
-        "alt_text": "57|Moderate",
+        "alt_text": "60|Moderate",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -380,7 +380,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
-        "alt_text": "60|Moderate",
+        "alt_text": "70|Minor",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -760,7 +760,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "100|No issues found",
         "bookmarks": "100|No issues found",
@@ -793,7 +793,7 @@
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "0|Critical",
+        "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "35|Critical",
@@ -809,7 +809,7 @@
       "categories": {
         "text_extractability": "0|Critical",
         "title_language": "0|Critical",
-        "heading_structure": "0|Critical",
+        "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "100|No scored issues",
         "table_markup": "null|none",
@@ -884,11 +884,11 @@
       }
     },
     "ILHEALSFallWinter2022FINAL-remediated.pdf": {
-      "score": 55,
-      "grade": "F",
+      "score": 60,
+      "grade": "D",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -980,13 +980,13 @@
       }
     },
     "Juvenile Justice System and Risk Factor Data 2007 Annual Report.pdf": {
-      "score": 67,
+      "score": 68,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
         "heading_structure": "100|No scored issues",
-        "alt_text": "2|Critical",
+        "alt_text": "6|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "70|Minor",
         "color_contrast": "null|none",
@@ -1146,7 +1146,7 @@
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
-        "alt_text": "6|Critical",
+        "alt_text": "12|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -1208,7 +1208,7 @@
       "grade": "B",
       "categories": {
         "text_extractability": "100|No scored issues",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "100|No issues found",
@@ -1499,7 +1499,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "100|No issues found",
@@ -1589,7 +1589,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "100|No issues found",
         "bookmarks": "100|No issues found",
@@ -1621,7 +1621,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "100|No issues found",
@@ -1649,11 +1649,11 @@
       }
     },
     "pdf_test-cases/ILHEALSFallWinter2022FINAL-remediated.pdf": {
-      "score": 55,
-      "grade": "F",
+      "score": 60,
+      "grade": "D",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1685,7 +1685,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "66|Moderate",
         "bookmarks": "100|No issues found",
@@ -1713,11 +1713,11 @@
       }
     },
     "pdf_test-cases/PDF brief-231021T16005363-fixed.pdf": {
-      "score": 67,
+      "score": 69,
       "grade": "D",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "26|Critical",
         "bookmarks": "null|none",
@@ -1749,7 +1749,7 @@
       "grade": "B",
       "categories": {
         "text_extractability": "100|No scored issues",
-        "title_language": "75|Minor",
+        "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "100|No issues found",
@@ -2960,6 +2960,54 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-154-plain-prose-no-visual-headings.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-155-descriptive-title-export-stamp.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-156-one-page-chart-one-bookmark.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-16-form-unlabeled.pdf": {
       "score": 69,
       "grade": "D",
@@ -3265,13 +3313,13 @@
       }
     },
     "synthetic-35-rolemap-remaps-standard.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "null|none",
-        "alt_text": "0|Critical",
+        "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -3713,12 +3761,12 @@
       }
     },
     "synthetic-63-canva-blank-pages.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "heading_structure": "0|Critical",
+        "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -3809,12 +3857,12 @@
       }
     },
     "synthetic-69-indesign-untagged-book.pdf": {
-      "score": 65,
+      "score": 69,
       "grade": "D",
       "categories": {
         "text_extractability": "50|Moderate",
         "title_language": "100|No issues found",
-        "heading_structure": "0|Critical",
+        "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -3969,12 +4017,12 @@
       }
     },
     "synthetic-79-indesign-dangling-bookmark.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "heading_structure": "0|Critical",
+        "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",

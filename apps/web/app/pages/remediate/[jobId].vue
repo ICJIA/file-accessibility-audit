@@ -16,6 +16,7 @@ import {
 import { buildActionPlan } from "~/utils/actionPlan";
 import { useWcag } from "~/composables/useWcag";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
+import { veraPdfBadge } from "~/utils/remediationVeraBadge";
 
 const wcagVersion = useWcag().version;
 
@@ -491,6 +492,7 @@ const eventLabels: Record<string, string> = {
   validation_failed: "Output failed validation",
   verapdf_passed: "veraPDF: PDF/UA-1 conformance passed",
   verapdf_failed: "veraPDF: PDF/UA-1 conformance not yet met",
+  verapdf_error: "veraPDF: check could not be completed (no verdict)",
   verapdf_unavailable: "veraPDF check skipped (not configured)",
   output_ready: "Remediated PDF ready",
   downloaded: "You downloaded the remediated PDF",
@@ -510,6 +512,11 @@ const verapdfUrl = computed(() => String(runtimeConfig.public.verapdfUrl ?? ""))
 // result and shared-report pages) consumes the flat PdfUaVerdict shape
 // from @file-audit/shared — map once here instead of re-declaring the
 // verdict + failed-rule markup a third time on this page.
+// One decision for the compact badge — see utils/remediationVeraBadge.ts.
+const veraBadge = computed(() =>
+  receipt.value?.veraPdf ? veraPdfBadge(receipt.value.veraPdf) : null,
+);
+
 const pdfUaVerdict = computed<PdfUaVerdict | null>(() => {
   const v = receipt.value?.veraPdf;
   if (!v) return null;
@@ -620,47 +627,34 @@ function labelForEvent(name: string): string {
           <!-- Compact PDF/UA-1 conformance badge — surfaces the veraPDF
                verdict right next to the headline score. Full details are
                in the dedicated veraPDF section further down. -->
-          <div v-if="receipt?.veraPdf" class="mt-6 flex items-center justify-center">
+          <div v-if="receipt?.veraPdf && veraBadge" class="mt-6 flex items-center justify-center">
             <a
               href="#verapdf-detail"
               class="inline-flex items-center gap-3 rounded-full px-4 py-2 text-sm font-medium border transition-colors"
               :class="
-                !receipt.veraPdf.available
-                  ? 'border-[var(--border)] bg-[var(--surface-deep)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
-                  : receipt.veraPdf.passed
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15'
-                    : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'
+                veraBadge.tone === 'good'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15'
+                  : veraBadge.tone === 'warn'
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'
+                    : 'border-[var(--border)] bg-[var(--surface-deep)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
               "
-              :aria-label="
-                !receipt.veraPdf.available
-                  ? 'PDF/UA-1 conformance check not run (veraPDF not configured)'
-                  : receipt.veraPdf.passed
-                    ? 'PDF/UA-1 conformance check passed'
-                    : 'PDF/UA-1 conformance check found failures'
-              "
+              :aria-label="veraBadge.aria"
+              :data-vera-state="veraBadge.state"
             >
               <span
                 class="inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold"
                 :class="
-                  !receipt.veraPdf.available
-                    ? 'bg-[var(--surface-hover)] text-[var(--text-muted)]'
-                    : receipt.veraPdf.passed
-                      ? 'bg-emerald-500/30 text-emerald-200'
-                      : 'bg-amber-500/30 text-amber-200'
+                  veraBadge.tone === 'good'
+                    ? 'bg-emerald-500/30 text-emerald-200'
+                    : veraBadge.tone === 'warn'
+                      ? 'bg-amber-500/30 text-amber-200'
+                      : 'bg-[var(--surface-hover)] text-[var(--text-muted)]'
                 "
               >
-                {{ !receipt.veraPdf.available ? "–" : receipt.veraPdf.passed ? "✓" : "!" }}
+                {{ veraBadge.icon }}
               </span>
               <span class="uppercase tracking-wider text-[11px]">PDF/UA-1</span>
-              <span class="text-xs">
-                {{
-                  !receipt.veraPdf.available
-                    ? "check not run"
-                    : receipt.veraPdf.passed
-                      ? "conformance passed"
-                      : `${receipt.veraPdf.summary?.totalFailureCount ?? "some"} rule failure${(receipt.veraPdf.summary?.totalFailureCount ?? 0) === 1 ? "" : "s"}`
-                }}
-              </span>
+              <span class="text-xs">{{ veraBadge.text }}</span>
               <span
                 v-if="receipt.veraPdf.available"
                 class="text-[10px] uppercase tracking-wider opacity-70"

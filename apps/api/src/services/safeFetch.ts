@@ -161,9 +161,14 @@ export function isPrivateIP(ip: string): boolean {
 }
 
 /**
- * Resolve a hostname to an IP and reject if it's in any non-public
- * range. Returns the resolved IP (first A/AAAA record) on success.
- * Throws SafeFetchError on failure.
+ * Resolve a hostname and reject if ANY of its addresses is in a non-public
+ * range. Returns the first address on success. Throws SafeFetchError on
+ * failure.
+ *
+ * EVERY record, not the first (2026-09-02): a name publishing
+ * [93.184.216.34, 127.0.0.1] used to pass on the public record while a
+ * client that resolves on its own — Chromium in the page audit — could
+ * connect to the private one.
  */
 export async function resolvePublicIp(hostname: string): Promise<string> {
   // If the hostname is already an IP literal, validate directly.
@@ -176,23 +181,28 @@ export async function resolvePublicIp(hostname: string): Promise<string> {
     }
     return hostname;
   }
-  let result: { address: string; family: number };
+  let records: Array<{ address: string; family: number }>;
   try {
-    result = await dns.lookup(hostname, { verbatim: true });
+    records = await dns.lookup(hostname, { all: true, verbatim: true });
   } catch (err: any) {
     throw new SafeFetchError(
       "dns_failed",
       `DNS lookup failed for '${hostname}': ${err?.code ?? err?.message ?? "unknown"}`,
     );
   }
-  if (isPrivateIP(result.address)) {
-    throw new SafeFetchError(
-      "private_ip",
-      `'${hostname}' resolves to private/reserved IP '${result.address}'. ` +
-        `This is blocked to prevent SSRF.`,
-    );
+  if (!Array.isArray(records) || records.length === 0) {
+    throw new SafeFetchError("dns_failed", `DNS lookup returned no addresses for '${hostname}'`);
   }
-  return result.address;
+  for (const r of records) {
+    if (typeof r?.address !== "string" || isPrivateIP(r.address)) {
+      throw new SafeFetchError(
+        "private_ip",
+        `'${hostname}' resolves to private/reserved IP '${r?.address ?? "?"}'. ` +
+          `This is blocked to prevent SSRF.`,
+      );
+    }
+  }
+  return records[0]!.address;
 }
 
 /**

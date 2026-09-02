@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.155.0",
+    meta: "Reviewed <strong>2026-09-02</strong> &middot; scope: a second fresh-eyes audit of the product (accuracy, documentation, best practices, veraPDF) with a full security re-test.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The accuracy work changed what the reports assert and how the documentation describes it; the security review re-tested every control the two previous reviews had declared sound &mdash; parameterised SQL, 128/256-bit identifiers, non-reflecting CORS, escape-first HTML sinks, the nonce-based content security policy, the proxy trust setting, forwarded-address spoofing, and the timing-safe token comparison &mdash; and could break none of them. The production dependency audit reported zero advisories. Every regular expression applied to document text was timed on multi-megabyte adversarial inputs and measured linear.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>P2 &mdash; the page-audit fetch could be steered after its check.</strong> The address check for a web page audit read only the first address a name resolved to, and the browser that then fetched the page resolved the name again on its own, with a cache that kept a name marked safe for the whole audit. A name answering with a public address and a private one, or one changed mid-audit, could reach an internal service. Every address is now judged, each audit launches its own browser with the checked address pinned into it, and the cache is gone. What such a request could ever return was limited to the page title and rule selectors.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>The one parser that runs inside the service.</strong> PDF text extraction runs in the API process (every other engine runs as a separate, secret-stripped process). It now refuses to compile code from a document's embedded programs and bounds the size of any image it decodes. Moving it into its own process remains open.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>Bulk inventory scoring limited as the fan-out it is.</strong> One unauthenticated request can fetch and score up to a hundred allowlisted documents; it shared the share-link limit and its code comment still claimed a login that no longer exists. It has its own budget (three per hour per address) and an honest comment.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>Hygiene.</strong> Temporary copies of uploaded PDFs are written readable by the service account only; fetched addresses and browser console messages are stripped of control characters before they are logged; the framework name is no longer announced in a response header; stored page reports have their help-link addresses neutralised at rest, as document reports already did.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.154.0",
     meta: "Reviewed <strong>2026-09-01</strong> &middot; scope: fix-time estimates in the report's action plan.",
     body: [
@@ -346,7 +377,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
       },
       {
         kind: "p",
-        html: "One consequence is stated plainly in the release notes rather than left to be discovered: on PDFs with interactive form fields, three criteria that exist only in WCAG 2.2 no longer appear as manual-review notes, because they are not part of 2.1. They are named on the What&rsquo;s new in WCAG 2.2 page instead. A related check found four sentences that the version change had made untrue &mdash; each promised a per-document disclosure the new default no longer produces &mdash; and all four were rewritten to describe what actually happens.",
+        html: "One consequence is stated plainly in the release notes rather than left to be discovered: on PDFs with interactive form fields, three criteria that exist only in WCAG 2.2 no longer appear as manual-review notes, because they are not part of 2.1. They are named on the What&rsquo;s new in WCAG 2.2 page instead. <em>(Corrected 2026-09-02: those notes were restored the same day as &ldquo;beyond the standard your grade measures&rdquo; &mdash; 2.5.8 and 3.3.7 are listed on any PDF with form fields; 3.3.8 is not, because a form is not an authentication process.)</em> A related check found four sentences that the version change had made untrue &mdash; each promised a per-document disclosure the new default no longer produces &mdash; and all four were rewritten to describe what actually happens.",
       },
     ],
   },

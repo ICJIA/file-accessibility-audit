@@ -243,14 +243,17 @@ const setVeraStmt = db.prepare(
    WHERE id = ?`,
 );
 
-/** Persist a veraPDF verdict on the job row. */
+/** Persist a veraPDF verdict on the job row. `passed` is null when there is
+ *  no verdict to persist — veraPDF not configured, or the run errored — and
+ *  the column stays NULL rather than pretending to a failure. */
 export function setVeraPdfResult(
   id: string,
   available: boolean,
-  passed: boolean,
+  passed: boolean | null,
   summaryJson: string,
 ): void {
-  setVeraStmt.run(available ? 1 : 0, available ? (passed ? 1 : 0) : null, summaryJson, id);
+  const passedColumn = available && passed !== null ? (passed ? 1 : 0) : null;
+  setVeraStmt.run(available ? 1 : 0, passedColumn, summaryJson, id);
 }
 
 export interface JobVeraPdf {

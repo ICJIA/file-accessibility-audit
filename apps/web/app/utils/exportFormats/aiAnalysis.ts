@@ -57,12 +57,21 @@ function appendExtraCredit(lines: string[], result: ReportResult): void {
     );
     lines.push("");
     lines.push(`- Profile: ${v.profile}`);
-    lines.push(`- Verdict: ${v.passed ? "PASSED" : "FAILED"} the machine-checkable conditions`);
-    if (!v.passed) {
-      const kinds = v.distinctRuleCount ?? v.failures.length;
-      lines.push(`- ${v.totalFailureCount} failure(s) across ${kinds} distinct rule(s)`);
-      for (const f of v.failures) {
-        lines.push(`  - Clause ${f.clause} (${f.ruleId}) ×${f.count} — ${f.description}`);
+    if (v.error) {
+      // An errored run carries `available:true, passed:false` — a boolean
+      // read printed "FAILED … 0 failure(s)" for a check that never
+      // finished (2026-09-02). No verdict exists; say so.
+      lines.push(
+        `- Verdict: the check could not be completed (${v.error}). Draw no PDF/UA conclusion from this run.`,
+      );
+    } else {
+      lines.push(`- Verdict: ${v.passed ? "PASSED" : "FAILED"} the machine-checkable conditions`);
+      if (!v.passed) {
+        const kinds = v.distinctRuleCount ?? v.failures.length;
+        lines.push(`- ${v.totalFailureCount} failure(s) across ${kinds} distinct rule(s)`);
+        for (const f of v.failures) {
+          lines.push(`  - Clause ${f.clause} (${f.ruleId}) ×${f.count} — ${f.description}`);
+        }
       }
     }
     lines.push("");

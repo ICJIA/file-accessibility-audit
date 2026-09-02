@@ -61,14 +61,15 @@ describe("conformance gate — WCAG 2.2", () => {
         cleanCategories,
       );
       const scs = v.notAssessed.map((n: any) => n.sc);
-      expect(scs, version).toEqual(expect.arrayContaining(["2.5.8", "3.3.7", "3.3.8"]));
+      expect(scs, version).toEqual(expect.arrayContaining(["2.5.8", "3.3.7"]));
       expect(scs, version).not.toContain("2.5.7"); // not form-relevant
+      expect(scs, version).not.toContain("3.3.8"); // authentication, not forms (2026-09-02)
       // Never a failure, and never counted.
       expect(
         v.failures.map((f: any) => f.sc),
         version,
       ).not.toContain("2.5.8");
-      for (const sc of ["2.5.8", "3.3.7", "3.3.8"]) {
+      for (const sc of ["2.5.8", "3.3.7"]) {
         const entry = v.notAssessed.find((n: any) => n.sc === sc)!;
         expect(entry.reason, `${version} ${sc}`).toMatch(
           /[Bb]eyond the standard your grade measures/,
@@ -102,10 +103,60 @@ describe("conformance gate — WCAG 2.2", () => {
     // aspirational either way, and each says so in its own reason. What the
     // version controls is which standard the verdict NAMES and links.
     const scs = v.notAssessed.map((n: any) => n.sc);
-    expect(scs).toContain("3.3.8");
-    expect(v.notAssessed.find((n: any) => n.sc === "3.3.8")!.reason).toMatch(
+    expect(scs).toContain("3.3.7");
+    expect(v.notAssessed.find((n: any) => n.sc === "3.3.7")!.reason).toMatch(
       /beyond the standard your grade measures/i,
     );
+  });
+});
+
+describe("conformance gate — the two rules that used to infer (2026-09-02)", () => {
+  it("5b: a tool-generated title is F25; a filename-SHAPED title with real words is not", async () => {
+    const evaluate = await loadGate();
+    const tool = evaluate(
+      makeQpdf({ displayDocTitle: true }),
+      makePdfjs({
+        title: "report_v3_final.pdf",
+        titleLooksLikeFilename: true,
+        titleIsToolGenerated: true,
+      }),
+      cleanCategories,
+    );
+    expect(tool.failures.some((f: any) => f.sc === "2.4.2" && /F25/.test(f.issue))).toBe(true);
+
+    const shaped = evaluate(
+      makeQpdf({ displayDocTitle: true }),
+      makePdfjs({
+        title: "Annual_Report_2024",
+        titleLooksLikeFilename: true,
+        titleIsToolGenerated: false,
+      }),
+      cleanCategories,
+    );
+    expect(shaped.failures.some((f: any) => f.sc === "2.4.2")).toBe(false);
+  });
+
+  it("6b: 'no heading tags' is asserted only with ≥2 observed visual headings — never from page/paragraph/bookmark counts", async () => {
+    const evaluate = await loadGate();
+    const proxyOnly = evaluate(
+      makeQpdf({ headings: [], totalPageCount: 12, paragraphCount: 40, outlineCount: 3 }),
+      makePdfjs({ visualHeadingCandidateCount: 0 }),
+      cleanCategories,
+    );
+    expect(proxyOnly.failures.some((f: any) => f.category === "heading_structure")).toBe(false);
+
+    const observed = evaluate(
+      makeQpdf({ headings: [], totalPageCount: 1, paragraphCount: 4 }),
+      makePdfjs({
+        visualHeadingCandidateCount: 2,
+        visualHeadingSamples: ["Background", "Next steps"],
+      }),
+      cleanCategories,
+    );
+    const f = observed.failures.find((x: any) => x.category === "heading_structure");
+    expect(f).toBeDefined();
+    expect(f!.sc).toBe("1.3.1");
+    expect(f!.issue).toMatch(/2 line\(s\) look like section headings/);
   });
 });
 
@@ -124,6 +175,9 @@ describe("conformance gate — encryption accessibility permission", () => {
     expect(f).toBeDefined();
     expect(f!.sc).toBe("1.1.1");
     expect(f!.level).toBe("A");
+    // No criterion names an AT-denying security handler; the mapping must
+    // carry its own argument on the page (2026-09-02).
+    expect(f!.issue).toMatch(/non-text content with no text alternative/i);
   });
 
   it("does not fire when encryption explicitly permits accessibility", async () => {
@@ -149,7 +203,12 @@ describe("conformance gate — universally-unassessed criteria are disclosed", (
   // (conditionally) reading order — implying everything else was covered.
   // controls/ showed a live counterexample: a 100/A report carrying stray
   // da/de/it/no span languages the tool neither checks nor discloses (3.1.2).
-  const UNIVERSAL = ["3.1.2", "1.4.1", "1.4.5", "1.4.11", "1.3.3"];
+  // 2.4.6 joined the list 2026-09-02: the category maps had cited it as an
+  // EVALUATED criterion for heading_structure / slide_titles / sheet_names
+  // while no gate could ever assert it (Understanding 2.4.6: "does not
+  // require headings or labels" — whether a heading DESCRIBES its section is
+  // a human judgment). Disclosed, never claimed.
+  const UNIVERSAL = ["3.1.2", "1.4.1", "1.4.5", "1.4.11", "1.3.3", "2.4.6"];
 
   it("PDF: lists Language of Parts, Use of Color, Images of Text, Non-text Contrast, Sensory Characteristics", async () => {
     const evaluate = await loadGate();
@@ -160,6 +219,42 @@ describe("conformance gate — universally-unassessed criteria are disclosed", (
       expect(n.reason.length, n.sc).toBeGreaterThan(40);
       expect(n.url, n.sc).toMatch(/^https:\/\/www\.w3\.org\//);
     }
+  });
+
+  it("PDF with form fields: lists the 2.2 form criteria 2.5.8 and 3.3.7 — but never 3.3.8, which is about LOGIN, not forms", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ hasAcroForm: true, formFields: [{ hasTU: true }] }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    const scs = v.notAssessed.map((n: any) => n.sc);
+    expect(scs).toEqual(expect.arrayContaining(["2.5.8", "3.3.7"]));
+    expect(scs).not.toContain("3.3.8");
+  });
+
+  it("PDF: sound-only annotations are disclosed under 1.2.1 (audio-only), anything with video under 1.2.2 (captions)", async () => {
+    const evaluate = await loadGate();
+    const soundOnly = evaluate(
+      makeQpdf({ mediaAnnotationCounts: { screen: 0, movie: 0, sound: 2, richMedia: 0 } }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    const soundScs = soundOnly.notAssessed.map((n: any) => n.sc);
+    expect(soundScs).toContain("1.2.1");
+    expect(soundScs).not.toContain("1.2.2");
+    expect(soundOnly.notAssessed.find((n: any) => n.sc === "1.2.1")!.url).toMatch(
+      /audio-only-and-video-only-prerecorded/,
+    );
+
+    const withVideo = evaluate(
+      makeQpdf({ mediaAnnotationCounts: { screen: 1, movie: 0, sound: 2, richMedia: 0 } }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    const videoScs = withVideo.notAssessed.map((n: any) => n.sc);
+    expect(videoScs).toContain("1.2.2");
+    expect(videoScs).not.toContain("1.2.1");
   });
 
   it("PDF: cites the document's own foreign-language spans in the 3.1.2 reason when present", async () => {

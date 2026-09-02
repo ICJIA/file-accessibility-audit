@@ -1,7 +1,8 @@
 import { Router, Request, Response, type IRouter } from "express";
 import { AUDIT_TIMEOUT_SUMMARY } from "@file-audit/shared";
 import crypto from "node:crypto";
-import { reportsLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
+import { bulkLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
+import { forLog } from "../services/logSanitize.js";
 import { analyzeDocument, detectFileType } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure, sha256Hex } from "../services/auditLog.js";
 import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
@@ -167,8 +168,10 @@ function parseInventory(
 // request, same as before. The default stays 'pdf' so existing callers keep
 // working byte-identically.
 //
-// Auth required (authMiddleware). The reportsLimiter is reused; a dedicated
-// bulk rate-limit class may be warranted once traffic patterns are known.
+// No authentication (none exists since v1.68.0). One request fans out into
+// up to MAX_FILES_PER_REQUEST server-side fetches and analyses, so it carries
+// its own rate-limit budget (bulkLimiter, 2026-09-02) rather than sharing the
+// share-link limiter's.
 //
 // Processing is serial to respect the shared concurrency semaphore in
 // pdfAnalyzer.ts (used by every format via analyzeDocument). For
@@ -208,7 +211,7 @@ export function mapEntryError(err: any): string | null {
 
 router.post(
   "/bulk-from-inventory",
-  reportsLimiter,
+  bulkLimiter,
   // Use text/plain body parsing with an expanded 5 MB limit for the inventory
   // payload. The global express.json({ limit: '1mb' }) does not cover this
   // route because the Content-Type here is text/plain, not application/json.
@@ -303,7 +306,7 @@ router.post(
               // the raw (possibly-Node-socket-internal) detail. Full detail
               // still goes to the server log.
               console.error(
-                `Bulk-from-inventory fetch error (${e.code}) for ${entry.publicUrl}:`,
+                `Bulk-from-inventory fetch error (${e.code}) for ${forLog(entry.publicUrl)}:`,
                 e,
               );
               // v1.88.0: a URL the tool could not fetch is a failed audit of

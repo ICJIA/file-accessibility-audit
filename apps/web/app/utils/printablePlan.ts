@@ -57,7 +57,7 @@ export interface PrintablePlanOptions {
   /** The version's quick-reference URL — fallback for unknown criteria and
    *  the footer's "full standard" line. */
   wcagQuickref?: string;
-  /** "WCAG 2.2 Level AA" — names the quick reference in the footer. */
+  /** "WCAG 2.1 Level AA" — names the quick reference in the footer. */
   wcagLabel?: string;
   /** "ICJIA Accessibility Audit" — passed in so it follows a rebrand. */
   appName?: string;

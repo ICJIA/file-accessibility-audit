@@ -246,8 +246,14 @@ describe("docx custom heading styles (outlineLvl / basedOn)", () => {
 });
 
 describe("docx AlternateContent (text boxes serialize Choice + Fallback)", () => {
-  it("counts text-box content once, not per branch", async () => {
-    const inner = `<w:p><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>Big Pull Quote</w:t></w:r></w:p>`;
+  it("counts text-box content once, not per branch — and never as a fake heading (2026-09-02)", async () => {
+    // A real Heading-styled paragraph inside the box proves the de-dup (it
+    // must be ONE heading, not one per branch); the bold 18-pt pull quote
+    // beside it is text-box content, which the fake-heading rule no longer
+    // judges at all.
+    const inner =
+      `<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Sidebar heading</w:t></w:r></w:p>` +
+      `<w:p><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>Big Pull Quote</w:t></w:r></w:p>`;
     const body =
       `<w:p><w:r><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">` +
       `<mc:Choice Requires="wps"><w:drawing><wp:anchor><wp:docPr id="7" name="TB"/>` +
@@ -259,7 +265,8 @@ describe("docx AlternateContent (text boxes serialize Choice + Fallback)", () =>
       `</mc:AlternateContent></w:r></w:p>`;
     const buf = await buildDocx({ body });
     const r = await analyzeDocx(buf);
-    expect(r.fakeHeadings).toHaveLength(1);
+    expect(r.headings.filter((h) => h.text === "Sidebar heading")).toHaveLength(1);
+    expect(r.fakeHeadings).toEqual([]);
   });
 });
 
@@ -821,5 +828,139 @@ describe("docx entity + DOCTYPE hardening (C2, full analyze path)", () => {
     expect(a.paragraphCount).toBe(1);
     expect(a.headings).toEqual([]);
     expect(JSON.stringify(a)).not.toContain("INJECTED-VALUE");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-02 fresh-eyes audit: the F2 fake-heading rule and the large-text
+// contrast exemption read only what sat directly on the run; picture links
+// were nameless. Each of these was a confirmed Level A/AA accusation a real
+// document could not deserve.
+// ---------------------------------------------------------------------------
+const STYLES_WITH_TITLE_AND_SIZED_H1 =
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+  `<w:styles ${DOCX_NS}>` +
+  `<w:docDefaults><w:rPrDefault><w:rPr><w:lang w:val="en-US"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults>` +
+  `<w:style w:type="paragraph" w:styleId="Normal"><w:name w:val="Normal"/></w:style>` +
+  `<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:sz w:val="56"/></w:rPr></w:style>` +
+  `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>` +
+  `<w:pPr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>` +
+  `<w:style w:type="paragraph" w:styleId="BigNote" w:customStyle="1"><w:name w:val="Big Note"/>` +
+  `<w:basedOn w:val="Normal"/><w:rPr><w:sz w:val="40"/></w:rPr></w:style>` +
+  `</w:styles>`;
+
+const boldBig = (text: string) =>
+  `<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+
+describe("fake headings — where the rule may look (2026-09-02)", () => {
+  it("does not call a bold 14-pt TABLE HEADER CELL a fake heading", async () => {
+    const body =
+      paragraph("An ordinary introductory paragraph of running body text.") +
+      `<w:tbl><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc>${boldBig("County")}</w:tc><w:tc>${boldBig("Amount")}</w:tc></w:tr>` +
+      `<w:tr><w:tc>${paragraph("Cook")}</w:tc><w:tc>${paragraph("1,200")}</w:tc></w:tr>` +
+      `</w:tbl>`;
+    const r = await analyzeDocx(await buildDocx({ body }));
+    expect(r.fakeHeadings).toEqual([]);
+  });
+
+  it("DOES catch a bold 22-pt title in a one-row banner table — a layout table has no header cells to protect (the Freshservice shape)", async () => {
+    const body =
+      `<w:tbl><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc>${paragraph("logo")}</w:tc><w:tc>` +
+      `<w:p><w:r><w:rPr><w:b/><w:sz w:val="44"/></w:rPr><w:t>Freshservice Quick Guide</w:t></w:r></w:p>` +
+      `</w:tc></w:tr></w:tbl>` +
+      paragraph("Body text that follows the banner.");
+    const r = await analyzeDocx(await buildDocx({ body }));
+    expect(r.fakeHeadings.map((f) => f.text)).toEqual(["Freshservice Quick Guide"]);
+  });
+
+  it("does not call bold 14-pt text inside a TEXT BOX a fake heading (nor count it twice via mc:Fallback)", async () => {
+    const box =
+      `<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="7" name="Text Box 7"/>` +
+      `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:txbx><w:txbxContent>${boldBig("Did you know?")}</w:txbxContent></wps:txbx>` +
+      `</wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+    const body = paragraph("Body text before the callout box.") + box;
+    const r = await analyzeDocx(await buildDocx({ body }));
+    expect(r.fakeHeadings).toEqual([]);
+  });
+
+  it("treats a Title-styled paragraph as structural even when its runs are bold and large", async () => {
+    const body =
+      `<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>Annual Report</w:t></w:r></w:p>` +
+      paragraph("Body text follows the title.");
+    const r = await analyzeDocx(
+      await buildDocx({ body, stylesXml: STYLES_WITH_TITLE_AND_SIZED_H1 }),
+    );
+    expect(r.fakeHeadings).toEqual([]);
+  });
+
+  it("still catches the real thing: a styleless bold 14-pt line in the body", async () => {
+    const body = boldBig("Executive Summary") + paragraph("Body text.");
+    const r = await analyzeDocx(await buildDocx({ body }));
+    expect(r.fakeHeadings.map((f) => f.text)).toEqual(["Executive Summary"]);
+  });
+});
+
+describe("contrast — large text is resolved through the style, not only the run (2026-09-02)", () => {
+  it("a Heading 1 (16-pt bold in the style) coloured #777777 is LARGE text and passes at 3:1", async () => {
+    // #777777 on white is 4.48:1 — a failure for normal text, a pass for
+    // large text. The run carries only the colour; the size and weight live
+    // in the Heading 1 style.
+    const body =
+      `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:rPr><w:color w:val="777777"/></w:rPr><w:t>Section One</w:t></w:r></w:p>` +
+      paragraph("Body text.");
+    const r = await analyzeDocx(
+      await buildDocx({ body, stylesXml: STYLES_WITH_TITLE_AND_SIZED_H1 }),
+    );
+    expect(r.contrast.checkedRuns).toBe(1);
+    expect(r.contrast.failing).toEqual([]);
+  });
+
+  it("a custom style whose size (20 pt) comes through basedOn is large too", async () => {
+    const body = `<w:p><w:pPr><w:pStyle w:val="BigNote"/></w:pPr><w:r><w:rPr><w:color w:val="777777"/></w:rPr><w:t>Note text</w:t></w:r></w:p>`;
+    const r = await analyzeDocx(
+      await buildDocx({ body, stylesXml: STYLES_WITH_TITLE_AND_SIZED_H1 }),
+    );
+    expect(r.contrast.failing).toEqual([]);
+  });
+
+  it("the same colour on an 11-pt body run (size from docDefaults) still fails at 4.5:1", async () => {
+    const body = paragraph("Body text in grey.", { color: "777777" });
+    const r = await analyzeDocx(
+      await buildDocx({ body, stylesXml: STYLES_WITH_TITLE_AND_SIZED_H1 }),
+    );
+    expect(r.contrast.failing).toHaveLength(1);
+    expect(r.contrast.failing[0]!.large).toBe(false);
+  });
+});
+
+describe("links — a picture hyperlink takes its name from the picture's alt text (2026-09-02)", () => {
+  const pictureLink = (rId: string, descr?: string) =>
+    `<w:p><w:hyperlink r:id="${rId}"><w:r><w:drawing><wp:inline>` +
+    `<wp:docPr id="3" name="Picture 3"${descr !== undefined ? ` descr="${descr}"` : ""}/>` +
+    `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic/></a:graphicData></a:graphic>` +
+    `</wp:inline></w:drawing></w:r></w:hyperlink></w:p>`;
+
+  it("a linked logo WITH alt text is a named link, not an unnamed one", async () => {
+    const r = await analyzeDocx(
+      await buildDocx({
+        body: pictureLink("rId9", "ICJIA home page"),
+        documentRels: hyperlinkRels([{ id: "rId9", target: "https://icjia.illinois.gov" }]),
+      }),
+    );
+    expect(r.links).toEqual([{ text: "ICJIA home page", url: "https://icjia.illinois.gov" }]);
+  });
+
+  it("a linked picture with NO alt text stays unnamed — that one is the real 4.1.2 defect (F89)", async () => {
+    const r = await analyzeDocx(
+      await buildDocx({
+        body: pictureLink("rId9"),
+        documentRels: hyperlinkRels([{ id: "rId9", target: "https://icjia.illinois.gov" }]),
+      }),
+    );
+    expect(r.links).toEqual([{ text: "", url: "https://icjia.illinois.gov" }]);
   });
 });

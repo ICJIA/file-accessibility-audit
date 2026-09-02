@@ -1,3 +1,4 @@
+import type { PdfUaVerdict } from "@file-audit/shared";
 /**
  * What a person still has to check, on a document the automated checks are
  * happy with.
@@ -184,4 +185,41 @@ export function manualChecks(
     }
   }
   return out;
+}
+
+interface NotAssessedLike {
+  sc: string;
+  name: string;
+  level: string;
+  reason?: string;
+  url?: string;
+}
+
+/**
+ * veraPDF's WCAG-profile pass measures rendered contrast (rule 1.4.3-1);
+ * this checker does not. The not-assessed reason the analyzer writes for
+ * 1.4.3 — "does not yet measure" — sat on the same page as a technical panel
+ * listing dozens of veraPDF contrast occurrences (2026-09-02). When that pass
+ * ran and flagged 1.4.3, the reason says so and hands the reader the count;
+ * nothing else in the list changes. Pure; never throws on a hostile verdict.
+ */
+export function withVeraContrast<T extends NotAssessedLike>(
+  notAssessed: readonly T[],
+  wcagVerdict: Partial<PdfUaVerdict> | null | undefined,
+): T[] {
+  const list = Array.isArray(notAssessed) ? [...notAssessed] : [];
+  if (!wcagVerdict?.available || wcagVerdict.error) return list;
+  const contrast = (Array.isArray(wcagVerdict.failures) ? wcagVerdict.failures : []).filter(
+    (f) => typeof f?.ruleId === "string" && /^1\.4\.3\b/.test(f.ruleId),
+  );
+  if (contrast.length === 0) return list;
+  const occurrences = contrast.reduce((n, f) => n + (typeof f.count === "number" ? f.count : 1), 0);
+  return list.map((n) =>
+    n.sc === "1.4.3"
+      ? {
+          ...n,
+          reason: `Rendered text/background contrast is not measured by this checker — but veraPDF's WCAG-profile pass, run beside it, flagged ${occurrences} occurrence${occurrences === 1 ? "" : "s"} below the contrast minimum (its rule 1.4.3-1; see the technical report). That pass has known false positives on gradients and images, so verify the flagged text by hand before treating it as a failure.`,
+        }
+      : n,
+  );
 }

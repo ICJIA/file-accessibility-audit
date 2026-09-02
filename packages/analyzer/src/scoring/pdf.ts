@@ -487,11 +487,16 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
   // the document), attributed by the conformance gate since the legal-only
   // sweep)
   if (pdfjs.title && pdfjs.title.trim().length > 0) {
-    if (pdfjs.titleLooksLikeFilename) {
+    // SCORED only for the shapes that cannot describe anything — a bare file
+    // name, an authoring-tool default, a placeholder, a pure stamp/hash
+    // (pdfjsService.classifyTitleShape, F25's own examples). A title that is
+    // merely filename-SHAPED but carries real words identifies the document;
+    // it gets the unscored advisory further down instead (2026-09-02).
+    if (pdfjs.titleIsToolGenerated) {
       score += 25;
       findings.push(`Document title: "${pdfjs.title}"`);
       findings.push(
-        "The title looks like a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
       );
       findings.push(
         'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
@@ -519,6 +524,11 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     } else {
       score += 50;
       findings.push(`Document title: "${pdfjs.title}" (shown by viewers — DisplayDocTitle is set)`);
+    }
+    if (pdfjs.titleLooksLikeFilename && !pdfjs.titleIsToolGenerated) {
+      findings.push(
+        `Advisory — not scored: the title "${pdfjs.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (Document properties → Description → Title).`,
+      );
     }
   } else {
     findings.push("No document title found in metadata");
@@ -800,6 +810,10 @@ function headingContentVerdict(census: HeadingContentCensus | null): {
   return { score: 100, findings };
 }
 
+/** Visual heading candidates needed before "no heading tags" is a failure:
+ *  two lines over body text is sections; one is a title. */
+const VISUAL_HEADINGS_FOR_FAILURE = 2;
+
 function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const findings: string[] = [];
   const headingExplanation =
@@ -822,24 +836,27 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   if (qpdf.headings.length === 0) {
     const roleMappedParagraphs = getHeadingLikeParagraphMappings(qpdf);
 
-    // A SHORT document with no headings, no heading-like role-mapped tags,
-    // and no bookmark outline is plausibly heading-less by design — WCAG
-    // does not require headings in content that has no sections, and the
-    // DOCX path already treats this case as N/A. Scoring it 0/Critical made
-    // the identical one-page memo grade 70/C as PDF and 100/A as DOCX.
-    // Substantive documents (many pages/paragraphs, or heading-like signals)
-    // keep the 0.
-    const substantive =
-      qpdf.totalPageCount >= 4 || qpdf.paragraphCount >= 20 || qpdf.outlineCount > 0;
-    if (!substantive) {
-      // The conformance gate's rule 6b requires `substantive` before it will
-      // assert 1.3.1 — so a short document may not lose points here either
-      // (2026-09-01; the scorer used to fall through to 0/Critical on the
-      // RoleMap signal alone, a 69/D with zero failures). The mapped tags
-      // are still worth naming: they are the strongest hint the author MEANT
-      // headings.
+    // EVIDENCE, NOT LENGTH (2026-09-02). WCAG 1.3.1 fails a document with no
+    // heading tags only if it VISUALLY has section headings that the tags
+    // do not convey. Until 2026-09-02 that was inferred — ≥4 pages, ≥20
+    // paragraphs, or any bookmark — and asserted as a confirmed Level A
+    // failure with the words "its sections exist only visually", never
+    // having looked; a one-page funding chart with one bookmark and two-page
+    // fact sheets in the control corpus were accused that way. The pdfjs
+    // visual-heading census (visualHeadings.ts) now looks: lines that are
+    // uniformly larger or bold and sit over body text. Two or more of them
+    // is sections; one is a title; none is a document with no visual
+    // structure to convey. The conformance gate's rule 6b mirrors this
+    // expression exactly — change them together.
+    const visualCount = pdfjs.visualHeadingCandidateCount ?? 0;
+    const visualSamples = (pdfjs.visualHeadingSamples ?? []).map((t) => t.replace(/"/g, "'"));
+    if (visualCount < VISUAL_HEADINGS_FOR_FAILURE) {
+      // The mapped tags are still worth naming: they are the strongest hint
+      // the author MEANT headings.
       const findings = [
-        "No headings were found. Short documents may not need them; longer documents should use H1–H6 tags so screen-reader users can navigate.",
+        visualCount === 0
+          ? "No headings were found, and no lines that look like visual section headings (larger or bold text over body text) were detected either, so this document is treated as heading-less by design. If it does have section titles, tag them H1–H6 so screen-reader users can navigate."
+          : `No headings were found. One line looks like a visual heading ("${visualSamples[0] ?? ""}") — a single title does not make sections, so nothing is scored. If the document has more section titles, tag them H1–H6 so screen-reader users can navigate.`,
       ];
       if (roleMappedParagraphs.length > 0) {
         findings.push(
@@ -859,7 +876,15 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
       };
     }
 
-    const findings = ["No heading tags found in the document structure"];
+    const findings = [
+      "No heading tags found in the document structure",
+      `${visualCount} line(s) look like section headings — larger or bold text over body text (e.g., ${visualSamples
+        .slice(0, 3)
+        .map((t) => `"${t}"`)
+        .join(
+          ", ",
+        )}) — but none is tagged as a heading, so the structure a sighted reader sees is not programmatically determinable (WCAG 1.3.1).`,
+    ];
 
     if (roleMappedParagraphs.length > 0) {
       findings.push(
@@ -1078,6 +1103,44 @@ function detectSuspiciousAltText(text: string): string | null {
   return null;
 }
 
+/** The retagging advisory for <Figure>s that are really text. Shared by the
+ *  scored branch and the nothing-to-describe branch (2026-09-02). */
+function textFigureAdvisory(pdfjs: PdfjsResult): string[] {
+  const out: string[] = [];
+  const textFigures = (pdfjs.textBearingFigures ?? []).filter((f) => !f.hasAlt);
+  if (textFigures.length > 0) {
+    out.push(`--- Figures That Contain Text ---`);
+    out.push(
+      `${textFigures.length} <Figure> tag(s) without alt text contain readable text — typically Word text boxes, sidebars, SmartArt, or chart title bars exported as figures:`,
+    );
+    for (const f of textFigures.slice(0, 10)) {
+      out.push(`  Page ${f.page}: "${f.preview}"`);
+    }
+    if (textFigures.length > 10) {
+      out.push(`  ... and ${textFigures.length - 10} more`);
+    }
+    out.push(
+      'Do not add alt text to these. A <Figure>\'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it. Instead change the tag so the text is read directly: Tags panel → right-click the <Figure> → Properties → Type → "Section" (or "Paragraph" for a single block of text). In Word, keep body content out of text boxes and shapes — use ordinary paragraphs, headings, and lists. Pictures and charts still need alt text.',
+    );
+  }
+  return out;
+}
+
+/** Drop `count` alt-less figures from the census. The text-bearing census
+ *  carries pages and previews, not object refs, so the exclusion is by count:
+ *  every text-bearing figure without alt is also an alt-less figure here. */
+function excludeTextBearing<T extends { hasAlt: boolean }>(figures: T[], count: number): T[] {
+  if (count <= 0) return figures;
+  let left = count;
+  return figures.filter((f) => {
+    if (!f.hasAlt && left > 0) {
+      left--;
+      return false;
+    }
+    return true;
+  });
+}
+
 function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const altLinks: CategoryResult["helpLinks"] = [
     {
@@ -1096,7 +1159,14 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const altExplanation =
     "Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.";
 
-  const figures = qpdf.images.filter((img) => img.ref);
+  const allFigures = qpdf.images.filter((img) => img.ref);
+  // <Figure>s that are really text (Word text boxes, sidebars, SmartArt) are
+  // NOT missing alt text: a screen reader reads the text inside when no /Alt
+  // exists, and adding alt would hide it. They are reported as a retagging
+  // advisory further down and excluded from coverage and from the 1.1.1
+  // count — the conformance gate subtracts the same number (2026-09-02).
+  const textBearingNoAlt = (pdfjs.textBearingFigures ?? []).filter((f) => !f.hasAlt).length;
+  const figures = excludeTextBearing(allFigures, textBearingNoAlt);
   const untaggedImageSignals = Math.max(pdfjs.imageCount, qpdf.imageObjectCount);
 
   // Formulas (v1.92.0 — Matterhorn 17) join this category's coverage: like
@@ -1218,6 +1288,16 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   }
 
   if (figures.length === 0 && formulaCount === 0) {
+    const noImageFindings =
+      textBearingNoAlt > 0
+        ? [
+            `No images to describe — the only ${textBearingNoAlt === 1 ? "<Figure> tag is" : `${textBearingNoAlt} <Figure> tags are`} text (a Word text box, sidebar, SmartArt or chart title bar exported as a figure), which a screen reader reads as text — this category does not affect the score`,
+            ...textFigureAdvisory(pdfjs),
+          ]
+        : [
+            "No images detected in this document — this category does not affect the score",
+            "If this document does contain images, they may not be properly tagged as <Figure> elements. Verify manually in Adobe Acrobat's Tags panel.",
+          ];
     return {
       id: "alt_text",
       label: "Alt Text on Images",
@@ -1225,10 +1305,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
-      findings: [
-        "No images detected in this document — this category does not affect the score",
-        "If this document does contain images, they may not be properly tagged as <Figure> elements. Verify manually in Adobe Acrobat's Tags panel.",
-      ],
+      findings: noImageFindings,
       explanation: altExplanation,
       helpLinks: altLinks,
     };
@@ -1258,6 +1335,9 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     if (figures.length > 20) {
       findings.push(`  ... and ${figures.length - 20} more image(s)`);
     }
+    // Text-bearing figures are excluded from the census above (they are not
+    // missing alt); the retagging advisory still has to reach the author.
+    findings.push(...textFigureAdvisory(pdfjs));
   } else if (figures.length > 0) {
     findings.push(`${figuresWithAlt} of ${figures.length} image(s) have alternative text`);
     findings.push(`--- Images Missing Alt Text ---`);
@@ -1297,22 +1377,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     // a Figure's /Alt REPLACES its contents for a screen reader, so "describe
     // it" would hide the very text the box holds. Those need retagging, and
     // the author must be told so before they follow the step above.
-    const textFigures = (pdfjs.textBearingFigures ?? []).filter((f) => !f.hasAlt);
-    if (textFigures.length > 0) {
-      findings.push(`--- Figures That Contain Text ---`);
-      findings.push(
-        `${textFigures.length} <Figure> tag(s) without alt text contain readable text — typically Word text boxes, sidebars, SmartArt, or chart title bars exported as figures:`,
-      );
-      for (const f of textFigures.slice(0, 10)) {
-        findings.push(`  Page ${f.page}: "${f.preview}"`);
-      }
-      if (textFigures.length > 10) {
-        findings.push(`  ... and ${textFigures.length - 10} more`);
-      }
-      findings.push(
-        'Do not add alt text to these. A <Figure>\'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it. Instead change the tag so the text is read directly: Tags panel → right-click the <Figure> → Properties → Type → "Section" (or "Paragraph" for a single block of text). In Word, keep body content out of text boxes and shapes — use ordinary paragraphs, headings, and lists. Pictures and charts still need alt text.',
-      );
-    }
+    findings.push(...textFigureAdvisory(pdfjs));
   }
 
   // Text that was turned into pictures on the way out of Word (v1.105.0).

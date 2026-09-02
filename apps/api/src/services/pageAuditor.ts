@@ -21,43 +21,47 @@ import { AxePuppeteer } from "@axe-core/puppeteer";
 import { resolvePublicIp } from "./safeFetch.js";
 import { shouldAllowPageRequest } from "./pageAuditGuard.js";
 
-let browserPromise: Promise<Browser> | null = null;
+const BASE_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 
-async function getBrowser(): Promise<Browser> {
-  if (!browserPromise) {
-    browserPromise = puppeteer
-      .launch({
-        headless: true,
-        // --no-sandbox is required for many container / CI environments
-        // (incl. typical PM2 deploys on Linux, where Chromium refuses to run
-        // as root with the sandbox on). The SSRF control for this endpoint is
-        // NOT the sandbox and is NOT safeFetch (Chromium does its own DNS and
-        // redirects) — it is the per-request interceptor installed in
-        // auditPage() below, which blocks non-http(s) schemes, resolves and
-        // rejects private/reserved IPs on every request, and keeps document
-        // navigations on the allowlist. See pageAuditGuard.ts.
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-      })
-      .catch((err) => {
-        // If launch fails (missing system libs, OOM, etc.), clear the cached
-        // promise so the NEXT request retries instead of being permanently
-        // poisoned. Without this, a transient launch failure (e.g. fixed by
-        // apt installing libatk-1.0.so.0 after the first request) requires a
-        // pm2 restart to recover.
-        browserPromise = null;
-        throw err;
-      });
+/**
+ * Chromium launch arguments for one page audit. When the document host has
+ * been resolved and validated in Node, it is PINNED into Chromium's own
+ * resolver (`--host-resolver-rules=MAP host ip`), so the browser connects to
+ * exactly the address the private-IP check approved — the same
+ * resolve-then-dial guarantee safeFetch gives the PDF path. Without it,
+ * Chromium re-resolved on its own and a rebinding or multi-record name could
+ * steer the navigation elsewhere (2026-09-02).
+ *
+ * --no-sandbox remains: the production host runs Chromium under PM2 as a
+ * non-root user without unprivileged user namespaces. The SSRF control for
+ * this endpoint is the pin plus the per-request interceptor below, not the
+ * sandbox; the sandbox question is an ops item (see docs).
+ */
+export function chromiumLaunchArgs(pin?: { host: string; ip: string }): string[] {
+  const args = [...BASE_ARGS];
+  if (pin && pin.host && pin.ip) {
+    args.push(`--host-resolver-rules=MAP ${pin.host} ${pin.ip}`);
   }
-  return browserPromise;
+  return args;
 }
 
-// Public shutdown for tests / graceful pm2 shutdown.
+// One browser PER AUDIT (not a shared singleton): the resolver pin is a
+// launch flag, so it can only be honest per document. Launch cost (~0.5 s)
+// is noise beside the 30 s navigation budget and the axe pass.
+const activeBrowsers = new Set<Browser>();
+
+async function launchPinnedBrowser(pin?: { host: string; ip: string }): Promise<Browser> {
+  const browser = await puppeteer.launch({ headless: true, args: chromiumLaunchArgs(pin) });
+  activeBrowsers.add(browser);
+  return browser;
+}
+
+// Public shutdown for tests / graceful pm2 shutdown: closes every browser
+// still open from an in-flight audit.
 export async function closeBrowser(): Promise<void> {
-  if (browserPromise) {
-    const b = await browserPromise;
-    browserPromise = null;
-    await b.close().catch(() => {});
-  }
+  const open = [...activeBrowsers];
+  activeBrowsers.clear();
+  await Promise.all(open.map((b) => b.close().catch(() => {})));
 }
 
 export interface PageAuditIssue {
@@ -160,52 +164,56 @@ export class PageAuditBusyError extends Error {
   }
 }
 
-// Install the SSRF interceptor on a page: every request (main navigation,
-// redirects, subresources) is classified by shouldAllowPageRequest, and any
-// http(s) request whose host resolves to a private/reserved IP is aborted.
-// Per-page resolution cache avoids re-resolving the same host repeatedly.
+/**
+ * The per-request SSRF decision: non-http(s) schemes and off-allowlist
+ * document navigations are aborted by shouldAllowPageRequest; anything that
+ * needs an IP check is resolved AFRESH on every request — the old per-page
+ * cache marked a host public for the page's lifetime, which is exactly the
+ * window a DNS-rebinding attack needs (2026-09-02). `isPublicHost` is
+ * injectable for tests; production passes resolvePublicIp (every record).
+ */
+export function createRequestHandler(
+  isUrlAllowed: (url: string) => boolean,
+  isPublicHost: (host: string) => Promise<boolean>,
+): (req: HTTPRequest) => Promise<void> {
+  return async (req: HTTPRequest): Promise<void> => {
+    try {
+      const reqUrl = req.url();
+      const isDocument = req.resourceType() === "document";
+      const decision = shouldAllowPageRequest(reqUrl, isDocument, isUrlAllowed);
+      if (!decision.allow) {
+        await req.abort("blockedbyclient").catch(() => {});
+        return;
+      }
+      if (decision.needsIpCheck) {
+        const host = new URL(reqUrl).hostname;
+        if (!(await isPublicHost(host))) {
+          await req.abort("blockedbyclient").catch(() => {});
+          return;
+        }
+      }
+      await req.continue().catch(() => {});
+    } catch {
+      // Fail closed: anything unexpected aborts the request.
+      await req.abort("blockedbyclient").catch(() => {});
+    }
+  };
+}
+
+const isPublicHostViaNode = (host: string): Promise<boolean> =>
+  resolvePublicIp(host).then(
+    () => true,
+    () => false, // resolvePublicIp throws on private/reserved or DNS failure
+  );
+
 async function installRequestGuard(
   page: import("puppeteer").Page,
   isUrlAllowed: (url: string) => boolean,
 ): Promise<void> {
   await page.setRequestInterception(true);
-  const resolveCache = new Map<string, Promise<boolean>>(); // host → isPublic
-
-  const isPublicHost = (host: string): Promise<boolean> => {
-    let cached = resolveCache.get(host);
-    if (!cached) {
-      cached = resolvePublicIp(host).then(
-        () => true,
-        () => false, // resolvePublicIp throws on private/reserved or DNS failure
-      );
-      resolveCache.set(host, cached);
-    }
-    return cached;
-  };
-
+  const handler = createRequestHandler(isUrlAllowed, isPublicHostViaNode);
   page.on("request", (req: HTTPRequest) => {
-    void (async () => {
-      try {
-        const reqUrl = req.url();
-        const isDocument = req.resourceType() === "document";
-        const decision = shouldAllowPageRequest(reqUrl, isDocument, isUrlAllowed);
-        if (!decision.allow) {
-          await req.abort("blockedbyclient").catch(() => {});
-          return;
-        }
-        if (decision.needsIpCheck) {
-          const host = new URL(reqUrl).hostname;
-          if (!(await isPublicHost(host))) {
-            await req.abort("blockedbyclient").catch(() => {});
-            return;
-          }
-        }
-        await req.continue().catch(() => {});
-      } catch {
-        // Fail closed: anything unexpected aborts the request.
-        await req.abort("blockedbyclient").catch(() => {});
-      }
-    })();
+    void handler(req);
   });
 }
 
@@ -217,9 +225,15 @@ export async function auditPage(
     throw new PageAuditBusyError();
   }
   activePageAudits++;
-  const browser = await getBrowser();
-  const page = await browser.newPage();
+  let browser: Browser | null = null;
+  let page: import("puppeteer").Page | null = null;
   try {
+    // Resolve and validate the document host in Node (every record), then
+    // pin that exact address into Chromium's resolver for this audit.
+    const host = new URL(url).hostname;
+    const ip = await resolvePublicIp(host);
+    browser = await launchPinnedBrowser({ host, ip });
+    page = await browser.newPage();
     await installRequestGuard(page, isUrlAllowed);
     await page.setUserAgent("Mozilla/5.0 (compatible; ICJIA-File-Audit/audit.icjia.app)");
     await page.goto(url, {
@@ -252,7 +266,11 @@ export async function auditPage(
       incomplete,
     };
   } finally {
-    await page.close().catch(() => {});
+    if (page) await page.close().catch(() => {});
+    if (browser) {
+      activeBrowsers.delete(browser);
+      await browser.close().catch(() => {});
+    }
     activePageAudits--;
   }
 }

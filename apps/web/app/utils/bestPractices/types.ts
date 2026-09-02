@@ -133,6 +133,13 @@ export interface DetectContext {
    *  the era gate in evaluateBestPractices and by any practice whose
    *  evidence lines changed meaning at a known date. Null = unknown. */
   analyzedAt: Date | null;
+  /** Every finding line a matcher returned to a practice through this
+   *  context. uncoveredNotScored() lists the not-scored lines NO practice
+   *  consumed — per line, since 2026-09-02, because per-category coverage
+   *  hid any advisory in a category some other practice happened to read
+   *  (the unattributable-link advisory, whose own text names an F89
+   *  candidate, vanished that way). */
+  consumed: Set<string>;
 }
 
 export interface BestPractice {
@@ -201,6 +208,7 @@ export function buildContext(
     categoryPresent: cat !== null,
     pageCount: Number.isFinite(pageCount) ? pageCount : 0,
     analyzedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed : null,
+    consumed: new Set<string>(),
   };
 }
 
@@ -210,7 +218,7 @@ export function buildContext(
  *  partition is filled by PREFIX, and the prefixes changed under stored
  *  reports that outlive them. Use `matchAdvisory` below. */
 export function matchNotScored(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn(ctx.notScored, needles);
+  return findIn(ctx.notScored, needles, ctx.consumed);
 }
 
 /** The first finding ANYWHERE containing every needle, or null.
@@ -224,7 +232,7 @@ export function matchNotScored(ctx: DetectContext, ...needles: string[]): string
  *  `matchAdvisory` for an advisory. Retained only for the primitive's own
  *  unit tests. */
 export function matchAny(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn(ctx.findings, needles);
+  return findIn(ctx.findings, needles, ctx.consumed);
 }
 
 /** An advisory, found in EITHER partition.
@@ -250,7 +258,7 @@ export function matchAny(ctx: DetectContext, ...needles: string[]): string | nul
  *  in — no practice does. Witness, positive, and not-applicable lookups keep
  *  using `matchMain`: those lines were never prefixed in either era. */
 export function matchAdvisory(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn([...ctx.notScored, ...ctx.main], needles);
+  return findIn([...ctx.notScored, ...ctx.main], needles, ctx.consumed);
 }
 
 /** The lines `matchAdvisory` searches, for the two practices that need a
@@ -259,6 +267,10 @@ export function matchAdvisory(ctx: DetectContext, ...needles: string[]): string 
  *  matching only the first would under-report). Same union, same reason,
  *  same deliberate exclusion of `signals`. */
 export function advisoryLines(ctx: DetectContext): string[] {
+  // The caller reads every advisory by contract, so every one counts as
+  // consumed — otherwise per-sheet/per-title lines a practice DID report
+  // would resurface under "Also noted".
+  for (const line of ctx.notScored) ctx.consumed.add(line);
   return [...ctx.notScored, ...ctx.main];
 }
 
@@ -271,15 +283,18 @@ export function advisoryLines(ctx: DetectContext): string[] {
  *  positive/witness/not-applicable lookup — anywhere the caller is reading
  *  what the analyzer itself asserted, not quoting the document. */
 export function matchMain(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn(ctx.main, needles);
+  return findIn(ctx.main, needles, ctx.consumed);
 }
 
-function findIn(haystack: string[], needles: string[]): string | null {
+function findIn(haystack: string[], needles: string[], consumed?: Set<string>): string | null {
   if (needles.length === 0) return null;
   const lowered = needles.map((n) => n.toLowerCase());
   for (const line of haystack) {
     const l = line.toLowerCase();
-    if (lowered.every((n) => l.includes(n))) return line;
+    if (lowered.every((n) => l.includes(n))) {
+      consumed?.add(line);
+      return line;
+    }
   }
   return null;
 }

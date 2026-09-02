@@ -131,9 +131,10 @@ describe("buildJSON — llmContext.prompt is not hard-coded to Adobe Acrobat", (
 
 describe("buildJSON — remediationPlan fallback action is format-neutral", () => {
   it("falls back to 'the source application' (not Adobe Acrobat) for a category with no WCAG_MAP entry", () => {
-    // slide_titles (PPTX) and sheet_names (XLSX) have no WCAG_MAP entry, so
-    // any failing category using one of those ids exercises the fallback
-    // branch in remediationPlan.prioritizedSteps[].action.
+    // Every scored category has a WCAG_MAP entry since 2026-09-02 (the Office
+    // ids joined the map); the retired Practical-mode pdf_ua_compliance id
+    // has none, so a failing category using it exercises the fallback branch
+    // in remediationPlan.prioritizedSteps[].action.
     const json = JSON.parse(
       buildJSON(
         baseResult({
@@ -141,12 +142,12 @@ describe("buildJSON — remediationPlan fallback action is format-neutral", () =
           fileType: "pptx",
           categories: [
             {
-              id: "slide_titles",
-              label: "Slide Titles",
+              id: "pdf_ua_compliance",
+              label: "PDF/UA Compliance",
               score: 40,
               grade: "D",
               severity: "Moderate",
-              findings: ["2 slides missing a title"],
+              findings: ["2 signals missing"],
             },
           ],
         }),

@@ -192,10 +192,10 @@ describe("a pre-v1.136.0 stored payload never fabricates a MET", () => {
     expect(r.status).toBe("not-met");
   });
 
-  it("heading-numbered-levels: all-generic and mixed are both NOT MET", () => {
+  it("heading-numbered-levels: all-generic is NOT MET; mixed defers to heading-convention (one chip, 2026-09-02)", () => {
     expect(run("heading-numbered-levels", [OLD_ALL_GENERIC]).status).toBe("not-met");
     expect(run("heading-numbered-levels", [OLD_MIXED_CONVENTIONS, HEADING_WITNESS]).status).toBe(
-      "not-met",
+      "not-applicable",
     );
   });
 
@@ -273,10 +273,10 @@ describe("a pre-v1.136.0 advisory is still read as an advisory", () => {
     expect(r.evidence.join(" ")).toMatch(/"Sheet1"/);
   });
 
-  it("xlsx-defined-tables / xlsx-data-outside-tables: no Table anywhere reads NOT MET", () => {
+  it("xlsx-defined-tables: no Table anywhere reads NOT MET; xlsx-data-outside-tables defers to it (one chip, 2026-09-02)", () => {
     const findings = [XLSX_TABLE_WITNESS_ZERO, OLD_XLSX_NO_TABLE_ANYWHERE];
     expect(run("xlsx-defined-tables", findings, "xlsx").status).toBe("not-met");
-    expect(run("xlsx-data-outside-tables", findings, "xlsx").status).toBe("not-met");
+    expect(run("xlsx-data-outside-tables", findings, "xlsx").status).toBe("not-applicable");
   });
 });
 

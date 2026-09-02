@@ -17,6 +17,12 @@ import { buildCspHeader } from "../utils/csp";
  * previous production-only routeRules behavior.
  */
 export default defineNitroPlugin((nitro) => {
+  // Nuxt's renderer stamps `x-powered-by: Nuxt` on every HTML response — a
+  // framework fingerprint with no purpose here. Dropped before send
+  // (2026-09-02); the API's helmet() already hides Express's equivalent.
+  nitro.hooks.hook("beforeResponse", (event) => {
+    removeResponseHeader(event, "x-powered-by");
+  });
   nitro.hooks.hook("request", (event) => {
     if (import.meta.dev) return;
     const nonce = randomBytes(16).toString("base64");

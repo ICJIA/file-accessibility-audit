@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import ManualReviewCard from "../components/ManualReviewCard.vue";
-import { manualChecks, MANUAL_CHECKS } from "../utils/manualReview";
+import { manualChecks, MANUAL_CHECKS, withVeraContrast } from "../utils/manualReview";
 import { SCORING_PROFILES } from "@file-audit/shared";
 
 // A document that scores 100 gets an empty action plan, and the report then
@@ -362,5 +362,70 @@ describe("wiring — every surface that shows a report shows the checklist", () 
       expect(el, file).toMatch(/:categories=/);
       expect(el, file).toMatch(/:conformance=/);
     }
+  });
+});
+
+describe("withVeraContrast — veraPDF's WCAG pass can see contrast this checker does not (2026-09-02)", () => {
+  const na = [
+    {
+      sc: "1.4.3",
+      name: "Contrast (Minimum)",
+      level: "AA",
+      reason: "This tool does not yet measure rendered text/background color contrast.",
+      url: "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+    },
+    {
+      sc: "3.1.2",
+      name: "Language of Parts",
+      level: "AA",
+      reason: "Passages in another language…",
+      url: "https://www.w3.org/WAI/WCAG21/Understanding/language-of-parts.html",
+    },
+  ];
+
+  it("rewrites the 1.4.3 reason with veraPDF's occurrence count when its WCAG profile flagged 1.4.3", () => {
+    const out = withVeraContrast(na, {
+      available: true,
+      passed: false,
+      profile: "WCAG 2.2 machine",
+      failures: [{ ruleId: "1.4.3-1", clause: "1.4.3", description: "contrast ratio", count: 40 }],
+      totalFailureCount: 40,
+    });
+    const c = out.find((n) => n.sc === "1.4.3")!;
+    expect(c.reason).toMatch(/not measured by this checker/i);
+    expect(c.reason).toMatch(/veraPDF[^.]*40/);
+    expect(out.find((n) => n.sc === "3.1.2")!.reason).toBe(na[1]!.reason);
+  });
+
+  it("leaves the list alone when veraPDF did not run, errored, or flagged no 1.4.3", () => {
+    expect(withVeraContrast(na, null)).toEqual(na);
+    expect(
+      withVeraContrast(na, {
+        available: false,
+        passed: false,
+        profile: "",
+        failures: [],
+        totalFailureCount: 0,
+      }),
+    ).toEqual(na);
+    expect(
+      withVeraContrast(na, {
+        available: true,
+        passed: false,
+        profile: "",
+        failures: [],
+        totalFailureCount: 0,
+        error: "timed out",
+      }),
+    ).toEqual(na);
+    expect(
+      withVeraContrast(na, {
+        available: true,
+        passed: false,
+        profile: "",
+        failures: [{ ruleId: "7.1-1", clause: "7.1", description: "x", count: 1 }],
+        totalFailureCount: 1,
+      }),
+    ).toEqual(na);
   });
 });

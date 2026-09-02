@@ -54,18 +54,16 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
       "In Acrobat: open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties), set the title on the Description tab and the language on the Advanced tab under Reading Options. In Word, PowerPoint, or Excel: set the title in File → Info → Properties → Title. In Word, set the language via Review → Language → Set Proofing Language; PowerPoint uses its presentation-wide default language setting. Excel workbooks do not store a document language.",
   },
   heading_structure: {
+    // 2.4.6 removed 2026-09-02: no gate asserts it (Understanding 2.4.6 "does
+    // not require headings or labels"); it is disclosed as not assessed on
+    // every verdict instead. Mirrors packages/shared WCAG_CATEGORY_MAP — the
+    // docsCurrency test fails if the two maps drift.
     criteria: [
       {
         id: "1.3.1",
         name: "Info and Relationships",
         level: "A",
         slug: "info-and-relationships",
-      },
-      {
-        id: "2.4.6",
-        name: "Headings and Labels",
-        level: "AA",
-        slug: "headings-and-labels",
       },
     ],
     principle: "Perceivable / Operable",
@@ -84,19 +82,6 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     principle: "Perceivable",
     remediation:
       "In Acrobat: find each <Figure> tag in the Tags panel, right-click → Properties, and enter descriptive alt text; mark decorative images as artifacts instead. In Word, PowerPoint, or Excel: right-click the image and choose View/Edit Alt Text to add a description, or mark it as decorative in the same pane.",
-  },
-  pdf_ua_compliance: {
-    criteria: [
-      {
-        id: "1.3.1",
-        name: "Info and Relationships",
-        level: "A",
-        slug: "info-and-relationships",
-      },
-    ],
-    principle: "Robust / Perceivable",
-    remediation:
-      "Use PAC or Acrobat to review tagging, MarkInfo, tab order, PDF/UA metadata, and list/table legality. In this app, treat this as a Practical-mode PDF/UA-oriented readiness category rather than a final conformance verdict.",
   },
   bookmarks: {
     // NO criteria: no WCAG 2.1 criterion requires bookmarks in a single
@@ -135,12 +120,27 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
       "For PDFs, this analyzer does not yet compute rendered text/background contrast automatically — check low-contrast text manually in Acrobat, the source document, or a PDF accessibility tool that performs rendered color-contrast analysis. For Word, PowerPoint, and Excel files, contrast is checked automatically from the document's explicitly-set colors; adjust the flagged text or fill color in the source application.",
   },
   link_quality: {
+    // The gate asserts 1.3.1 (a link annotation no <Link> tag wraps) and
+    // 4.1.2 (a link with no text at all); 2.4.4 is reported, never scored,
+    // because context may supply a vague link's purpose.
     criteria: [
+      {
+        id: "1.3.1",
+        name: "Info and Relationships",
+        level: "A",
+        slug: "info-and-relationships",
+      },
       {
         id: "2.4.4",
         name: "Link Purpose (In Context)",
         level: "A",
         slug: "link-purpose-in-context",
+      },
+      {
+        id: "4.1.2",
+        name: "Name, Role, Value",
+        level: "A",
+        slug: "name-role-value",
       },
     ],
     principle: "Operable",
@@ -189,6 +189,42 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     principle: "Perceivable",
     remediation:
       "In Acrobat: use the Reading Order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow. In PowerPoint: use the Selection Pane (Home → Arrange → Selection Pane) to reorder shapes so each slide's title reads first. In Word, reading order generally follows the document's linear flow — check floating objects, text boxes, and wrapped images manually.",
+  },
+
+  // Office-only categories (2026-09-02): these carried no entry, so their
+  // cards rendered no references block at all.
+  list_structure: {
+    criteria: [
+      {
+        id: "1.3.1",
+        name: "Info and Relationships",
+        level: "A",
+        slug: "info-and-relationships",
+      },
+    ],
+    principle: "Perceivable",
+    remediation:
+      "In Word or PowerPoint, select the typed bullets or numbers and apply the Bullets or Numbering button so the list is announced as a list. Screen readers then report the item count and position.",
+  },
+  slide_titles: {
+    criteria: [
+      {
+        id: "1.3.1",
+        name: "Info and Relationships",
+        level: "A",
+        slug: "info-and-relationships",
+      },
+    ],
+    principle: "Perceivable",
+    remediation:
+      "In PowerPoint: Home → Layout → choose a layout with a Title placeholder, then move the heading text into it. A heading typed into an ordinary text box is visible but not programmatically a heading; whether every slide has a title at all is WCAG 2.4.10 (Level AAA) and is reported, never scored.",
+  },
+  sheet_names: {
+    // No criterion: default "Sheet1" tab names are an unscored advisory.
+    criteria: [],
+    principle: "Operable",
+    remediation:
+      'In Excel: right-click each sheet tab → Rename, and give every visible sheet a name that says what it holds. Remove empty sheets. Whether a name is descriptive is a human judgment (WCAG 2.4.6), listed as "not assessed" on every report.',
   },
 };
 

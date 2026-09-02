@@ -180,3 +180,51 @@ describe("extractVerdict — sorting and distinct-rule count", () => {
     expect(v.error).toBeTruthy();
   });
 });
+
+describe("extractVerdict — edge shapes (2026-09-02)", () => {
+  const withSummaries = (summaries: unknown[], compliant = false) => ({
+    report: {
+      jobs: [
+        {
+          validationResult: [
+            {
+              profileName: "PDF/UA-1 validation profile",
+              isCompliant: compliant,
+              details: {
+                passedRules: 1,
+                failedRules: summaries.length,
+                passedChecks: 1,
+                failedChecks: 0,
+                ruleSummaries: summaries,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  it("a rule summary with no failedChecks and no count is NOT counted as a failure (default 0, never 1)", () => {
+    const v = extractVerdict(
+      withSummaries([
+        {
+          ruleStatus: "PASSED",
+          specification: "ISO 14289-1:2014",
+          clause: "7.1",
+          testNumber: 1,
+          status: "passed",
+          description: "x",
+        },
+      ]),
+      false,
+    );
+    expect(v.failures).toEqual([]);
+    expect(v.distinctRuleCount).toBe(0);
+  });
+
+  it("compliant output behind a non-zero exit is an ERROR, not a silent 'failed with 0 rules'", () => {
+    const v = extractVerdict(withSummaries([], true), true);
+    expect(v.passed).toBe(false);
+    expect(v.error).toMatch(/exited with an error/i);
+  });
+});

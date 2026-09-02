@@ -1,7 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: [] });
 
-const wcag = useWcag();
 const runtimeConfig = useRuntimeConfig();
 const iitaaUrl = String(
   runtimeConfig.public.iitaaUrl ?? "https://doit.illinois.gov/initiatives/accessibility/iitaa.html",
@@ -117,7 +116,7 @@ useHead({
               Accessible Authentication (AA)
             </td>
             <td class="px-4 py-2.5">No memory/puzzle test required to log in.</td>
-            <td class="px-4 py-2.5">Only interactive forms.</td>
+            <td class="px-4 py-2.5">No — login flows only; a document form is not a login.</td>
           </tr>
         </tbody>
       </table>
@@ -127,9 +126,11 @@ useHead({
     <p class="text-[var(--text-secondary)] leading-relaxed mb-3">
       For ordinary documents (reports, memos, forms you only read), moving from 2.1 to 2.2 changes
       nothing about what this tool checks — the automated checks are identical. We display "WCAG
-      2.1" because that is the version the law names, and the rules 2.2 adds are described on this
-      page rather than listed in each document's verdict — they are interactive and manual, and we
-      will not pretend we tested them.
+      2.1" because that is the version the law names. The rules 2.2 adds are described on this page;
+      the two that concern form controls (2.5.8 Target Size and 3.3.7 Redundant Entry) are also
+      listed as "not assessed" on any PDF that has form fields, clearly marked as beyond the
+      standard your grade measures. They are interactive and manual, and we will not pretend we
+      tested them.
     </p>
     <p class="text-[var(--text-secondary)] leading-relaxed mb-8">
       The audit reports against WCAG 2.1 by default, so what you see is already the legal minimum.
@@ -138,8 +139,11 @@ useHead({
     </p>
 
     <div class="flex flex-wrap gap-3">
+      <!-- Hard-coded to the 2.2 reference: this page is ABOUT 2.2, while
+           useWcag().quickref follows the displayed version (2.1 by default) —
+           the label and the link disagreed (2026-09-02). -->
       <a
-        :href="wcag.quickref"
+        href="https://www.w3.org/WAI/WCAG22/quickref/"
         target="_blank"
         rel="noopener noreferrer"
         class="text-sm text-[var(--link)] hover:text-[var(--link-hover)] underline"

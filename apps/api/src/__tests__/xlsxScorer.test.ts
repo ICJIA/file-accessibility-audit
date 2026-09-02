@@ -129,10 +129,8 @@ describe("XLSX config", () => {
     expect(allDecorative.categories.find((c) => c.id === "alt_text")!.score).toBe(null);
   });
 
-  it("sheet_names is registered in the WCAG category map", () => {
-    expect(WCAG_CATEGORY_MAP.sheet_names).toEqual([
-      { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
-    ]);
+  it("sheet_names carries NO WCAG category map entry — default tab names are an unscored advisory, and 2.4.6 is never asserted (2026-09-02)", () => {
+    expect(WCAG_CATEGORY_MAP.sheet_names).toBeUndefined();
   });
 });
 

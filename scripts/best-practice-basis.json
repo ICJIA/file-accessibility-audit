@@ -1,6 +1,6 @@
 {
   "//": "Reviewed co-occurrences: a Best-practice row reading NOT MET on a document whose SAME category carries a failing WCAG criterion. Each entry means a person confirmed the row is about a different defect than the failure. Regenerate with `pnpm best-practice-basis --bless` and fill in `reviewed` in the same commit.",
-  "blessed": "2026-09-01",
+  "blessed": "2026-09-02",
   "pairs": [
     {
       "practice": "character-mapping",
@@ -10,11 +10,18 @@
       "reviewed": "Different defects in the same category. The SCORED failures are about WHERE the text is: a structure tree that references no content, and 24,697 characters painted outside the tagged content entirely, so nothing a screen reader follows reaches them (1.3.1). This row is about whether characters can be DECODED to readable text at all — a broken or absent ToUnicode map, which is a PDF/UA concern and unscored below the small band. A document can have perfectly mapped characters that are entirely untagged (this one), or fully tagged text that extracts as garbage. Neither implies the other. Reviewed 2026-08-31 on Drug Testing Lit Review."
     },
     {
-      "practice": "display-doc-title",
+      "practice": "descriptive-title",
+      "category": "title_language",
+      "sc": "2.4.2",
+      "level": "A",
+      "reviewed": "Different defects in the same category. The SCORED 2.4.2 failure beside this row is the DisplayDocTitle rule (4c): the title exists but the viewer preference is off, so viewers show the filename. This row is about the WORDING of the title that does exist — it names the document inside file-name machinery (underscores, a hash, an export timestamp) and whether it describes the document well is a person's judgment (F25's own test). The two cannot be the same defect by construction: the advisory is emitted only when the title is NOT the scored F25 shape (pdfjs.titleIsToolGenerated false), and the F25 rule fires only when it is. Reviewed 2026-09-02 on DVFR_Biennial_Report_2024 and Overview_Methamphetamine_Trends."
+    },
+    {
+      "practice": "descriptive-title",
       "category": "title_language",
       "sc": "3.1.1",
       "level": "A",
-      "reviewed": "Different defects. 3.1.1 Language of Page fails because the document declares no language (or a meaningless one); this row is about the DisplayDocTitle viewer preference. Neither touches the other: a file can declare en-US perfectly and still show its filename in the title bar."
+      "reviewed": "Different defects in the same category. 3.1.1 is the document LANGUAGE (missing, unusable, or contradicting the text); this row is about the document TITLE's wording. They share the title_language category only because the scorer groups the two metadata properties together. Reviewed 2026-09-02 on DVFR_Biennial_Report_2024 and Overview_Methamphetamine_Trends."
     },
     {
       "practice": "font-embedding",

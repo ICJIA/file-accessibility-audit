@@ -124,8 +124,9 @@ export interface BrandingInfo {
 
 // Plain-language standards basis, shown in every export's conformance block.
 // WCAG 2.2 is a superset of 2.1 AA; IITAA 2.1 still mandates WCAG 2.1 AA as the
-// legal minimum for Illinois state/local government. ADA Title II (effective April
-// 2026) requires WCAG 2.1 AA for state and local government digital content.
+// legal minimum for Illinois state/local government. The ADA Title II rule requires
+// WCAG 2.1 AA for state and local government digital content (compliance dates
+// April 26, 2027 / April 26, 2028 under the DOJ interim final rule).
 export function standardsBasis(wcagVersion: string): string {
   const versionNote =
     wcagVersion === "2.2"

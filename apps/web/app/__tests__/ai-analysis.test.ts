@@ -53,6 +53,27 @@ function baseResult(overrides: any = {}) {
   };
 }
 
+describe("buildAiAnalysis — veraPDF error state", () => {
+  it("says the check could not be completed — never 'FAILED' or '0 failure(s)' — when veraPDF errored", () => {
+    const out = buildAiAnalysis(
+      baseResult({
+        pdfUaVerdict: {
+          available: true,
+          passed: false,
+          profile: "PDF/UA-1 validation profile",
+          failures: [],
+          totalFailureCount: 0,
+          distinctRuleCount: 0,
+          error: "veraPDF exited with an error and produced no output",
+        },
+      }),
+    );
+    expect(out).toMatch(/could not be completed/i);
+    expect(out).not.toMatch(/Verdict: FAILED/);
+    expect(out).not.toMatch(/0 failure\(s\)/);
+  });
+});
+
 describe("buildAiAnalysis", () => {
   it("includes filename, page count, score, grade, and verdict", () => {
     const out = buildAiAnalysis(baseResult());

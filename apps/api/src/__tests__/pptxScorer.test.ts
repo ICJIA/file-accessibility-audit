@@ -25,10 +25,9 @@ describe("PPTX config", () => {
     expect(w.link_quality).toBe(0.08);
   });
 
-  it("slide_titles is registered in the WCAG category map", () => {
+  it("slide_titles is registered in the WCAG category map — 1.3.1 only; 2.4.6 is never asserted (2026-09-02)", () => {
     expect(WCAG_CATEGORY_MAP.slide_titles).toEqual([
       { sc: "1.3.1", name: "Info and Relationships", level: "A" },
-      { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
     ]);
   });
 });

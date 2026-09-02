@@ -293,17 +293,32 @@ export function checkpointForVeraClause(clause: string, description: string): st
   if (trimmed === "") return null;
   const segments = trimmed.split(".");
   const head = segments[0];
-  if (head === "5" || head === "6") return "06"; // conformance & metadata identifier
+  // Clause 5 is the pdfuaid identification schema — Matterhorn 06 (Metadata).
+  // Clause 6 (file header, MarkInfo /Marked) has no Matterhorn condition of
+  // its own: it stays in the visible unmapped bucket rather than being filed
+  // under Metadata (2026-09-02).
+  if (head === "5") return "06";
+  if (head === "6") return null;
   const key = segments.length >= 2 ? `${segments[0]}.${segments[1]}` : trimmed;
   if (key === "7.1") {
     if (/displaydoctitle|viewerpreferences/i.test(description)) return "07";
     if (/metadata|dc:title|xmp/i.test(description)) return "06";
+    // 7.1-5/6/7: non-standard types mapped, no circular mapping, standard
+    // tags not remapped — the RoleMap rules, which the analyzer's identical
+    // advisories file under 02 (Role Mapping), not 01.
+    if (/mapped to the nearest|circular mapping|remapped|role ?map/i.test(description)) return "02";
     return "01";
   }
   if (key === "7.2") {
     if (/unicode|character|glyph|mapping/i.test(description)) return "10";
     if (/language|\blang\b/i.test(description)) return "11";
     if (/stretch|expansion/i.test(description)) return "12";
+    // The PDF/UA-1 profile files table containment/regularity (7.2-3…16,
+    // 7.2-36…43) and list structure (7.2-17…20, 7.2-40) under clause 7.2.
+    // Unrouted, the Tables and Lists rows read "No machine-detected issues"
+    // while veraPDF's own table failures sat in "Other PDF/UA rules".
+    if (/\b(table|TR|TH|TD|THead|TBody|TFoot)\b/i.test(description)) return "15";
+    if (/\b(LI|LBody|Lbl)\b|\bL element\b/.test(description)) return "16";
     return null; // visible bucket — never a guess
   }
   return VERA_CLAUSE_MAP[key] ?? null;

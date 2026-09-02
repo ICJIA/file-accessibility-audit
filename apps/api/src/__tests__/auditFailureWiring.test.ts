@@ -63,6 +63,7 @@ function mockCommon(privileged: boolean) {
   vi.doMock("../middleware/rateLimiter.js", () => ({
     analyzeLimiter: (_req: any, _res: any, next: () => void) => next(),
     reportsLimiter: (_req: any, _res: any, next: () => void) => next(),
+    bulkLimiter: (_req: any, _res: any, next: () => void) => next(),
     isPrivilegedRequest: () => privileged,
   }));
   return { recordAuditFailure };

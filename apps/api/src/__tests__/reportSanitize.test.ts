@@ -355,3 +355,26 @@ describe("sanitizeStoredReport — malformed conformance structure (F1b robustne
     );
   });
 });
+
+describe("page-audit payloads: violations[].helpUrl is neutralised at rest (2026-09-02)", () => {
+  it("clears a javascript: helpUrl on a stored page report, keeping the finding", () => {
+    const r = sanitizeStoredReport({
+      pageUrl: "https://example.gov/",
+      score: 90,
+      violations: [
+        { id: "image-alt", impact: "critical", helpUrl: "javascript:alert(1)", nodes: [] },
+        {
+          id: "label",
+          impact: "serious",
+          helpUrl: "https://dequeuniversity.com/rules/axe/4.10/label",
+          nodes: [],
+        },
+      ],
+    });
+    expect(r.ok).toBe(true);
+    const v = (r as any).report.violations;
+    expect(v[0].helpUrl).toBe("");
+    expect(v[0].id).toBe("image-alt");
+    expect(v[1].helpUrl).toMatch(/^https:/);
+  });
+});

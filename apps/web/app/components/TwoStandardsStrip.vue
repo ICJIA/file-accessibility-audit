@@ -84,6 +84,7 @@
 
 <script setup lang="ts">
 import { LEGAL_ONLY_SCORING_SINCE } from "@file-audit/shared";
+import type { PdfUaVerdict } from "@file-audit/shared";
 import { computed } from "vue";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
@@ -102,6 +103,11 @@ const props = defineProps<{
     /** Set when veraPDF started but could not finish (crash/timeout). */
     error?: string;
   } | null;
+  /** veraPDF's WCAG-profile pass (wcagVerdict). Only consulted for the
+   *  clean line: "No automated failures found" is true of THIS checker, and
+   *  when the profile run beside it flagged WCAG items the line says so and
+   *  points at the technical report (2026-09-02). Never a failure here. */
+  wcagVerdict?: Partial<PdfUaVerdict> | null;
   /** The stored row's createdAt on /report/[id]; absent for a live analysis.
    *  Gates the "nothing beyond WCAG 2.1 is counted" claim: a payload
    *  analysed before the legal-only sweep carries deductions today's model
@@ -151,6 +157,16 @@ const lawVerdict = computed(() => {
         ? ` in ${cats} ${cats === 1 ? "category" : "categories"}`
         : "";
     return `${n} ${n === 1 ? "criterion" : "criteria"} failing${bridge}`;
+  }
+  const w = props.wcagVerdict;
+  const veraItems =
+    w?.available && !w.error
+      ? typeof w.totalFailureCount === "number" && w.totalFailureCount > 0
+        ? w.totalFailureCount
+        : (w.failures ?? []).reduce((n, f) => n + (f.count ?? 1), 0)
+      : 0;
+  if (veraItems > 0) {
+    return `No automated failures found by this checker — veraPDF's WCAG-profile pass flagged ${veraItems} ${veraItems === 1 ? "item" : "items"} to verify by hand (see the technical report)`;
   }
   return "No automated failures found";
 });

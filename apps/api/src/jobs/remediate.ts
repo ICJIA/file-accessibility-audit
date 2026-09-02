@@ -36,6 +36,7 @@ import {
 } from "../services/remediationJobs.js";
 import { qpdfNormalize } from "../services/qpdfNormalize.js";
 import { runVeraPdf } from "../services/veraPdf.js";
+import { veraPdfOutcome } from "./remediateVeraPdf.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -256,16 +257,24 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     //     surface the verdict honestly.
     try {
       const vera = await runVeraPdf(taggedPath);
-      setVeraPdfResult(jobId, vera.available, vera.passed, JSON.stringify(vera));
-      if (vera.available) {
-        recordEvent(jobId, vera.passed ? "verapdf_passed" : "verapdf_failed", {
+      // Three states, not two: an errored run has NO verdict and must not be
+      // stored or announced as a failure (see remediateVeraPdf.ts).
+      const outcome = veraPdfOutcome(vera);
+      setVeraPdfResult(jobId, vera.available, outcome.passed, JSON.stringify(vera));
+      if (outcome.event === "verapdf_unavailable") {
+        recordEvent(jobId, "verapdf_unavailable", {
+          reason: "VERAPDF_PATH not configured — skipping PDF/UA conformance check",
+        });
+      } else if (outcome.event === "verapdf_error") {
+        recordEvent(jobId, "verapdf_error", {
+          profile: vera.profile,
+          error: vera.error ?? "unknown",
+        });
+      } else {
+        recordEvent(jobId, outcome.event, {
           profile: vera.profile,
           failure_count: vera.totalFailureCount,
           top_failures: vera.failures.slice(0, 5).map((f) => f.ruleId),
-        });
-      } else {
-        recordEvent(jobId, "verapdf_unavailable", {
-          reason: "VERAPDF_PATH not configured — skipping PDF/UA conformance check",
         });
       }
     } catch (e) {

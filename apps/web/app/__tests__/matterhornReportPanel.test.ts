@@ -347,6 +347,72 @@ describe("buildMatterhornProjection — veraPDF mapping and the tri-state", () =
   it("maps clauses to checkpoints (7.4 → 14, 7.21.x → 31, 5 → 06) and keyword-splits 7.1/7.2", () => {
     expect(checkpointForVeraClause("7.4", "heading levels")).toBe("14");
     expect(checkpointForVeraClause("7.21.4.2", "CIDSet incomplete")).toBe("31");
+  });
+
+  it("routes the PDF/UA-1 clause 7.2 table and list structure rules to Tables (15) and Lists (16) — they used to fall into the unmapped bucket (2026-09-02)", () => {
+    expect(
+      checkpointForVeraClause(
+        "7.2",
+        "Table element may contain only TR, THead, TBody, TFoot and Caption elements",
+      ),
+    ).toBe("15");
+    expect(checkpointForVeraClause("7.2", "TH element should be contained in TR element")).toBe(
+      "15",
+    );
+    expect(
+      checkpointForVeraClause(
+        "7.2",
+        "Table rows shall have the same number of columns (taking into account column spans)",
+      ),
+    ).toBe("15");
+    expect(checkpointForVeraClause("7.2", "LI element should be contained in L element")).toBe(
+      "16",
+    );
+    expect(
+      checkpointForVeraClause("7.2", "L element may contain only L, LI and Caption elements"),
+    ).toBe("16");
+    // Language rules in the same clause keep going to 11.
+    expect(
+      checkpointForVeraClause(
+        "7.2",
+        "Natural language for text in Alt attribute shall be determined",
+      ),
+    ).toBe("11");
+  });
+
+  it("routes clause 5 (pdfuaid) to Metadata, leaves clause 6 (file header / MarkInfo) unmapped, and sends the RoleMap rules to Role Mapping (02)", () => {
+    expect(
+      checkpointForVeraClause(
+        "5",
+        "The PDF/UA version and conformance level of a file shall be specified",
+      ),
+    ).toBe("06");
+    expect(
+      checkpointForVeraClause(
+        "6.2",
+        "The document catalog dictionary shall include a MarkInfo dictionary containing an entry, Marked, whose value shall be true",
+      ),
+    ).toBeNull();
+    expect(checkpointForVeraClause("6.1", "The file header shall consist of %PDF-1.n")).toBeNull();
+    expect(
+      checkpointForVeraClause(
+        "7.1",
+        "All non-standard structure types shall be mapped to the nearest functionally equivalent standard type",
+      ),
+    ).toBe("02");
+    expect(checkpointForVeraClause("7.1", "A circular mapping shall not exist")).toBe("02");
+    expect(
+      checkpointForVeraClause(
+        "7.1",
+        "Standard tags defined in ISO 32000-1:2008, 14.8.4, shall not be remapped",
+      ),
+    ).toBe("02");
+    expect(
+      checkpointForVeraClause(
+        "7.1",
+        "Content shall be marked as Artifact or tagged as real content",
+      ),
+    ).toBe("01");
     expect(checkpointForVeraClause("5", "PDF/UA identifier missing in metadata")).toBe("06");
     expect(checkpointForVeraClause("7.1", "ViewerPreferences DisplayDocTitle not set")).toBe("07");
     expect(checkpointForVeraClause("7.1", "dc:title missing from XMP metadata")).toBe("06");

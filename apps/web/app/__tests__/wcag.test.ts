@@ -94,9 +94,7 @@ describe("WCAG_MAP remediation: Office equivalents added alongside Acrobat steps
     expect(r).not.toMatch(/PDF.{0,80}contrast is checked automatically/i);
   });
 
-  it("pdf_ua_compliance is left untouched — PDF/UA has no Office equivalent", () => {
-    expect(WCAG_MAP.pdf_ua_compliance!.remediation).toBe(
-      "Use PAC or Acrobat to review tagging, MarkInfo, tab order, PDF/UA metadata, and list/table legality. In this app, treat this as a Practical-mode PDF/UA-oriented readiness category rather than a final conformance verdict.",
-    );
+  it("pdf_ua_compliance no longer exists — the Practical-mode category was retired in v1.21 and its map entry went with it (2026-09-02)", () => {
+    expect(WCAG_MAP.pdf_ua_compliance).toBeUndefined();
   });
 });

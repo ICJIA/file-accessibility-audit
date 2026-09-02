@@ -224,7 +224,10 @@ export const WCAG_22_NEW_AA = [
     name: "Accessible Authentication (Minimum)",
     level: "AA",
     slug: "accessible-authentication-minimum",
-    pdfFormRelevant: true,
+    // A PDF form is not an authentication process — 3.3.8 is about logging
+    // in (cognitive function tests). Listing it on every form document sent
+    // readers to a criterion with nothing to check (corrected 2026-09-02).
+    pdfFormRelevant: false,
   },
 ] as const;
 
@@ -257,6 +260,18 @@ export const WCAG_22_NEW_AA = [
 export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
+  {
+    id: "accuses-only-what-it-sees-2026-09-02",
+    badge: "Scoring",
+    text: "Two accusations are now made only on evidence \u2014 some PDF scores will move up. A PDF with no heading tags is failed for it only when the checker can see section headings painted on the page (larger or bold lines sitting over body text), never on page count alone. And a title is failed as a bare file name only when it really is one: a real title with a download timestamp or underscores glued on names the document and is reported for review instead. A text box exported as a picture is no longer counted as a missing description.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "September 2, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
   {
     id: "fix-time-estimates-2026-09-01",
     badge: "New",
@@ -1915,6 +1930,10 @@ export const RATE_LIMITS = {
   /** POST /api/reports — keyed by IP (anonymous mode).
    *  Prevents a single source from filling the shared_reports table. */
   reports: { max: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
+  /** POST /api/bulk-from-inventory — one unauthenticated request fans out
+   *  into up to 100 server-side fetches and analyses. Keyed by IP; its own
+   *  budget rather than the share-link limiter's (2026-09-02). */
+  bulk: { max: 3, windowMs: 60 * 60 * 1000 }, // 3 per hour
 
   /**
    * All routes — catch-all burst guard against request floods. Two-tier,

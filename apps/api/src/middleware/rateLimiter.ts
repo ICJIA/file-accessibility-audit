@@ -256,6 +256,19 @@ export const reportsLimiter = rateLimit({
   handler: loggedHandler("reports", REPORTS_MESSAGE),
 });
 
+const BULK_MESSAGE = { error: "Bulk audit limit reached. Please try again later." };
+/** /api/bulk-from-inventory: 100 fetches + analyses per request, so a
+ *  budget of its own (2026-09-02). */
+export const bulkLimiter = rateLimit({
+  windowMs: RATE_LIMITS.bulk.windowMs,
+  max: RATE_LIMITS.bulk.max,
+  keyGenerator: ipKey,
+  message: BULK_MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: loggedHandler("bulk", BULK_MESSAGE),
+});
+
 // Two-tier catch-all burst guard, applied to every route in index.ts.
 // Remediation status polls and the public /api/status document are exempt
 // (each has its own limiter below) so neither a long-running job's progress

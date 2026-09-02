@@ -14,7 +14,7 @@ export function useWcag() {
     version,
     level,
     quickref,
-    /** "WCAG 2.2 Level AA" */
+    /** "WCAG 2.1 Level AA" (or 2.2 when WCAG_VERSION overrides the default) */
     label: `WCAG ${version} Level ${level}`,
     /** Full Understanding-page URL for a criterion slug. */
     understandingUrl: (slug: string) => `${base}${slug}.html`,

@@ -21,6 +21,9 @@ export type RemediationEvent =
   | "validation_failed"
   | "verapdf_passed"
   | "verapdf_failed"
+  // The run itself failed (timeout, no output, unparseable JSON): no verdict
+  // exists, so neither "passed" nor "failed" may be recorded (2026-09-02).
+  | "verapdf_error"
   | "verapdf_unavailable"
   | "output_ready"
   | "downloaded"

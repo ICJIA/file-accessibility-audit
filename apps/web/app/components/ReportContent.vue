@@ -11,6 +11,7 @@
       :wcag-version="wcag.version"
       :file-type="result.fileType"
       :pdf-ua-verdict="result.pdfUaVerdict"
+      :wcag-verdict="result.wcagVerdict"
       :analyzed-at="analyzedAt"
       class="mb-8"
     />
@@ -235,7 +236,7 @@
         >
           <p class="text-sm font-semibold text-[var(--text-heading)]">
             <span aria-hidden="true">⚖️</span>
-            <template v-if="cat.severity">
+            <template v-if="lostPoints(cat)">
               Independently confirmed &mdash; this is veraPDF&rsquo;s finding, not ours
             </template>
             <template v-else> veraPDF is stricter here than this checker </template>
@@ -243,7 +244,7 @@
           <p class="text-sm text-[var(--text-muted)] mt-1">
             veraPDF is the PDF industry&rsquo;s own validator, published by the PDF Association and
             not written by us.
-            <template v-if="cat.severity">
+            <template v-if="lostPoints(cat)">
               Run against this document, it failed the same point:
             </template>
             <template v-else>
@@ -440,8 +441,10 @@
                 WCAG {{ wcag.version }} References
               </div>
               <div class="text-xs text-[var(--text-muted)] mt-0.5">
-                This score is tied to the following Web Content Accessibility Guidelines success
-                criteria. Click any reference to verify the definition on the official W3C site.
+                The Web Content Accessibility Guidelines success criteria this category checks
+                against. Only a confirmed failure named in the verdict moves the score; the rest are
+                reported for review. Click any reference to verify the definition on the official
+                W3C site.
               </div>
             </div>
           </div>
@@ -616,6 +619,7 @@ import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
 import { partitionCardFindings, isGuidanceFinding, isNeutralFinding } from "~/utils/findings";
 import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
+import type { PdfUaVerdict } from "@file-audit/shared";
 import { pdfUaFailuresByCategory } from "./pdfUaCategory";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { useWcag } from "~/composables/useWcag";
@@ -637,6 +641,8 @@ interface ReportLike {
   /** veraPDF's own verdict, when this report has one (PDFs where it ran).
    *  Read only to quote the referee's exact words beside the matching
    *  evidence card — never to score anything. */
+  /** veraPDF's WCAG-profile pass; only the strip's clean line reads it. */
+  wcagVerdict?: Partial<PdfUaVerdict> | null;
   pdfUaVerdict?: {
     available?: boolean;
     failures?: Array<{ clause?: string; ruleId?: string; description?: string; count?: number }>;
@@ -756,6 +762,15 @@ function catColor(cat: { grade?: string | null }): string {
 
 function sevColor(severity: string): string {
   return severityColor(severity);
+}
+
+// "Independently confirmed … it failed the same point" is only true when THIS
+// checker took points off the category. A clean category is not silent: its
+// severity is the string "No issues found" (or "No scored issues" when an
+// advisory sits under a 100), so a truthiness check on severity called every
+// clean 100/A card a confirmation of a finding it never made (2026-09-02).
+function lostPoints(cat: CategoryResult): boolean {
+  return typeof cat.score === "number" && cat.score < 100;
 }
 
 function findingIcon(cat: { score: number | null }): string {

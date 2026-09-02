@@ -53,7 +53,7 @@ Client → HTTPS multipart upload (re-upload required by design)
   • qpdf --check tagged.pdf → must not report warnings
   • veraPDF --flavour ua1 tagged.pdf → conformance verdict (informational)
   • Emit: 'validation_passed' OR 'validation_failed'
-    + 'verapdf_passed' / 'verapdf_failed' / 'verapdf_unavailable'
+    + 'verapdf_passed' / 'verapdf_failed' / 'verapdf_error' / 'verapdf_unavailable'
   │
   ▼
 [Stage 4: comparing]

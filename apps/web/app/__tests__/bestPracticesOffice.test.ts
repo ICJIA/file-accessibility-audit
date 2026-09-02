@@ -678,10 +678,12 @@ describe("xlsx-data-outside-tables", () => {
   // reproduced with [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE], which
   // returned MET, claiming "none has sizable data sitting outside a defined
   // Table," before this fix.
-  it("is NOT MET when there are zero defined tables anywhere — the tables=0 special case of the same fact this practice measures", () => {
+  it("with zero defined tables anywhere defers to xlsx-defined-tables — one defect, one WORTH DOING chip (2026-09-02)", () => {
+    // The tables=0 case is the same fact xlsx-defined-tables already reports
+    // NOT MET; reading NOT MET here too counted it twice in the summary.
     const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE]);
-    expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/no defined Excel Table anywhere/);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/Defined tables/);
   });
 
   it("is MET when the witness is present with no data-outside-tables advisory and at least one table exists", () => {

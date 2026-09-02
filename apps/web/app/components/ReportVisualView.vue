@@ -76,6 +76,7 @@
         :categories="displayedCategories"
         :conformance="result.conformance"
         :file-type="result.fileType"
+        :wcag-verdict="result.wcagVerdict"
         class="mb-6"
       />
 

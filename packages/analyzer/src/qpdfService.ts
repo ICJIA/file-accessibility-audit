@@ -367,7 +367,7 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
 
   try {
-    fs.writeFileSync(tmpPath, buffer);
+    fs.writeFileSync(tmpPath, buffer, { mode: 0o600 });
 
     const stdout = execFileSync(QPDF_BIN, ["--json", tmpPath], {
       timeout: ANALYSIS.QPDF_TIMEOUT_MS,
@@ -397,7 +397,7 @@ export async function analyzeWithQpdfAsync(buffer: Buffer): Promise<QpdfResult> 
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
 
   try {
-    fs.writeFileSync(tmpPath, buffer);
+    fs.writeFileSync(tmpPath, buffer, { mode: 0o600 });
 
     const stdout = await execQpdfAsync(tmpPath);
     const json = JSON.parse(stdout);

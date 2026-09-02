@@ -402,11 +402,12 @@ describe("scoreDocument — mixed results", () => {
     expect(findCategory(result, "title_language").score).toBe(50);
   });
 
-  it("filename-like title earns partial credit (25 of 50) and a 2.4.2/F25 attribution", () => {
-    const qpdf = makeQpdf({ hasLang: true, lang: "en" });
+  it("a tool-generated / file-name title earns partial credit (25 of 50) and a 2.4.2/F25 attribution", () => {
+    const qpdf = makeQpdf({ hasLang: true, lang: "en", displayDocTitle: true });
     const pdfjs = makePdfjs({
       title: "report_v3_final.pdf",
       titleLooksLikeFilename: true,
+      titleIsToolGenerated: true,
     });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "title_language");
@@ -421,16 +422,187 @@ describe("scoreDocument — mixed results", () => {
     ).toBe(true);
   });
 
+  it("a filename-SHAPED title that still carries real words earns full credit and an unscored advisory — never F25 (2026-09-02)", () => {
+    // "Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808"
+    // was a CONFIRMED Level A failure on a real corpus document because of
+    // its export timestamp. It identifies the document; whether it does so
+    // well is a person's call.
+    const qpdf = makeQpdf({ hasLang: true, lang: "en", displayDocTitle: true });
+    const pdfjs = makePdfjs({
+      title: "Annual_Report_2024_7c7ba4f4f0",
+      titleLooksLikeFilename: true,
+      titleIsToolGenerated: false,
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "title_language");
+    expect(cat.score).toBe(100);
+    const advisory = cat.findings.find((f) => /^Advisory — not scored:/.test(f));
+    expect(advisory).toBeDefined();
+    expect(advisory).toMatch(/reads like a filename/i);
+    expect(result.conformance.failures.some((f) => f.sc === "2.4.2")).toBe(false);
+  });
+
   it("filename-like title still beats no title at all", () => {
     const qpdf = makeQpdf();
     const withFilename = scoreDocument(
       qpdf,
-      makePdfjs({ title: "scan_20240115", titleLooksLikeFilename: true }),
+      makePdfjs({
+        title: "scan_20240115",
+        titleLooksLikeFilename: true,
+        titleIsToolGenerated: true,
+      }),
     );
     const withNone = scoreDocument(qpdf, makePdfjs({ title: null }));
     expect(findCategory(withFilename, "title_language").score!).toBeGreaterThan(
       findCategory(withNone, "title_language").score!,
     );
+  });
+
+  describe("zero heading tags is scored on EVIDENCE of visual headings, never on length (2026-09-02)", () => {
+    // The old rule inferred a confirmed 1.3.1 failure from ≥4 pages, ≥20
+    // paragraphs, or any bookmark, and told the author "its sections exist
+    // only visually" without ever looking. The visual-heading census looks.
+    const tagged = (over: Partial<QpdfResult> = {}) =>
+      makeQpdf({ hasStructTree: true, hasLang: true, lang: "en", headings: [], ...over });
+
+    it("≥2 visual heading candidates + no heading tags → 0/Critical, naming the lines it saw", () => {
+      const result = scoreDocument(
+        tagged({ totalPageCount: 12, paragraphCount: 40 }),
+        makePdfjs({
+          hasText: true,
+          textLength: 5000,
+          visualHeadingCandidateCount: 3,
+          visualHeadingSamples: ["Introduction", "Methods", "Findings"],
+        }),
+      );
+      const cat = findCategory(result, "heading_structure");
+      expect(cat.score).toBe(0);
+      expect(cat.severity).toBe("Critical");
+      const text = cat.findings.join("\n");
+      expect(text).toContain("No heading tags found in the document structure");
+      expect(text).toMatch(/3 line\(s\) look like section headings/);
+      expect(text).toContain('"Introduction"');
+      expect(
+        result.conformance.failures.some(
+          (f) => f.sc === "1.3.1" && f.category === "heading_structure",
+        ),
+      ).toBe(true);
+    });
+
+    it("a ONE-page memo with two bold subheads over body text is scored too — length is not the test", () => {
+      const result = scoreDocument(
+        tagged({ totalPageCount: 1, paragraphCount: 6 }),
+        makePdfjs({
+          hasText: true,
+          textLength: 900,
+          visualHeadingCandidateCount: 2,
+          visualHeadingSamples: ["Background", "Recommendation"],
+        }),
+      );
+      expect(findCategory(result, "heading_structure").score).toBe(0);
+    });
+
+    it("twelve pages with NO visual headings and no heading tags → not scored, no 1.3.1 — the old proxy case", () => {
+      const result = scoreDocument(
+        tagged({ totalPageCount: 12, paragraphCount: 40, outlineCount: 3 }),
+        makePdfjs({
+          hasText: true,
+          textLength: 30000,
+          visualHeadingCandidateCount: 0,
+          visualHeadingSamples: [],
+        }),
+      );
+      const cat = findCategory(result, "heading_structure");
+      expect(cat.score).toBeNull();
+      const text = cat.findings.join("\n");
+      expect(text).toMatch(/No headings were found/);
+      expect(text).toMatch(/no lines that look like/i);
+      expect(result.conformance.failures.some((f) => f.category === "heading_structure")).toBe(
+        false,
+      );
+    });
+
+    it("a single large title line (a one-page chart with one bookmark) is not evidence of sections", () => {
+      const result = scoreDocument(
+        tagged({ totalPageCount: 1, paragraphCount: 0, outlineCount: 1 }),
+        makePdfjs({
+          hasText: true,
+          textLength: 400,
+          visualHeadingCandidateCount: 1,
+          visualHeadingSamples: ["Federal Program Funding"],
+        }),
+      );
+      expect(findCategory(result, "heading_structure").score).toBeNull();
+      expect(result.conformance.failures.some((f) => f.category === "heading_structure")).toBe(
+        false,
+      );
+    });
+
+    it("no census at all (older payload shape) is not evidence either", () => {
+      const result = scoreDocument(
+        tagged({ totalPageCount: 12, paragraphCount: 40 }),
+        makePdfjs({ hasText: true, textLength: 30000 }),
+      );
+      expect(findCategory(result, "heading_structure").score).toBeNull();
+    });
+  });
+
+  describe("text-bearing <Figure>s are not missing alt text (2026-09-02)", () => {
+    // Word exports text boxes, sidebars and SmartArt as <Figure> with the
+    // text nested inside. A screen reader reads that text when no /Alt
+    // exists — adding alt would HIDE it — so the report tells the author to
+    // retag, not describe. It used to count them in the 1.1.1 failure and
+    // the coverage score at the same time.
+    const textFigure = (page: number) => ({
+      page,
+      hasAlt: false,
+      textLength: 120,
+      preview: "Did you know",
+    });
+
+    it("a document whose only figures are text boxes has nothing to describe — alt_text not scored, no 1.1.1", () => {
+      const qpdf = makeQpdf({
+        hasStructTree: true,
+        hasLang: true,
+        lang: "en",
+        images: [
+          { ref: "12 0 R", hasAlt: false },
+          { ref: "13 0 R", hasAlt: false },
+        ],
+      });
+      const pdfjs = makePdfjs({
+        hasText: true,
+        textLength: 2000,
+        title: "T",
+        textBearingFigures: [textFigure(1), textFigure(2)],
+      });
+      const result = scoreDocument(qpdf, pdfjs);
+      const cat = findCategory(result, "alt_text");
+      expect(cat.score).toBeNull();
+      expect(cat.findings.join("\n")).toMatch(/Figures That Contain Text/);
+      expect(result.conformance.failures.some((f) => f.category === "alt_text")).toBe(false);
+    });
+
+    it("mixed: two real figures without alt and one text box → 0 of 2 described, and the verdict counts 2", () => {
+      const qpdf = makeQpdf({
+        hasStructTree: true,
+        images: [
+          { ref: "12 0 R", hasAlt: false },
+          { ref: "13 0 R", hasAlt: false },
+          { ref: "14 0 R", hasAlt: false },
+        ],
+      });
+      const pdfjs = makePdfjs({
+        hasText: true,
+        textLength: 2000,
+        textBearingFigures: [textFigure(1)],
+      });
+      const result = scoreDocument(qpdf, pdfjs);
+      expect(findCategory(result, "alt_text").score).toBe(0);
+      const f = result.conformance.failures.find((x) => x.category === "alt_text");
+      expect(f).toBeDefined();
+      expect(f!.issue).toMatch(/^2 image\(s\) tagged as <Figure>/);
+    });
   });
 
   describe("DisplayDocTitle is scored under 2.4.2 (2026-09-01)", () => {
@@ -525,7 +697,14 @@ describe("scoreDocument — mixed results", () => {
       hasRoleMap: true,
       roleMapEntries: ["Head → P"],
     });
-    const pdfjs = makePdfjs({ pageCount: 30, hasText: true, textLength: 90_000 });
+    // Visual evidence is what scores it now (2026-09-02), not the page count.
+    const pdfjs = makePdfjs({
+      pageCount: 30,
+      hasText: true,
+      textLength: 90_000,
+      visualHeadingCandidateCount: 12,
+      visualHeadingSamples: ["Introduction", "Methods"],
+    });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "heading_structure").score).toBe(0);
     expect(
@@ -802,7 +981,7 @@ describe("weight renormalization", () => {
     expect(result.overallScore).toBe(100);
   });
 
-  it("still scores heading_structure 0 for a SUBSTANTIVE document with no headings", () => {
+  it("still scores heading_structure 0 for a document with VISUAL headings and no heading tags", () => {
     const qpdf = makeQpdf({
       hasStructTree: true,
       hasLang: true,
@@ -813,7 +992,14 @@ describe("weight renormalization", () => {
       structTreeDepth: 3,
       contentOrder: [0, 1, 2],
     });
-    const pdfjs = makePdfjs({ pageCount: 12, hasText: true, textLength: 9000, title: "T" });
+    const pdfjs = makePdfjs({
+      pageCount: 12,
+      hasText: true,
+      textLength: 9000,
+      title: "T",
+      visualHeadingCandidateCount: 4,
+      visualHeadingSamples: ["Summary", "Findings"],
+    });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "heading_structure").score).toBe(0);
   });
@@ -1322,11 +1508,15 @@ describe("generateSummary", () => {
 // ---------------------------------------------------------------------------
 
 describe("scoreHeadingStructure edge cases", () => {
-  it("no headings → score 0, grade F", () => {
-    // Substantive document (many paragraphs) — short heading-less docs are
-    // N/A instead (see the minimal-document test above).
+  it("no heading tags but visual headings → score 0, grade F", () => {
+    // Evidence, not length (2026-09-02): the census saw section headings
+    // painted larger/bold over body text; a heading-less document with no
+    // such lines is N/A instead (see the minimal-document test above).
     const qpdf = makeQpdf({ headings: [], paragraphCount: 40 });
-    const pdfjs = makePdfjs();
+    const pdfjs = makePdfjs({
+      visualHeadingCandidateCount: 3,
+      visualHeadingSamples: ["Introduction", "Methods", "Findings"],
+    });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "heading_structure");
     expect(cat.score).toBe(0);
@@ -1343,7 +1533,13 @@ describe("scoreHeadingStructure edge cases", () => {
       hasRoleMap: true,
       roleMapEntries: ["Head → P", "Subhead_1 → P", "Body_text → P"],
     });
-    const pdfjs = makePdfjs({ pageCount: 30, hasText: true, textLength: 5000 });
+    const pdfjs = makePdfjs({
+      pageCount: 30,
+      hasText: true,
+      textLength: 5000,
+      visualHeadingCandidateCount: 30,
+      visualHeadingSamples: ["Chapter 1", "Chapter 2"],
+    });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "heading_structure");
     expect(cat.findings.some((f) => f.includes("RoleMap maps them to paragraphs"))).toBe(true);

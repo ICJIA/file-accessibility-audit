@@ -97,6 +97,12 @@ const RULE_CATEGORY: Record<string, string> = {
   "7.18.5-1": "link_quality",
   "7.18.5-2": "link_quality",
   "2.4.9-1": "link_quality",
+  // Fonts: ONLY the ToUnicode rule is a point this checker makes (the
+  // character-mapping census). Embedding, glyph-width and CMap rules were
+  // removed from scoring as non-legal in v1.131, and routing them here read
+  // "it failed the same point" under a step about untagged text (2026-09-02).
+  "7.21.7-1": "text_extractability",
+  "7.21.7-2": "text_extractability",
   // Form fields.
   "7.15-1": "form_accessibility",
   "7.18.1-3": "form_accessibility",
@@ -107,7 +113,6 @@ const RULE_CATEGORY: Record<string, string> = {
 /** Clause-prefix fallbacks for families that are uniform per category.
  *  Ordered longest-first so "7.21.4.1" wins over a would-be "7.2". */
 const CLAUSE_CATEGORY: ReadonlyArray<[prefix: string, category: string]> = [
-  ["7.21", "text_extractability"], // fonts: embedding, glyphs, ToUnicode, CMaps
   ["7.4.2", "heading_structure"],
   ["7.4.4", "heading_structure"],
   ["7.5", "table_markup"], // TH Scope / Headers association
