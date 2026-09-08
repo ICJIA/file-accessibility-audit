@@ -1073,6 +1073,110 @@ export function renderDiskLine(raw: unknown): string {
   );
 }
 
+/** A number the payload may not carry, or null. Distinct from asCount, which
+ *  collapses "unknown" to 0 — the whole point of this block is that an
+ *  unmeasured figure must never render as a measured zero. */
+function asNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * How hard the machine is working: CPU and memory, plus a repeat of the disk
+ * line so the three read together.
+ *
+ * Additive like every curated section — a payload predating `load` (an older
+ * API build, a stored report) renders nothing at all.
+ *
+ * THE COPY IS THE FEATURE HERE. This is the only card on the page whose amber
+ * state means "working hard" rather than "something is wrong", and the
+ * difference has to survive a reader who arrives mid-audit and is already
+ * worried. One 246-page report saturates the production droplet for ~40
+ * seconds; during that window the CPU dot is amber, the service is entirely
+ * healthy, `degraded` is empty and the JSON still says "ok". So the card says
+ * busy, never failing, and it explains why a load average above the core
+ * count is normal rather than leaving a number to be misread.
+ *
+ * Disk is REPEATED, not moved. Its home stays in the backup card, where a
+ * full disk explains a stopped backup; an operator asking "is the box
+ * healthy" wants all three figures in one place. The rendered line is
+ * duplicated — the payload key is not.
+ */
+export function renderLoad(body: Record<string, unknown>): string {
+  const l = asRecord(body.load);
+  if (!l) return "";
+
+  const perCore = asNumberOrNull(l.load_1m_per_core);
+  const cores = asNumberOrNull(l.cores);
+  const usedPct = asNumberOrNull(l.memory_used_pct);
+  const busy = perCore !== null && perCore >= STATUS.LOAD_BUSY_PER_CORE;
+  const tight = usedPct !== null && usedPct >= STATUS.MEMORY_TIGHT_USED_PCT;
+
+  // Both halves unreadable. Explained rather than alarmed about, exactly like
+  // a backup that has never run: nothing is wrong, the measurement is simply
+  // not available on this platform.
+  if (perCore === null && usedPct === null) {
+    return fold({
+      id: "load-h",
+      title: "Server load",
+      peek: "not measured on this server",
+      body:
+        `<p class="none">Processor and memory use could not be read on this server. ` +
+        `Auditing is unaffected — this card is an operator&#39;s view of the machine, not a ` +
+        `check the service depends on.</p>` +
+        renderDiskLine(body.disk),
+    });
+  }
+
+  const cpuLine =
+    perCore === null
+      ? `<p class="none">Processor load could not be read on this server.</p>`
+      : `<p class="bak"><span class="dot" style="background:${busy ? "#d29922" : "#3fb950"}"></span>` +
+        `Processor <strong>${perCore.toFixed(2)}</strong> per core` +
+        `${cores === null ? "" : ` across ${cores} core${cores === 1 ? "" : "s"}`}` +
+        `${
+          busy
+            ? " — <strong>working hard</strong> right now. Nothing has failed: a document being " +
+              "audited uses every core it can get, and this figure falls back on its own when the " +
+              "audit finishes."
+            : ""
+        }</p>`;
+
+  const memLine =
+    usedPct === null
+      ? `<p class="none">Memory use could not be read on this server.</p>`
+      : `<p class="bak"><span class="dot" style="background:${tight ? "#d29922" : "#3fb950"}"></span>` +
+        `Memory <strong>${usedPct}%</strong> in use` +
+        `${
+          l.memory_available_bytes !== null && l.memory_total_bytes !== null
+            ? ` (${formatBytes(l.memory_available_bytes)} still available of ${formatBytes(l.memory_total_bytes)})`
+            : ""
+        }${tight ? " — <strong>running tight</strong>." : ""}</p>`;
+
+  // The peek carries whichever half is knowable, so a collapsed card still
+  // answers its question on a machine that could only measure one of them.
+  const peekBits = [
+    perCore === null ? null : `${perCore.toFixed(2)} per core`,
+    usedPct === null ? null : `${usedPct}% memory`,
+  ].filter((x): x is string => x !== null);
+  const peek = `${busy || tight ? "\u25cf" : "\u2713"} ${peekBits.join(" \u00b7 ")}`;
+
+  return fold({
+    id: "load-h",
+    title: "Server load",
+    peek,
+    body:
+      cpuLine +
+      memLine +
+      renderDiskLine(body.disk) +
+      `<p class="caveat">A snapshot of the machine at the moment this page was built, not an ` +
+      `average over the day. &ldquo;Per core&rdquo; is the one figure worth reading: below 1.00 ` +
+      `everything waiting to run fits the processors this server has. Above it, work is queuing — ` +
+      `normal while a large document is being audited, and it clears by itself. ` +
+      `<strong>None of these numbers can mark the service degraded</strong>, because a busy server ` +
+      `is this tool doing its job rather than failing at it.</p>`,
+  });
+}
+
 /**
  * Last-successful-backup row. Additive like every curated section: a payload
  * predating the field (older API build, shared report) renders nothing.
@@ -1200,6 +1304,7 @@ ${renderFormatSplit(body)}
 ${renderDocumentProgress(body)}
 ${renderPrivilegedAudits(body)}
 ${renderRejectedUploads(body)}
+${renderLoad(body)}
 ${renderBackup(body)}
 ${fold({
   id: "raw-h",

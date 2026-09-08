@@ -2340,6 +2340,42 @@ export const STATUS = {
   DISK_LOW_FREE_PCT: 10,
 
   /**
+   * Per-core 1-minute load average above which the /status card colours CPU
+   * amber and calls the machine busy.
+   *
+   * PRESENTATION ONLY. Unlike DISK_LOW_FREE_PCT above, this threshold does
+   * NOT feed `degraded`, does not change the HTTP status, and must never be
+   * wired into either. A load average is a count of runnable processes, so on
+   * a two-core box one ordinary 246-page audit pushes it past 1.0 for the ~40
+   * seconds the audit takes — see ENGINE_PROBE_FAILURE_TTL_MS, which exists
+   * because that exact saturation once made the page accuse veraPDF of being
+   * down for ten minutes. Alerting on this would page someone during normal
+   * successful use, and an alert that cries wolf gets muted — at which point
+   * it stops catching the dead nightly backup it was built for.
+   *
+   * 1.0 is the meaningful line: below it, everything runnable fits the cores.
+   *
+   * SAFE TO CHANGE: Yes — it only moves a dot from green to amber.
+   */
+  LOAD_BUSY_PER_CORE: 1.0,
+
+  /**
+   * Percentage of RAM in use above which the /status card colours memory
+   * amber.
+   *
+   * PRESENTATION ONLY — the same rule as LOAD_BUSY_PER_CORE: it never
+   * degrades the service.
+   *
+   * Measured against MemAvailable, not MemFree, so the page cache is not
+   * counted against the machine. That distinction is the whole reason this
+   * number can be as high as 85: a healthy Linux box reports most of its RAM
+   * as non-free and almost all of it as available.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MEMORY_TIGHT_USED_PCT: 85,
+
+  /**
    * Small-sample floor for the document_progress_30d statistics on /status.
    *
    * The progress block reports rates and a median over documents that were

@@ -24,6 +24,7 @@ import {
   degradedList,
   isCoreFailure,
   readDiskStatus,
+  readLoadStatus,
   payloadIsCoreFailure,
   extractVersion,
   formatUptime,
@@ -32,6 +33,7 @@ import {
   chicagoTime,
   type EngineProbes,
   type EngineSnapshot,
+  type LoadProbe,
   type GradeCounts,
   type StatusDb,
   readBackupStatus,
@@ -122,7 +124,12 @@ const OK_ENGINES: EngineProbes = {
   chromium: async () => ({ ok: true }),
 };
 
-function makeService(db: DB, probes: EngineProbes = OK_ENGINES, clock = { now: T0 }) {
+function makeService(
+  db: DB,
+  probes: EngineProbes = OK_ENGINES,
+  clock = { now: T0 },
+  loadProbe?: LoadProbe,
+) {
   return createStatusService({
     now: () => clock.now,
     db: db as unknown as StatusDb,
@@ -132,6 +139,7 @@ function makeService(db: DB, probes: EngineProbes = OK_ENGINES, clock = { now: T
     remediationEnabled: true,
     backupStatusFile: "/nonexistent/backups/last-backup.json",
     diskPath: ".",
+    loadProbe,
   });
 }
 
@@ -1575,5 +1583,150 @@ describe("document_progress_30d (the remediation loop)", () => {
     const p = (await makeService(db).getStatus()).document_progress_30d;
     expect(p.documents).toBe(0);
     expect(p.reaudited).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Machine load
+// ---------------------------------------------------------------------------
+// Added 2026-09-08. CPU and memory are the two figures /status could not
+// answer: `disk` predicts a storage failure, but nothing on the page said
+// whether the box itself was struggling. The rules are narrower than the disk
+// block's, and the tests below are what hold them:
+//
+//   - It REPORTS, it never DEGRADES. One ordinary 246-page audit saturates
+//     the two-core droplet for ~40 seconds (see ENGINE_PROBE_FAILURE_TTL_MS's
+//     note in audit.config.ts). Wiring load into `degraded` would page on
+//     normal successful use, and an alert that cries wolf gets muted.
+//   - Numbers only. os.cpus()[].model names the CPU and the hypervisor;
+//     os.uptime() dates the last kernel patch. Neither is reported.
+
+/** /proc/meminfo as Linux writes it, trimmed to the lines that matter.
+ *  MemAvailable — NOT MemFree — is the honest figure: on a healthy box with a
+ *  warm page cache MemFree looks alarmingly small while nothing is wrong. */
+const MEMINFO = [
+  "MemTotal:        4005108 kB",
+  "MemFree:          170504 kB",
+  "MemAvailable:    2381652 kB",
+  "Buffers:          105816 kB",
+  "Cached:          2455320 kB",
+].join("\n");
+
+const CALM_MACHINE: LoadProbe = {
+  loadavg: () => [0.42, 0.51, 0.63],
+  cpuCount: () => 2,
+  meminfo: () => MEMINFO,
+};
+
+describe("machine load — reported, never alarmed about", () => {
+  it("reports load per core and memory in use", () => {
+    const l = readLoadStatus(CALM_MACHINE);
+    expect(l.status).toBe("ok");
+    expect(l.cores).toBe(2);
+    expect(l.load_1m).toBe(0.42);
+    expect(l.load_5m).toBe(0.51);
+    expect(l.load_15m).toBe(0.63);
+    // The number that actually means something: 0.42 spread over 2 cores.
+    // Publishing it saves the reader arithmetic the disk block already
+    // decided a status page should not require.
+    expect(l.load_1m_per_core).toBe(0.21);
+    // 2381652 / 4005108 = 59.5% available, so 41% is in use.
+    expect(l.memory_used_pct).toBe(41);
+    expect(l.memory_available_bytes).toBe(2381652 * 1024);
+    expect(l.memory_total_bytes).toBe(4005108 * 1024);
+    expect(l.memory_available_human).toBe(formatBytes(2381652 * 1024));
+    expect(l.memory_total_human).toBe(formatBytes(4005108 * 1024));
+  });
+
+  it("still reports CPU when /proc/meminfo does not exist (macOS dev)", () => {
+    // The developer machine has os.loadavg() and no /proc. Half the block is
+    // knowable, so reporting none of it — or worse, zeros — would be a
+    // false statement rather than a missing one.
+    const l = readLoadStatus({ ...CALM_MACHINE, meminfo: () => null });
+    expect(l.status).toBe("ok");
+    expect(l.load_1m).toBe(0.42);
+    expect(l.memory_used_pct).toBeNull();
+    expect(l.memory_available_bytes).toBeNull();
+    expect(l.memory_total_bytes).toBeNull();
+    expect(l.memory_available_human).toBeNull();
+    expect(l.memory_total_human).toBeNull();
+  });
+
+  it("says 'unavailable' rather than throwing when nothing can be measured", () => {
+    // This runs on every status request. Same rule readDiskStatus follows: an
+    // endpoint that 500s because it could not read a counter is worse than
+    // one admitting it does not know.
+    const l = readLoadStatus({
+      loadavg: () => {
+        throw new Error("no such thing on this platform");
+      },
+      cpuCount: () => 0,
+      meminfo: () => null,
+    });
+    expect(l.status).toBe("unavailable");
+    expect(l.load_1m).toBeNull();
+    expect(l.load_1m_per_core).toBeNull();
+    expect(l.cores).toBeNull();
+    expect(l.memory_used_pct).toBeNull();
+  });
+
+  it("treats a zeroed load average as unmeasured, not as an idle machine", () => {
+    // os.loadavg() returns [0, 0, 0] on platforms that do not implement it,
+    // and publishing that as "0.00 per core" would invent a fact. A truly
+    // idle Linux box can decay to 0.00 too and is caught by the same rule —
+    // an accepted, documented cost: see readLoadStatus.
+    const l = readLoadStatus({ ...CALM_MACHINE, loadavg: () => [0, 0, 0] });
+    expect(l.load_1m).toBeNull();
+    expect(l.load_1m_per_core).toBeNull();
+    // Memory was readable, so the block as a whole still has something to say.
+    expect(l.status).toBe("ok");
+    expect(l.memory_used_pct).toBe(41);
+  });
+
+  it("ignores a /proc/meminfo without MemAvailable rather than falling back to MemFree", () => {
+    // Kernels before 3.14 have no MemAvailable. MemFree is NOT a substitute:
+    // it excludes reclaimable page cache, so it would report a healthy server
+    // as nearly out of memory. Missing is the honest answer.
+    const l = readLoadStatus({
+      ...CALM_MACHINE,
+      meminfo: () => "MemTotal:        4005108 kB\nMemFree:          170504 kB",
+    });
+    expect(l.memory_used_pct).toBeNull();
+    expect(l.memory_available_bytes).toBeNull();
+  });
+
+  it("NEVER degrades the service, however busy the machine is", async () => {
+    // The load-bearing rule of this block. A box at 8x its core count is
+    // working hard, not broken — /status must stay "ok" and the uptime
+    // monitor's keyword alert must stay silent.
+    const payload = await makeService(
+      freshDb(),
+      OK_ENGINES,
+      { now: T0 },
+      {
+        loadavg: () => [16.0, 15.2, 14.8],
+        cpuCount: () => 2,
+        meminfo: () => "MemTotal:        4005108 kB\nMemAvailable:      40051 kB",
+      },
+    ).getStatus();
+
+    expect(payload.load.load_1m_per_core).toBe(8);
+    expect(payload.load.memory_used_pct).toBe(99);
+    expect(payload.status).toBe("ok");
+    expect(payload.degraded).toBeUndefined();
+    expect(payloadIsCoreFailure(payload)).toBe(false);
+  });
+
+  it("reads the real machine without throwing", () => {
+    // The default probe against whatever is actually running the suite.
+    // Proves the production path works on this platform rather than only the
+    // injected fixtures above.
+    const l = readLoadStatus();
+    expect(["ok", "unavailable"]).toContain(l.status);
+    if (l.cores !== null) expect(l.cores).toBeGreaterThan(0);
+    if (l.memory_used_pct !== null) {
+      expect(l.memory_used_pct).toBeGreaterThanOrEqual(0);
+      expect(l.memory_used_pct).toBeLessThanOrEqual(100);
+    }
   });
 });

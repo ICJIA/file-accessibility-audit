@@ -10,6 +10,7 @@ import {
   renderRejectedUploads,
   renderBackup,
   renderDiskLine,
+  renderLoad,
   renderEngines,
   renderStatusStrip,
   pickFormat,
@@ -1122,4 +1123,122 @@ describe("every status pill clears WCAG 1.4.3 AA in both colour schemes (2026-08
       });
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+
+describe("renderLoad — how hard the machine is working", () => {
+  const CALM = {
+    status: "ok",
+    cores: 2,
+    load_1m: 0.42,
+    load_5m: 0.51,
+    load_15m: 0.63,
+    load_1m_per_core: 0.21,
+    memory_used_pct: 41,
+    memory_available_bytes: 2_438_811_648,
+    memory_total_bytes: 4_101_230_592,
+    memory_available_human: formatBytes(2_438_811_648),
+    memory_total_human: formatBytes(4_101_230_592),
+  };
+
+  it("renders nothing for a payload that predates the block", () => {
+    // Additive like every curated section: an older API build, or a stored
+    // report, must not grow an empty card.
+    expect(renderLoad(PAYLOAD)).toBe("");
+  });
+
+  it("leads with the per-core figure and the memory in use", () => {
+    const html = renderLoad({ ...PAYLOAD, load: CALM });
+    expect(html).toContain("0.21");
+    expect(html).toContain("41%");
+    expect(html).toContain("2 cores");
+    expect(html).toContain(formatBytes(2_438_811_648));
+  });
+
+  it("says a busy machine is busy, not broken", () => {
+    // The copy that matters. One 246-page audit saturates this droplet for
+    // ~40 seconds; a reader who lands here mid-audit must not conclude the
+    // service is failing, because it is not — and nothing has degraded.
+    const html = renderLoad({
+      ...PAYLOAD,
+      load: { ...CALM, load_1m: 3.6, load_1m_per_core: 1.8 },
+    });
+    expect(html).toContain("1.8");
+    expect(html).toContain("working hard");
+    // Asserted as the CLAIM, not as a word ban. "Nothing has failed" is the
+    // sentence doing the reassuring, and a regex on /fail/ would forbid the
+    // best copy on the card — the same way this repo's overclaim guards trip
+    // on negated phrasings. These four words have no innocent reading here:
+    // any of them appearing would mean the card started accusing the service.
+    expect(html).toContain("Nothing has failed");
+    // The structural signal, not a word ban: #f85149 is the red this page
+    // paints a genuinely failed core engine. A busy machine gets amber. A
+    // word ban would be worse than useless here — the copy legitimately
+    // NEGATES "failed" and "degraded", and forbidding those strings would
+    // outlaw the two sentences doing the reassuring.
+    expect(html).toContain("#d29922");
+    expect(html).not.toContain("#f85149");
+  });
+
+  it("explains an unmeasured machine instead of showing zeros", () => {
+    const html = renderLoad({
+      ...PAYLOAD,
+      load: {
+        status: "unavailable",
+        cores: null,
+        load_1m: null,
+        load_5m: null,
+        load_15m: null,
+        load_1m_per_core: null,
+        memory_used_pct: null,
+        memory_available_bytes: null,
+        memory_total_bytes: null,
+        memory_available_human: null,
+        memory_total_human: null,
+      },
+    });
+    expect(html).toMatch(/could not be (read|measured)/i);
+    expect(html).not.toContain("0%");
+  });
+
+  it("reports CPU alone when memory could not be read", () => {
+    // The developer-machine shape: os.loadavg() works, /proc/meminfo does
+    // not. Half a block is worth more than none of it.
+    const html = renderLoad({
+      ...PAYLOAD,
+      load: {
+        ...CALM,
+        memory_used_pct: null,
+        memory_available_bytes: null,
+        memory_total_bytes: null,
+        memory_available_human: null,
+        memory_total_human: null,
+      },
+    });
+    expect(html).toContain("0.21");
+    expect(html).not.toContain("41%");
+    expect(html).toMatch(/memory/i);
+  });
+
+  it("repeats the disk line so CPU, memory and disk read together", () => {
+    // Disk keeps its home in the backup card (a full disk is how a backup
+    // silently stops), but an operator asking "is the box healthy" wants all
+    // three at once. The rendered LINE is repeated; the payload key is not.
+    const html = renderLoad({
+      ...PAYLOAD,
+      load: CALM,
+      disk: { status: "ok", free_pct: 71, free_bytes: 58_131_922_944, total_bytes: 82_086_711_296 },
+    });
+    expect(html).toContain("54.1 GB free of 76.4 GB");
+  });
+
+  it("is wired into the rendered page", () => {
+    // The card exists and renders correctly, and is never reached — a class
+    // of bug this repo has shipped before. Assert the surface, not just the
+    // helper.
+    const html = renderStatusHtml({ ...PAYLOAD, load: CALM });
+    expect(html).toContain("0.21");
+    expect(html).toContain("Server load");
+  });
 });

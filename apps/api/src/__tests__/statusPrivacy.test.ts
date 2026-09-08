@@ -206,6 +206,48 @@ describe("/status never discloses identifying data", () => {
     );
   });
 
+  it("reports machine load without naming the hardware it measured", async () => {
+    // Same rule the disk block follows: the block is handed real machine
+    // counters and must emit only numbers. The two temptations here are
+    // os.cpus()[].model (which names the CPU and the hypervisor) and
+    // os.uptime() (which dates the last kernel patch — a reconnaissance gift
+    // on a public endpoint). Neither has a field, and the key-set assertion
+    // below is what stops one being added without this comment being read.
+    const payload = await build();
+    const { status, memory_available_human, memory_total_human, ...numeric } = payload.load;
+
+    // Every counter is a bare number or null — a model string, hostname or
+    // path smuggled into an existing field fails here rather than at review.
+    for (const [key, value] of Object.entries(numeric)) {
+      expect(`${key}=${typeof value}`).toMatch(/=(number|object)$/);
+      if (value !== null) expect(Number.isFinite(value as number)).toBe(true);
+    }
+    // The two string-valued fields are byte counts formatted for a reader and
+    // nothing else; the enum is closed.
+    expect(["ok", "unavailable"]).toContain(status);
+    for (const human of [memory_available_human, memory_total_human]) {
+      if (human !== null) expect(human).toMatch(/^[\d.]+ (B|KB|MB|GB|TB)$/);
+    }
+
+    expect(Object.keys(payload.load).sort()).toEqual(
+      [
+        "cores",
+        "load_15m",
+        "load_1m",
+        "load_1m_per_core",
+        "load_5m",
+        // memory_*_human are the SAME counters beside them formatted for a
+        // reader; they derive from those numbers and disclose nothing more.
+        "memory_available_bytes",
+        "memory_available_human",
+        "memory_total_bytes",
+        "memory_total_human",
+        "memory_used_pct",
+        "status",
+      ].sort(),
+    );
+  });
+
   it("keeps the top-level key set to the documented allow-list", async () => {
     // A new key is not automatically a leak, but it must be a deliberate
     // decision — this test makes an accidental addition fail loudly.
@@ -232,6 +274,10 @@ describe("/status never discloses identifying data", () => {
         "engines",
         "last_audit_at",
         "last_audit_at_chicago",
+        // Machine-wide CPU and memory, numbers only — no CPU model, no
+        // machine uptime. Reported, never scored. Deliberate addition
+        // (v1.156.0).
+        "load",
         // on/off only — never the token, its length, or a hash of it.
         "privileged_tier",
         "remediation",

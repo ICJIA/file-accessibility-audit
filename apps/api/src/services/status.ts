@@ -23,6 +23,7 @@
 
 import { execFile } from "node:child_process";
 import { readFileSync, statfsSync } from "node:fs";
+import os from "node:os";
 import { access, constants } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -221,6 +222,11 @@ export interface StatusPayload {
   /** Free space on the volume holding the database. NO PATH is reported —
    *  /status is public, and statusPrivacy.test.ts forbids filesystem paths. */
   disk: DiskStatus;
+  /** Machine-wide CPU and memory pressure. REPORTED, never scored: it is
+   *  absent from `degraded`, from isCoreFailure, and from the health
+   *  summary's system list. A busy box is the tool working, not the tool
+   *  broken. */
+  load: LoadStatus;
   last_audit_at: string | null;
   /** Same instant as last_audit_at, rendered in America/Chicago — the local
    *  zone of the people who read this page. Null when there is no audit yet,
@@ -263,6 +269,51 @@ export interface DiskStatus {
   /** Whole percent, so the number a reader sees is the number the threshold
    *  compares — no rounding disagreement between the payload and the rule. */
   free_pct: number | null;
+}
+
+/** Machine-wide CPU and memory pressure (v1.156.0).
+ *
+ *  MACHINE-wide, not process-wide, and deliberately so: the droplet runs
+ *  nginx, both Node processes and any veraPDF JVM, and a reader asking "is the
+ *  server struggling" is asking about the box, not about one PID.
+ *
+ *  Every field is nullable and independently so — a developer machine has
+ *  os.loadavg() and no /proc/meminfo, so half this block is knowable there.
+ *  Reporting the unknown half as zero would be a false statement rather than
+ *  a missing one, which is the same rule DiskStatus follows.
+ *
+ *  NOTHING here joins the `degraded` list. See readLoadStatus. */
+export interface LoadStatus {
+  /** "unavailable" only when NEITHER CPU nor memory could be read. A machine
+   *  that answered one of the two is "ok" with nulls in the other half. */
+  status: "ok" | "unavailable";
+  /** Core count — os.cpus().length. NEVER os.cpus()[].model, which names the
+   *  CPU and the hypervisor; rule 2's spirit applies to hardware as much as
+   *  to paths. The count itself discloses nothing: audit.config.ts already
+   *  documents the droplet as 2 vCPU in a public repository. */
+  cores: number | null;
+  /** os.loadavg(), to two decimals. Runnable-process averages, so on Linux
+   *  they include uninterruptible I/O wait and can exceed the core count
+   *  without anything being wrong. */
+  load_1m: number | null;
+  load_5m: number | null;
+  load_15m: number | null;
+  /** load_1m spread over `cores` — the one figure that means something
+   *  without arithmetic. Below 1.0, everything runnable fits the cores. The
+   *  payload carries it for the same reason it carries free_human: a status
+   *  page should not require its reader to do sums. */
+  load_1m_per_core: number | null;
+  /** Percent of RAM genuinely committed, derived from MemAvailable so the
+   *  page cache is not counted against the machine. Whole percent, so the
+   *  number a reader sees is the number the card colours against. */
+  memory_used_pct: number | null;
+  memory_available_bytes: number | null;
+  memory_total_bytes: number | null;
+  /** The same two counters as people read them ("2.2 GB"), from the SAME
+   *  helper the disk and backup blocks use. `null` mirrors an unreadable
+   *  count — never "0 B", which would read as an empty machine. */
+  memory_available_human: string | null;
+  memory_total_human: string | null;
 }
 
 export interface BackupStatus {
@@ -314,6 +365,13 @@ export interface StatusDeps {
    *  clock and DB so tests point it at a temp dir; production uses the API's
    *  own data directory, where uploads and the database live. */
   diskPath: string;
+  /** Source of the machine's CPU and memory counters. Optional — unlike the
+   *  other deps it has no deployment-specific value to configure, so
+   *  production simply takes defaultLoadProbe. It is injectable at all
+   *  because the rule worth testing ("a saturated machine never degrades the
+   *  service") cannot be exercised on a real idle test runner, and a guard
+   *  that has only ever seen an idle machine proves nothing. */
+  loadProbe?: LoadProbe;
 }
 
 // ---------------------------------------------------------------------------
@@ -1099,6 +1157,9 @@ export function createStatusService(deps: StatusDeps) {
     const [agg, eng] = [getAggregates(nowMs), await getEngines(nowMs)];
     const backup = readBackupStatus(deps.backupStatusFile, nowMs);
     const disk = readDiskStatus(deps.diskPath);
+    // Not passed to degradedList, and deliberately: a busy machine is the
+    // tool working. See readLoadStatus.
+    const load = readLoadStatus(deps.loadProbe);
 
     const privilegedTier = privilegedTierStatus();
     const degraded = degradedList(eng, agg.database, backup.status, disk.status, privilegedTier);
@@ -1119,6 +1180,7 @@ export function createStatusService(deps: StatusDeps) {
       privileged_audits: agg.privileged_audits,
       documents_rejected: agg.documents_rejected,
       disk,
+      load,
       last_audit_at: agg.last_audit_at,
       // Derived here rather than stored, so it can never disagree with the
       // UTC value above. Date.parse of an ISO string with an explicit Z is
@@ -1304,6 +1366,154 @@ export function readDiskStatus(dirPath: string): DiskStatus {
       free_pct: null,
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Machine load
+// ---------------------------------------------------------------------------
+
+/** Where the machine's CPU and memory counters come from. Injected as a unit
+ *  so a test can present a saturated machine; production uses
+ *  defaultLoadProbe, which reads the real ones. */
+export interface LoadProbe {
+  /** os.loadavg() — [1m, 5m, 15m]. */
+  loadavg(): number[];
+  /** os.cpus().length. The COUNT only — see LoadStatus.cores. */
+  cpuCount(): number;
+  /** Raw /proc/meminfo, or null where the file does not exist (macOS). */
+  meminfo(): string | null;
+}
+
+export const defaultLoadProbe: LoadProbe = {
+  loadavg: () => os.loadavg(),
+  cpuCount: () => os.cpus().length,
+  meminfo: () => {
+    try {
+      return readFileSync("/proc/meminfo", "utf8");
+    } catch {
+      return null;
+    }
+  },
+};
+
+/** One "MemAvailable:  2381652 kB" line, in bytes. The unit suffix Linux
+ *  writes is kibibytes despite the lowercase k, hence 1024. */
+function meminfoBytes(text: string, key: string): number | null {
+  const m = new RegExp(`^${key}:\\s+(\\d+)\\s+kB$`, "m").exec(text);
+  if (!m) return null;
+  const kib = Number(m[1]);
+  return Number.isFinite(kib) && kib > 0 ? kib * 1024 : null;
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/**
+ * Machine-wide CPU and memory pressure.
+ *
+ * WHY: `disk` predicts a storage failure, but nothing else on this page could
+ * say whether the box itself was struggling. A visitor whose audit is crawling
+ * — or an operator deciding whether to resize the droplet — had only response
+ * latency to go on.
+ *
+ * IT REPORTS, IT NEVER DEGRADES. This block is absent from degradedList, from
+ * isCoreFailure, and from getHealthSummary's system list, and status.test.ts
+ * pins that with a machine at 8x its core count. The reason is measured, not
+ * theoretical: one ordinary 246-page audit saturates the two-core production
+ * droplet for ~40 seconds (see ENGINE_PROBE_FAILURE_TTL_MS in
+ * audit.config.ts). Wiring load into `degraded` would fire the uptime
+ * monitor's keyword alert during normal successful use, and an alert that
+ * cries wolf gets muted — at which point it no longer catches the dead
+ * nightly backup it exists for.
+ *
+ * MemAvailable, NOT MemFree. MemFree excludes reclaimable page cache, so on a
+ * healthy Linux box with a warm cache it reads as almost-out-of-memory. This
+ * page must not accuse a server of a problem it does not have. A kernel too
+ * old to publish MemAvailable reports null rather than falling back.
+ *
+ * Reports NUMBERS ONLY — no CPU model (os.cpus()[].model names the hardware
+ * and the hypervisor) and no machine uptime (os.uptime() dates the last
+ * kernel patch, which is a reconnaissance gift on a public endpoint). Process
+ * uptime, which the payload already carries, is a different and harmless
+ * figure.
+ *
+ * CAVEAT: /proc/meminfo inside a container reports the HOST's memory, not the
+ * cgroup limit. Production is a plain droplet under PM2, so this is accurate
+ * there; a containerised deployment would need cgroup v2's memory.current.
+ *
+ * Any failure yields nulls rather than throwing: this runs on every status
+ * request, and an endpoint that 500s because it could not read a counter is
+ * worse than one admitting it does not know.
+ */
+export function readLoadStatus(probe: LoadProbe = defaultLoadProbe): LoadStatus {
+  let cores: number | null = null;
+  let load: [number, number, number] | null = null;
+  try {
+    const count = probe.cpuCount();
+    if (Number.isFinite(count) && count > 0) cores = count;
+    const avg = probe.loadavg();
+    // A flat zero triple is what os.loadavg() returns on a platform that does
+    // not implement it (Windows), so it is treated as unmeasured rather than
+    // published as a confident "0.00 per core".
+    //
+    // The trade is deliberate and slightly lossy: a Linux box idle long
+    // enough for all three averages to decay below 0.005 genuinely reads
+    // 0.00 0.00 0.00, and this rule would report it as unmeasured. That
+    // costs one card line reading "could not be read" on a machine nobody is
+    // using; the alternative costs a fabricated number on a machine that
+    // cannot measure itself. Neither platform this runs on (Linux in
+    // production, macOS in development) returns the fake zero, so the rule is
+    // a guard rather than a live code path.
+    if (
+      Array.isArray(avg) &&
+      avg.length >= 3 &&
+      avg.slice(0, 3).every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0) &&
+      avg.slice(0, 3).some((n) => n > 0)
+    ) {
+      load = [avg[0], avg[1], avg[2]];
+    }
+  } catch {
+    // Leaves both null; the memory half below is still attempted.
+  }
+
+  let availableBytes: number | null = null;
+  let totalBytes: number | null = null;
+  try {
+    const text = probe.meminfo();
+    if (text) {
+      const available = meminfoBytes(text, "MemAvailable");
+      const total = meminfoBytes(text, "MemTotal");
+      // Both or neither: a percentage needs the pair, and half of it would
+      // only invite the reader to guess the other half.
+      if (available !== null && total !== null && available <= total) {
+        availableBytes = available;
+        totalBytes = total;
+      }
+    }
+  } catch {
+    // Leaves both null.
+  }
+
+  const usedPct =
+    availableBytes !== null && totalBytes !== null
+      ? 100 - Math.round((availableBytes / totalBytes) * 100)
+      : null;
+
+  return {
+    // "unavailable" only when the machine answered neither question. One half
+    // is still worth publishing, and saying so is more honest than withholding
+    // what is known.
+    status: load === null && usedPct === null ? "unavailable" : "ok",
+    cores,
+    load_1m: load ? round2(load[0]) : null,
+    load_5m: load ? round2(load[1]) : null,
+    load_15m: load ? round2(load[2]) : null,
+    load_1m_per_core: load && cores ? round2(load[0] / cores) : null,
+    memory_used_pct: usedPct,
+    memory_available_bytes: availableBytes,
+    memory_total_bytes: totalBytes,
+    memory_available_human: availableBytes === null ? null : formatBytes(availableBytes),
+    memory_total_human: totalBytes === null ? null : formatBytes(totalBytes),
+  };
 }
 
 export function defaultBackupStatusFile(): string {
