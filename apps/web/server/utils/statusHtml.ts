@@ -1168,8 +1168,11 @@ export function renderLoad(body: Record<string, unknown>): string {
       cpuLine +
       memLine +
       renderDiskLine(body.disk) +
-      `<p class="caveat">A snapshot of the machine at the moment this page was built, not an ` +
-      `average over the day. &ldquo;Per core&rdquo; is the one figure worth reading: below 1.00 ` +
+      `<p class="caveat">Read at the moment this page was built, not averaged over the day — ` +
+      `except the processor figure, which covers the last minute rather than the instant. A burst ` +
+      `that ended a few minutes ago leaves no trace in it, and 0.00 is the ordinary resting ` +
+      `reading of a server between audits, not a stuck meter. ` +
+      `&ldquo;Per core&rdquo; is the one figure worth reading: below 1.00 ` +
       `everything waiting to run fits the processors this server has. Above it, work is queuing — ` +
       `normal while a large document is being audited, and it clears by itself. ` +
       `<strong>None of these numbers can mark the service degraded</strong>, because a busy server ` +

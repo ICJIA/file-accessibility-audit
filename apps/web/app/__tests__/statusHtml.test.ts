@@ -1156,6 +1156,18 @@ describe("renderLoad — how hard the machine is working", () => {
     expect(html).toContain(formatBytes(2_438_811_648));
   });
 
+  it("says the processor figure covers a minute, not the instant", () => {
+    // A reader meeting 0.00 has to be able to tell a resting server from a
+    // broken meter. The load average decays over roughly a minute, so a burst
+    // that finished a few minutes earlier is genuinely absent from it — the
+    // card used to call every figure "a snapshot of the machine at the moment
+    // this page was built", which is true of memory and disk and false of
+    // this one.
+    const html = renderLoad({ ...PAYLOAD, load: CALM });
+    expect(html).toMatch(/last minute/i);
+    expect(html).not.toMatch(/snapshot of the machine/i);
+  });
+
   it("says a busy machine is busy, not broken", () => {
     // The copy that matters. One 246-page audit saturates this droplet for
     // ~40 seconds; a reader who lands here mid-audit must not conclude the
