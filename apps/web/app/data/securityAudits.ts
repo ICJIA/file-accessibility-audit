@@ -54,6 +54,34 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.156.1",
+    meta: "Reviewed <strong>2026-09-08</strong> &middot; scope: one paragraph of wording on the public status page, and a re-run of the scan for known problems in the software this tool depends on.",
+    body: [
+      {
+        kind: "p",
+        html: "Nothing about what this tool collects, keeps, or sends changed. The only change is the wording of one explanatory note on the status page &mdash; the page anyone can read without signing in.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The status page was describing one of its own numbers incorrectly.</strong> The note under the server-load figures said they were all read at the instant the page was built. That is true of the memory and disk figures and not of the processor one, which is an average over the previous minute. A visitor who saw the processor figure at zero therefore could not tell a quiet server from a broken gauge. The note now says which figure is a one-minute average and that a quiet reading is normal. No number, limit or behaviour changed &mdash; only the sentence explaining them.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Three known problems were found in outside software this tool relies on, and none of them come from this change.</strong> All three are in code the project does not write but does include: two in the part of the web framework that reads the options at the end of a web address, and one in a text-editing component that ships with the interface library but which no page here actually uses. All three are rated moderate, and all three already have fixed versions available.",
+            note: "Handled as its own release rather than folded into a wording fix, because changing the versions of underlying software means re-running the full set of control documents to prove no accessibility verdict moved. That work is scheduled next.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>An earlier record in this log was too confident, and is corrected here rather than edited.</strong> The v1.156.0 entry, written the same day, reported that the scan for known problems found none. The three problems above had in fact been published six days earlier, so that scan result did not reflect them. These entries are dated compliance records that an auditor may already have read, so nothing below is rewritten; the correction is made in the open, here, and the practice is tightened: a scan result is recorded only when the scan was genuinely re-run for that release.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.156.0",
     meta: "Reviewed <strong>2026-09-08</strong> &middot; scope: the new server-load figures on the public status page, a published way to report a security problem, and the build system's own permissions.",
     body: [

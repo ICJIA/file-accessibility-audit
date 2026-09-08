@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.156.1] - 2026-09-08
+
+### Fixed
+
+- **The Server load card no longer calls the processor figure a snapshot.** The note under the card described every figure as "a snapshot of the machine at the moment this page was built" — true of the memory and disk readings, and false of the processor one: `os.loadavg()` is a roughly one-minute exponentially damped average of the run queue, so work that finished two minutes ago is genuinely absent from it. A visitor meeting **0.00 per core** therefore had no way to tell a resting server from a stuck meter, which is the exact doubt the card exists to settle. It now says the processor figure covers the last minute rather than the instant, that a burst which ended a few minutes ago leaves no trace in it, and that 0.00 is the ordinary resting reading of a server between audits. The below-1.00 explanation and the sentence that none of these numbers can mark the service degraded are unchanged, and no payload key, threshold, dot colour or scoring behaviour moved.
+
+### Notes
+
+- Tests 3,737 (API 1,785 · Web 1,902 · CLI 50) — one new guard, which asserts the card says "last minute" and no longer says "snapshot of the machine", and which was verified by restoring the old sentence and watching it fail. Traps 156, ledger 286, both unchanged: no scoring rule was touched.
+- The expanded `/status` screenshot in the README was recaptured from production so the image and its alt text describe the same page.
+
 ## [1.156.0] - 2026-09-08
 
 ### Added
