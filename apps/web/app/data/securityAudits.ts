@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.156.2",
+    meta: "Reviewed <strong>2026-09-08</strong> &middot; scope: updating outside software this tool relies on, to close the three known problems reported in the entry below.",
+    body: [
+      {
+        kind: "p",
+        html: "No part of the tool itself changed &mdash; no new page, no new question asked of anyone, nothing new kept or sent. This release only updates versions of software written by others that this tool includes, and re-runs every accuracy check afterwards to prove no document would now be graded differently.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>The two problems in the part that reads web-address options are closed.</strong> Every request to this service carries options at the end of its web address, and the component that reads them had two known faults &mdash; one that let a crafted address slip past a size limit, and one that could be used to make the service work far harder than it should. Both are fixed by the newer version now in use.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>The problem in the unused text-editing component is closed.</strong> It arrived as part of the interface library, and no page here has ever used it, so nothing on this site could reach the fault. It is updated regardless, because unused today is not a guarantee about tomorrow.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>The first attempt at that second fix was wrong, and is recorded rather than quietly discarded.</strong> Updating the single faulty package left 37 related packages from the same family behind at their old version, each expecting the newer one &mdash; a mismatch the packaging tool warned about and no automatic check would have caught. The fix was made one level up instead, by updating the interface library that brings the whole family in together.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Every accuracy check was re-run, not assumed.</strong> All 156 trap documents were re-judged correctly, all 286 pinned scores came back identical, and the check that re-saves documents in different byte layouts still produced the same grades. The component that reads inside Word, PowerPoint and Excel files &mdash; the one whose behaviour could shift scores silently &mdash; did not change version at all. The scan for known problems now reports none.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.156.1",
     meta: "Reviewed <strong>2026-09-08</strong> &middot; scope: one paragraph of wording on the public status page, and a re-run of the scan for known problems in the software this tool depends on.",
     body: [

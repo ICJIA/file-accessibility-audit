@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.156.2] - 2026-09-08
+
+### Security
+
+- **Three moderate advisories cleared; the production dependency scan is clean again.** `pnpm audit --prod` reports **no known vulnerabilities**, down from three. Two were `qs` 6.15.3, reached through Express's query parsing — an array-limit bypass via bracket-key comma parsing ([GHSA-x5fp-wj9c-mxmx](https://github.com/advisories/GHSA-x5fp-wj9c-mxmx)) and a denial of service via an attacker-controlled `isBuffer` ([GHSA-4mjr-xmp4-gh2g](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g)); the existing `qs` override moved from `^6.15.2` to `^6.16.0`, which is the floor that actually forces the fix — the older caret already permitted 6.16.0, and the lockfile had simply never been refreshed. The third was `@tiptap/core` 3.20.1, where `mergeAttributes()` can turn an own `__proto__` key into an inherited executable DOM attribute ([GHSA-cp6q-959q-f8rh](https://github.com/advisories/GHSA-cp6q-959q-f8rh)); it arrives through Nuxt UI, and no page in this application mounts a Tiptap editor.
+
+### Changed
+
+- **`@nuxt/ui` 4.11.0 → 4.11.1 rather than a `@tiptap/core` override.** Overriding the one vulnerable package moved `@tiptap/core` to 3.31.3 and left its 37 siblings at 3.20.1, every one of them declaring a peer on `^3.30.4` — a half-updated family that pnpm reported and that no test would have caught. `@nuxt/ui` 4.11.1 declares the whole Tiptap set at `^3.31.3`, so the family moves together and the tree stays consistent. The declared range (`^4.8.1`) already permitted it; only the lockfile was stale.
+
+### Notes
+
+- No application code changed. Tests 3,737 (API 1,785 · Web 1,902 · CLI 50) all pass, and all four corpus gates were re-run rather than assumed: `synthetic-controls` and `synthetic-office-controls` **ALL TRUTHS HELD** (113 + 43 = 156 traps), `score-ledger` **NO SCORE MOVED** (286 rows), `resave-invariance` **BYTE LAYOUT NEVER CHANGED A GRADE**.
+- **`fast-xml-parser` did not move** (5.10.1 before and after), so no OOXML control re-verification was required — the one dependency here whose behaviour changes scores silently rather than throwing.
+- The landing page was rendered and screenshotted on the new Nuxt UI to confirm the header, announcement banner, hero and dropzone are intact.
+
 ## [1.156.1] - 2026-09-08
 
 ### Fixed
