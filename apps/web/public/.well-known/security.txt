@@ -1,0 +1,7 @@
+# Security contact for audit.icjia.app (RFC 9116).
+# Reports go through GitHub private vulnerability reporting; no mailbox is involved.
+Contact: https://github.com/ICJIA/file-accessibility-audit/security/advisories/new
+Policy: https://github.com/ICJIA/file-accessibility-audit/blob/main/SECURITY.md
+Preferred-Languages: en
+Canonical: https://audit.icjia.app/.well-known/security.txt
+Expires: 2027-08-31T00:00:00.000Z

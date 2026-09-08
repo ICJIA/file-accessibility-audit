@@ -5,13 +5,28 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege for the job token (2026-09-02 security pass). Nothing in
+# this workflow writes to the repository, opens issues, or publishes
+# packages — it checks out, installs, lints, builds, and tests — so the
+# token it runs with can be read-only. A compromised third-party action or
+# a malicious dependency's postinstall step then cannot push, tag, or edit
+# releases with it.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Lint, typecheck, build, test
     runs-on: ubuntu-latest
     steps:
+      # Third-party actions are pinned to full commit SHAs, not moving tags
+      # (2026-09-02 security pass): a tag like `v7` can be re-pointed at any
+      # time by whoever controls the action's repository, a SHA cannot. The
+      # trailing comment carries the human-readable version so Dependabot
+      # (.github/dependabot.yml, `github-actions` ecosystem) can propose the
+      # next pin when a new release appears.
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # pnpm major pinned to match this repo's pnpm-lock.yaml
       # (lockfileVersion: '9.0', produced by locally-installed pnpm 10.x).
@@ -19,12 +34,12 @@ jobs:
       # field changes local corepack behavior for every contributor, which
       # is a bigger change than this CI-only pin needs.
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 10
 
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm

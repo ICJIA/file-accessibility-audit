@@ -1,0 +1,21 @@
+# Dependabot version updates — GitHub Actions ONLY (2026-09-02 security pass).
+#
+# The CI workflow pins every third-party action to a full commit SHA with a
+# version comment; this config is what keeps those pins from rotting: when
+# an action publishes a new release, Dependabot opens one pull request that
+# moves the SHA and the comment together, and CI runs on it before merge.
+#
+# npm dependencies are deliberately NOT listed here. That surface is
+# handled by hand under the project's dependency playbook (targeted
+# `pnpm.overrides`, never a blanket update, with the OOXML/PDF control
+# corpora re-verified after any parser change) and by Dependabot's
+# security-update alerts, which stay enabled in the repository settings.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
