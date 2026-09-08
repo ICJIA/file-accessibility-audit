@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.156.0] - 2026-09-08
+
+### Added
+
+- **`/status` says how hard the server is working — and that a busy server is not a broken one.** The page could already predict a storage failure (`disk` has warned since v1.50.0), but nothing on it answered the question a visitor whose audit is crawling actually has: is the machine struggling? A new **Server load** card, and a `load` block in the payload, publish the 1/5/15-minute load averages, the per-core figure that is the only one worth reading (below 1.00, everything waiting to run fits the processors this server has), and machine-wide memory use. The card repeats the disk line so processor, memory and disk read together; disk keeps its home in the backup card, where a full disk is what explains a stopped backup, and nothing moved in the payload.
+
+  **It reports, it never scores.** `load` is deliberately absent from the `degraded` list, from the 503 rule, and from the header's health summary, and a test holds a machine at eight times its core count to `status: "ok"`. The reason is measured rather than theoretical: one ordinary 246-page audit saturates the two-core production server for about forty seconds, so alerting on load would page an operator during normal successful use — and an alert that cries wolf gets muted, at which point it stops catching the dead nightly backup it exists for. The card says *working hard*, never *failing*.
+
+  Three honesty rules, each with its own test: memory is measured as genuinely available rather than merely free, so a healthy machine with a warm cache is not accused of running out; every figure is separately optional, so a machine that can measure processor but not memory publishes the half it knows and `null` for the half it does not, never a zero that would read as measured; and a processor reading of exactly nothing across all three windows is treated as a machine that cannot measure itself rather than an idle one. The block publishes numbers only — no processor model and no machine uptime, which on a public page would say what hardware runs the service and how long it has gone without a security update. The privacy guard asserts that key set and that every counter is a bare number; it was verified by sabotage, not by trust.
+
+### Security
+
+- **A published way to report a vulnerability.** `SECURITY.md` and an RFC 9116 `/.well-known/security.txt` route reports through GitHub's private advisories rather than any personal mailbox, and state scope plainly: no load testing against the live site, a wrong accessibility verdict is an ordinary bug rather than a vulnerability, and guessing or enumerating shared-report links is in scope while the contents behind a link someone already holds are not. A test fails thirty days before the security.txt expiry date, so the renewal rides an ordinary release instead of being discovered by a reporter.
+- **Continuous integration runs with a read-only token, on actions pinned by commit.** Nothing in the workflow writes to the repository, so a compromised third-party action or a dependency install step cannot push, tag, or edit releases with its credentials. Third-party actions are pinned to full commit hashes instead of moving version tags, which whoever controls an action's repository can re-point at any time; all three pins were verified against their release tags. A monthly Dependabot job keeps those pins current for GitHub Actions only — npm stays under the project's own dependency playbook, where a parser change means re-verifying the document control corpora.
+- No new attack surface in the status change: the block adds numbers to a document that was already public, and discloses no hardware detail, no path, and nothing about any person. `pnpm audit --prod`: 0 advisories.
+
+Tests 3,736 across 213 files · traps 156 (113 PDF + 43 Office) · ledger 286 rows · catalog 41 practices · all corpus gates green.
+
 ## [1.155.1] - 2026-09-02
 
 Three follow-ups from reading a real 43/F brief's report after v1.155.0 shipped. None moves a score.

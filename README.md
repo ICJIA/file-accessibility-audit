@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,715 tests** across 212 test files (API 1,777 · Web 1,888 · CLI 50) — plus the **accuracy gates**, ten corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,736 tests** across 213 test files (API 1,785 · Web 1,901 · CLI 50) — plus the **accuracy gates**, ten corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1412,6 +1412,16 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.156.0 — 2026-09-08 · Server load on `/status`; published disclosure policy; read-only CI on hash-pinned actions (hardening + one payload addition)
+
+**Reviewed: the new `/status` block.** The endpoint is public and unauthenticated, so the addition was reviewed as disclosure, not as a feature. What it publishes is bounded to numbers: load averages, core **count**, and memory totals. Three fields were considered and deliberately refused — the processor **model** string (`os.cpus()[].model` names the CPU and the hypervisor), the machine's **uptime** (`os.uptime()` dates the last kernel patch, which on a public page advertises an unpatched window), and the path of anything measured (the module's standing rule since the v1.38.0 veraPDF path disclosure). `statusPrivacy.test.ts` now pins the block's exact key set and asserts every counter is a bare number; the guard was **verified by sabotage** — adding a `cpu_model` field makes it fail by name — rather than by assuming an untested check works. Core count and total memory disclose nothing new in any case: the repository is public and `audit.config.ts` has documented the server's size in prose for months. Residual accepted: a live load reading is a marginally cleaner signal than response latency for anyone tuning a denial-of-service attempt. It is judged **incremental, not new** — the page has published per-engine up/down state with a one-minute failure cache since v1.123, which is the stronger signal — and the figures ride the existing 5-second aggregate cache behind the endpoint's own 120/min limiter. Measuring costs two system calls and one small file read; no subprocess, no new dependency. **Accepted (P3).**
+
+**Added: a way to report a vulnerability.** `SECURITY.md` and an RFC 9116 `/.well-known/security.txt` route reports to GitHub private advisories rather than a personal mailbox, and set scope: no load testing against the live site, a wrong accessibility verdict is an ordinary bug, and shared-report link enumeration is in scope while the contents behind a link a reporter already holds are not. A test fails 30 days before the security.txt expiry so renewal rides a release. **Fixed (P3 — a project with no published channel invites public disclosure).**
+
+**Fixed: CI supply chain.** The workflow now runs with `permissions: contents: read` — it checks out, installs, lints, builds and tests, and writes nothing, so a compromised third-party action or a dependency install script cannot push, tag, or edit releases with the job token. All three third-party actions are pinned to full commit hashes rather than moving tags, which whoever controls an action's repository can re-point at any time; each pin was verified against its release tag before merge, and a monthly Dependabot job keeps them current for GitHub Actions only — npm stays under the project's dependency playbook, where a parser change means re-verifying the document control corpora. **Fixed (P2 — a re-pointed tag executes attacker code with the workflow's token).**
+
+`pnpm audit --prod`: 0 advisories. No new endpoint, no new input, nothing new accepted, stored, or sent.
 
 ### v1.155.1 — 2026-09-02 · Best-practices section: the hidden rows are counted; unattributable links reach manual review (no new attack surface)
 

@@ -261,6 +261,21 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "server-load-on-status-2026-09-08",
+    badge: "New",
+    text: "The service status page now shows how hard the server is working. If a document is taking longer than you expect, you can see whether the machine is simply busy \u2014 a large report uses every processor it can get for a minute or so, and the page says plainly that busy is not the same as broken. It shows processor use, memory, and free disk space together, and it publishes numbers only: nothing about the hardware, nothing about any file, and nothing about anyone using the tool.",
+    linkText: "Service status",
+    linkTo: "/status?html",
+    /** /status is a Nitro server route, NOT a Nuxt page \u2014 a router link
+     *  would 404, so this is always a full page load. `?html` is explicit
+     *  rather than relying on Accept negotiation, mirroring `?json` (the
+     *  monitor URL); monitorRouteMethods.test.ts pins both halves. */
+    linkExternal: true,
+    wcagRefs: [],
+    date: "September 8, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "accuses-only-what-it-sees-2026-09-02",
     badge: "Scoring",
     text: "Two accusations are now made only on evidence \u2014 some PDF scores will move up. A PDF with no heading tags is failed for it only when the checker can see section headings painted on the page (larger or bold lines sitting over body text), never on page count alone. And a title is failed as a bare file name only when it really is one: a real title with a download timestamp or underscores glued on names the document and is reported for review instead. A text box exported as a picture is no longer counted as a missing description.",

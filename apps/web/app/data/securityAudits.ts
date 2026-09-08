@@ -54,6 +54,45 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.156.0",
+    meta: "Reviewed <strong>2026-09-08</strong> &middot; scope: the new server-load figures on the public status page, a published way to report a security problem, and the build system's own permissions.",
+    body: [
+      {
+        kind: "p",
+        html: "Nothing here changes what the tool collects. No new place to send anything, no new information kept, and nothing new about any person. The status page &mdash; which anyone can read, without signing in &mdash; now also says how busy the server is, so the addition was reviewed as a question of what the public should be told rather than as a new feature.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "New",
+            html: "<strong>The status page says how hard the server is working.</strong> It already warned when the disk was filling up. It now also shows how busy the processors are and how much memory is in use, so a visitor whose document is taking a while can see whether the machine is simply busy. Busy is not broken: these figures can never mark the service as having a problem, and the page says so in those words. What is published is numbers and nothing else.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Three details were deliberately left out.</strong> The make and model of the processor was excluded, because it also names the kind of machine the service runs on. How long the machine has been running was excluded, because that quietly says how long it has gone without a security update &mdash; useful to nobody except someone looking for an unpatched server. And no folder or file location is published, which has been the rule for this page since a 2026-06 review found one being disclosed. An automatic check now lists exactly which figures the page is allowed to publish and refuses anything else. That check was tested by deliberately breaking it &mdash; adding the processor model on purpose to confirm the check catches it &mdash; rather than assumed to work.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>What the figures could tell an outsider, and why it is accepted.</strong> Knowing how busy a server is could in principle help someone trying to overload it. Two things weigh against that: the page has published whether each checking tool is working for some time, which says more; and anyone can already estimate the server's load simply by timing how long a page takes to answer. The figures are also recomputed at most a few times a minute and sit behind the same request limit as the rest of the page. Recorded as an accepted, low-severity residual rather than an unnoticed one.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>There is now a published way to report a security problem.</strong> A project with no stated channel invites people to raise problems in public before they are fixed. Reports now go through a private channel on the code-hosting service, with no personal mailbox on either side, and the policy says plainly what is welcome and what is not &mdash; for example, deliberately overloading the live site is not a finding, and a wrong accessibility verdict is an ordinary bug rather than a security problem. Reporters are not named in this log. An automatic check warns a month before the policy's own renewal date, so it cannot quietly go out of date.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>The build system runs with fewer permissions, on fixed versions of its tools.</strong> The automated checks that run on every code change only need to read the code &mdash; they now hold read-only credentials, so nothing borrowed from outside could use them to alter the project. The three outside tools those checks rely on are now locked to exact versions by fingerprint rather than by a label, because a label can be quietly repointed at different code by whoever publishes it. Each fingerprint was verified against its published release before it was accepted, and a monthly job proposes updates so the locks stay current.",
+          },
+        ],
+      },
+      {
+        kind: "p",
+        html: "The scan for known problems in the software this tool depends on reported none.",
+      },
+    ],
+  },
+  {
     version: "v1.155.1",
     meta: "Reviewed <strong>2026-09-02</strong> &middot; scope: three report-copy follow-ups from reading a real report after v1.155.0.",
     body: [
