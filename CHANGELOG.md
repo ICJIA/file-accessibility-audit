@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.156.4] - 2026-09-11
+
+### Security
+
+- **One crafted upload could stop the service; it now gets a 400.** `multer`, which parses every upload to `/api/analyze`, `/api/analyze-job` and `/api/remediate`, is updated from 2.2.0 to 2.3.0. Before, two text field names — one with the largest possible array index, then an append onto the same name — raised an error inside the parser's own event handler, out of Express's reach, and ended the process ([GHSA-wc9g-mqfw-jrwm](https://github.com/advisories/GHSA-wc9g-mqfw-jrwm)). It took one anonymous request, and the advisory lists no workaround. This was reproduced against this API's real parsers before the upgrade: all three upload routes threw `RangeError: Invalid array length` and never answered. The new version catches the error.
+- **A field name with a huge array index can no longer freeze the process.** A name such as `items[4294967294]` makes the parser build a maximum-length sparse array, and a second field on the same base walks all 4.29 billion slots synchronously ([GHSA-535w-7cp7-47q4](https://github.com/advisories/GHSA-535w-7cp7-47q4)). multer 2.3.0 closes this only for applications that opt in: its new `limits.fieldArrayIndexLimit` defaults to unlimited, so the upgrade alone would have left it open. Every upload parser here now sets it to 0. No form on this site sends a text field at all — the web app and the CLI send one file part and nothing else — so no field name needs an index. `/api/remediate` builds its own parser, and it imports the same exported number rather than keeping a copy that could drift.
+- **`svgo` 4.0.2 → 4.1.0.** Two gaps in its `removeScripts` sanitizer ([GHSA-w27v-7q3p-w38r](https://github.com/advisories/GHSA-w27v-7q3p-w38r), [GHSA-4vpr-x523-8j87](https://github.com/advisories/GHSA-4vpr-x523-8j87)). It runs only at build time, minifying this project's own stylesheets, so nothing a visitor sends ever reached it; it is updated so the scan is clean rather than explained. `postcss-svgo` already permitted 4.1.0 — only the lockfile was stale — and a `pnpm.overrides` floor now keeps the tree from holding the vulnerable version.
+- `pnpm audit --prod`: **no known vulnerabilities found** (was 6 — 4 high, 1 moderate, 1 low).
+
+### Fixed
+
+- **A refused upload is a 400, not a server error.** Every multer rejection other than file size — a refused field name, a second file, an unexpected part — reached the error handler with no status and was answered as a 500 "Internal server error", logged as a full error object that includes the field name the caller wrote. They are now 400s carrying multer's own short message, logged as the single status-and-path line that other client errors already use. File size keeps its 413 and its guidance.
+
+### Notes
+
+- Tests 3,751 (API 1,798 · Web 1,903 · CLI 50) across 214 files. A new file drives the real multer middleware of all three upload routes over a real socket: an over-limit index is refused, the crash pair is answered with a 400, and the single file part every client sends is still accepted. Verified in both directions — against multer 2.2.0 before the upgrade, where the crash reproduced on every route, and by sabotage after it: removing the limit from `/api/remediate` alone fails exactly that route's test, restoring multer's unlimited default fails all three, and removing the 400 mapping fails eight.
+- The lockfile moved `multer`, `svgo`, and svgo's own `css-select`, `css-what` and `sax`, which nothing else here uses. **`fast-xml-parser` did not move** (5.10.1), so no OOXML control re-verification was owed. All four corpus gates were re-run anyway: `synthetic-controls` and `synthetic-office-controls` **ALL TRUTHS HELD** (113 + 43 = 156 traps), `score-ledger` **NO SCORE MOVED** (286 rows), `resave-invariance` **BYTE LAYOUT NEVER CHANGED A GRADE**.
+- Built CSS checked rather than assumed: svgo 4.0.2 and 4.1.0 produce identical stylesheets from the same source. One stylesheet's hash still moves between builds, and it is not this release — it differs only in the order of two generated `@font-face` fallback rules with different family names, which the fonts module emits in varying order; the v1.156.3 source built both ways.
+
 ## [1.156.3] - 2026-09-11
 
 ### Fixed

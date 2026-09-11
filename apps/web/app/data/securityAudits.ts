@@ -54,6 +54,41 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.156.4",
+    meta: "Reviewed <strong>2026-09-11</strong> &middot; scope: updating the component that receives uploaded files and one tool used while the site is built, to close the six known problems reported in the entry below.",
+    body: [
+      {
+        kind: "p",
+        html: "No new page, no new question asked of anyone, nothing new kept or sent. This release updates two pieces of software written by others that this tool includes, switches on one safety limit that the updated component leaves off, and re-runs every accuracy check afterwards to prove no document would now be graded differently.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>A single crafted upload can no longer stop the service.</strong> The component that receives uploaded files could be made to fail in a way that shut the whole service down, using one request and no account. Before updating, the problem was reproduced against this site&rsquo;s own upload handling, on every route that accepts a file. After the update, the same request is simply refused.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>A second crafted upload can no longer tie the service up.</strong> The update includes a limit that closes this problem, but ships with that limit switched off &mdash; so updating alone would have left it open. It is now switched on everywhere this site accepts a file, set as tightly as it can go, because no form here sends anything alongside the file itself.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>A refused upload is now recorded as the sender&rsquo;s mistake, not a server failure.</strong> Uploads the component turned away were answered as internal server errors and logged in full, including text the sender had put in the request. They are now answered as ordinary refusals and logged as a single line that records the kind of refusal &mdash; and nothing the sender wrote.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>The build tool is updated too.</strong> It only tidies the site&rsquo;s own style sheets before the site goes live and never handled anything a visitor sends, so it was never reachable. It is updated so that the scan comes back clean instead of needing an explanation, and the style sheets it produces were checked and came out the same as before.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Every accuracy check was re-run, not assumed.</strong> All 156 trap documents were re-judged correctly, all 286 pinned scores came back identical, and the check that re-saves documents in different byte layouts still produced the same grades. The component that reads inside Word, PowerPoint and Excel files &mdash; the one whose behaviour could shift scores silently &mdash; did not change version. The scan for known problems now reports none.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.156.3",
     meta: "Reviewed <strong>2026-09-11</strong> &middot; scope: how one figure on the public status page is worked out, and a re-run of the scan for known problems in the software this tool depends on.",
     body: [
