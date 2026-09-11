@@ -1193,6 +1193,22 @@ describe("renderLoad — how hard the machine is working", () => {
     expect(html).not.toContain("#f85149");
   });
 
+  it("shows an idle server's 0.00 as a reading, never as 'could not be read'", () => {
+    // The state production sits in between audits. The API once published it
+    // as null, so this card told visitors a healthy, idle machine's processor
+    // load "could not be read" — directly above a caveat promising that 0.00
+    // is the ordinary resting reading. A zero is falsy, which is the other way
+    // this line could lose it: the check must stay `=== null`.
+    const html = renderLoad({
+      ...PAYLOAD,
+      load: { ...CALM, load_1m: 0, load_5m: 0, load_15m: 0, load_1m_per_core: 0 },
+    });
+    expect(html).toMatch(
+      /background:#3fb950"><\/span>Processor <strong>0\.00<\/strong> per core across 2 cores/,
+    );
+    expect(html).not.toMatch(/could not be read/i);
+  });
+
   it("explains an unmeasured machine instead of showing zeros", () => {
     const html = renderLoad({
       ...PAYLOAD,

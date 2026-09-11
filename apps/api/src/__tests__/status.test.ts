@@ -25,6 +25,7 @@ import {
   isCoreFailure,
   readDiskStatus,
   readLoadStatus,
+  platformLoadavg,
   payloadIsCoreFailure,
   extractVersion,
   formatUptime,
@@ -1670,17 +1671,44 @@ describe("machine load — reported, never alarmed about", () => {
     expect(l.memory_used_pct).toBeNull();
   });
 
-  it("treats a zeroed load average as unmeasured, not as an idle machine", () => {
-    // os.loadavg() returns [0, 0, 0] on platforms that do not implement it,
-    // and publishing that as "0.00 per core" would invent a fact. A truly
-    // idle Linux box can decay to 0.00 too and is caught by the same rule —
-    // an accepted, documented cost: see readLoadStatus.
+  it("publishes an idle machine's 0.00 as a reading, not as unmeasured", () => {
+    // Zero is a measurement. The production droplet decays to 0.00 0.00 0.00
+    // whenever no audit has run for a while, and a rule that discarded the
+    // flat triple as "unmeasured" put "Processor load could not be read on
+    // this server" on the public status page of a healthy, idle machine —
+    // under a caveat promising that 0.00 is the ordinary resting reading.
     const l = readLoadStatus({ ...CALM_MACHINE, loadavg: () => [0, 0, 0] });
+    expect(l.status).toBe("ok");
+    expect(l.cores).toBe(2);
+    expect(l.load_1m).toBe(0);
+    expect(l.load_5m).toBe(0);
+    expect(l.load_15m).toBe(0);
+    expect(l.load_1m_per_core).toBe(0);
+  });
+
+  it("reports a platform with no load average as unmeasured, never as 0.00", () => {
+    // The platform — not the value — decides this. Windows implements no load
+    // average, and Node documents os.loadavg() there as a constant [0, 0, 0]:
+    // publishing that as "0.00 per core" would invent a fact.
+    const l = readLoadStatus({ ...CALM_MACHINE, loadavg: () => null });
     expect(l.load_1m).toBeNull();
+    expect(l.load_5m).toBeNull();
+    expect(l.load_15m).toBeNull();
     expect(l.load_1m_per_core).toBeNull();
     // Memory was readable, so the block as a whole still has something to say.
     expect(l.status).toBe("ok");
     expect(l.memory_used_pct).toBe(41);
+  });
+
+  it("recognises the no-load-average platform by name, and only that one", () => {
+    // Node's contract: os.loadavg() is always [0, 0, 0] on Windows and a real
+    // reading everywhere else. The same zeros are a placeholder on win32 and
+    // an idle machine on Linux (production) and macOS (development).
+    const zeros = () => [0, 0, 0];
+    expect(platformLoadavg("win32", zeros)).toBeNull();
+    expect(platformLoadavg("linux", zeros)).toEqual([0, 0, 0]);
+    expect(platformLoadavg("darwin", zeros)).toEqual([0, 0, 0]);
+    expect(platformLoadavg("linux", () => [0.42, 0.51, 0.63])).toEqual([0.42, 0.51, 0.63]);
   });
 
   it("ignores a /proc/meminfo without MemAvailable rather than falling back to MemFree", () => {

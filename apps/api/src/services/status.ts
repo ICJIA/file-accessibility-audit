@@ -294,7 +294,8 @@ export interface LoadStatus {
   cores: number | null;
   /** os.loadavg(), to two decimals. Runnable-process averages, so on Linux
    *  they include uninterruptible I/O wait and can exceed the core count
-   *  without anything being wrong. */
+   *  without anything being wrong. 0 is a reading — an idle machine — and
+   *  null means only that the platform keeps no load average (Windows). */
   load_1m: number | null;
   load_5m: number | null;
   load_15m: number | null;
@@ -1376,16 +1377,33 @@ export function readDiskStatus(dirPath: string): DiskStatus {
  *  so a test can present a saturated machine; production uses
  *  defaultLoadProbe, which reads the real ones. */
 export interface LoadProbe {
-  /** os.loadavg() — [1m, 5m, 15m]. */
-  loadavg(): number[];
+  /** os.loadavg() — [1m, 5m, 15m] — or null on a platform that has no load
+   *  average at all. See platformLoadavg. */
+  loadavg(): number[] | null;
   /** os.cpus().length. The COUNT only — see LoadStatus.cores. */
   cpuCount(): number;
   /** Raw /proc/meminfo, or null where the file does not exist (macOS). */
   meminfo(): string | null;
 }
 
+/** The load average, or null where the platform does not keep one.
+ *
+ *  Node documents os.loadavg() as always [0, 0, 0] on Windows, so there the
+ *  zeros are a placeholder and publishing them as "0.00 per core" would invent
+ *  a fact. Everywhere else a zero IS a reading: an idle Linux box genuinely
+ *  decays to 0.00 0.00 0.00. So the platform decides, never the value — a
+ *  value rule cannot tell those two apart, and the one this replaced told the
+ *  public status page that an idle production droplet's processor load
+ *  "could not be read". */
+export function platformLoadavg(
+  platform: NodeJS.Platform,
+  read: () => number[] = os.loadavg,
+): number[] | null {
+  return platform === "win32" ? null : read();
+}
+
 export const defaultLoadProbe: LoadProbe = {
-  loadavg: () => os.loadavg(),
+  loadavg: () => platformLoadavg(process.platform),
   cpuCount: () => os.cpus().length,
   meminfo: () => {
     try {
@@ -1451,23 +1469,17 @@ export function readLoadStatus(probe: LoadProbe = defaultLoadProbe): LoadStatus 
     const count = probe.cpuCount();
     if (Number.isFinite(count) && count > 0) cores = count;
     const avg = probe.loadavg();
-    // A flat zero triple is what os.loadavg() returns on a platform that does
-    // not implement it (Windows), so it is treated as unmeasured rather than
-    // published as a confident "0.00 per core".
-    //
-    // The trade is deliberate and slightly lossy: a Linux box idle long
-    // enough for all three averages to decay below 0.005 genuinely reads
-    // 0.00 0.00 0.00, and this rule would report it as unmeasured. That
-    // costs one card line reading "could not be read" on a machine nobody is
-    // using; the alternative costs a fabricated number on a machine that
-    // cannot measure itself. Neither platform this runs on (Linux in
-    // production, macOS in development) returns the fake zero, so the rule is
-    // a guard rather than a live code path.
+    // Zero is a reading, and 0.00 0.00 0.00 is published as one. This used to
+    // discard the flat triple as "unmeasured" on the theory that production
+    // never produces it. It does: a droplet decays to exactly that about an
+    // hour after its last audit and sits there between audits, so the card
+    // said the load "could not be read" on a healthy, idle machine. The one
+    // platform with no load average is recognised by NAME in platformLoadavg,
+    // which reports null there.
     if (
       Array.isArray(avg) &&
       avg.length >= 3 &&
-      avg.slice(0, 3).every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0) &&
-      avg.slice(0, 3).some((n) => n > 0)
+      avg.slice(0, 3).every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0)
     ) {
       load = [avg[0], avg[1], avg[2]];
     }
