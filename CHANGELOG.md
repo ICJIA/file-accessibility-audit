@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.156.3] - 2026-09-11
+
+### Fixed
+
+- **An idle server's processor load reads 0.00 instead of "could not be read".** Whenever the server had been quiet for a while, the Server load card on `/status` said the processor load "could not be read on this server" — directly above the note, added in v1.156.1, promising that 0.00 is the ordinary resting reading. The cause was the third of v1.156.0's honesty rules: a load average of exactly zero across all three windows was treated as a machine that cannot measure itself rather than an idle one. Zeros are what Node reports on Windows, which keeps no load average, and the rule's own comment called it a guard rather than a live code path. It was live. The production server's load average decays to exactly 0.00 0.00 0.00 about an hour after its last audit and stays there between audits. It also flickered: watched on production's public payload, the card published 0.00 per core at 13:33:37 UTC and "could not be read" thirty seconds later — when the five-minute average, which the card does not even show, rounded from 0.01 to 0.00 — while the core count and memory went on reading normally.
+
+  The platform now decides, never the value: the load average is reported as unmeasured only on Windows, and everywhere else a zero is published as the reading it is. The card needed no change — it already rendered a zero correctly, and was being handed `null` instead. This supersedes the third honesty rule in the v1.156.0 entry, which is left as written.
+
+### Notes
+
+- Tests 3,740 (API 1,787 · Web 1,903 · CLI 50). The test that pinned the zero rule now pins the opposite, and three guards are new: a platform without a load average stays unmeasured, Windows is the only such platform, and the card renders an idle 0.00 with a green dot and never "could not be read". Each was verified by breaking the code it guards and watching it fail; loosening the card's null check to a falsy one reproduces the reported screenshot word for word.
+- All four corpus gates re-run: `synthetic-controls` and `synthetic-office-controls` **ALL TRUTHS HELD** (113 + 43 = 156 traps), `score-ledger` **NO SCORE MOVED** (286 rows), `resave-invariance` **BYTE LAYOUT NEVER CHANGED A GRADE**. No scoring rule was touched.
+- The README's `/status` payload note now says a measured zero is published as `0`, and that `null` means only a platform with no load average.
+- **This release's dependency scan is not clean, and none of it comes from this change.** `pnpm audit --prod` reports six advisories — four in `multer`, which parses every upload, and two in `svgo`, a build-time CSS minifier — all published on 2026-09-08 about four hours after v1.156.2 recorded a clean scan, so that record was accurate when written. Two of the `multer` advisories are reachable by an unauthenticated upload request; all six are closed in v1.156.4, released alongside this version.
+
 ## [1.156.2] - 2026-09-08
 
 ### Security

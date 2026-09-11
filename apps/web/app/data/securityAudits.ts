@@ -54,6 +54,38 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.156.3",
+    meta: "Reviewed <strong>2026-09-11</strong> &middot; scope: how one figure on the public status page is worked out, and a re-run of the scan for known problems in the software this tool depends on.",
+    body: [
+      {
+        kind: "p",
+        html: "Nothing about what this tool collects, keeps, or sends changed. The status page &mdash; the page anyone can read without signing in &mdash; now shows a resting server&rsquo;s processor figure as zero instead of saying it could not be read.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The status page said it could not measure a server that was simply resting.</strong> About an hour after the last document was checked, the server&rsquo;s processor figure settles at exactly zero, and the page treated that zero as a broken measurement &mdash; which is what zero means on Windows, a system that does not keep this figure at all. The page now treats zero as the ordinary reading of an idle server everywhere except Windows. Nothing new is published: zero was always one of the values this figure could show.",
+          },
+          {
+            badge: "P1",
+            html: "<strong>Four known problems were found in the component that receives uploaded files, and two of them could be used against this site.</strong> One could stop the service with a single specially crafted upload; the other could tie it up for a long time. Neither needs an account, and the published advice offers no way to avoid them short of updating. The remaining two affect ways of storing and checking uploads that this site does not use.",
+            note: "Fixed in v1.156.4, released at the same time as this version rather than scheduled for later, so the deployment that ships this change ships the fix with it.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Two more were found in a tool used only while the site is being built.</strong> It tidies the site&rsquo;s own style sheets once, before the site goes live, and never handles anything a visitor sends &mdash; so nothing on the site could reach them. They are updated in v1.156.4 as well.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>The previous clean scan was accurate.</strong> All six problems were made public on the evening of September 8, about four hours after the v1.156.2 review below recorded a scan that found none. Nothing in that entry needs correcting.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.156.2",
     meta: "Reviewed <strong>2026-09-08</strong> &middot; scope: updating outside software this tool relies on, to close the three known problems reported in the entry below.",
     body: [

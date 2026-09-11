@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,737 tests** across 213 test files (API 1,785 · Web 1,902 · CLI 50) — plus the **accuracy gates**, ten corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,740 tests** across 213 test files (API 1,787 · Web 1,903 · CLI 50) — plus the **accuracy gates**, ten corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1412,6 +1412,21 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.156.3 — 2026-09-11 · Server load card: an idle server's 0.00 is published as a reading (no new attack surface; six new advisories disclosed, fixed in v1.156.4)
+
+No new attack surface: one condition in how the `/status` payload's `load` block is computed. The key set, the 5-second aggregate cache and the 120/min limiter are unchanged, and nothing is accepted, stored, or sent that was not before. What changed is which value reaches an existing key: a load average of exactly zero in all three windows, previously published as `null`, is now published as `0`. That is a value the disclosure review in the v1.156.0 entry already covered — load averages were judged publishable, and a zero says less about the machine than any other reading. The one platform with no load average, Windows, still reports `null`, now decided by `process.platform` instead of by the value, which could not tell a Windows placeholder from an idle Linux server. `statusPrivacy.test.ts` passes unchanged: same keys, every counter a bare number.
+
+**Newly surfaced in the dependency scan, and not from this change.** `pnpm audit --prod` reports **6 advisories — 4 high, 1 moderate, 1 low**. All six were published on **2026-09-08 between 21:20 and 21:30 UTC**, about four hours after the v1.156.2 entry below recorded a clean scan at 17:35 UTC, so that entry was accurate when written and needs no correction. Reachability, one advisory at a time:
+
+- **`multer` 2.2.0** — a direct dependency of the API, parsing every upload to `/api/analyze` and `/api/remediate`.
+  - [GHSA-wc9g-mqfw-jrwm](https://github.com/advisories/GHSA-wc9g-mqfw-jrwm) (high): two crafted text field names raise an uncaught `RangeError` that terminates the Node.js process. **Reachable** by a single unauthenticated multipart request; the advisory lists no workaround.
+  - [GHSA-535w-7cp7-47q4](https://github.com/advisories/GHSA-535w-7cp7-47q4) (high): a field name with a huge array index forces a maximum-length sparse array and a synchronous walk of its full length. **Reachable** the same way. The fix is 2.3.0 *and* configuring its new opt-in `limits.fieldArrayIndexLimit`; the upgrade alone does not close it.
+  - [GHSA-qfvm-cv95-jqjf](https://github.com/advisories/GHSA-qfvm-cv95-jqjf) (high): aborted uploads leak a file descriptor under `diskStorage`. **Not reachable** — both upload paths use `memoryStorage`.
+  - [GHSA-qvfw-j98x-7q72](https://github.com/advisories/GHSA-qvfw-j98x-7q72) (low): `limits.fileSize` is bypassed when `fileFilter` answers asynchronously. **Not reachable** — both file filters call back synchronously.
+- **`svgo` 4.0.2** — reached through Nuxt's build (`@nuxt/vite-builder` → `cssnano` → `postcss-svgo`), plus a root dev dependency. [GHSA-w27v-7q3p-w38r](https://github.com/advisories/GHSA-w27v-7q3p-w38r) (high) and [GHSA-4vpr-x523-8j87](https://github.com/advisories/GHSA-4vpr-x523-8j87) (moderate) are both gaps in its `removeScripts` sanitizer. **Not reachable** — it runs at build time over this project's own stylesheets, never sees a visitor's input, and nothing here relies on it to sanitize anything.
+
+Not bundled into this fix, following the v1.156.1 → v1.156.2 precedent: moving a dependency means re-running the document control corpora, and it gets its own record. **Not deferred either** — the two reachable `multer` crashes are why v1.156.4 is released alongside this version, in the same push, so the deployment that ships this release ships its fix. **Disclosed (P1 — reachable, unauthenticated, one request); fixed in v1.156.4.**
 
 ### v1.156.2 — 2026-09-08 · Dependency pass: the three advisories disclosed in v1.156.1 are closed (`pnpm audit --prod` clean)
 
