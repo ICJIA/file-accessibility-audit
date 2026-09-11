@@ -28,6 +28,12 @@ function shape(err: unknown): ErrorShape {
 export function statusOf(err: unknown): number {
   const e = shape(err);
   if (e.code === "LIMIT_FILE_SIZE") return 413;
+  // Every other multer rejection is the caller's malformed upload — a refused
+  // field name, a second file, an unexpected part — never a server fault.
+  // MulterError carries a code and no status, so these used to fall through
+  // to 500 and log a full error object, which includes the caller-written
+  // field name, exactly like a crash.
+  if (e.name === "MulterError") return 400;
   return (e.status as number) || 500;
 }
 

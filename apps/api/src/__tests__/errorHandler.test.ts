@@ -45,6 +45,20 @@ describe("statusOf", () => {
     expect(statusOf(new Error("boom"))).toBe(500);
     expect(statusOf(undefined)).toBe(500);
   });
+
+  it("maps every other multer rejection to 400 — the caller's malformed upload, not a server fault", () => {
+    // MulterError carries a `code` and no `status`, so every code except
+    // LIMIT_FILE_SIZE used to fall through to 500. That included the two
+    // multer 2.3.0 raises for the v1.156.4 advisories, which would have
+    // logged each crafted request as a crash, stack and all.
+    const multerError = (code: string) => ({ name: "MulterError", code, message: code });
+    expect(statusOf(multerError("LIMIT_FIELD_ARRAY_INDEX"))).toBe(400);
+    expect(statusOf(multerError("INVALID_FIELD_NAME"))).toBe(400);
+    expect(statusOf(multerError("LIMIT_UNEXPECTED_FILE"))).toBe(400);
+    expect(statusOf(multerError("LIMIT_FILE_COUNT"))).toBe(400);
+    // The size code keeps its own status and its own guidance.
+    expect(statusOf(multerError("LIMIT_FILE_SIZE"))).toBe(413);
+  });
 });
 
 describe("logHandledError", () => {
@@ -79,6 +93,22 @@ describe("logHandledError", () => {
     logHandledError(err, req);
     expect(warn).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(err);
+  });
+
+  it("a refused field name logs one warn line — and never the field name, which the caller wrote", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const err = Object.assign(new Error("Field name array index too large"), {
+      name: "MulterError",
+      code: "LIMIT_FIELD_ARRAY_INDEX",
+      field: "items[4294967294]",
+    });
+    logHandledError(err, req);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = warn.mock.calls[0].map(String).join(" ");
+    expect(line).toBe("[api] 400 LIMIT_FIELD_ARRAY_INDEX POST /api/analyze");
+    expect(line).not.toContain("4294967294");
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("the Error.name fallback labels a 400 error with its name", () => {

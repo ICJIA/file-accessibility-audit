@@ -6,6 +6,29 @@ import { ANALYSIS, DOCX, PPTX, XLSX } from "#config";
 
 const storage = multer.memoryStorage();
 
+/** multer's `limits`, plus the option @types/multer 2.2.0 predates. */
+export type MultipartLimits = NonNullable<multer.Options["limits"]> & {
+  /** Largest numeric index accepted in a field name (`a[3]` is index 3). */
+  fieldArrayIndexLimit?: number;
+};
+
+/**
+ * The largest array index any multipart field name may carry — on EVERY
+ * multer instance in this API, which is why it is exported: /api/remediate
+ * builds its own parser and must apply the same number.
+ *
+ * Zero, because no upload form here sends a text field at all: the web app
+ * and the CLI append a single "file" part and nothing else, so no field name
+ * needs an index and the tightest limit costs nothing.
+ *
+ * It closes GHSA-535w-7cp7-47q4. Without it, a field named items[4294967294]
+ * makes append-field build a maximum-length sparse array, and a second field
+ * on the same base walks all 4.29 billion slots synchronously — one anonymous
+ * request freezes the process. multer 2.3.0 ships this limit OFF (Infinity),
+ * so upgrading alone does not close the advisory; the number has to be set.
+ */
+export const FIELD_ARRAY_INDEX_LIMIT = 0;
+
 /**
  * Builds the upload-rejection message from the enabled formats' labels with
  * correct one/two/many joining:
@@ -79,12 +102,15 @@ export function uploadFileFilter(
   cb(new UnsupportedFileTypeError(acceptedFormatsMessage(labels)));
 }
 
+const uploadLimits: MultipartLimits = {
+  fileSize: ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024,
+  files: 1,
+  fieldArrayIndexLimit: FIELD_ARRAY_INDEX_LIMIT,
+};
+
 export const uploadMiddleware = multer({
   storage,
-  limits: {
-    fileSize: ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024,
-    files: 1,
-  },
+  limits: uploadLimits,
   // uploadFileFilter stays a PURE decision function — it is exported and
   // unit-tested as one. The side effect lives here in the wrapper instead, so
   // counting refusals cannot make the decision logic harder to test or reason

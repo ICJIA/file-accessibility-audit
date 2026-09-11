@@ -6,6 +6,7 @@ import { createReadStream, promises as fs, existsSync, statSync } from "node:fs"
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeLimiter, remediationStatusLimiter } from "../middleware/rateLimiter.js";
+import { FIELD_ARRAY_INDEX_LIMIT, type MultipartLimits } from "../middleware/uploadMiddleware.js";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
 import { buildChildSpawnEnv } from "../services/childSpawnEnv.js";
 import {
@@ -34,12 +35,18 @@ const DAILY_CAP_WINDOW_MS = 24 * 60 * 60_000;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = path.resolve(HERE, "../jobs/remediate.ts");
 
+// The same field-name limit as every other upload parser (see
+// FIELD_ARRAY_INDEX_LIMIT): this route builds its own multer instance, so it
+// does not inherit the one in uploadMiddleware.
+const remediateLimits: MultipartLimits = {
+  fileSize: REMEDIATION.MAX_FILE_SIZE_MB * 1024 * 1024,
+  files: 1,
+  fieldArrayIndexLimit: FIELD_ARRAY_INDEX_LIMIT,
+};
+
 const remediateUpload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: REMEDIATION.MAX_FILE_SIZE_MB * 1024 * 1024,
-    files: 1,
-  },
+  limits: remediateLimits,
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf")) {
       cb(null, true);
