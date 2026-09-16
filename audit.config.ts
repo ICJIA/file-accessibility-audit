@@ -123,23 +123,25 @@ export const ANALYTICS = {
 // ---------------------------------------------------------------------------
 // The operative reference standard the whole app displays and links to.
 //
-// We report against WCAG 2.1 Level AA — the standard named by the law. 2.2 is
-// IITAA 2.1 (§E205.4) and the ADA Title II rule actually require. Auditing to
-// 2.2 is stricter than the Illinois legal minimum; 2.2 is optional/forward-
-// looking under IITAA today. The automated checks are unchanged — every
-// machine-checkable criterion carried forward from 2.1 into 2.2. The new 2.2
-// criteria are interactive/manual and are surfaced as "not assessed", never as
-// automated failures.
+// We report against WCAG 2.1 Level AA — the standard IITAA 2.1 (§E205.4) and
+// the ADA Title II rule actually name. 2.2 is a strict superset, optional and
+// forward-looking under IITAA today; auditing to it would be stricter than the
+// Illinois legal minimum. The automated checks are the same either way — every
+// machine-checkable criterion carried forward from 2.1 into 2.2. The criteria
+// 2.2 adds are interactive/manual and are surfaced as "not assessed", never as
+// automated failures. So the version setting changes what the reports NAME and
+// link to, not what is measured.
 //
-// REVERT PATH: set WCAG_VERSION=2.1 in the environment (PM2 env block or
+// OPT-IN PATH: set WCAG_VERSION=2.2 in the environment (PM2 env block or
 // /etc/environment), then:
 //   - API: restart only (tsx re-reads this file at startup — no rebuild). The
 //     conformance verdict (labels, links, and the 2.2 "not assessed" additions)
-//     reverts immediately.
+//     switches immediately.
 //   - Web: rebuild + restart. Nuxt bakes runtimeConfig.public at `nuxt build`
-//     time (same as REMEDIATION.ENABLED), so the front end picks up 2.1 only
+//     time (same as REMEDIATION.ENABLED), so the front end picks up 2.2 only
 //     after `pnpm build` and a restart — not on a bare env change.
 // A normal redeploy (which rebuilds the web app) does both at once.
+// Unset the variable to return to the 2.1 default, by the same two steps.
 //
 // SAFE TO CHANGE: VERSION via env only ("2.1" | "2.2"). Keep URLs accurate —
 // a wrong citation is a credibility problem.
