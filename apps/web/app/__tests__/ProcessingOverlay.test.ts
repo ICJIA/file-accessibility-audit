@@ -142,7 +142,9 @@ describe("wiring — index.vue's single-file path drives the rotation", () => {
 describe("DropZone — the timing expectation (v1.99.0, user request)", () => {
   it("tells users up front that analysis is not instantaneous and can take up to two minutes", () => {
     const src = readFileSync(resolve(__dirname, "../components/DropZone.vue"), "utf8");
-    const m = src.match(/data-testid="dropzone-timing-note"[\s\S]{0,400}?<\/p>/);
+    // A <span>, not a <p>, since the drop area became a <button> (2026-09-16):
+    // a button may hold only phrasing content.
+    const m = src.match(/data-testid="dropzone-timing-note"[\s\S]{0,400}?<\/span>/);
     expect(m).toBeTruthy();
     expect(m![0]).toContain("isn't instant");
     // Same ceiling the overlay promises and the analysis budget enforces.

@@ -107,10 +107,10 @@ describe("DropZone", () => {
 
   it("shows drag-active text when dragging over", async () => {
     const wrapper = mount(DropZone);
-    // The dragover handler is on the inner div (the dashed-border drop area)
-    const dropArea = wrapper
-      .findAll("div")
-      .find((d) => d.classes().some((c) => c.includes("border-dashed")))!;
+    // The drag handlers are on the dashed-border drop area, which is a
+    // <button> since the 2026-09-16 keyboard fix (it was a <div>).
+    const dropArea = wrapper.find('[data-testid="dropzone"]');
+    expect(dropArea.classes()).toContain("border-dashed");
     await dropArea.trigger("dragenter");
     expect(wrapper.text()).toContain("Drop your PDF, Word, PowerPoint, or Excel files here");
   });

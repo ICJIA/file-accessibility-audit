@@ -1,5 +1,5 @@
 import "./test-helpers";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -276,6 +276,157 @@ describe("DropZone Accessibility", () => {
     const wrapper = mount(DropZone);
     const dropArea = wrapper.find('[class*="cursor-pointer"]');
     expect(dropArea.exists()).toBe(true);
+  });
+});
+
+// The upload box works without a mouse (accessibility check, 2026-09-16).
+//
+// The box every visit starts with was a <div> with a click handler. A mouse
+// opened the file picker; Tab went from the introduction's links straight to
+// the Technical Details section below the box, no key opened the picker, and a
+// screen reader met three paragraphs with no role and no name — WCAG 2.1.1 and
+// 4.1.2, Level A. Both tests above were green throughout: one checks the
+// input's accept attribute, the other that the box LOOKS clickable. These check
+// that a keyboard can use it and that its focus ring can be seen.
+describe("DropZone works without a mouse (WCAG 2.1.1, 4.1.2, 2.4.7)", () => {
+  const box = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-testid="dropzone"]');
+
+  it("the drop area is a native button, so Tab reaches it and Enter and Space press it", () => {
+    const el = box(mount(DropZone)).element as HTMLButtonElement;
+    expect(el.tagName).toBe("BUTTON");
+    expect(el.getAttribute("type")).toBe("button");
+    // Nothing may take back what the element gives for free: no role
+    // override, no tabindex removing it from the Tab order, never disabled.
+    expect(el.hasAttribute("role")).toBe(false);
+    expect(el.hasAttribute("tabindex")).toBe(false);
+    expect(el.disabled).toBe(false);
+  });
+
+  it("listens for clicks only on buttons — no handler bolted onto a non-interactive element", () => {
+    // The same rule the header title was held to above, for the same reason.
+    const src = readFileSync(resolve(__dirname, "..", "components/DropZone.vue"), "utf-8");
+    const template = src.match(/<template>([\s\S]*)<\/template>/)![1]!;
+    const listeners = [...template.matchAll(/<([a-z][\w-]*)\b[^>]*@click\b/g)].map((m) => m[1]);
+    expect(listeners.length).toBeGreaterThan(0);
+    expect([...new Set(listeners)]).toEqual(["button"]);
+  });
+
+  it("is the only tab stop: the file input stays out of the Tab order and the accessibility tree", () => {
+    const wrapper = mount(DropZone);
+    // display:none (Tailwind's `hidden`) removes the input from both. A
+    // visually hidden but focusable input beside the button would be a second,
+    // invisible stop opening the same picker.
+    const input = wrapper.find('input[type="file"]');
+    expect(input.classes()).toContain("hidden");
+    expect(input.attributes("tabindex")).toBeUndefined();
+    const focusable = wrapper.findAll(
+      "button, a[href], select, textarea, [tabindex], input:not(.hidden)",
+    );
+    expect(focusable).toHaveLength(1);
+    expect(focusable[0]!.attributes("data-testid")).toBe("dropzone");
+  });
+
+  it("pressing it opens the file picker, exactly once", async () => {
+    // Enter and Space on a native button dispatch `click`. happy-dom does not
+    // synthesise that from a key event, so the click is dispatched directly:
+    // the keyboard half is the native element asserted above, and the keys
+    // themselves were exercised in Chromium when this was fixed.
+    const wrapper = mount(DropZone);
+    const input = wrapper.find('input[type="file"]').element as HTMLInputElement;
+    const picker = vi.spyOn(input, "click").mockImplementation(() => {});
+    await box(wrapper).trigger("click");
+    expect(picker).toHaveBeenCalledTimes(1);
+  });
+
+  it("is named for what it does — choosing files to audit — with the limits the box shows", () => {
+    const el = box(mount(DropZone)).element;
+    // No aria-label or aria-labelledby: the name is computed from the words on
+    // the button, so it cannot drift from what a sighted user reads. (The
+    // announcement banner's "See all updates" link once failed 2.5.3 exactly
+    // that way.)
+    expect(el.hasAttribute("aria-label")).toBe(false);
+    expect(el.hasAttribute("aria-labelledby")).toBe(false);
+    // Name from content, less anything aria-hidden.
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('[aria-hidden="true"]').forEach((n) => n.remove());
+    const name = clone.textContent!.replace(/\s+/g, " ").trim();
+    // The visible label opens the name, so speech input can say what it sees.
+    expect(name.startsWith("Drop PDF, Word, PowerPoint, or Excel files here")).toBe(true);
+    expect(name).toContain("or click to browse for files to audit — up to 5 files, max 25 MB each");
+    // The purpose words are for assistive technology only; the visible copy
+    // is unchanged.
+    expect(el.querySelector(".sr-only")?.textContent?.trim()).toBe("for files to audit");
+    // The icon is decorative and must not add an unnamed image to the button.
+    expect(el.querySelector("svg")?.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it("keeps its drag-over styling and still accepts a dropped file", async () => {
+    const wrapper = mount(DropZone);
+    const area = box(wrapper);
+    await area.trigger("dragenter");
+    expect(area.classes()).toContain("border-green-400");
+    expect(wrapper.text()).toContain("Drop your PDF, Word, PowerPoint, or Excel files here");
+    await area.trigger("dragleave");
+    expect(area.classes()).not.toContain("border-green-400");
+
+    // A real drop: the file rides on dataTransfer, which trigger() cannot
+    // carry, so the event is dispatched on the element directly.
+    const file = new File(["%PDF-1.7"], "dropped.pdf", { type: "application/pdf" });
+    const drop = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, "dataTransfer", { value: { files: [file] } });
+    area.element.dispatchEvent(drop);
+    await wrapper.vm.$nextTick();
+    expect(drop.defaultPrevented).toBe(true);
+    expect(wrapper.emitted("file-selected")?.[0]?.[0]).toBe(file);
+  });
+
+  describe("its keyboard focus ring can be seen, measured in both themes (WCAG 2.4.7, 1.4.11)", () => {
+    // The ring is the app's shared focus style: a 2px outline in --link, drawn
+    // 2px outside the dashed border, so the page surface (--surface-body) is
+    // what it sits on, on both sides. The tokens are read from main.css rather
+    // than restated, so editing a colour is what this measures; html.light is
+    // declared twice there, and the later declaration wins, as in the browser.
+    const css = readFileSync(resolve(__dirname, "..", "assets/css/main.css"), "utf-8");
+    const tokens = (block: string): Record<string, string> => {
+      const out: Record<string, string> = {};
+      for (const m of block.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\b/g)) out[m[1]!] = m[2]!;
+      return out;
+    };
+    const dark = tokens(css.slice(css.indexOf(":root {"), css.indexOf("html.light {")));
+    const light = { ...dark, ...tokens(css.slice(css.indexOf("html.light {"))) };
+    const NON_TEXT_CONTRAST = 3;
+
+    it("the button draws the ring, in the token measured below", () => {
+      const classes = box(mount(DropZone)).classes();
+      expect(classes).toContain("focus-visible:outline-2");
+      expect(classes).toContain("focus-visible:outline-offset-2");
+      expect(classes).toContain("focus-visible:outline-[var(--link)]");
+      expect(classes.join(" ")).not.toMatch(/(^|\s)(focus(-visible)?:)?outline-(none|hidden)\b/);
+    });
+
+    it.each([
+      ["dark", dark],
+      ["light", light],
+    ])("--link clears 3:1 against --surface-body on the %s theme", (_theme, palette) => {
+      const ring = palette["--link"];
+      const surface = palette["--surface-body"];
+      expect(ring, "--link must be defined").toBeTruthy();
+      expect(surface, "--surface-body must be defined").toBeTruthy();
+      expect(
+        contrastRatio(ring!, surface!),
+        `--link ${ring} on --surface-body ${surface}`,
+      ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+    });
+
+    it("can fail: the box's own dashed border colour would not pass as a focus ring", () => {
+      // Proof this group is not vacuous — a wrong threshold or a token lookup
+      // gone astray would let anything through.
+      for (const palette of [dark, light]) {
+        expect(contrastRatio(palette["--border-input"]!, palette["--surface-body"]!)).toBeLessThan(
+          NON_TEXT_CONTRAST,
+        );
+      }
+    });
   });
 });
 

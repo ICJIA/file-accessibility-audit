@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.156.5",
+    meta: "Reviewed <strong>2026-09-16</strong> &middot; scope: the box on the home page where a file is chosen for checking, which could only be used with a mouse.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: presentation only. Nothing about how files are received, checked, stored or deleted changed &mdash; the same file types, the same limits and the same upload as before.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The box where you choose a file now works without a mouse.</strong> The accessibility check of September 16, 2026 found that someone using a keyboard or a switch device could not choose a file to check at all: pressing Tab jumped past the box, no key opened the file picker, and a screen reader heard three lines of text with nothing to say they could be pressed. The box is now a real button. Tab reaches it, Enter or the space bar opens the file picker, and a screen reader announces it as a button for choosing files to audit, including the limits the box shows.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>You can see where the keyboard is.</strong> When the box is reached with Tab, an outline appears around it in the site&rsquo;s link colour, measured at more than twice the contrast the standard requires in both the dark and the light appearance. Someone using a mouse sees exactly what they saw before.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked in a real browser, not assumed.</strong> Before the change, the keyboard could not reach the box at all. After it, the box is reached once, in the expected place, and Enter, the space bar and a mouse click each opened the file picker. Pictures of the box taken before and after were identical in both appearances, on a desktop-sized and a phone-sized screen, and a file dropped onto it was checked as before. Ten new automated tests now guard this, and each one was shown to fail when what it checks was deliberately broken.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.156.4",
     meta: "Reviewed <strong>2026-09-11</strong> &middot; scope: updating the component that receives uploaded files and one tool used while the site is built, to close the six known problems reported in the entry below.",
     body: [

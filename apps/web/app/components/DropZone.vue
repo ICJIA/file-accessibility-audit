@@ -69,8 +69,22 @@
       </div>
     </div>
 
-    <div
-      class="flex flex-col items-center justify-center min-h-[50vh] border-2 border-dashed rounded-2xl transition-all cursor-pointer"
+    <!-- The upload box is a real <button> (accessibility check, 2026-09-16).
+         It was a <div> with a click handler: a mouse could open the file
+         picker, but Tab skipped the box, no key opened the picker, and a
+         screen reader met three paragraphs with no role and no name — WCAG
+         2.1.1 and 4.1.2, Level A, on the control every visit starts with.
+         A native button is a Tab stop, opens the picker on Enter and on
+         Space, and takes its spoken name from the words it shows. A button
+         may hold only phrasing content, so the old <div>s and <p>s are
+         <span>s carrying the same display; nothing on screen moves. The
+         file input below stays display:none, so this is the ONE tab stop.
+         The focus ring is the app's own (--link, 2px, offset 2px), measured
+         against the page surface in both themes by accessibility.test.ts. -->
+    <button
+      type="button"
+      data-testid="dropzone"
+      class="flex flex-col items-center justify-center w-full min-h-[50vh] border-2 border-dashed rounded-2xl transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
       :class="
         dragging
           ? 'border-green-400 bg-green-400/5 scale-[1.01]'
@@ -82,9 +96,10 @@
       @drop.prevent="handleDrop"
       @click="openPicker"
     >
-      <div class="text-center space-y-4 p-8">
-        <div
+      <span class="block text-center space-y-4 p-8">
+        <span
           class="mx-auto w-16 h-16 rounded-full bg-[var(--surface-icon)] flex items-center justify-center"
+          aria-hidden="true"
         >
           <svg
             class="w-8 h-8 text-[var(--text-muted)]"
@@ -99,28 +114,36 @@
               d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
             />
           </svg>
-        </div>
+        </span>
 
-        <div>
-          <p
-            class="text-lg font-medium"
+        <span class="block">
+          <span
+            class="block text-lg font-medium"
             :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'"
           >
             {{ dragging ? dropLabelActive : dropLabelIdle }}
-          </p>
-          <p class="text-sm text-[var(--text-muted)] mt-1">
-            or click to browse — up to 5 files, max 25 MB each
-          </p>
+          </span>
+          <!-- The hidden words complete the spoken name — "…or click to browse
+               for files to audit — up to 5 files, max 25 MB each" — while the
+               visible label still opens it, so speech input can say what it
+               sees (WCAG 2.5.3). -->
+          <span class="block text-sm text-[var(--text-muted)] mt-1">
+            or click to browse<span class="sr-only"> for files to audit</span> — up to 5 files, max
+            25 MB each
+          </span>
           <!-- v1.99.0 (user request): set the timing expectation up front —
                a design-heavy PDF measured ~26 s in production, and a silent
                wait that long reads as "stuck". -->
-          <p class="text-xs text-[var(--text-muted)] mt-2" data-testid="dropzone-timing-note">
+          <span
+            class="block text-xs text-[var(--text-muted)] mt-2"
+            data-testid="dropzone-timing-note"
+          >
             Analysis isn't instant — most files finish in seconds, but large or design-heavy
             documents can take up to two minutes while the full check suite runs.
-          </p>
-        </div>
-      </div>
-    </div>
+          </span>
+        </span>
+      </span>
+    </button>
 
     <input
       ref="fileInput"
