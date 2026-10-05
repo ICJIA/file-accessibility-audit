@@ -104,7 +104,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      'In Acrobat: expand each <Table> tag in the Tags panel, change header cell tags from <TD> to <TH>, and add scope attributes (Row or Column) to header cells. In Word: select the header row → Table Layout → Repeat Header Rows. In PowerPoint or Excel: select the table → Table Design → check "Header Row".',
+      'In Acrobat: expand each <Table> tag in the Tags panel, change header cell tags from <TD> to <TH>, and add scope attributes (Row or Column) to header cells. In Word, PowerPoint or Excel: click in the table → Table Design → check "Header Row" (Word 2016 and earlier also need Table Layout → Repeat Header Rows, or a PDF saved from them will not mark the row).',
   },
   color_contrast: {
     criteria: [

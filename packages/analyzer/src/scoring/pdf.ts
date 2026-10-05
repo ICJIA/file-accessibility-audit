@@ -1850,7 +1850,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
         `PDF/UA only — not scored: ${cells} header cell(s) across ${pdfUaOnlyScope.length} table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.`,
       );
       findings.push(
-        'How to fix (optional): In Adobe Acrobat, All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor → right-click the header cells → Table Cell Properties → set Scope ("Column" for headers along the top, "Row" for headers down the side). In Word, tick Table Design → Header Row before exporting and Word writes them for you.',
+        'How to fix (optional): In Adobe Acrobat, All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor → right-click the header cells → Table Cell Properties → set Scope ("Column" for headers along the top, "Row" for headers down the side). From Word, Acrobat\'s PDFMaker add-in (Acrobat tab → Create PDF) writes Scope on marked header cells; Word\'s built-in Save as PDF does not.',
       );
     }
     const headersOnly = tablesWithHeaders.filter((t) => !t.hasScope && t.hasHeaderAssociation);
@@ -1879,7 +1879,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       'Fix: which value to set is decided by where the header sits, not by preference. A header at the TOP of a column, labelling everything beneath it, is Scope = "Column". A header at the START of a row, labelling everything across it, is Scope = "Row". A table can need both kinds: in a grid with labels along the top AND down the left side, the top row is Column and the left-hand cells are Row. For the corner cell where the two meet — the one that labels its row and its column at once — the standard provides a third value, Scope = "Both"; an empty corner can simply stay a data cell.',
     );
     findings.push(
-      'How to set it in Adobe Acrobat: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope. In Word, you rarely need to do this by hand: select the table, then Table Design → check "Header Row" (and "First Column" if the left-hand cells are labels too), and re-export — Word writes the scopes for you.',
+      'How to set it in Adobe Acrobat: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope. Re-exporting from Word will not add it on its own: Word\'s built-in Save as PDF writes header cells with no Scope at all. Mark the headers in Word (Table Design → "Header Row", plus "First Column" if the left-hand cells are labels too), then either set Scope in Acrobat as above, or export with Acrobat\'s PDFMaker add-in for Word (Acrobat tab → Create PDF), which writes Scope on marked header cells — and check the result.',
     );
     // The standards distinction (user request, 2026-08-27). Authors are told
     // by one expert that a file is "100% compliant" and by this report that

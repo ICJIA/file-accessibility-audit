@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.157.0] - 2026-10-05
+
+### Fixed
+
+- **A Word table with its Header Row box ticked is no longer reported as having no header row.** A real agency meeting agenda graded 69/D, with every category at 100 except one: a bordered roll-call table reported as "1 data table(s) have no header row". Its header row was marked with **Table Design → Header Row**, which is how Microsoft tells authors to mark one. Microsoft's support article on accessible Word documents gives exactly that step, and its Accessibility Checker accepts "the header box selected". Word 365 tags that row `<TH>` when it saves a PDF, and this tool has always honored the identical checkbox in PowerPoint and Excel. The Word parser, though, accepted only **Table Layout → Repeat Header Rows**. The report's own advice told Word authors to tick Header Row, so an author who followed it was still flagged. The checkbox now counts, whether it is stored as `w:tblLook` firstRow or as the legacy hex bit Word 2007 wrote. It never makes a bare grid a data table, because Word ticks it on every table by default. The agenda re-grades **69/D → 100/A**. A census of every Word table in the corpus showed it is the only control whose result changes.
+- **The same table defect now costs the same in every format.** A data table whose header row is unmarked fails WCAG 1.3.1 the same way (W3C failure F91) whatever program made the file. Until now:
+
+  | Format | Old score | Old ceiling |
+  |---|---|---|
+  | Word, PowerPoint | 30 per table, Critical | 69/D |
+  | PDF | 45, Moderate | 79/C |
+  | Excel | 100 − 30 per table: 70, Minor | 89/B |
+
+  The Office values were written in July, five weeks before the severity cap made a category's band a grade ceiling, and were never re-checked. All four formats now score such a table exactly 45 (`UNHEADERED_DATA_TABLE_SCORE`, the PDF rubric's own result), so an otherwise-clean file caps at 79/C everywhere. Moderate is the right band: it is a confirmed Level A failure, but every cell's text is still there and reads in order. The scores are now averaged over data tables only, as PDF always has been. A layout grid beside the table no longer dilutes it to Minor, and Excel no longer subtracts 30 per table (two headerless tables used to score 40, four scored 0). A Word or PowerPoint file whose worst finding was such a table moves from D to C; an Excel workbook with one moves from B to C.
+- **A borderless grid pasted from the web is no longer mistaken for a data table.** Pasted content carries `<w:shd w:val="clear" w:color="auto" w:fill="auto"/>` on every cell and run, which is the explicit mark for *no* shading. The layout heuristic counted any `w:shd` as shading, a sign of a styled data table, so such a grid could be scored and accused of 1.3.1. Only a real fill (hex or theme) or a pattern counts now.
+- **The PDF advice no longer promises that Word writes `/Scope`.** Five places told authors that ticking Header Row in Word and re-exporting would make "Word write the scopes for you":
+  - two findings in the PDF table checks
+  - the best-practices row
+  - the PDF/UA fix hint
+  - the action plan's two-way-table step
+
+  Four Windows Microsoft 365 "Save as PDF" exports in the corpus carry `<TH>` cells with no `/Scope` and no `/Headers` at all, while the three Acrobat PDFMaker exports carry `/Scope`. For a two-way table, the only kind where missing Scope is scored, the advice sent authors in a loop. The advice now says Word's built-in Save as PDF leaves Scope off, that Acrobat's PDFMaker add-in for Word writes it, and that it can be set in Acrobat after exporting.
+- **Word fix-it steps now lead with Table Design → Header Row:** the finding, the conformance verdict, the WCAG remediation map, and the bare-grid advisory. The map keeps one note that Word 2016 and earlier also need Repeat Header Rows before a saved PDF marks the row. The scoring explainer gains one sentence on Office tables.
+
+### Notes
+
+- **Tests:** 3,796 (API 1,833 · Web 1,913 · CLI 50) across 215 files. Written test-first:
+  - `tableHeaderParity.test.ts` (new, 27 tests) failed twelve ways, each for the predicted reason, before the scorer changes. It pins the 45, the Moderate band, the 79/C ceiling, no pile-up, no dilution, the mixed-table band and the 1.3.1 attribution in all four formats.
+  - `docxService.test.ts` gained 8. Four were RED before the parser change; four are guards that held throughout.
+- **Traps:** 162 (113 PDF + 49 Office). Six are new:
+  - 157: the agenda as authored, Header Row ticked → 100/A
+  - 158: box unticked, no repeat → 45, 79/C, 1.3.1 named
+  - 159: Repeat Header Rows only → 100/A
+  - 160/161: the first PowerPoint table pair
+  - 162: the pasted borderless grid → layout, never accused
+
+  Traps 08, 76, 105 and 136 now assert the same parity truth.
+- **Sabotage:** restoring the old value fails 105, 136 and 160 ("severity Critical, not Moderate"). Restoring the old Word parser fails 157 ("Header Row ticked, yet the table scored 45") and 162 ("a pasted layout grid was scored 45 as a data table").
+- **Score ledger:** re-blessed in this commit at 293 rows. Exactly the intended rows moved: 105 69/D → 79/C, 136 89/B → 79/C, and seven new rows (the agenda and six traps). Every other row is unchanged, real controls included.
+- **Gates:** `legal-basis`, `best-practice-basis`, both batteries, `resave-invariance` and `encoding-invariance` all pass.
+- Write-up: `docs/table-header-parity-and-word-header-row-fix.md`, which also lists four more cross-format mismatches found alongside this one and left for their own releases. The worst: a single bold title line with no heading styles grades D in Word, B in PowerPoint and A in PDF.
+- **This release's dependency scan is not clean, and none of it comes from this change.** `pnpm audit --prod` reports 26 advisories — 12 high, 10 moderate, 4 low — published 2026-09-03 → 2026-10-01; none was reported by v1.156.4's scan of 2026-09-11. None is reachable in production:
+  - **Build and dev tooling only (19):** `undici` via `nuxt` (11), `brace-expansion` (6) and `braces` (1) in nitropack's build tooling, `node-forge` (1) in the dev server.
+  - **`devalue` (6):** ships in the web server, but only `stringify`/`uneval` are imported, for the server's own JSON-derived render state.
+  - **`multer` (1):** affects `diskStorage` only, and both upload parsers use `memoryStorage()`.
+
+  `braces` and `node-forge` have no patched version yet. Details per advisory are in the README's Security log.
+
 ## [1.156.5] - 2026-09-16
 
 ### Fixed

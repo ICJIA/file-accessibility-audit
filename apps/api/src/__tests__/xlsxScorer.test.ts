@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { XLSX, WCAG_CATEGORY_MAP } from "#config";
 import { scoreXlsx } from "../services/scorer.js";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { XlsxAnalysis } from "../services/xlsxService.js";
 
 describe("XLSX config", () => {
@@ -179,7 +180,10 @@ describe("scoreXlsx — gate/scorer mirrors (2026-09-01)", () => {
         tables: [{ sheetName: "FY26 Grants", name: "T", hasHeaderRow: false, columnCount: 3 }],
       }),
     );
-    expect(r.categories.find((c) => c.id === "table_markup")!.score).toBe(70);
+    // The one value every format gives an unheadered data table (2026-10-05).
+    expect(r.categories.find((c) => c.id === "table_markup")!.score).toBe(
+      UNHEADERED_DATA_TABLE_SCORE,
+    );
     expect(
       r.conformance.failures.some((f) => f.sc === "1.3.1" && f.category === "table_markup"),
     ).toBe(true);
@@ -287,7 +291,7 @@ describe("scoreXlsx", () => {
     expect(cat.notAssessed).toBe(true);
   });
 
-  it("table_markup: headerless table −30, dataful-sheet-without-table −10, merges capped −15", () => {
+  it("table_markup: a headerless table scores the shared unheadered value; plain ranges and merges are notes only", () => {
     const r = scoreXlsx(
       baseAnalysis({
         sheets: [
@@ -327,9 +331,14 @@ describe("scoreXlsx", () => {
         tables: [{ sheetName: "D", name: "T", hasHeaderRow: false }],
       }),
     );
-    // New semantics: −30 headerless; plain-range and merges are notes only
-    // (defined tables exist, so no 60-cap). 100 − 30 = 70.
-    expect(r.categories.find((c) => c.id === "table_markup")!.score).toBe(70);
+    // Plain-range and merges are notes only (defined tables exist, so no
+    // 60-cap). The one defined table is headerless, so the per-table average
+    // is exactly the shared unheadered value — 45 since 2026-10-05, when the
+    // old flat 100 − 30 = 70 (Minor, a grade no other format gave the same
+    // table) was retired.
+    expect(r.categories.find((c) => c.id === "table_markup")!.score).toBe(
+      UNHEADERED_DATA_TABLE_SCORE,
+    );
   });
 
   it("title_language scores on title alone and explains the language gap", () => {

@@ -27,6 +27,7 @@ import { createRequire } from "node:module";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
 import { twinViolations } from "./gateLogic.mjs";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 
 // jszip lives in the analyzer package's dependency tree, not the root's.
 const requireAnalyzer = createRequire(
@@ -189,6 +190,77 @@ function docxTable(withHeader: boolean): string {
   return `<w:tbl>${borders}${row(["Category", "Amount"], withHeader)}${row(["Training", "12,400"], false)}${row(["Outreach", "9,100"], false)}</w:tbl>`;
 }
 
+/** The roll-call grid from a real agency meeting agenda (2026-10-05), built
+ *  the way Word wrote it after the content was pasted in: a bold first row of
+ *  column labels, Present/Absent cells left blank to tick at the meeting, and
+ *  the paste's `<w:shd w:val="clear" w:color="auto" w:fill="auto"/>` — the
+ *  explicit "no shading" mark — on every cell and run. `look` is the table's
+ *  w:tblLook, where Table Design → Header Row lives; `repeatHeader` sets
+ *  Table Layout → Repeat Header Rows on the first row; `borders: false`
+ *  strips every border, leaving the bare pasted grid. Names are roles. */
+function docxRollCallTable(opts: {
+  look: string;
+  repeatHeader: boolean;
+  borders?: boolean;
+}): string {
+  const noFill = '<w:shd w:val="clear" w:color="auto" w:fill="auto"/>';
+  const edge = (side: string) => `<w:${side} w:val="single" w:sz="6" w:space="0" w:color="auto"/>`;
+  const tcBorders =
+    opts.borders === false
+      ? ""
+      : `<w:tcBorders>${["top", "left", "bottom", "right"].map(edge).join("")}</w:tcBorders>`;
+  const cell = (text: string, bold = false) =>
+    `<w:tc><w:tcPr><w:tcW w:w="3100" w:type="dxa"/>${tcBorders}${noFill}</w:tcPr>` +
+    (text
+      ? `<w:p><w:r><w:rPr>${bold ? "<w:b/><w:bCs/>" : ""}${noFill}</w:rPr><w:t>${text}</w:t></w:r></w:p>`
+      : "<w:p/>") +
+    "</w:tc>";
+  const members = [
+    "Chair",
+    "Vice Chair",
+    "Member, State Police",
+    "Member, Sheriffs Association",
+    "Member, Department of Public Health",
+    "Member, Public Defender",
+  ];
+  const tblBorders =
+    opts.borders === false
+      ? ""
+      : `<w:tblBorders>${["top", "left", "bottom", "right"]
+          .map((s) => `<w:${s} w:val="outset" w:sz="6" w:space="0" w:color="auto"/>`)
+          .join("")}</w:tblBorders>`;
+  return (
+    `<w:tbl><w:tblPr><w:tblW w:w="9300" w:type="dxa"/>${tblBorders}${opts.look}</w:tblPr>` +
+    '<w:tblGrid><w:gridCol w:w="3100"/><w:gridCol w:w="3100"/><w:gridCol w:w="3100"/></w:tblGrid>' +
+    `<w:tr>${opts.repeatHeader ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${["Task Force Member", "Present", "Absent"].map((t) => cell(t, true)).join("")}</w:tr>` +
+    members.map((m) => `<w:tr>${cell(m)}${cell("")}${cell("")}</w:tr>`).join("") +
+    "</w:tbl>"
+  );
+}
+/** w:tblLook exactly as Word writes it: 04A0 is every new table's default —
+ *  Header Row and First Column ticked. 0480 is the same with Header Row
+ *  unticked. Both forms are written, as current Word does. */
+const LOOK_HEADER_ROW_ON =
+  '<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>';
+const LOOK_HEADER_ROW_OFF =
+  '<w:tblLook w:val="0480" w:firstRow="0" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>';
+/** The agenda around the table: a titled document with a real H1/H2 outline. */
+const agendaDocx = (table: string) =>
+  docx(
+    [
+      HEADING(1, "Uniform Statewide Crime Statistics Task Force"),
+      P(
+        "Public notice is hereby given that the task force will conduct a public meeting. All interested parties are invited to attend and will be given the opportunity for public comment.",
+      ),
+      P("Date: October 13, 2026"),
+      P("Location: online meeting"),
+      table,
+      HEADING(2, "Meeting Agenda"),
+      P(BODY_TEXT),
+    ].join(""),
+    { title: "Task Force Meeting Agenda", styles: true },
+  );
+
 function pptx(
   slides: string[],
   opts: { title?: string | null; slideBgHex?: string } = {},
@@ -280,6 +352,16 @@ const SLIDE_TYPED_LIST = (items: string[]) =>
   `<p:sp><p:nvSpPr><p:cNvPr id="34" name="Body"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:bodyPr/>${items
     .map((t) => `<a:p><a:r><a:t>- ${t}</a:t></a:r></a:p>`)
     .join("")}</p:txBody></p:sp>`;
+/** A real PowerPoint table (Insert → Table) on a graphic frame. PowerPoint
+ *  has exactly one way to mark a header row — Table Design → Header Row,
+ *  which writes `firstRow="1"` on <a:tblPr> — so `withHeader` toggles only
+ *  that attribute; the cells are identical either way. */
+const SLIDE_TABLE = (rows: string[][], withHeader: boolean) =>
+  `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="40" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="1000000" y="1800000"/><a:ext cx="8000000" cy="2400000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr${withHeader ? ' firstRow="1"' : ""} bandRow="1"/><a:tblGrid>${rows[0]
+    .map(() => '<a:gridCol w="2600000"/>')
+    .join(
+      "",
+    )}</a:tblGrid>${rows.map((r) => `<a:tr h="370000">${r.map((t) => `<a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>${t}</a:t></a:r></a:p></a:txBody></a:tc>`).join("")}</a:tr>`).join("")}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
 const SLIDE_COLORED_BODY = (text: string, colorHex: string, sz = 1800) =>
   `<p:sp><p:nvSpPr><p:cNvPr id="32" name="Body"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="1000000" y="4000000"/><a:ext cx="10000000" cy="2000000"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="${sz}"><a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 
@@ -368,6 +450,35 @@ const allFindings = (r: AnalysisResult) => r.categories.flatMap((c) => c.finding
 const noAccusation = (r: AnalysisResult): string | null => {
   const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
   return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
+};
+
+/** THE TABLE-HEADER PARITY TRUTH (2026-10-05), asserted identically on every
+ *  format's unheadered-table trap — the PDF battery's included. A data table
+ *  whose header row is not marked fails WCAG 1.3.1 the same way in any
+ *  format, so it must score exactly UNHEADERED_DATA_TABLE_SCORE (Moderate),
+ *  an otherwise-clean file must therefore cap at 79/C, and the verdict must
+ *  name 1.3.1 against table_markup. Until that date the same table scored
+ *  30/Critical in Word and PowerPoint (→ 69/D), 45 in PDF (→ 79/C) and 70/
+ *  Minor in Excel (→ 89/B) — found when a real Word agenda graded D for one
+ *  unheadered roll-call table. `wholeDocument: false` for a trap that carries
+ *  other designed defects, where only the table's own numbers are comparable. */
+const unheaderedTableParity = (
+  r: AnalysisResult,
+  opts: { wholeDocument: boolean },
+): string | null => {
+  const c = cat("table_markup")(r);
+  if (!c || c.score === null) return "table_markup unscored";
+  if (c.score !== UNHEADERED_DATA_TABLE_SCORE)
+    return `an unheadered data table scored ${c.score}, not the ${UNHEADERED_DATA_TABLE_SCORE} every format must give it`;
+  if (c.severity !== "Moderate") return `table_markup severity ${c.severity}, not Moderate`;
+  if (opts.wholeDocument && (r.overallScore !== 79 || r.grade !== "C"))
+    return `an otherwise-clean file graded ${r.overallScore}/${r.grade}, not the Moderate ceiling 79/C`;
+  const failing = (
+    r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+  ).conformance?.failures?.some(
+    (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "table_markup",
+  );
+  return failing ? null : "points lost with no 1.3.1 failure attributed to table_markup";
 };
 
 /** The Best Practices claim, asserted the same way in both batteries: a
@@ -478,13 +589,9 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-105-docx-table-headerless.docx",
     truth:
-      "A data table whose header row is not marked as one — Word's repeat-header checkbox never ticked. The table must lose points.",
+      "A data table whose header row is not marked as one — Word's repeat-header checkbox never ticked. The table must score exactly the one value every format gives an unheadered data table (Moderate), the otherwise-clean file must cap at 79/C, and the verdict must name WCAG 1.3.1. Until 2026-10-05 it scored 30/Critical here and capped the file at 69/D — a grade the same table never reached as a PDF.",
     build: () => docx([P(BODY_TEXT), docxTable(false)].join("")),
-    check: (r) => {
-      const c = cat("table_markup")(r);
-      if (!c || c.score === null) return "table category unscored";
-      return c.score < 100 ? null : "unmarked header row scored 100";
-    },
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
   },
   {
     file: "synthetic-106-docx-table-header-twin.docx",
@@ -954,7 +1061,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-136-xlsx-headerless-table.xlsx",
     truth:
-      'A workbook with one defined Table (Insert -> Table) created with Excel\'s "my table has no headers" box left ticked: headerRowCount="0". The range is a real table with named columns of data, but no row is marked as its header, so nothing tells assistive technology which cells label the columns beneath them. table_markup loses 30 points per headerless table — exactly 70 — and the verdict must name WCAG 1.3.1 (Level A). Trap 127 has no defined table at all, so nothing in either battery exercised this deduction until now.',
+      'A workbook with one defined Table (Insert -> Table) created with Excel\'s "my table has no headers" box left ticked: headerRowCount="0". The range is a real table with named columns of data, but no row is marked as its header, so nothing tells assistive technology which cells label the columns beneath them. table_markup must score exactly the one value every format gives an unheadered data table (Moderate) — until 2026-10-05 Excel subtracted 30 per table, so this read 70/Minor and capped at 89/B while the identical table capped at 79/C as a PDF and 69/D in Word — the otherwise-clean workbook must cap at 79/C, and the verdict must name WCAG 1.3.1 (Level A). Trap 127 has no defined table at all, so nothing in either battery exercised this deduction until now.',
     build: () =>
       xlsx(
         [
@@ -971,17 +1078,8 @@ const SAMPLES: Sample[] = [
         { title: "Program Enrollment 2026" },
       ),
     check: (r) => {
-      const c = cat("table_markup")(r);
-      if (!c || c.score === null) return "table_markup unscored";
-      if (c.score !== 70)
-        return `a single headerless defined table scored ${c.score}, not the 100 - 30 the rule defines`;
       if (!/no header row/i.test(allFindings(r))) return "the headerless table is not named";
-      const failing = (
-        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
-      ).conformance?.failures?.some(
-        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "table_markup",
-      );
-      return failing ? null : "30 points lost with no 1.3.1 failure attributed to table_markup";
+      return unheaderedTableParity(r, { wholeDocument: true });
     },
   },
   {
@@ -1405,10 +1503,133 @@ const SAMPLES: Sample[] = [
         "no defined excel table anywhere",
       ]),
   },
+  {
+    file: "synthetic-160-pptx-table-headerless.pptx",
+    truth:
+      "A titled slide carrying a real PowerPoint table whose Table Design → Header Row box is unticked, so no row is marked as the header (PowerPoint's only header mechanism). The first PowerPoint table trap: until 2026-10-05 this scored 30/Critical and capped the deck at 69/D, while the same table capped at 79/C as a PDF and 89/B in Excel. It must now score exactly the one value every format gives an unheadered data table (Moderate), the otherwise-clean deck must cap at 79/C, and the verdict must name WCAG 1.3.1 against table_markup.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Enrollment") +
+            SLIDE_TABLE(
+              [
+                ["Program", "Participants", "Sites"],
+                ["Job Training", "412", "6"],
+                ["Housing Support", "268", "4"],
+              ],
+              false,
+            ),
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
+  },
+  {
+    file: "synthetic-161-pptx-table-header-twin.pptx",
+    truth:
+      "The same slide and table with Table Design → Header Row ticked. table_markup must score a clean 100, the deck must be 100/A, no criterion may be asserted against table_markup, and it must never score below its unheadered twin.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Enrollment") +
+            SLIDE_TABLE(
+              [
+                ["Program", "Participants", "Sites"],
+                ["Job Training", "412", "6"],
+                ["Housing Support", "268", "4"],
+              ],
+              true,
+            ),
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `a table with Header Row ticked scored ${c.score}, not 100`;
+      if (r.overallScore !== 100) return `the clean deck scored ${r.overallScore}/${r.grade}`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.category ?? "") === "table_markup");
+      return failing ? "a criterion is asserted against a marked header row" : null;
+    },
+  },
+  {
+    file: "synthetic-157-docx-agenda-header-row-box.docx",
+    truth:
+      "Modeled on a real agency meeting agenda that graded D on 2026-10-05: a bordered roll-call table (bold first row of column labels, blank Present/Absent cells) with Table Design → Header Row ticked — Word's default for every table — and Repeat Header Rows never set. The checkbox is how Microsoft tells authors to mark a header row; its own Accessibility Checker accepts it and Word 365 tags that row <TH> in a saved PDF. This checker accepted only Repeat Header Rows, so the agenda lost its grade for following Microsoft's instructions. table_markup must score 100, the document must be 100/A, and no criterion may be asserted against table_markup.",
+    build: () => agendaDocx(docxRollCallTable({ look: LOOK_HEADER_ROW_ON, repeatHeader: false })),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `Header Row ticked, yet the table scored ${c.score}`;
+      if (r.overallScore !== 100) return `the clean agenda scored ${r.overallScore}/${r.grade}`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.category ?? "") === "table_markup");
+      return failing
+        ? "1.3.1 asserted against a header row marked the way Microsoft documents"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-158-docx-agenda-header-row-unticked.docx",
+    truth:
+      "The same agenda with Table Design → Header Row unticked and no Repeat Header Rows — the roll-call table's header row is marked by nothing at all, only bolded. A real WCAG 1.3.1 failure: it must score exactly the one value every format gives an unheadered data table (Moderate), the otherwise-clean agenda must cap at 79/C, and the verdict must name 1.3.1 against table_markup.",
+    build: () => agendaDocx(docxRollCallTable({ look: LOOK_HEADER_ROW_OFF, repeatHeader: false })),
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
+  },
+  {
+    file: "synthetic-159-docx-agenda-repeat-header-rows.docx",
+    truth:
+      "The same agenda with Header Row unticked but Table Layout → Repeat Header Rows set on the first row — the older route, and the one Word 2016 and earlier needed before a saved PDF would mark the row. Either route marks the header: table_markup must score 100, the document must be 100/A, and it must never score below the unmarked twin.",
+    build: () => agendaDocx(docxRollCallTable({ look: LOOK_HEADER_ROW_OFF, repeatHeader: true })),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `Repeat Header Rows set, yet the table scored ${c.score}`;
+      return r.overallScore === 100 ? null : `the clean agenda scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-162-docx-pasted-borderless-grid.docx",
+    truth:
+      'The same grid pasted from a web page with every border stripped and Header Row unticked: a bare layout grid, except that every cell and run still carries the paste\'s <w:shd w:fill="auto"/> — the explicit mark for NO shading. Counting that element as shading made such grids read as styled data tables, which are scored and accused of WCAG 1.3.1 (found 2026-10-05). It must stay a layout grid: table_markup at 100 with the bare-grid advisory, no criterion asserted against table_markup, and the document 100/A.',
+    build: () =>
+      agendaDocx(
+        docxRollCallTable({ look: LOOK_HEADER_ROW_OFF, repeatHeader: false, borders: false }),
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `a pasted layout grid was scored ${c.score} as a data table`;
+      if (!/bare grid/i.test(allFindings(r))) return "the bare-grid advisory did not fire";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.category ?? "") === "table_markup");
+      if (failing) return "1.3.1 asserted against a layout grid";
+      return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-158-docx-agenda-header-row-unticked.docx",
+    good: "synthetic-157-docx-agenda-header-row-box.docx",
+    category: "table_markup",
+  },
+  {
+    bad: "synthetic-158-docx-agenda-header-row-unticked.docx",
+    good: "synthetic-159-docx-agenda-repeat-header-rows.docx",
+    category: "table_markup",
+  },
+  {
+    bad: "synthetic-160-pptx-table-headerless.pptx",
+    good: "synthetic-161-pptx-table-header-twin.pptx",
+    category: "table_markup",
+  },
   {
     bad: "synthetic-128-docx-empty-headings.docx",
     good: "synthetic-129-docx-empty-headings-good-twin.docx",
@@ -1503,6 +1724,30 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
 
 type TrapChip = "caught" | "held";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-157-docx-agenda-header-row-box.docx": {
+    label: "Word: an agenda’s roll-call table with Header Row ticked (Word’s default)",
+    chip: "held",
+  },
+  "synthetic-158-docx-agenda-header-row-unticked.docx": {
+    label: "Word: the same table with Header Row unticked and no repeat header",
+    chip: "caught",
+  },
+  "synthetic-159-docx-agenda-repeat-header-rows.docx": {
+    label: "Word: the same table marked with Repeat Header Rows instead",
+    chip: "held",
+  },
+  "synthetic-162-docx-pasted-borderless-grid.docx": {
+    label: "Word: a borderless grid pasted from the web, carrying “no shading” marks",
+    chip: "held",
+  },
+  "synthetic-160-pptx-table-headerless.pptx": {
+    label: "PowerPoint: a table with the Header Row box unticked",
+    chip: "caught",
+  },
+  "synthetic-161-pptx-table-header-twin.pptx": {
+    label: "PowerPoint: the same table with Header Row ticked",
+    chip: "held",
+  },
   "synthetic-130-docx-picture-headings-not-blank.docx": {
     label: "Word: headings made of a letterhead picture and a symbol — not blank lines",
     chip: "held",

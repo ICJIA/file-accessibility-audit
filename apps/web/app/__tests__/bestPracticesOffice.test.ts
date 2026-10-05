@@ -990,7 +990,7 @@ describe("docx-layout-grids claims only what the analyzer examined", () => {
     expect(r.status).toBe("met");
     expect(r.evidence.join(" ")).toMatch(/two or more rows and columns/);
   });
-  it("defers to the score on a headerless data table in a current-era payload — that is a Critical 1.3.1 failure in the plan above", () => {
+  it("defers to the score on a headerless data table in a current-era payload — that is a scored 1.3.1 failure in the plan above", () => {
     const r = run("docx-layout-grids", [
       DOCX_TABLE_WITNESS,
       "1 data table(s) have no header row. In Word: select the top row → Table Layout → Repeat Header Rows.",

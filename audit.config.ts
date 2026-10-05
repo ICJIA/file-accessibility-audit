@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "table-header-row-2026-10-05",
+    badge: "Scoring",
+    text: "A Word table with its Header Row box ticked is no longer reported as having no header row. That box — Table Design → Header Row, ticked by default — is how Microsoft tells authors to mark a table’s header row, and Microsoft’s own accessibility checker accepts it; this tool accepted only Repeat Header Rows, so a correctly built meeting agenda graded D. A table whose header row really is unmarked now costs the same in every format: it used to cap a Word or PowerPoint file at D, a PDF at C, and an Excel workbook at B, and now caps all four at C. Some Word and PowerPoint grades move up, and an Excel workbook with an unmarked table can move from B to C. The advice for PDFs exported from Word is corrected too: Word’s built-in Save as PDF does not write the header directions (Scope) that two-way tables need, so the report no longer suggests that re-exporting will add them.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 5, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "server-load-on-status-2026-09-08",
     badge: "New",
     text: "The service status page now shows how hard the server is working. If a document is taking longer than you expect, you can see whether the machine is simply busy \u2014 a large report uses every processor it can get for a minute or so, and the page says plainly that busy is not the same as broken. It shows processor use, memory, and free disk space together, and it publishes numbers only: nothing about the hardware, nothing about any file, and nothing about anyone using the tool.",

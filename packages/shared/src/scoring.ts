@@ -593,3 +593,29 @@ export function scoreCapReason(
   if (ceiling === null || score < ceiling) return null;
   return { cappedScore: ceiling, severity: worst, cappedGrade: cap };
 }
+
+// ---------------------------------------------------------------------------
+// UNHEADERED DATA TABLE — one score in every format
+// ---------------------------------------------------------------------------
+// A data table whose header row is not marked fails WCAG 1.3.1 the same way
+// (W3C failure F91) whichever program made the file, so every format scores
+// such a table this one value. Word, PowerPoint and Excel average it per
+// table; the PDF rubric arrives at the same 45 from its components (none of
+// the 40 header-presence points; rows, nesting, caption and consistent
+// columns still earned).
+//
+// WHY 45 — MODERATE (2026-10-05). It is a confirmed Level A failure, so it is
+// not Minor. But every cell's text is still present and still reads in order,
+// so it is not the Critical tier of an untagged PDF or a file with neither a
+// title nor a language. Before this, the identical table scored 30/Critical in
+// Word and PowerPoint (capping the document at 69/D), 45/Moderate in PDF
+// (79/C), and 100 − 30 = 70/Minor in Excel (89/B): the Office values were set
+// in July, before SEVERITY_GRADE_CAPS made a category's band a grade ceiling,
+// and were never revisited. A Word agenda whose every other category scored
+// 100 graded D for the one table; exported to PDF it would have graded C.
+//
+// SAFE TO CHANGE: only together with the PDF table rubric in
+// packages/analyzer/src/scoring/pdf.ts — tableHeaderParity.test.ts fails the
+// moment the four formats stop agreeing.
+// ---------------------------------------------------------------------------
+export const UNHEADERED_DATA_TABLE_SCORE = 45;

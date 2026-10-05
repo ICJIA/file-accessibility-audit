@@ -1088,7 +1088,7 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       "Info and Relationships",
       "A",
       "table_markup",
-      `${dataTablesNoHeader} data table(s) have no header row, so screen readers cannot associate data cells with their headers. In Word: select the top row → Table Layout → Repeat Header Rows.`,
+      `${dataTablesNoHeader} data table(s) have no header row, so screen readers cannot associate data cells with their headers. In Word: click in the table → Table Design → check Header Row.`,
     );
   }
 

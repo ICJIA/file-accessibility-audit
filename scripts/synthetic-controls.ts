@@ -27,6 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { analyzePDF } from "../apps/api/src/services/pdfAnalyzer.js";
 import { twinViolations } from "./gateLogic.mjs";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
 
 // Directly in controls/ with a "synthetic-" prefix (user request): the files
@@ -158,6 +159,25 @@ interface Sample {
 
 const cat = (id: string) => (r: AnalysisResult) => r.categories.find((c) => c.id === id);
 const allFindings = (r: AnalysisResult) => r.categories.flatMap((c) => c.findings).join("\n");
+
+/** The table-header parity truth, the PDF side (2026-10-05): a lone data
+ *  table with no <TH> must score exactly UNHEADERED_DATA_TABLE_SCORE — the
+ *  value the Office batteries also assert on their unheadered-table traps —
+ *  so a change to this rubric that breaks the four-format agreement fails
+ *  here, end to end, not only in tableHeaderParity.test.ts. */
+const unheaderedTableParity = (
+  r: AnalysisResult,
+  opts: { wholeDocument: boolean },
+): string | null => {
+  const c = cat("table_markup")(r);
+  if (!c || c.score === null) return "table_markup was not assessed at all";
+  if (c.score !== UNHEADERED_DATA_TABLE_SCORE)
+    return `a TH-less data table scored ${c.score}, not the ${UNHEADERED_DATA_TABLE_SCORE} every format must give it`;
+  if (c.severity !== "Moderate") return `table_markup severity ${c.severity}, not Moderate`;
+  if (opts.wholeDocument && (r.overallScore !== 79 || r.grade !== "C"))
+    return `an otherwise-clean file graded ${r.overallScore}/${r.grade}, not the Moderate ceiling 79/C`;
+  return null;
+};
 
 const SAMPLES: Sample[] = [
   {
@@ -430,12 +450,12 @@ const SAMPLES: Sample[] = [
       return buildPdf(objs, "<< /Title (Headerless Table) >>");
     },
     check: (r) => {
-      const c = cat("table_markup")(r)!;
       // `null < 100` is true, so a Not-Assessed category would silently PASS
-      // this trap — it could not tell "correctly penalised" from "never looked
-      // at". Every sibling trap guards the null; this one did not.
-      if (c.score === null) return "table_markup was not assessed at all";
-      return c.score < 100 ? null : "a headerless 3x3 table scored 100";
+      // a bare "< 100" check — it could not tell "correctly penalised" from
+      // "never looked at". The parity helper guards the null and pins the
+      // exact cross-format value. This file also carries an untagged-text
+      // defect, so only the table's own numbers are compared.
+      return unheaderedTableParity(r, { wholeDocument: false });
     },
   },
   {
@@ -2603,10 +2623,7 @@ const SAMPLES: Sample[] = [
         "<< /Title (Bold Is Not A Header) >>",
       );
     },
-    check: (r) => {
-      const c = cat("table_markup")(r)!;
-      return c.score !== null && c.score < 100 ? null : "bold-only header row scored 100";
-    },
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
   },
   {
     file: "synthetic-77-indesign-threaded-reverse.pdf",

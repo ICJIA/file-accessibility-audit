@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-09-02",
+  "blessed": "2026-10-05",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -992,6 +992,22 @@
         "color_contrast": "null|none",
         "link_quality": "100|No scored issues",
         "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Ocotber  13th USCS Task Force Meeting Agenda.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "table_markup": "100|No issues found",
+        "color_contrast": "100|No issues found",
+        "list_structure": "100|No issues found",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
     },
@@ -2109,14 +2125,14 @@
       }
     },
     "synthetic-105-docx-table-headerless.docx": {
-      "score": 69,
-      "grade": "D",
+      "score": 79,
+      "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
-        "table_markup": "30|Critical",
+        "table_markup": "45|Moderate",
         "color_contrast": "null|none",
         "list_structure": "null|none",
         "link_quality": "null|none",
@@ -2645,13 +2661,13 @@
       }
     },
     "synthetic-136-xlsx-headerless-table.xlsx": {
-      "score": 89,
-      "grade": "B",
+      "score": 79,
+      "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "sheet_names": "100|No issues found",
-        "table_markup": "70|Minor",
+        "table_markup": "45|Moderate",
         "alt_text": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -3008,6 +3024,54 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-157-docx-agenda-header-row-box.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-158-docx-agenda-header-row-unticked.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-159-docx-agenda-repeat-header-rows.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-16-form-unlabeled.pdf": {
       "score": 69,
       "grade": "D",
@@ -3022,6 +3086,54 @@
         "link_quality": "null|none",
         "reading_order": "100|No scored issues",
         "form_accessibility": "0|Critical"
+      }
+    },
+    "synthetic-160-pptx-table-headerless.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-161-pptx-table-header-twin.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-162-docx-pasted-borderless-grid.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "100|No scored issues",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
       }
     },
     "synthetic-17-form-labeled.pdf": {

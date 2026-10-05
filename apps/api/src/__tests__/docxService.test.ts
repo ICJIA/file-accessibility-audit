@@ -319,6 +319,62 @@ describe("docx table header semantics", () => {
     expect(r.tables[0].hasHeaderRow).toBe(false);
   });
 
+  // 2026-10-05: Table Design → Header Row is how Microsoft tells authors to
+  // mark a header row (support.microsoft.com "Make your Word documents
+  // accessible"); the Accessibility Checker accepts it ("the header box
+  // selected"), and Word 365 tags that row <TH> when saving to tagged PDF.
+  // It is stored as w:tblLook firstRow — explicit attribute, or bit 0x0020 of
+  // the legacy hex w:val Word 2007 wrote. Repeat Header Rows (w:tblHeader) is
+  // the older route and still counts.
+  const tbl = (tblPr: string, firstRowTrPr = "") =>
+    `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single"/></w:tblBorders>${tblPr}</w:tblPr><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+    `<w:tr>${firstRowTrPr}<w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+    `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>`;
+  const headerOf = async (body: string) =>
+    (await analyzeDocx(await buildDocx({ body }))).tables[0].hasHeaderRow;
+
+  it("Table Design → Header Row (tblLook firstRow='1') marks the header row", async () => {
+    expect(
+      await headerOf(
+        tbl(
+          '<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("the legacy hex form counts too — bit 0x0020 of w:val is firstRow", async () => {
+    expect(await headerOf(tbl('<w:tblLook w:val="04A0"/>'))).toBe(true);
+    expect(await headerOf(tbl('<w:tblLook w:val="0480"/>'))).toBe(false);
+  });
+
+  it("an explicit firstRow attribute wins over the hex value", async () => {
+    expect(await headerOf(tbl('<w:tblLook w:val="04A0" w:firstRow="0"/>'))).toBe(false);
+    expect(await headerOf(tbl('<w:tblLook w:val="0480" w:firstRow="true"/>'))).toBe(true);
+  });
+
+  it("Header Row unticked and no Repeat Header Rows is no header row", async () => {
+    expect(await headerOf(tbl('<w:tblLook w:val="0480" w:firstRow="0"/>'))).toBe(false);
+    expect(await headerOf(tbl(""))).toBe(false);
+  });
+
+  it("Repeat Header Rows alone still marks the header row", async () => {
+    expect(
+      await headerOf(tbl('<w:tblLook w:firstRow="0"/>', "<w:trPr><w:tblHeader/></w:trPr>")),
+    ).toBe(true);
+  });
+
+  it("the Header Row box does NOT make a bare grid a data table — it is on by default", async () => {
+    // Every table Word inserts carries tblLook 04A0, so the box says nothing
+    // about whether a borderless, unstyled grid is data or layout.
+    const bare =
+      `<w:tbl><w:tblPr><w:tblLook w:val="04A0" w:firstRow="1"/></w:tblPr><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>`;
+    const r = await analyzeDocx(await buildDocx({ body: bare }));
+    expect(r.tables[0].looksLikeLayout).toBe(true);
+  });
+
   it("only a FIRST-row tblHeader counts (Word ignores non-top header rows)", async () => {
     const body =
       `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
@@ -342,6 +398,31 @@ describe("docx table header semantics", () => {
     const r = await analyzeDocx(buf);
     expect(r.tables[0].looksLikeLayout).toBe(true);
     expect(r.tables[1].looksLikeLayout).toBe(false);
+  });
+
+  // 2026-10-05: content pasted from a web page, Outlook or Teams carries
+  // `<w:shd w:val="clear" w:color="auto" w:fill="auto"/>` on every run and
+  // cell — the explicit statement of NO shading. Counting the element as
+  // "shading" turned borderless layout grids into data tables, which are
+  // scored and accused of 1.3.1 when no header row is marked.
+  it("a no-fill shading element (w:fill='auto') is not shading — a pasted layout grid stays layout-like", async () => {
+    const noFill = '<w:shd w:val="clear" w:color="auto" w:fill="auto"/>';
+    const cell = `<w:tc><w:tcPr>${noFill}</w:tcPr><w:p><w:r><w:rPr>${noFill}</w:rPr><w:t>x</w:t></w:r></w:p></w:tc>`;
+    const pasted =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr>${cell}${cell}</w:tr><w:tr>${cell}${cell}</w:tr></w:tbl>`;
+    const r = await analyzeDocx(await buildDocx({ body: pasted }));
+    expect(r.tables[0].looksLikeLayout).toBe(true);
+  });
+
+  it("a real cell fill still marks the table as a styled data table", async () => {
+    const fill = '<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>';
+    const cell = `<w:tc><w:tcPr>${fill}</w:tcPr><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc>`;
+    const shaded =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr>${cell}${cell}</w:tr><w:tr>${cell}${cell}</w:tr></w:tbl>`;
+    const r = await analyzeDocx(await buildDocx({ body: shaded }));
+    expect(r.tables[0].looksLikeLayout).toBe(false);
   });
 });
 

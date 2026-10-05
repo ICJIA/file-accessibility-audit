@@ -1189,7 +1189,10 @@
               without which the header-to-data relationship cannot be determined.
               <strong>Reported but never scored:</strong> missing <code>/Scope</code> on plain
               one-header-row tables (the shape already answers the question — a PDF/UA-only item),
-              nested tables, and captions.
+              nested tables, and captions. <strong>Word, PowerPoint and Excel:</strong> each data
+              table whose header row is not marked scores 45 — exactly what a PDF table with no
+              header cells scores — so the same defect costs the same in every format. (In Word,
+              either Table Design → Header Row or Table Layout → Repeat Header Rows marks it.)
             </p>
           </div>
           <div

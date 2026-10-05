@@ -686,8 +686,8 @@ const TABLE_MARKUP_VARIANTS: Array<{
       why: 'This table already has its header cells marked, which is the hard part — but its headers run along more than one edge (or its cells span), and nothing in the file says whether each header labels the column beneath it or the row beside it. A sighted reader gets that from the layout. Someone listening to the table cell by cell does not: they hear "20" and need the file to tell them it means Post-its in January. In a table shaped like this the relationship cannot be worked out any other way, so it is a WCAG 1.3.1 failure — not just a PDF/UA preference. (In plain one-header-row tables the shape already answers the question; those are never scored for this and appear under "Best practices" instead.)',
       source: {
         pdf: [
-          "In Word this is usually automatic: click the table, then Table Design → check Header Row. If the left-hand cells are labels too, check First Column as well",
-          "Re-export the PDF — Word writes the directions for you when those boxes are ticked",
+          "In Word, click the table, then Table Design → check Header Row — and First Column too if the left-hand cells are labels",
+          "Word's built-in Save as PDF does not write the directions (Scope), so set them in Acrobat after exporting — or export with Acrobat's PDFMaker add-in for Word (Acrobat tab → Create PDF), which writes Scope on marked header cells, and check the result",
         ],
         docx: [
           "Click the table, then Table Design → check Header Row",

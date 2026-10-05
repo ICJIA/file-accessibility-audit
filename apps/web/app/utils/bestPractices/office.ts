@@ -473,7 +473,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           ],
           fix: {
             source:
-              "If a flagged grid genuinely holds data, apply a table style and mark its header row (Table Layout → Repeat Header Rows) in Word. If it is layout only, no change is needed.",
+              "If a flagged grid genuinely holds data, apply a table style and check Table Design → Header Row in Word. If it is layout only, no change is needed.",
             app: OFFICE_FIX_APP,
           },
         };

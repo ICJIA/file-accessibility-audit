@@ -204,7 +204,7 @@ const ROUTES = {
   },
   scope: {
     source:
-      "Keep tables simple in the source — one header row, marked as such (Word: Table Design → check Header Row) — and re-export. The exporter writes the header direction for you.",
+      "Keep tables simple in the source — one header row, marked as such (Word: Table Design → check Header Row) — so the direction follows from the table's shape. Word's built-in Save as PDF does not write Scope itself; Acrobat's PDFMaker add-in for Word does.",
     pdf: "In Acrobat's Table Editor (Prepare for accessibility → Fix reading order → Table Editor), open each header cell's Table Cell Properties and set Scope to Row or Column.",
   },
   table: {

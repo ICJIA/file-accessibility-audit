@@ -390,6 +390,33 @@ function topLevelTables(node: PONode): PONode[] {
   return out;
 }
 
+/** Whether a `<w:shd>` actually paints anything. `w:val="nil"` is an
+ *  explicit "no shading". With the common `w:val="clear"` only the fill
+ *  shows, so `w:fill="auto"` — or no fill at all — means none: the exact
+ *  element Word writes on every run and cell of content pasted from a web
+ *  page, Outlook or Teams. A theme fill is a fill. Any other pattern value
+ *  is treated as visible, conservatively. (2026-10-05: counting the bare
+ *  element made pasted borderless layout grids read as data tables.) */
+function isVisibleShading(shd: PONode): boolean {
+  const val = (attrOf(shd, "val") ?? "clear").toLowerCase();
+  if (val === "nil") return false;
+  if (val !== "clear") return true;
+  const fill = (attrOf(shd, "fill") ?? "auto").toLowerCase();
+  return fill !== "auto" || attrOf(shd, "themeFill") !== undefined;
+}
+
+/** Table Design → Header Row, as Word stores it: w:tblLook's explicit
+ *  firstRow attribute (Word 2010+), else bit 0x0020 of the legacy hex w:val
+ *  Word 2007 wrote (current Word writes both, consistently). */
+function tblLookFirstRow(look: PONode | undefined): boolean {
+  if (!look) return false;
+  const explicit = attrOf(look, "firstRow");
+  if (explicit !== undefined) return /^(1|true|on)$/i.test(explicit);
+  const hex = attrOf(look, "val");
+  if (hex === undefined || !/^[0-9a-f]{1,4}$/i.test(hex)) return false;
+  return (parseInt(hex, 16) & 0x0020) !== 0;
+}
+
 /** ST_OnOff: absent = on; "0"/"false"/"off" = off. */
 function onOffEnabled(node: PONode): boolean {
   const val = attrOf(node, "val");
@@ -431,11 +458,26 @@ function extractTables(body: PONode): DocxAnalysis["tables"] {
       if (cells.some((tc) => descendants(tc, "tbl").length > 0)) hasNestedTable = true;
     }
     const tblPr = firstChild(tbl, "tblPr");
+    // THE HEADER ROW CHECKBOX COUNTS (2026-10-05). Table Design → Header Row
+    // is how Microsoft tells authors to mark a header row; its Accessibility
+    // Checker accepts it ("the header box selected"), Word 365 tags that row
+    // <TH> when saving to tagged PDF (axes4, the makers of PAC: only Word 2016
+    // and earlier ignored it), and the PowerPoint and Excel paths here have
+    // always honored their identical checkbox. Repeat Header Rows (above) was
+    // the only route this checker accepted, so a real agency agenda with the
+    // box ticked graded D for "no header row".
+    //
+    // It is deliberately NOT a header MARK for looksLikeLayout below: Word
+    // ticks it on every table it inserts, so it says nothing about whether a
+    // borderless, unstyled grid is data or layout.
+    if (!hasHeaderRow && tblPr && tblLookFirstRow(firstChild(tblPr, "tblLook"))) {
+      hasHeaderRow = true;
+    }
     const looksLikeLayout =
       !anyTblHeaderMark &&
       !(tblPr && firstChild(tblPr, "tblStyle")) &&
       !(tblPr && firstChild(tblPr, "tblBorders")) &&
-      descendants(tbl, "shd").length === 0;
+      !descendants(tbl, "shd").some(isVisibleShading);
     const grid = firstChild(tbl, "tblGrid");
     const gridCols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
     return {

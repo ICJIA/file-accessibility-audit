@@ -54,6 +54,46 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.157.0",
+    meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: how tables are graded in Word, PowerPoint and Excel files, how a Word table&rsquo;s header row is recognized, the advice given for PDFs made from Word, and a re-run of the scan for known problems in the software this tool depends on.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to the advice the report gives. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A Word table marked the way Microsoft documents is no longer called unmarked.</strong> Microsoft tells authors to mark a table&rsquo;s header row with the Header Row box on the Table Design tab, and its own accessibility checker accepts that box. This tool accepted only a different, older setting, so a correctly built meeting agenda was graded D for a table it had marked properly. The box now counts, as the matching box in PowerPoint and Excel always has.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The same problem in a table now costs the same whichever program made the file.</strong> A table whose header row really is unmarked held a Word or PowerPoint file to a D, a PDF to a C, and an Excel workbook to a B. It now holds all four to a C. Excel also stops piling the cost up table by table, and a table used only for layout no longer waters the cost down.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Pasted layout grids are no longer mistaken for data tables.</strong> Text pasted from a web page or an email carries a marker that means &ldquo;no shading&rdquo;, and the checker read that marker as shading &mdash; a sign of a styled data table. A borderless grid used only for layout could then be graded as a data table missing its header row.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The report no longer promises something Word does not do.</strong> For PDFs made from Word, the report said that re-saving from Word would add the label that tells a screen reader which way each table header points. Checked against real files, Word&rsquo;s built-in Save as PDF does not add it, so an author following the advice would have been flagged again. The advice now says so, and names the ways that do add it.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Six new test documents pin the new rules, including one built like the agenda that started this, and each was shown to fail when the rule it protects was put back the old way. Every pinned document&rsquo;s grade was re-checked: only the two test documents for an unmarked table changed (both now a C), plus the agenda itself, which is now graded A.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>The scan for known problems found 26, and none of them can be reached through this site as it runs.</strong> All 26 were made public between September 3 and October 1, and none was reported by the scan recorded for v1.156.4 on September 11, below. Nineteen are in tools used only while the site is being built or worked on, never by the running site; two of those have no fixed version published yet. Six are in the part of the web server that packages each page&rsquo;s data, and each needs a feature of it this site does not use or data this site cannot produce. The last affects a way of receiving uploads straight onto disk that this site does not use: the component here holds each upload in memory as it arrives.",
+            note: "Updating them is left to a release of its own, because moving a dependency means re-running every accuracy check before it ships.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.156.5",
     meta: "Reviewed <strong>2026-09-16</strong> &middot; scope: the box on the home page where a file is chosen for checking, which could only be used with a mouse.",
     body: [

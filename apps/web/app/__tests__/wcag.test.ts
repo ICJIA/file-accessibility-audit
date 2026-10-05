@@ -43,7 +43,7 @@ describe("WCAG_MAP remediation: Office equivalents added alongside Acrobat steps
     expect(r).toMatch(/View\/Edit Alt Text|Alt Text pane/);
   });
 
-  it("table_markup adds Word Repeat-Header-Rows and PowerPoint/Excel Header-Row equivalents", () => {
+  it("table_markup gives the Table Design Header Row fix for Word, PowerPoint and Excel, with the older-Word Repeat Header Rows note", () => {
     const r = WCAG_MAP.table_markup!.remediation;
     expect(r).toContain("Repeat Header Rows");
     expect(r).toContain("Header Row");

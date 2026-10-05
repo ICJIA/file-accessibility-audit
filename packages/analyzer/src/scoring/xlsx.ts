@@ -4,6 +4,7 @@
  * file's imports need to change.
  */
 import { XLSX } from "#config";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { XlsxAnalysis } from "../xlsxService.js";
 import {
@@ -217,7 +218,16 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
     (t) => !t.hasHeaderRow && (t.columnCount ?? 2) < 2,
   );
   if (headerless.length > 0) {
-    score -= 30 * headerless.length;
+    // The same arithmetic as Word and PowerPoint (2026-10-05): each
+    // multi-column defined table scores 100 with a marked header row and
+    // UNHEADERED_DATA_TABLE_SCORE without, averaged over those tables only —
+    // a single-column list is not a table that passed. This subtracted 30
+    // PER TABLE, so one headerless table read as Minor (70 — a grade the
+    // same table could not reach in any other format) and four read as zero.
+    const perTable = a.tables
+      .filter((t) => (t.columnCount ?? 2) >= 2)
+      .map((t) => (t.hasHeaderRow ? 100 : UNHEADERED_DATA_TABLE_SCORE));
+    score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
     findings.push(
       `${headerless.length} table(s) have no header row: ${headerless
         .map((t) => `"${t.name}" on "${t.sheetName}"`)

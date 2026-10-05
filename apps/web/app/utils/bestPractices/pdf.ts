@@ -1076,7 +1076,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
           fix: {
             source:
-              "In Word, select the table and tick Table Design → Header Row before exporting — Word writes the scopes for you.",
+              "Word's built-in Save as PDF leaves Scope off. Exporting with Acrobat's PDFMaker add-in for Word (Acrobat tab → Create PDF) writes it on marked header cells.",
             app: 'In Acrobat, open the Table Editor for the table, right-click the header cells → Table Cell Properties → set Scope ("Column" or "Row").',
           },
         };

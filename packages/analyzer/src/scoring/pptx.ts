@@ -4,6 +4,7 @@
  * other file's imports need to change.
  */
 import { PPTX } from "#config";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { PptxAnalysis } from "../pptxService.js";
 import {
@@ -363,15 +364,19 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
     (t) => t.rowCount >= 2 && t.colCount >= 2 && !t.hasHeaderRow,
   );
   // Per-table average, mirroring scoreDocxTables: a data table with no header
-  // row scores 30 (a severe but not zero violation — the table's cell text is
-  // still readable, just unassociated with its header), not a flat per-table
-  // subtraction from 100. A single unheadered table should not read as
-  // "Minor" (70+) when it is the deck's only table.
-  const perTable = a.tables.map((t) => {
-    const isData = t.rowCount >= 2 && t.colCount >= 2;
-    return !isData || t.hasHeaderRow ? 100 : 30;
-  });
-  const score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
+  // row scores UNHEADERED_DATA_TABLE_SCORE — the one value every format uses
+  // (2026-10-05). Moderate, not Minor: it is a confirmed Level A failure. Not
+  // Critical either: the cell text is still readable, just unassociated with
+  // its header. This said 30 (Critical) until the severity cap made that a D
+  // ceiling the same table never reached as a PDF.
+  //
+  // Averaged over DATA tables only (2026-10-05), as PDF always has: a one-row
+  // strip is not a table that passed, and counting it as 100 diluted an
+  // unheadered table beside it from Moderate to Minor.
+  const dataTables = a.tables.filter((t) => t.rowCount >= 2 && t.colCount >= 2);
+  const perTable = dataTables.map((t) => (t.hasHeaderRow ? 100 : UNHEADERED_DATA_TABLE_SCORE));
+  const score =
+    perTable.length === 0 ? 100 : Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
   const findings = [`${a.tables.length} table(s) found.`];
   if (dataTablesNoHeader.length > 0) {
     findings.push(

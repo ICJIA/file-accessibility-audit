@@ -4,6 +4,7 @@
  * file's imports need to change.
  */
 import { DOCX } from "#config";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { DocxAnalysis } from "../docxService.js";
 import {
@@ -325,17 +326,22 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
       false,
     );
   }
-  const perTable = a.tables.map((t) => {
-    // Mirrors the conformance gate's rule 4 EXACTLY (2026-08-29, the
-    // legal-only sweep): a bare grid with no table style, borders, shading,
-    // or header marks anywhere (looksLikeLayout) is overwhelmingly a layout
-    // construct — the gate has never asserted 1.3.1 on it, and the score
-    // now follows the same rule the gate does.
-    const isData = t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true;
-    const s = !isData ? 100 : t.hasHeaderRow ? 100 : 30;
-    return s;
-  });
-  const score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
+  // Mirrors the conformance gate's rule 4 EXACTLY (2026-08-29, the
+  // legal-only sweep): a bare grid with no table style, borders, shading,
+  // or header marks anywhere (looksLikeLayout) is overwhelmingly a layout
+  // construct — the gate has never asserted 1.3.1 on it, and the score
+  // now follows the same rule the gate does.
+  const dataTables = a.tables.filter(
+    (t) => t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true,
+  );
+  // One value in every format, averaged over DATA tables only (2026-10-05) —
+  // see UNHEADERED_DATA_TABLE_SCORE. The PDF rubric has always scored only
+  // its data tables; averaging over every table here counted a layout grid
+  // as a passing 100, so one beside an unheadered data table diluted that
+  // table from Moderate (45) to Minor (73).
+  const perTable = dataTables.map((t) => (t.hasHeaderRow ? 100 : UNHEADERED_DATA_TABLE_SCORE));
+  const score =
+    perTable.length === 0 ? 100 : Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
   const noHeader = a.tables.filter(
     (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true,
   ).length;
@@ -345,12 +351,12 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
   const findings = [`${a.tables.length} table(s) found.`];
   if (noHeader > 0) {
     findings.push(
-      `${noHeader} data table(s) have no header row. In Word: select the top row → Table Layout → Repeat Header Rows.`,
+      `${noHeader} data table(s) have no header row. In Word: click in the table → Table Design → check Header Row.`,
     );
   }
   if (layoutish > 0) {
     findings.push(
-      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, mark its header row (Table Layout → Repeat Header Rows) and give it a table style.`,
+      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
     );
   }
   // Nested tables: reported, never scored (2026-08-29 — same rule as the
