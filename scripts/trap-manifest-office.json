@@ -232,7 +232,7 @@
     {
       "file": "synthetic-157-docx-agenda-header-row-box.docx",
       "label": "Word: an agenda’s roll-call table with Header Row ticked (Word’s default)",
-      "chip": "held"
+      "chip": "bug"
     },
     {
       "file": "synthetic-158-docx-agenda-header-row-unticked.docx",
@@ -247,7 +247,7 @@
     {
       "file": "synthetic-162-docx-pasted-borderless-grid.docx",
       "label": "Word: a borderless grid pasted from the web, carrying “no shading” marks",
-      "chip": "held"
+      "chip": "bug"
     }
   ]
 }

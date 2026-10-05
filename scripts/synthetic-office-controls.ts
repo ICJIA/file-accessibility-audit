@@ -1722,11 +1722,14 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
   },
 ];
 
-type TrapChip = "caught" | "held";
+/** "bug" marks a trap that pins a real defect found in the CHECKER — the
+ *  trust page renders it FOUND A REAL BUG and needs a matching bugrow in
+ *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
+type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
   "synthetic-157-docx-agenda-header-row-box.docx": {
     label: "Word: an agenda’s roll-call table with Header Row ticked (Word’s default)",
-    chip: "held",
+    chip: "bug",
   },
   "synthetic-158-docx-agenda-header-row-unticked.docx": {
     label: "Word: the same table with Header Row unticked and no repeat header",
@@ -1738,7 +1741,7 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-162-docx-pasted-borderless-grid.docx": {
     label: "Word: a borderless grid pasted from the web, carrying “no shading” marks",
-    chip: "held",
+    chip: "bug",
   },
   "synthetic-160-pptx-table-headerless.pptx": {
     label: "PowerPoint: a table with the Header Row box unticked",
