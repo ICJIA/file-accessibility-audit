@@ -23,6 +23,7 @@
  *
  * The gate never says "conformant". By design — only a human review can.
  */
+import { VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
 import { classifyLinkText } from "./common.js";
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
@@ -556,7 +557,7 @@ export function evaluateConformance(
   //     adobeParity.ts.)
   {
     const visualCount = pdfjs.visualHeadingCandidateCount ?? 0;
-    if ((qpdf.headings ?? []).length === 0 && visualCount >= 2) {
+    if ((qpdf.headings ?? []).length === 0 && visualCount >= VISUAL_HEADINGS_FOR_FAILURE) {
       const samples = (pdfjs.visualHeadingSamples ?? [])
         .slice(0, 3)
         .map((t) => `"${t.replace(/"/g, "'")}"`)
@@ -1029,8 +1030,13 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
 
   // 3b. Paragraphs styled to LOOK like headings without Heading styles —
   //     WCAG's documented failure F2 for 1.3.1 (styling conveys structure
-  //     the markup does not). Mirrors scoreDocxHeadings' `fakes` deduction.
-  if (analysis.fakeHeadings.length > 0) {
+  //     the markup does not). Mirrors scoreDocxHeadings' `fakes` deduction,
+  //     including its one-is-a-title exemption (2026-10-05): with no Heading
+  //     styles at all, a single heading-looking paragraph is the document's
+  //     title, not sections whose structure the markup fails to convey.
+  const docxLoneTitle =
+    analysis.headings.length === 0 && analysis.fakeHeadings.length < VISUAL_HEADINGS_FOR_FAILURE;
+  if (analysis.fakeHeadings.length > 0 && !docxLoneTitle) {
     add(
       "1.3.1",
       "Info and Relationships",
@@ -1281,7 +1287,14 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
   // the same question as "should this slide have a title at all", which is
   // 2.4.10 Section Headings, Level AAA, and stays out of the grade (see the
   // note on slide_titles above).
-  if ((analysis.fakeHeadings ?? []).length > 0) {
+  //
+  // Mirrors scorePptxSlideTitles' one-is-a-title exemption (2026-10-05): with
+  // no visible slide carrying a title, a single typed heading is the deck's
+  // title, not sections whose structure the markup fails to convey.
+  const pptxTitledSlides = (analysis.slides ?? []).filter((s) => !s.hidden && s.title).length;
+  const pptxLoneTitle =
+    pptxTitledSlides === 0 && (analysis.fakeHeadings ?? []).length < VISUAL_HEADINGS_FOR_FAILURE;
+  if ((analysis.fakeHeadings ?? []).length > 0 && !pptxLoneTitle) {
     const n = analysis.fakeHeadings.length;
     add(
       "1.3.1",

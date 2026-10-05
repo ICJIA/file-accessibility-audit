@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "one-title-line-2026-10-05",
+    badge: "Scoring",
+    text: "A Word memo or notice with one bold title line is no longer graded down for missing headings. One line that looks like a heading is the document\u2019s title; two or more are sections that need real heading styles \u2014 the rule PDF reports have followed since September. Word was taking 70 points for that single title line, so a one-page memo could grade D in Word and A as a PDF, and PowerPoint took a smaller deduction for a lone typed title. All three formats now agree, and a document with two or more unmarked section headings is still flagged.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 5, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "table-header-row-2026-10-05",
     badge: "Scoring",
     text: "A Word table with its Header Row box ticked is no longer reported as having no header row. That box — Table Design → Header Row, ticked by default — is how Microsoft tells authors to mark a table’s header row, and Microsoft’s own accessibility checker accepts it; this tool accepted only Repeat Header Rows, so a correctly built meeting agenda graded D. A table whose header row really is unmarked now costs the same in every format: it used to cap a Word or PowerPoint file at D, a PDF at C, and an Excel workbook at B, and now caps all four at C. Some Word and PowerPoint grades move up, and an Excel workbook with an unmarked table can move from B to C. The advice for PDFs exported from Word is corrected too: Word’s built-in Save as PDF does not write the header directions (Scope) that two-way tables need, so the report no longer suggests that re-exporting will add them.",

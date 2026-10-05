@@ -4,7 +4,7 @@
  * file's imports need to change.
  */
 import { DOCX } from "#config";
-import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
+import { UNHEADERED_DATA_TABLE_SCORE, VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { DocxAnalysis } from "../docxService.js";
 import {
@@ -165,6 +165,18 @@ const MAX_FAKE_HEADING_LINES = 15;
 function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   const total = a.headings.length;
   const fakes = a.fakeHeadings.length;
+  // ONE IS A TITLE (2026-10-05) — the rule PDF has applied since 2026-09-02
+  // (VISUAL_HEADINGS_FOR_FAILURE): with no heading markup at all, a single
+  // paragraph that looks like a heading is the document's title, and two or
+  // more are sections. This subtracted 70 for ANY fake heading in a document
+  // with no Heading styles, so a memo with one bold title line graded D here
+  // and A as a PDF. A fake heading BESIDE real Heading styles is still that
+  // section's unmarked heading, and still scored. conformance.ts rule 3b
+  // mirrors this expression exactly — change them together.
+  const loneTitle = total === 0 && fakes > 0 && fakes < VISUAL_HEADINGS_FOR_FAILURE;
+  const loneTitleText = loneTitle
+    ? truncateHeadingText(a.fakeHeadings[0].text).replace(/"/g, "'")
+    : "";
   // `emptyHeadings === 0` is load-bearing (2026-08-31): without it a document
   // whose ONLY heading styles sit on blank lines returned score null — Not
   // Assessed — while conformance.ts asserted a 1.3.1 failure about those very
@@ -172,14 +184,16 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   // "Nothing — this document passed every automated check", and "1 criterion
   // failing" at once. Scorer and verdict must agree on whether this category
   // was assessed at all.
-  if (total === 0 && fakes === 0 && (a.emptyHeadingCount ?? 0) === 0) {
+  if (total === 0 && (fakes === 0 || loneTitle) && (a.emptyHeadingCount ?? 0) === 0) {
     return docxCategory(
       "heading_structure",
       "Heading Structure",
       DOCX.SCORING_WEIGHTS.heading_structure,
       null,
       [
-        "No headings were found. Short documents may not need them; longer documents should use Heading styles so readers can navigate.",
+        loneTitle
+          ? `No headings were found. One paragraph is formatted like a heading ("${loneTitleText}") — a single title does not make sections, so nothing is scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`
+          : "No headings were found. Short documents may not need them; longer documents should use Heading styles so readers can navigate.",
       ],
       "Heading styles (Heading 1–6) create the navigable outline screen-reader users rely on. This document has none to assess.",
       [DOCX_HELP.headings],
@@ -240,7 +254,11 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       `${emptyHeadings} Heading-styled paragraph(s) contain no text — a heading style applied to a blank line, usually to make space. Someone navigating by heading lands on silence, and the outline shows a section that is not there. In Word: delete the blank line, or set it to Normal style and use paragraph spacing instead.`,
     );
   }
-  if (fakes > 0) {
+  if (loneTitle) {
+    findings.push(
+      `Advisory — not scored: one paragraph is formatted like a heading ("${loneTitleText}") — with no Heading styles in this document, a single title does not make sections, so it is not scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`,
+    );
+  } else if (fakes > 0) {
     score -= total === 0 ? 70 : Math.min(40, fakes * 15);
     findings.push(
       `${fakes} paragraph(s) are formatted to look like headings (bold/large text) but are not real Heading styles. Apply Heading 1–6 so assistive technology can navigate them.`,
@@ -249,7 +267,7 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   if (total > 0) {
     findings.push(...headingOutlineLines(a.headings));
   }
-  if (fakes > 0) {
+  if (fakes > 0 && !loneTitle) {
     findings.push(`--- Paragraphs Styled Like Headings ---`);
     for (const fh of a.fakeHeadings.slice(0, MAX_FAKE_HEADING_LINES)) {
       findings.push(`  "${truncateHeadingText(fh.text)}"`);

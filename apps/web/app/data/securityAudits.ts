@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.158.0",
+    meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: how a document with no heading styles is graded when one line looks like a heading, and three wording changes on the &ldquo;Can I trust this?&rdquo; page.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to wording. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A memo&rsquo;s title is no longer graded as missing sections.</strong> When a document uses no heading styles, one line that looks like a heading is its title, and two or more are sections that need real heading markup. PDF reports have followed that rule since September. Word did not: a one-page memo with a single bold title line graded D, while the same memo saved as a PDF graded A, and PowerPoint took a smaller deduction for a lone title. All three now follow the same rule, and a document with two or more unmarked section headings is still flagged.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The trust page no longer says &ldquo;alone&rdquo; after its 30-day figures.</strong> The figures are counted live, and the word read as a boast when a figure was small. The downloadable copy of the page also now names every checker bug the web page lists.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Three new test documents pin the rule from both sides, and each was shown to fail when the old rule was put back. Every pinned document&rsquo;s grade was re-checked: one real document moved &mdash; a quick-reference guide whose only heading-like line is its own title &mdash; and it still names that line in its report. The scan for known problems still finds the same two, which have no fix published yet.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.157.1",
     meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: updating software written by others that this tool includes, to close the known problems reported in the entry below.",
     body: [

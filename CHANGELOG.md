@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.158.0] - 2026-10-05
+
+### Fixed
+
+- **A Word memo with one bold title line is no longer graded down for missing headings.** A document with no heading markup fails WCAG 1.3.1 only if it *visually* has section headings the markup does not convey. PDF has followed an evidence rule since 2026-09-02, adopted after a one-page chart graded 69/D on page count alone: **one** line that looks like a heading is the document's title, and **two or more** are sections. Word and PowerPoint never adopted it:
+
+  | Format | One title line, no heading markup |
+  |---|---|
+  | PDF | not scored (A) |
+  | Word | 70 points off, Critical (caps at D) |
+  | PowerPoint (lone typed title, no titled slide) | 15 points off, Minor (caps at B) |
+
+  The threshold, `VISUAL_HEADINGS_FOR_FAILURE`, now lives in `packages/shared` and is read by all three scorers and their conformance-gate rules. A Word document with no Heading styles and one heading-looking paragraph is no longer scored on headings; the finding still names the line. A deck with no titled slide and one typed heading gets an advisory. Two or more such lines, or a fake heading beside real headings, are scored and gated exactly as before.
+- **"Can I trust this?" drops "alone"** after its three live 30-day figures (check-ups, re-checks, saved changes), as asked. The counts are live, so the framing has to read right at any size; a build guard now refuses the phrase.
+- **The Markdown and Word twin of the brief named only six of its eight checker bugs.** It now names all nine, including this release's. The HTML page and the in-app `/trust` page already listed every one.
+
+### Notes
+
+- **Tests:** 3,813 (API 1,850 · Web 1,913 · CLI 50) across 216 files, written test-first.
+  - Seven new Word and PowerPoint scorer tests: three RED before the change, four guards.
+  - `headingTitleParity.test.ts` (new, 10 tests) pins the threshold in all three formats. With the old Word and PowerPoint rules restored, exactly their lone-title assertions fail.
+  - One existing PowerPoint fixture, a one-slide deck with one typed heading and no title, was precisely the lone-title case. Its typed heading now sits beside a titled slide, so it still proves that a typed heading is scored.
+- **Traps:** 165. Three are new:
+  - 163: a Word memo with one bold title line → 100/A, FOUND A REAL BUG
+  - 164: two bold section lines → still caught, 69/D
+  - 165: a one-slide deck with a typed title → 100/A
+
+  Sabotage: the old rules fail 163 and 165 with exactly the reported symptoms ("a lone title line was scored 30", "a lone typed title cost 15 points").
+- **Score ledger:** re-blessed in this commit at 296 rows. One real control moved: `ICJIA_Freshservice_Quick_Guide.docx` went 59/F → 69/D. Its only heading-like line is its own title, "Freshservice Quick Guide". That line is still named in the report, just no longer scored, and the guide stays a D for its other failures. Plus three new trap rows.
+- **Still open:** at two or more heading-like lines, PowerPoint's typed-heading deduction stops at Minor/Moderate while Word and PDF go to Critical. That is its own decision. Write-up: `docs/one-title-line-heading-parity-fix.md`.
+
 ## [1.157.1] - 2026-10-05
 
 ### Security

@@ -210,10 +210,17 @@ describe("a heading typed into a text box is scored; a missing heading is not (v
   // 2026-08-31 accuracy work, and the more damaging direction: it tells an
   // agency it is compliant when it is not.
   it("scores a typed heading and names 1.3.1", () => {
+    // Beside a titled slide (2026-10-05): a deck whose ONLY heading-like line
+    // is one typed heading, with no titled slide anywhere, is the lone-title
+    // case — one is a title, not sections — and is exempt in every format;
+    // see the describe block below. This fixture was that case until then.
     const r = scorePptx(
       baseAnalysis({
-        slides: [{ index: 1, title: null, titleIsFirstShape: false, shapeCount: 2 }],
-        fakeHeadings: [{ slide: 1, text: "Quarterly Results" }],
+        slides: [
+          { index: 1, title: "Overview", titleIsFirstShape: true, shapeCount: 2 },
+          { index: 2, title: null, titleIsFirstShape: false, shapeCount: 2 },
+        ],
+        fakeHeadings: [{ slide: 2, text: "Quarterly Results" }],
       }),
     );
     const cat = r.categories.find((c) => c.id === "slide_titles")!;
@@ -239,5 +246,64 @@ describe("a heading typed into a text box is scored; a missing heading is not (v
       }),
     );
     expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(100);
+  });
+});
+
+describe("scorePptx — one typed heading in a deck with no titled slides is a title (2026-10-05)", () => {
+  // The same rule as PDF and Word: with no heading markup anywhere — here,
+  // no slide with a title placeholder — ONE line that looks like a heading
+  // is a title, two or more are sections. A typed heading BESIDE titled
+  // slides is still that slide's unmarked heading, and still scored.
+  const titles = (r: ReturnType<typeof scorePptx>) =>
+    r.categories.find((c) => c.id === "slide_titles")!;
+  const titleFailures = (r: ReturnType<typeof scorePptx>) =>
+    r.conformance.failures.filter((f) => f.category === "slide_titles");
+  const untitled = (index: number) => ({
+    index,
+    title: null,
+    titleIsFirstShape: false,
+    shapeCount: 2,
+  });
+
+  it("a lone typed heading in a deck with no titled slides is an advisory, not scored", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [untitled(1)],
+        fakeHeadings: [{ slide: 1, text: "Program Update" }],
+      }),
+    );
+    expect(titles(r).score).toBe(100);
+    expect(titles(r).findings.some((f) => /^Advisory — not scored:.*single title/i.test(f))).toBe(
+      true,
+    );
+    expect(titleFailures(r)).toHaveLength(0);
+  });
+
+  it("two typed headings and no titled slides are still scored, with 1.3.1", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [untitled(1), untitled(2)],
+        fakeHeadings: [
+          { slide: 1, text: "Quarterly Results" },
+          { slide: 2, text: "Next Steps" },
+        ],
+      }),
+    );
+    expect(titles(r).score).toBe(70);
+    expect(titleFailures(r).some((f) => f.sc === "1.3.1")).toBe(true);
+  });
+
+  it("one typed heading beside titled slides is still scored, with 1.3.1", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [
+          { index: 1, title: "Welcome", titleIsFirstShape: true, shapeCount: 2 },
+          untitled(2),
+        ],
+        fakeHeadings: [{ slide: 2, text: "Next Steps" }],
+      }),
+    );
+    expect(titles(r).score).toBe(85);
+    expect(titleFailures(r).some((f) => f.sc === "1.3.1")).toBe(true);
   });
 });

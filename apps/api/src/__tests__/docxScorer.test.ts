@@ -332,3 +332,48 @@ describe("scoreDocx — heading outline signals", () => {
     expect(f).toContain('  "Our Bold Mission"');
   });
 });
+
+describe("scoreDocx — one bold title line is a title, not missing sections (2026-10-05)", () => {
+  // The PDF rule since 2026-09-02: with no heading markup, ONE line that
+  // looks like a heading is the document's title; two or more are sections.
+  // Word subtracted 70 for ANY fake heading in a document with no Heading
+  // styles, so a memo with one bold title line graded D in Word while the
+  // same memo saved as a PDF graded A.
+  const heading = (r: ReturnType<typeof scoreDocx>) =>
+    r.categories.find((c) => c.id === "heading_structure")!;
+  const headingFailures = (r: ReturnType<typeof scoreDocx>) =>
+    r.conformance.failures.filter((f) => f.category === "heading_structure");
+
+  it("one bold line and no Heading styles is not scored, and no 1.3.1 is asserted", () => {
+    const r = scoreDocx(analysis({ headings: [], fakeHeadings: [{ text: "Quarterly Memo" }] }));
+    expect(heading(r).score).toBeNull();
+    expect(heading(r).findings.join(" ")).toMatch(/single title does not make sections/i);
+    expect(heading(r).findings.join(" ")).toContain('"Quarterly Memo"');
+    expect(headingFailures(r)).toHaveLength(0);
+  });
+
+  it("two bold lines and no Heading styles are still sections without markup — scored, 1.3.1", () => {
+    const r = scoreDocx(
+      analysis({ headings: [], fakeHeadings: [{ text: "Findings" }, { text: "Next Steps" }] }),
+    );
+    expect(heading(r).score).toBe(30);
+    expect(headingFailures(r).some((f) => f.sc === "1.3.1")).toBe(true);
+  });
+
+  it("one fake heading beside real Heading styles is still scored", () => {
+    const r = scoreDocx(analysis({ fakeHeadings: [{ text: "Our Bold Mission" }] }));
+    expect(heading(r).score).toBe(85);
+    expect(headingFailures(r).some((f) => f.sc === "1.3.1")).toBe(true);
+  });
+
+  it("blank Heading-styled lines are still scored beside a lone title line, which is not", () => {
+    const r = scoreDocx(
+      analysis({ headings: [], fakeHeadings: [{ text: "Memo" }], emptyHeadingCount: 1 }),
+    );
+    expect(heading(r).score).toBe(90);
+    expect(heading(r).findings.some((f) => /^Advisory — not scored:.*single title/i.test(f))).toBe(
+      true,
+    );
+    expect(headingFailures(r).some((f) => /look like headings/i.test(f.issue))).toBe(false);
+  });
+});

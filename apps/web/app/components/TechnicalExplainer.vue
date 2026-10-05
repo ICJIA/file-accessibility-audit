@@ -1121,10 +1121,12 @@
               sighted reader sees is conveyed by presentation only. A document with no heading tags
               and no such lines has no visual structure to convey, so it is <em>not scored</em> on
               headings (since 2026-09-02; before that the failure was inferred from page and
-              paragraph counts). Everything about the outline's <em>shape</em> — level skips (W3C's
-              own guidance: not a WCAG failure), multiple H1s, generic <code>/H</code> tags, mixing
-              conventions (PDF/UA 7.4.4 / Matterhorn 14-007), and whether the headings' text reads
-              like headings — is
+              paragraph counts). Word and PowerPoint apply the same threshold (since 2026-10-05):
+              with no Heading styles — or no titled slide — one bold or large line is the document's
+              title and is not scored; two or more are sections. Everything about the outline's
+              <em>shape</em> — level skips (W3C's own guidance: not a WCAG failure), multiple H1s,
+              generic <code>/H</code> tags, mixing conventions (PDF/UA 7.4.4 / Matterhorn 14-007),
+              and whether the headings' text reads like headings — is
               <strong>reported as clearly labelled advisories and never scored</strong>.
             </p>
           </div>
@@ -1329,7 +1331,8 @@
               120 characters or shorter, whose own runs are bold at 14 pt or larger. Paragraphs
               inside data-shaped tables (two or more rows and columns) and inside text boxes are not
               counted — a title in a one-row banner table still is; "Title" and "Subtitle" styles
-              are structural.
+              are structural. With no Heading styles anywhere, a single such paragraph is the
+              document's title and is not scored; two or more are sections.
             </li>
           </ul>
         </div>

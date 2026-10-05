@@ -172,6 +172,10 @@ const trapBugs = trapManifest.items.filter((i) => i.chip === "bug").length;
     // A hard-coded month span — "march to august 2026" was still on the page
     // in October (2026-10-05). {{HISTORY_SPAN}} is computed from git.
     /\b(january|february|march|april|may|june|july|august|september|october|november|december) to (january|february|march|april|may|june|july|august|september|october|november|december) 20\d\d\b/i,
+    // "alone" after a live 30-day count reads as a boast and staled the day
+    // the count fell to 45 (2026-10-05, user: "drop alone"). The counts are
+    // live; the framing must hold at any size.
+    /last 30 days alone/i,
   ];
   for (const t of ["checker-brief.template.html", "checker-brief.template.md"]) {
     const src = fs.readFileSync(path.join(BRIEF, t), "utf8");

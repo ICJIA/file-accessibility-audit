@@ -5,6 +5,7 @@
  * scoreDocument from here so no other file's imports need to change.
  */
 import { SCORING_WEIGHTS, ANALYSIS, WCAG, SCORING_PROFILES } from "#config";
+import { VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
 import type { CategoryResult, ScoringMode } from "@file-audit/shared";
 import type { QpdfResult, TableAnalysis } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
@@ -810,9 +811,10 @@ function headingContentVerdict(census: HeadingContentCensus | null): {
   return { score: 100, findings };
 }
 
-/** Visual heading candidates needed before "no heading tags" is a failure:
- *  two lines over body text is sections; one is a title. */
-const VISUAL_HEADINGS_FOR_FAILURE = 2;
+// VISUAL_HEADINGS_FOR_FAILURE (packages/shared): visual heading candidates
+// needed before "no heading tags" is a failure — two lines over body text is
+// sections; one is a title. Shared since 2026-10-05, when Word and PowerPoint
+// adopted the same rule.
 
 function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const findings: string[] = [];

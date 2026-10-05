@@ -1504,6 +1504,74 @@ const SAMPLES: Sample[] = [
       ]),
   },
   {
+    file: "synthetic-163-docx-one-bold-title-line.docx",
+    truth:
+      "A one-page memo whose only heading-like line is its title, set in bold 16-point type rather than a Heading style, above three paragraphs of body text. One line that looks like a heading is the document's title, not sections whose structure the markup fails to convey — the rule PDF has applied since 2026-09-02. Until 2026-10-05 Word subtracted 70 for it and graded the memo D, while the same memo saved as a PDF graded A. heading_structure must not be scored, no criterion may be asserted against it, and the memo must be 100/A.",
+    build: () =>
+      docx(
+        [FAKE_HEADING("Quarterly Program Memo"), P(BODY_TEXT), P(BODY_TEXT), P(BODY_TEXT)].join(""),
+        { title: "Quarterly Program Memo" },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      if (!c) return "heading_structure missing";
+      if (c.score !== null) return `a lone title line was scored ${c.score}`;
+      if (!/single title does not make sections/i.test(c.findings.join(" ")))
+        return "the lone title is not explained";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.category ?? "") === "heading_structure");
+      if (failing) return "1.3.1 asserted against a single title line";
+      return r.overallScore === 100 ? null : `the memo scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-164-docx-two-bold-section-lines.docx",
+    truth:
+      "The other side of the threshold: two bold 16-point lines over body text and no Heading styles anywhere — sections, not a title, and nothing marks them. A WCAG 1.3.1 failure (W3C F2): heading_structure must lose points and the verdict must name 1.3.1 against it.",
+    build: () =>
+      docx(
+        [FAKE_HEADING("Findings"), P(BODY_TEXT), FAKE_HEADING("Next Steps"), P(BODY_TEXT)].join(""),
+        { title: "Program Review" },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      if (!c || c.score === null) return "two section lines were not scored";
+      if (c.score >= 100) return "two unmarked section headings scored 100";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "heading_structure",
+      );
+      return failing ? null : "points lost with no 1.3.1 failure attributed to heading_structure";
+    },
+  },
+  {
+    file: "synthetic-165-pptx-one-typed-title-no-titled-slides.pptx",
+    truth:
+      "A one-slide deck whose only heading is typed into a 32-point bold text box, with no title placeholder on any slide. The same rule as PDF and Word: with no heading markup anywhere, one heading-like line is a title, not sections. Until 2026-10-05 this cost 15 points (Minor, capping the deck at 89/B). slide_titles must stay at 100 with the lone title reported as an advisory, no criterion may be asserted against it, and the deck must be 100/A. Trap 145 — two typed headings — must still be caught.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_FAKE_HEADING("Program Update") +
+            SLIDE_BODY("Enrollment rose 12 percent this quarter."),
+        ],
+        { title: "Program Update" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score === null) return "slide_titles unscored";
+      if (c.score !== 100) return `a lone typed title cost ${100 - c.score} points`;
+      if (!c.findings.some((f) => /^Advisory — not scored:.*single title/i.test(f)))
+        return "the lone typed title is not reported as an advisory";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.category ?? "") === "slide_titles");
+      if (failing) return "1.3.1 asserted against a single typed title";
+      return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
     file: "synthetic-160-pptx-table-headerless.pptx",
     truth:
       "A titled slide carrying a real PowerPoint table whose Table Design → Header Row box is unticked, so no row is marked as the header (PowerPoint's only header mechanism). The first PowerPoint table trap: until 2026-10-05 this scored 30/Critical and capped the deck at 69/D, while the same table capped at 79/C as a PDF and 89/B in Excel. It must now score exactly the one value every format gives an unheadered data table (Moderate), the otherwise-clean deck must cap at 79/C, and the verdict must name WCAG 1.3.1 against table_markup.",
@@ -1727,6 +1795,18 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-163-docx-one-bold-title-line.docx": {
+    label: "Word: a memo whose only heading-like line is its bold title",
+    chip: "bug",
+  },
+  "synthetic-164-docx-two-bold-section-lines.docx": {
+    label: "Word: two bold section lines and no Heading styles",
+    chip: "caught",
+  },
+  "synthetic-165-pptx-one-typed-title-no-titled-slides.pptx": {
+    label: "PowerPoint: one typed title on a deck with no titled slides",
+    chip: "held",
+  },
   "synthetic-157-docx-agenda-header-row-box.docx": {
     label: "Word: an agenda’s roll-call table with Header Row ticked (Word’s default)",
     chip: "bug",

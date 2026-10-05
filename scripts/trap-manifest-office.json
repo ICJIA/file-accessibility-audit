@@ -1,5 +1,5 @@
 {
-  "count": 49,
+  "count": 52,
   "generated": "2026-10-05",
   "items": [
     {
@@ -218,6 +218,21 @@
       "label": "Excel: passes WCAG 2.1, and is still called \"Sheet1\" with no defined Tables",
       "chip": "held",
       "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-163-docx-one-bold-title-line.docx",
+      "label": "Word: a memo whose only heading-like line is its bold title",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-164-docx-two-bold-section-lines.docx",
+      "label": "Word: two bold section lines and no Heading styles",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-165-pptx-one-typed-title-no-titled-slides.pptx",
+      "label": "PowerPoint: one typed title on a deck with no titled slides",
+      "chip": "held"
     },
     {
       "file": "synthetic-160-pptx-table-headerless.pptx",

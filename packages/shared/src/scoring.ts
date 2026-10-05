@@ -619,3 +619,27 @@ export function scoreCapReason(
 // moment the four formats stop agreeing.
 // ---------------------------------------------------------------------------
 export const UNHEADERED_DATA_TABLE_SCORE = 45;
+
+// ---------------------------------------------------------------------------
+// ONE IS A TITLE — the threshold for "no heading markup" in every format
+// ---------------------------------------------------------------------------
+// A document with no heading markup at all fails WCAG 1.3.1 only if it
+// VISUALLY has section headings the markup does not convey. One line that
+// looks like a heading — larger or bold text over body text — is the
+// document's title; two or more are sections. Settled for PDF on 2026-09-02
+// (a one-page chart with one bookmark had graded 69/D on page count alone),
+// and applied to Word and PowerPoint on 2026-10-05: Word subtracted 70 for
+// ANY fake heading in a document with no Heading styles, so a memo with one
+// bold title line graded D in Word, B in PowerPoint and A as a PDF.
+//
+// Where it applies: PDF with no heading tags (pdfjs visual-heading census);
+// Word with no Heading-styled paragraphs (docxService fakeHeadings);
+// PowerPoint with no visible slide carrying a title (pptxService
+// fakeHeadings). A fake heading BESIDE real headings is a different question
+// — that section's heading is unmarked — and stays scored in every format.
+//
+// SAFE TO CHANGE: Carefully, and never in only one place — every scorer and
+// its conformance-gate mirror read this constant, and headingTitleParity
+// .test.ts fails if the formats stop agreeing.
+// ---------------------------------------------------------------------------
+export const VISUAL_HEADINGS_FOR_FAILURE = 2;

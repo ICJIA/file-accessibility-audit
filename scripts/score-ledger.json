@@ -868,12 +868,12 @@
       }
     },
     "ICJIA_Freshservice_Quick_Guide.docx": {
-      "score": 59,
-      "grade": "F",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "0|Critical",
-        "heading_structure": "30|Critical",
+        "heading_structure": "null|none",
         "alt_text": "null|none",
         "table_markup": "100|No issues found",
         "color_contrast": "85|Minor",
@@ -3133,6 +3133,54 @@
         "list_structure": "null|none",
         "link_quality": "null|none",
         "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-163-docx-one-bold-title-line.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-164-docx-two-bold-section-lines.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "30|Critical",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-165-pptx-one-typed-title-no-titled-slides.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No scored issues",
+        "alt_text": "null|none",
+        "reading_order": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

@@ -4,7 +4,7 @@
  * other file's imports need to change.
  */
 import { PPTX } from "#config";
-import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
+import { UNHEADERED_DATA_TABLE_SCORE, VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { PptxAnalysis } from "../pptxService.js";
 import {
@@ -158,13 +158,29 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
   // is 1.3.1 and squarely inside it. PowerPoint had no answer to the second
   // at all until now — a real Level A failure the report never mentioned.
   const fakeHeadings = a.fakeHeadings ?? [];
+  // ONE IS A TITLE (2026-10-05) — the rule PDF and Word apply
+  // (VISUAL_HEADINGS_FOR_FAILURE): with no heading markup anywhere — here,
+  // no visible slide with a title — one typed heading is the deck's title,
+  // and two or more are sections. A typed heading BESIDE titled slides is
+  // still that slide's unmarked heading, and still scored. The conformance
+  // gate's typed-heading rule mirrors this expression exactly.
+  const titledSlides = visible.filter((s) => s.title).length;
+  const loneTitle =
+    titledSlides === 0 &&
+    fakeHeadings.length > 0 &&
+    fakeHeadings.length < VISUAL_HEADINGS_FOR_FAILURE;
   let score = 100;
-  if (fakeHeadings.length > 0) {
+  if (fakeHeadings.length > 0 && !loneTitle) {
     score = Math.max(0, 100 - Math.min(40, fakeHeadings.length * 15));
   }
   const findings: string[] = [];
 
-  if (fakeHeadings.length > 0) {
+  if (loneTitle) {
+    const f = fakeHeadings[0];
+    findings.push(
+      `Advisory — not scored: slide ${f.slide} has its heading typed into a text box ("${f.text.slice(0, 80).replace(/"/g, "'")}") rather than the slide's title placeholder. No slide in this deck has a title, and a single title does not make sections, so it is not scored — but moving it into the title placeholder still gives screen-reader users the slide's title. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder.`,
+    );
+  } else if (fakeHeadings.length > 0) {
     const nums = fakeHeadings.map((f) => f.slide).join(", ");
     findings.push(
       `Slide${fakeHeadings.length > 1 ? "s" : ""} ${nums} ${
