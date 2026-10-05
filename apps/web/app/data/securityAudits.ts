@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.157.1",
+    meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: updating software written by others that this tool includes, to close the known problems reported in the entry below.",
+    body: [
+      {
+        kind: "p",
+        html: "No new page, no new question asked of anyone, nothing new kept or sent, and no change to how any document is checked. This release updates five pieces of software written by others, then re-runs every accuracy check to prove no document would now be graded differently.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>Twenty-four of the twenty-six known problems are closed.</strong> None could be reached through this site as it runs, as the entry below explains; they are updated anyway, so the scan comes back nearly clean instead of needing an explanation for each. The part of the web server that packages each page&rsquo;s data is now on its fixed version, and so is the component that receives uploaded files.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Two remain, because no fixed version exists yet.</strong> Both are in tools used only while the site is being built or worked on, never by the running site, and both will be updated as soon as their makers publish a fix.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> After the update, every accuracy check was run again: every trap document was judged the same as before, and every pinned document&rsquo;s grade came out exactly as it was. The software that reads Word, PowerPoint and Excel files did not change at all.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.157.0",
     meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: how tables are graded in Word, PowerPoint and Excel files, how a Word table&rsquo;s header row is recognized, the advice given for PDFs made from Word, and a re-run of the scan for known problems in the software this tool depends on.",
     body: [

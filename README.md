@@ -1414,6 +1414,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.157.1 — 2026-10-05 · Dependency pass: 24 of the 26 advisories disclosed in v1.157.0 are closed; the other 2 have no fix published (no new attack surface)
+
+No new attack surface and no application code: five packages move in the lockfile, nothing else. None of the 26 was reachable in production (see the entry below); they are updated so the scan reads clean instead of needing an explanation for each.
+
+**Closed.** `devalue` 5.9.1 → **5.9.4** — the one that ships in the production web server (Nuxt's renderer serializes page data with it); clears GHSA-j22f-vq7h-c4qm, -mcm9-63f2-9j32, -x5rw-q4pp-hg5g, -hx4r-w6wj-j8fg, -4q55-j62x-fr9h, -wf3x-273g-mvxv. `undici` 8.10.0 → **8.11.2** — eleven advisories, absent from the built server bundle. `brace-expansion` 2.1.4 → **2.1.7** and 5.0.9 → **5.0.12** — GHSA-qhr7-859c-m2p7, -6j4f-fj2g-mc7p and -q2hr-2g5m-vwhr on both lines, build-time globbing. `multer` 2.3.0 → **2.4.0** — GHSA-3pph-fpjx-jg34 (`diskStorage` only; both upload parsers here use `memoryStorage()`); 2.4.0 also drops its own `concat-stream` and `typedarray`. New version-scoped `pnpm.overrides` floors `devalue@5` and `undici@8` hold the transitive two; the existing `brace-expansion@2`/`@5` floors were raised.
+
+**Remaining, with no fixed version published.** `braces` ≤ 3.0.3 (GHSA-vfj7-8cjw-p6xm — nitropack's build-time file globbing) and `node-forge` ≤ 1.4.0 (GHSA-86w9-cpqp-85rv — the Nuxt dev server's self-signed HTTPS). Neither is in the production server bundle. They cannot be cleared by updating until their maintainers publish a fix.
+
+**Verified rather than assumed.** `pnpm audit --prod`: **2 vulnerabilities** (was 26), exactly the two above. `fast-xml-parser` did not move (5.10.1), so no OOXML control re-verification was owed; the built server carries `devalue` 5.9.4 and still no `undici`. All gates re-run on the new tree: **ALL TRUTHS HELD** (162 traps), **NO SCORE MOVED** (293 rows), resave- and encoding-invariance, legal-basis and best-practice-basis green; tests 3,796; lint, typecheck and build clean. The v1.156.4 upload field-name limits and their real-middleware tests hold on multer 2.4.0.
+
 ### v1.157.0 — 2026-10-05 · One table defect, one severity in every format; Word's Header Row checkbox honored (no new attack surface; 26 new dependency advisories disclosed, none reachable)
 
 No new attack surface: scoring rules and report copy only. One shared constant (`UNHEADERED_DATA_TABLE_SCORE` in `packages/shared`), two predicates in `docxService.ts` (header row, visible shading), per-data-table averaging in the three Office table scorers, and fix-it sentences in the analyzer and web app. No endpoint, input, stored field, or outbound request changed.

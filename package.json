@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.157.0",
+  "version": "1.157.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -47,8 +47,8 @@
     "overrides": {
       "postcss": "^8.5.18",
       "tar": "^7.5.21",
-      "brace-expansion@2": "^2.0.3",
-      "brace-expansion@5": "^5.0.7",
+      "brace-expansion@2": "^2.1.7",
+      "brace-expansion@5": "^5.0.12",
       "picomatch@2": "^2.3.2",
       "picomatch@4": "^4.0.4",
       "js-yaml": "^4.3.0",
@@ -72,7 +72,9 @@
       "@nuxt/devtools": "^3.4.0",
       "ip-address": "^10.5.0",
       "nanoid@3": "^3.3.18",
-      "svgo": "^4.1.0"
+      "svgo": "^4.1.0",
+      "devalue@5": "^5.9.3",
+      "undici@8": "^8.10.2"
     }
   },
   "dependencies": {

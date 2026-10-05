@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.157.1] - 2026-10-05
+
+### Security
+
+- **24 of the 26 advisories disclosed in v1.157.0 are closed.** None was reachable in production — see the v1.157.0 entry — and they are updated anyway, so the scan reads clean instead of needing an explanation for each:
+  - **`devalue` 5.9.1 → 5.9.4.** This is the one that ships in the production web server: Nuxt's renderer serializes each page's data with it. Clears six advisories, including GHSA-j22f-vq7h-c4qm and GHSA-mcm9-63f2-9j32.
+  - **`undici` 8.10.0 → 8.11.2.** A dependency of `nuxt`, absent from the built server bundle. Clears eleven advisories, including GHSA-rfgv-xxqx-mfg5, GHSA-w293-vg96-wgc3 and GHSA-vp8m-p9jh-q5pm.
+  - **`brace-expansion` 2.1.4 → 2.1.7 and 5.0.9 → 5.0.12.** Glob matching in nitropack's build-time tooling. Clears six advisories: GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p and GHSA-q2hr-2g5m-vwhr, each on both lines.
+  - **`multer` 2.3.0 → 2.4.0.** The API's upload parser. Clears GHSA-3pph-fpjx-jg34, which affects `diskStorage` only; both parsers here use `memoryStorage()`. 2.4.0 also drops multer's own `concat-stream` and `typedarray` dependencies. The v1.156.4 field-name limits and the upload-route tests that pin them still hold on 2.4.0.
+
+  `devalue` and `undici` are held by new version-scoped `pnpm.overrides` floors (`devalue@5`, `undici@8`). The existing `brace-expansion@2` and `@5` floors were raised; `multer`'s own range moved.
+- **Two remain, and no fixed version exists for either:**
+  - **`braces` ≤ 3.0.3** (GHSA-vfj7-8cjw-p6xm): nitropack's build-time file globbing.
+  - **`node-forge` ≤ 1.4.0** (GHSA-86w9-cpqp-85rv): the Nuxt dev server's self-signed HTTPS.
+
+  Neither ships in the production server bundle. `pnpm audit --prod`: **2 vulnerabilities** (was 26), both of these.
+
+### Notes
+
+- The lockfile moved exactly those five packages, plus multer's two dropped dependencies. **`fast-xml-parser` did not move** (5.10.1), so no OOXML control re-verification was owed. The built server now carries `devalue` 5.9.4, and still no `undici`.
+- Every gate was re-run on the new tree:
+  - lint, typecheck and build clean; tests 3,796 (API 1,833 · Web 1,913 · CLI 50) across 215 files
+  - `synthetic-controls` and `synthetic-office-controls`: **ALL TRUTHS HELD** (162 traps)
+  - `score-ledger`: **NO SCORE MOVED** (293 rows)
+  - `resave-invariance`, `encoding-invariance`, `legal-basis` and `best-practice-basis` all green
+- No application code changed.
+
 ## [1.157.0] - 2026-10-05
 
 ### Fixed
