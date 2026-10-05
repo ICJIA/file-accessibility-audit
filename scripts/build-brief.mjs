@@ -86,6 +86,17 @@ const MONTH_WORDS = [
 ];
 const months = Math.round((Date.now() - firstCommitAt) / (30.44 * 86_400_000));
 const monthsWord = MONTH_WORDS[months] ?? String(months);
+// The evolution section's span ("march to october 2026"), computed beside the
+// month count it sits above. It was literal text and still read "march to
+// august 2026" in October, under a heading that already said seven months.
+const monthName = (d) =>
+  d.toLocaleString("en-US", { month: "long", timeZone: "America/Chicago" }).toLowerCase();
+const spanFrom = new Date(firstCommitAt);
+const spanTo = new Date();
+const historySpan =
+  spanFrom.getFullYear() === spanTo.getFullYear()
+    ? `${monthName(spanFrom)} to ${monthName(spanTo)} ${spanTo.getFullYear()}`
+    : `${monthName(spanFrom)} ${spanFrom.getFullYear()} to ${monthName(spanTo)} ${spanTo.getFullYear()}`;
 const version = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
 const versions = version.split(".")[1]; // 1.117.0 → 117
 
@@ -158,6 +169,9 @@ const trapBugs = trapManifest.items.filter((i) => i.chip === "bug").length;
     /\b(fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\d+) native <strong>Word/i,
     /\d+-document corpus sweep/i,
     /\d+ real agency documents plus the \d+ traps/i,
+    // A hard-coded month span — "march to august 2026" was still on the page
+    // in October (2026-10-05). {{HISTORY_SPAN}} is computed from git.
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december) to (january|february|march|april|may|june|july|august|september|october|november|december) 20\d\d\b/i,
   ];
   for (const t of ["checker-brief.template.html", "checker-brief.template.md"]) {
     const src = fs.readFileSync(path.join(BRIEF, t), "utf8");
@@ -272,6 +286,7 @@ const SUBS = {
   COMMITS_30D: String(commits30d),
   WEEKS: String(weeks),
   MONTHS_WORD: monthsWord,
+  HISTORY_SPAN: historySpan,
   VERSIONS: String(versions),
   REAUDITED: String(live.reaudited),
   REACHED_A: String(live.reached_a),
