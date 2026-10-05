@@ -1096,11 +1096,13 @@
               confirmed 3.1.1 failure at half credit: a declaration that is not a usable code
               ("english", "en_US"), and a declaration that
               <em>contradicts the text's actual language</em> (a stopword-based check with four
-              guards against false accusations). The <code>DisplayDocTitle</code> viewer flag counts
-              too (since 2026-09-01): a title that is set but not displayed earns half the title
-              credit and is a confirmed 2.4.2 failure — W3C's own PDF technique for 2.4.2 (PDF18)
-              sets the flag, and with it off every viewer shows the filename instead. Checked in
-              QPDF's catalog <code>/Lang</code>
+              guards against false accusations). Word and PowerPoint declarations get the same two
+              checks since 2026-10-05, with one more guard: a language the file itself marks on some
+              passage is never called a mismatch, because a screen reader switches to it there. The
+              <code>DisplayDocTitle</code> viewer flag counts too (since 2026-09-01): a title that
+              is set but not displayed earns half the title credit and is a confirmed 2.4.2 failure
+              — W3C's own PDF technique for 2.4.2 (PDF18) sets the flag, and with it off every
+              viewer shows the filename instead. Checked in QPDF's catalog <code>/Lang</code>
               and PDF.js metadata.
             </p>
           </div>

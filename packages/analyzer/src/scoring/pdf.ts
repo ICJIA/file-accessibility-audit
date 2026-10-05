@@ -5,7 +5,7 @@
  * scoreDocument from here so no other file's imports need to change.
  */
 import { SCORING_WEIGHTS, ANALYSIS, WCAG, SCORING_PROFILES } from "#config";
-import { VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
+import { VISUAL_HEADINGS_FOR_FAILURE, shareScore } from "@file-audit/shared";
 import type { CategoryResult, ScoringMode } from "@file-audit/shared";
 import type { QpdfResult, TableAnalysis } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
@@ -545,7 +545,9 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
   // is not a usable language code — v1.92.0, Matterhorn 11 / WCAG technique
   // PDF16. "english" or "en_US" defeats screen-reader pronunciation
   // switching just like no tag, but a declaration IS present, so partial
-  // credit with a targeted fix. Never a conformance-gate failure.)
+  // credit with a targeted fix. The gate asserts 3.1.1 for it since v1.136.0.
+  // Word and PowerPoint judge their declarations the same way since
+  // 2026-10-05 — judgeDeclaredLanguage in common.ts.)
   const hasLang = qpdf.hasLang || !!pdfjs.lang;
   const langValue = (qpdf.lang || pdfjs.lang || "").trim();
   // A well-formed tag that CONTRADICTS the text is scored like a malformed
@@ -1323,7 +1325,8 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const withAlt = figuresWithAlt + formulasWithAlt;
   const untaggedInDenominator = untaggedContentImages ?? 0;
   const describableTotal = figures.length + untaggedInDenominator + formulaCount;
-  const score = withAlt === 0 ? 0 : Math.floor((withAlt / describableTotal) * 100);
+  // shareScore (packages/shared): the one rule every format uses since 2026-10-05.
+  const score = shareScore(withAlt, describableTotal);
   const findings: string[] = [];
 
   if (figures.length > 0 && figuresWithAlt === figures.length) {
@@ -2122,7 +2125,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   // (Link Only), a AAA criterion. A visible raw URL likewise satisfies 2.4.4
   // and stays advisory.
   const failing = untagged.length + unnamed.length;
-  const score = Math.floor(((total - failing) / total) * 100);
+  const score = shareScore(total - failing, total);
   const findings: string[] = [];
 
   if (failing === 0 && rawUrls.length === 0 && vague.length === 0 && unattributed.length === 0) {

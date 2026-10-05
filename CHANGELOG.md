@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.160.0] - 2026-10-05
+
+### Fixed
+
+The smaller cross-format differences left from v1.157.0's sweep, and three more found while closing them. Two directions were user decisions.
+
+- **One ratio rule for alt text and link names, in every format.** PDF floored the share of items that pass; Word, PowerPoint and Excel rounded it, then capped any failing category at 85 (a v1.36.0 convention PDF never adopted). At band edges the letter differed: 16 of 23 images described was 69 (C ceiling) as a PDF and 70 (B ceiling) as a Word file. All four now use `shareScore` (`packages/shared`): floor, no cap.
+- **A damaged properties part is "could not be read", not "no title", in PowerPoint and Excel.** Word has kept the two apart since 2026-09-01. PowerPoint and Excel read the same part with no guard, so a corrupt `docProps/core.xml` produced a confirmed WCAG 2.4.2 failure about a title the checker never saw. Both now record the part's state, leave the title half unscored, and skip the 2.4.2 rule.
+- **A PowerPoint table stripped bare is a layout grid, as in Word.** A table with no style (or "No Style, No Grid"), no visible cell border or fill and no header row is no longer scored or gated as an unheadered data table. It was costing 1.3.1 and a C ceiling that the Word file never paid. Insert → Table always writes a style, so this exempts only tables an author deliberately stripped. Word's bare-grid advisory is reported instead.
+- **Light text on Excel's plain grid is now checked.** A cell with no fill shows the white grid, just as unshaded Word text sits on the white page, and Word has always checked that. Excel left every no-fill cell unresolved, so light-grey text typed onto the grid was never caught. Non-solid patterns, gradients and sheets with a background picture stay unresolved. Because Excel writes an explicit colour on its default font, most workbooks' contrast is now checked and passing where it used to be "not assessed".
+- **Word and PowerPoint now check a declared language the way PDF does.** Two checks:
+  - A declaration that is not a language code (`english`, `en_US`).
+  - A code the text overwhelmingly contradicts (`languagePlausibility.ts`).
+
+  Either earns half the language credit and names 3.1.1. Both used to get full credit. Office adds one guard, because Office also declares language per run: a language the file declares anywhere is never called a mismatch. Word's autodetect, or Set Proofing Language on a selection, marks the passage, and a screen reader switches to it there. The text sample stays inside the OOXML worker, so no document text is stored.
+- **Word's document language is read from where Word declares it.** It used to be the first `w:lang` anywhere in `styles.xml`, so a "French Quote" character style could become an English document's language. It is now read from `docDefaults`, then the default paragraph style, then the core properties.
+- **The action plan routes Office language problems to the language step.** Word's and PowerPoint's own "no language" lines were never matched, and the language-only step accepted only a `Document title:` line, so an Office file with a fine title and a language problem (and, from this release, a PowerPoint deck with a mismatched language) was told to "give the document a title and set its language". It now gets "Fix the document's language declaration".
+- **Header and footer images stay scored, and are now explained** (user decision). When an undescribed image sits in a page header or footer, usually a letterhead logo, the alt-text finding says so and gives the route for a decorative one: Mark as decorative, which stops it counting. It also explains why the PDF may not flag it: Word's PDF export marks header content as artifacts.
+
+### Not changed
+
+- **Proportional scoring stays** (user decision): one undescribed image of one loses all the visual information, one of ten loses a tenth.
+- **PDF still cannot see a visual heading beside real heading tags.** Its visual-heading census runs only when a document has no heading tags. This is a documented automation limit.
+- **Office contrast keeps its round-and-cap rule.** PDF does not score contrast, so no difference between formats remains there.
+
+### Notes
+
+- **Tests:** 3,923 (API 1,949 · Web 1,924 · CLI 50) across 220 files, written test-first. Every new behaviour was RED for the predicted reason first. New files:
+  - `ratioParity.test.ts` (13).
+  - `coreGuardParity.test.ts` (6, end to end).
+  - `languageParity.test.ts` (19, PDF/Word/PowerPoint, the Office guard both ways, and Word's language source).
+- **Traps:** 178. Nine are new:
+  - 170: a PowerPoint bare layout grid → 100/A, FOUND A REAL BUG
+  - 171 / 172: Excel light grey vs near-black on the plain grid → 69/D vs 100/A
+  - 173 / 174: Word Spanish declared English vs marked Spanish → 89/B vs 100/A
+  - 175: a PowerPoint damaged properties part → 100/A, FOUND A REAL BUG
+  - 176 / 177: a Word header logo without alt text vs marked decorative → 79/C (with advice) vs 100/A
+  - 178: a Word report with 16 of 23 images described → alt text 69, 79/C, FOUND A REAL BUG
+
+  Four new twin orderings. With the analyzer changes stashed, all seven caught and bug traps fail with the old behaviour's exact symptoms; the two held twins pass both ways.
+- **Score ledger:** re-blessed in this commit at 309 rows. Three real controls changed a category without changing their overall score or grade (all three are capped at 79/C by another category):
+  - `DVFRWebsite Changes.xlsx`: contrast null → 100
+  - the Dynamics of Domestic Violence deck: alt text 62 → 61
+  - `sample-2.pptx`: alt text 85 → 92
+
+  Plus nine new trap rows; no PDF moved.
+- `pnpm audit --prod`: 2 (`braces`, `node-forge`, no fix published). Write-up: `docs/cross-format-parity-smaller-inconsistencies-fix.md`.
+
 ## [1.159.0] - 2026-10-05
 
 ### Fixed

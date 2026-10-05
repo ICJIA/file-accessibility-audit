@@ -8,6 +8,7 @@ import {
   TYPED_LIST_FLOOR,
   UNHEADERED_DATA_TABLE_SCORE,
   VISUAL_HEADINGS_FOR_FAILURE,
+  shareScore,
 } from "@file-audit/shared";
 import { classifyTitleShape } from "../titleShape.js";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
@@ -20,6 +21,8 @@ import {
   aggregateScore,
   applyAdvisorySeverity,
   applyWcagCriteria,
+  judgeDeclaredLanguage,
+  officeLanguageFindings,
   type ScoringResult,
 } from "./common.js";
 import { evaluatePptxConformance } from "./conformance.js";
@@ -114,14 +117,38 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
         );
       }
     }
+  } else if (a.parse?.coreState === "unparseable") {
+    // The guard Word has had since 2026-09-01 (2026-10-05): a properties part
+    // that cannot be parsed says nothing about the title, so this half is not
+    // scored — "could not be read" is never "missing".
+    score += 50;
+    findings.push(
+      "The presentation's title could not be read — the file's core-properties part is unparseable, so this half is not scored.",
+    );
   } else {
     findings.push(
       "No presentation title is set. In PowerPoint: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the presentation opens.",
     );
   }
   if (a.metadata.language) {
-    score += 50;
-    findings.push(`Presentation language: ${a.metadata.language}`);
+    // PDF's two language checks (2026-10-05) — see scoreDocxTitleLanguage.
+    // PowerPoint stamps a language on every run, so the declared-elsewhere
+    // guard reads the runs themselves.
+    const verdict = judgeDeclaredLanguage(a.metadata.language, a.textSample, a.declaredLanguages);
+    if (verdict.kind === "ok") {
+      score += 50;
+      findings.push(`Presentation language: ${a.metadata.language}`);
+    } else {
+      score += 25;
+      findings.push(
+        ...officeLanguageFindings(
+          verdict,
+          a.metadata.language,
+          "presentation",
+          "In PowerPoint: select the text — in View → Outline View, click in the outline and press Ctrl+A (⌘A on a Mac) to select every slide's title and body text; text boxes and tables are selected on their own slides — then Review → Language → Set Proofing Language → choose the language the slides are written in → OK, and save.",
+        ),
+      );
+    }
   } else {
     findings.push(
       "No default presentation language is declared. In PowerPoint this comes from the presentation's default language setting; it tells screen readers which pronunciation rules to use.",
@@ -293,10 +320,9 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
     );
   }
   const missing = nonDecorative.filter((i) => !i.altText);
-  let score = Math.round((100 * (nonDecorative.length - missing.length)) / nonDecorative.length);
-  // Cap 85 (Minor ceiling) whenever any image lacks alt — cross-format
-  // convention shared with DOCX so one barrier has one grade consequence.
-  if (missing.length > 0) score = Math.min(score, 85);
+  // shareScore (packages/shared, 2026-10-05) — the one rule in every format.
+  // This rounded and capped at 85, a convention PDF never adopted.
+  const score = shareScore(nonDecorative.length - missing.length, nonDecorative.length);
   const findings = [
     `${nonDecorative.length - missing.length} of ${nonDecorative.length} meaningful image(s) have alt text.`,
   ];
@@ -406,9 +432,19 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
       false,
     );
   }
-  const dataTablesNoHeader = a.tables.filter(
-    (t) => t.rowCount >= 2 && t.colCount >= 2 && !t.hasHeaderRow,
-  );
+  // A bare grid — no table style (or "No Style, No Grid"), no visible cell
+  // border or fill, no header row — is a layout construct, never a data table
+  // (2026-10-05). Word has applied this rule since the 2026-08-29 legal-only
+  // sweep; PowerPoint scored the same grid as an unheadered data table, so an
+  // agenda lined up in a stripped table cost a deck 1.3.1 and a C ceiling it
+  // never cost the Word file. Every table Insert → Table creates carries a
+  // style, so this exempts only tables an author deliberately stripped.
+  const isDataTable = (t: PptxAnalysis["tables"][number]) =>
+    t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true;
+  const dataTablesNoHeader = a.tables.filter((t) => isDataTable(t) && !t.hasHeaderRow);
+  const bareGrids = a.tables.filter(
+    (t) => t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout === true,
+  ).length;
   // Per-table average, mirroring scoreDocxTables: a data table with no header
   // row scores UNHEADERED_DATA_TABLE_SCORE — the one value every format uses
   // (2026-10-05). Moderate, not Minor: it is a confirmed Level A failure. Not
@@ -419,7 +455,7 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
   // Averaged over DATA tables only (2026-10-05), as PDF always has: a one-row
   // strip is not a table that passed, and counting it as 100 diluted an
   // unheadered table beside it from Moderate to Minor.
-  const dataTables = a.tables.filter((t) => t.rowCount >= 2 && t.colCount >= 2);
+  const dataTables = a.tables.filter(isDataTable);
   const perTable = dataTables.map((t) => (t.hasHeaderRow ? 100 : UNHEADERED_DATA_TABLE_SCORE));
   const score =
     perTable.length === 0 ? 100 : Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
@@ -427,6 +463,11 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
   if (dataTablesNoHeader.length > 0) {
     findings.push(
       `${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: select the table → Table Design → check "Header Row", and mark the top row's cells as headers.`,
+    );
+  }
+  if (bareGrids > 0) {
+    findings.push(
+      `Advisory — not scored: ${bareGrids} bare grid(s) with no table style, borders, shading, or header row — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
     );
   }
   return pptxCategory(
@@ -568,7 +609,7 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
   const unnamed = a.links.filter((l) => classifyLinkText(l.text) === "unnamed");
   const vague = a.links.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
-  const score = Math.round((100 * (a.links.length - unnamed.length)) / a.links.length);
+  const score = shareScore(a.links.length - unnamed.length, a.links.length);
   const findings = [`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`];
   if (unnamed.length > 0) {
     findings.push(

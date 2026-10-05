@@ -22,6 +22,8 @@ import {
   descendants,
   rawText,
   textOf,
+  languageSample,
+  addLanguagePrimary,
   rootElement,
   parseRelationships,
   corePropertyText,
@@ -56,7 +58,15 @@ export interface DocxAnalysis {
   /** Heading-styled paragraphs with no text (spacing habit) — advisory. */
   emptyHeadingCount: number;
   /** Inline/anchored images with their alt text (null when missing). */
-  images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
+  images: Array<{
+    altText: string | null;
+    decorative: boolean;
+    titleOnly: boolean;
+    /** Where the image lives when it is not in the body (2026-10-05): a page
+     *  header or footer — the letterhead logo — or a foot/endnote. Absent
+     *  for body images and on stored payloads. */
+    location?: "header" | "footer" | "note";
+  }>;
   tables: Array<{
     hasHeaderRow: boolean;
     rowCount: number;
@@ -99,6 +109,14 @@ export interface DocxAnalysis {
    *  document default — the 3.1.2 evidence the PDF gate already surfaces.
    *  Capped at 8. */
   runLanguages?: string[];
+  /** The first ~4,000 characters of body text — the sample the declared
+   *  language is checked against (2026-10-05, as PDF's textSample). Never
+   *  leaves the worker; no document text is stored with a report. */
+  textSample?: string;
+  /** Every language (primary subtag) declared anywhere in the body or the
+   *  styles. A mismatch is never asserted for a language listed here: where
+   *  the file marks it, a screen reader switches to it. */
+  declaredLanguages?: string[];
   /** Floating (anchored) drawings — content whose reading position is not
    *  the text flow (wp:anchor, vs wp:inline). */
   floatingObjectCount?: number;
@@ -253,11 +271,30 @@ function buildStyleInfo(stylesRoot: PONode | undefined): StyleInfo {
   return { headingLevels, numberedStyles, structuralStyles, styleRun, defaultSizeHalfPt };
 }
 
-/** Default document language from styles docDefaults, if declared. */
+/** The document's default language, read from where Word declares it
+ *  (2026-10-05): docDefaults' rPrDefault, else the default paragraph style
+ *  (w:default="1", normally Normal). This read the first w:lang with a value
+ *  anywhere in styles.xml — ANY style's — so a "French Quote" character style
+ *  could become the language of an English document, and the declared-
+ *  language check would then accuse it of a mismatch it does not have. */
 function stylesDefaultLang(stylesRoot: PONode | undefined): string | null {
   if (!stylesRoot) return null;
-  const lang = descendants(stylesRoot, "lang").find((l) => attrOf(l, "val"));
-  return lang ? (attrOf(lang, "val") ?? null) : null;
+  const langOf = (rPr: PONode | undefined): string | null => {
+    const lang = rPr ? firstChild(rPr, "lang") : undefined;
+    const val = lang ? (attrOf(lang, "val") ?? "").trim() : "";
+    return val || null;
+  };
+  const docDefaults = firstChild(stylesRoot, "docDefaults");
+  const rPrDefault = docDefaults ? firstChild(docDefaults, "rPrDefault") : undefined;
+  const fromDefaults = langOf(rPrDefault ? firstChild(rPrDefault, "rPr") : undefined);
+  if (fromDefaults) return fromDefaults;
+  const defaultParagraphStyle = childrenOf(stylesRoot).find(
+    (st) =>
+      tagOf(st) === "style" &&
+      attrOf(st, "type") === "paragraph" &&
+      ["1", "true", "on"].includes(attrOf(st, "default") ?? ""),
+  );
+  return langOf(defaultParagraphStyle ? firstChild(defaultParagraphStyle, "rPr") : undefined);
 }
 
 // ---------------------------------------------------------------------------
@@ -1060,7 +1097,12 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     const partRels = parseRelationships(
       await read(partName.replace(/^word\/([^/]+)$/, "word/_rels/$1.rels")),
     );
-    images.push(...extractImages(partRoot));
+    const location = /\/header\d+\.xml$/.test(partName)
+      ? "header"
+      : /\/footer\d+\.xml$/.test(partName)
+        ? "footer"
+        : "note";
+    images.push(...extractImages(partRoot).map((img) => ({ ...img, location }) as const));
     links.push(...extractLinks(partRoot, partRels));
     const partContrast = extractContrast(partRoot, documentBg, schemeMap, styleInfo);
     contrast.checkedRuns += partContrast.checkedRuns;
@@ -1094,6 +1136,14 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
       if (!/^[a-z]{2,3}$/.test(primary)) continue;
       if (primary !== docPrimary && runLangSet.size < 8) runLangSet.add(primary);
     }
+  }
+
+  // Declared-language plausibility inputs (2026-10-05) — see ooxml.ts.
+  const declaredLanguageSet = new Set<string>();
+  for (const root of [body, stylesRoot]) {
+    if (!root) continue;
+    for (const l of descendants(root, "lang"))
+      addLanguagePrimary(declaredLanguageSet, attrOf(l, "val"));
   }
 
   // Floating (anchored) drawings — reading position not guaranteed by flow.
@@ -1164,6 +1214,8 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     contrast,
     paragraphCount: paragraphs.length,
     runLanguages: [...runLangSet].sort(),
+    textSample: languageSample(paragraphs),
+    declaredLanguages: [...declaredLanguageSet].sort(),
     floatingObjectCount,
     contentControlCount,
     legacyFieldCount,

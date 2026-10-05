@@ -89,6 +89,10 @@ export interface BuildXlsxOpts {
     fillThemeIdx?: number;
     fillTint?: number;
     fillIndexed?: number;
+    /** A non-solid pattern (e.g. "gray125", "darkGrid") wrapping the fill
+     *  color, or "none" with no color. Default: "solid" when a fill color is
+     *  given, else "none". */
+    fillPattern?: string;
   }>;
   /** Raw xl/styles.xml override (wins over `styles`). */
   stylesXml?: string;
@@ -213,6 +217,9 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
               : st.fillRgb
                 ? `<fgColor rgb="${st.fillRgb}"/>`
                 : null;
+        if (st.fillPattern !== undefined) {
+          return `<fill><patternFill patternType="${st.fillPattern}">${fg ?? ""}</patternFill></fill>`;
+        }
         return fg
           ? `<fill><patternFill patternType="solid">${fg}</patternFill></fill>`
           : `<fill><patternFill patternType="none"/></fill>`;

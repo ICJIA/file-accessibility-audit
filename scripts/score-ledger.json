@@ -542,7 +542,7 @@
         "sheet_names": "100|No issues found",
         "table_markup": "100|No scored issues",
         "alt_text": "null|none",
-        "color_contrast": "null|none",
+        "color_contrast": "100|No issues found",
         "link_quality": "100|No issues found",
         "form_accessibility": "null|none"
       }
@@ -1050,7 +1050,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "slide_titles": "100|No scored issues",
-        "alt_text": "62|Moderate",
+        "alt_text": "61|Moderate",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
         "color_contrast": "100|No issues found",
@@ -1875,7 +1875,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "slide_titles": "100|No scored issues",
-        "alt_text": "85|Minor",
+        "alt_text": "92|Minor",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -3260,6 +3260,146 @@
         "link_quality": "null|none",
         "reading_order": "null|none",
         "form_accessibility": "100|No issues found"
+      }
+    },
+    "synthetic-170-pptx-bare-layout-grid.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "100|No scored issues",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-171-xlsx-light-text-no-fill.xlsx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "sheet_names": "100|No issues found",
+        "table_markup": "100|No issues found",
+        "alt_text": "null|none",
+        "color_contrast": "0|Critical",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-172-xlsx-dark-text-no-fill-twin.xlsx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "sheet_names": "100|No issues found",
+        "table_markup": "100|No issues found",
+        "alt_text": "null|none",
+        "color_contrast": "100|No issues found",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-173-docx-spanish-declared-english.docx": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-174-docx-spanish-marked-es-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-175-pptx-corrupt-core.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-176-docx-header-logo-no-alt.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "50|Moderate",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-177-docx-header-logo-decorative-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-178-docx-16-of-23-images-described.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "69|Moderate",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
       }
     },
     "synthetic-18-rasterized-lettering.pdf": {

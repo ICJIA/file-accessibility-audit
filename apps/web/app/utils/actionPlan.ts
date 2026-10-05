@@ -738,8 +738,18 @@ const LANGUAGE_SET = (f: string): boolean =>
 /** Excel stores no document language at all (scoreXlsxTitleLanguage). */
 const EXCEL_NO_LANGUAGE = (f: string): boolean =>
   /^Excel does not store a document language/.test(f);
+/** The language half failed. PDF's three lines, plus Word's and
+ *  PowerPoint's own "no language" lines (2026-10-05) — never matched until
+ *  then, so an Office file with a fine title and no language was told to
+ *  give itself a title. The unusable-code and mismatch lines are worded the
+ *  same in every format. */
 const LANG_PROBLEM = (f: string): boolean =>
-  /No language declaration found|not a usable language code|declares its language as/.test(f);
+  /No language declaration found|No document language is declared|No (?:default )?presentation language is declared|not a usable language code|declares its language as/.test(
+    f,
+  );
+/** The title half is demonstrably fine — the line each format writes for a
+ *  title it found (a weak one is caught separately by TITLE_PROBLEM). */
+const TITLE_SET = (f: string): boolean => /^(?:Document|Presentation) title: "/.test(f);
 const TITLE_LANGUAGE_VARIANTS: Array<{
   matches: (findings: string[]) => boolean;
   entry: PlanCopyEntry;
@@ -781,10 +791,7 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
   },
   {
     // Language wrong/unusable/missing, title demonstrably fine.
-    matches: (strs) =>
-      strs.some(LANG_PROBLEM) &&
-      !strs.some(TITLE_PROBLEM) &&
-      strs.some((f) => /^Document title: "/.test(f)),
+    matches: (strs) => strs.some(LANG_PROBLEM) && !strs.some(TITLE_PROBLEM) && strs.some(TITLE_SET),
     entry: {
       title: "Fix the document's language declaration",
       why: "Screen readers follow the declared language to choose pronunciation rules — a missing, unusable, or wrong declaration makes the whole document read with the wrong voice. (This document's title is already set.)",

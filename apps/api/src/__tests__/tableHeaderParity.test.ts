@@ -61,6 +61,51 @@ function pdf(tables: Array<{ headed: boolean }>, extraNonData = false): ScoringR
   return scoreDocument(qpdf, pdfjs);
 }
 
+/** A clean Word analysis with no tables; each case adds its own. */
+function docxBase(): DocxAnalysis {
+  return {
+    metadata: {
+      title: "Task Force Meeting Agenda",
+      creator: "Agency",
+      language: "en-US",
+      pageCount: 2,
+      wordCount: 500,
+    },
+    headings: [
+      { level: 1, text: "Task Force" },
+      { level: 2, text: "Meeting Agenda" },
+    ],
+    fakeHeadings: [],
+    images: [],
+    tables: [],
+    links: [],
+    lists: { realListItems: 0, manualBulletParagraphs: 0 },
+    contrast: { checkedRuns: 4, unresolvedRuns: 0, failing: [] },
+    paragraphCount: 6,
+    emptyHeadingCount: 0,
+    parse: { documentOk: true, stylesState: "ok", coreState: "ok" },
+  };
+}
+
+/** A clean PowerPoint analysis with no tables; each case adds its own. */
+function pptxBase(): PptxAnalysis {
+  return {
+    metadata: { title: "Deck", creator: "x", language: "en-US", slideCount: 2 },
+    slides: [
+      { index: 1, title: "Welcome", titleIsFirstShape: true, shapeCount: 2 },
+      { index: 2, title: "Roll call", titleIsFirstShape: true, shapeCount: 3 },
+    ],
+    fakeHeadings: [],
+    images: [],
+    tables: [],
+    links: [],
+    lists: { realListItems: 0, manualBulletParagraphs: 0 },
+    contrast: { checkedRuns: 1, unresolvedRuns: 0, failing: [] },
+    hasMedia: false,
+    shapeCount: 5,
+  };
+}
+
 function docx(tables: Array<{ headed: boolean }>, extraNonData = false): ScoringResult {
   const analysis: DocxAnalysis = {
     metadata: {
@@ -234,6 +279,34 @@ describe("table-header parity — the same 1.3.1 failure scores the same in ever
       const lone = tableCat(run(fmt, [{ headed: false }]));
       const withLayout = tableCat(withNonDataTable(fmt, [{ headed: false }]));
       expect(withLayout.score).toBe(lone.score);
+    },
+  );
+
+  it.each(["docx", "pptx"] as const)(
+    "%s: a bare layout grid — no style, borders, shading or header mark — is never scored",
+    (fmt) => {
+      // Word's rule since 2026-08-29; PowerPoint adopted it 2026-10-05.
+      const r =
+        fmt === "docx"
+          ? scoreDocx({
+              ...docxBase(),
+              tables: [
+                {
+                  hasHeaderRow: false,
+                  rowCount: 3,
+                  colCount: 2,
+                  hasNestedTable: false,
+                  looksLikeLayout: true,
+                  mergedCellCount: 0,
+                },
+              ],
+            })
+          : scorePptx({
+              ...pptxBase(),
+              tables: [{ hasHeaderRow: false, rowCount: 3, colCount: 2, looksLikeLayout: true }],
+            });
+      expect(tableCat(r).score).toBe(100);
+      expect(r.conformance.failures.some((f) => f.category === "table_markup")).toBe(false);
     },
   );
 

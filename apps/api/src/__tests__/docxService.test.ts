@@ -21,6 +21,7 @@ import {
 } from "./helpers/minimalDocx.js";
 import JSZip from "jszip";
 import { analyzeDocx, readCapped, DocxParseError } from "../services/docxService.js";
+import { scoreDocx } from "../services/scorer.js";
 
 describe("docx metadata", () => {
   it("extracts title, creator, language, and page count", async () => {
@@ -493,6 +494,55 @@ describe("docx headers/footers/footnotes coverage", () => {
     });
     const r = await analyzeDocx(buf);
     expect(r.links).toEqual([{ text: "click here", url: "https://example.gov/cite" }]);
+  });
+});
+
+// A letterhead logo is the commonest image in an agency document, and it
+// lives in the header (2026-10-05). It stays scored — an undescribed logo is
+// still an undescribed image (user decision) — but the report now says where
+// it is and how to clear it: mark a purely decorative logo decorative.
+describe("docx header and footer images are located and explained", () => {
+  const withParts = (header: string, footer = "") =>
+    buildDocx({
+      body: paragraph("Body text") + inlineImage({ descr: "Chart of arrests by year" }),
+      extra: {
+        "word/header1.xml": `<?xml version="1.0"?><w:hdr ${DOCX_NS}>${header}</w:hdr>`,
+        ...(footer
+          ? { "word/footer1.xml": `<?xml version="1.0"?><w:ftr ${DOCX_NS}>${footer}</w:ftr>` }
+          : {}),
+      },
+    });
+
+  it("records where each image lives — body images carry no location", async () => {
+    const r = await analyzeDocx(await withParts(inlineImage({}), inlineImage({})));
+    // Body first; the auxiliary parts are walked in part-name order.
+    expect(r.images.map((i) => i.location ?? "body")).toEqual(["body", "footer", "header"]);
+  });
+
+  it("names undescribed header/footer images and says how to clear a decorative logo", async () => {
+    const result = scoreDocx(await analyzeDocx(await withParts(inlineImage({}))));
+    const alt = result.categories.find((c) => c.id === "alt_text")!;
+    expect(alt.score).toBe(50); // still scored: 1 of 2 described
+    const text = alt.findings.join(" ");
+    expect(text).toMatch(/1 of them is in a page header or footer/);
+    expect(text).toMatch(/Mark as decorative/);
+  });
+
+  it("says nothing about headers when the undescribed image is in the body", async () => {
+    const buf = await buildDocx({
+      body: paragraph("Body text") + inlineImage({}),
+      extra: {
+        "word/header1.xml": `<?xml version="1.0"?><w:hdr ${DOCX_NS}>${inlineImage({ descr: "Agency seal" })}</w:hdr>`,
+      },
+    });
+    const alt = scoreDocx(await analyzeDocx(buf)).categories.find((c) => c.id === "alt_text")!;
+    expect(alt.findings.join(" ")).not.toMatch(/header or footer/);
+  });
+
+  it("a header logo marked decorative stops counting", async () => {
+    const result = scoreDocx(await analyzeDocx(await withParts(inlineImage({ decorative: true }))));
+    const alt = result.categories.find((c) => c.id === "alt_text")!;
+    expect(alt.score).toBe(100);
   });
 });
 

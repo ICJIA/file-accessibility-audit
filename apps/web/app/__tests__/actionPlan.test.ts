@@ -1024,6 +1024,60 @@ describe("title_language step titles match what actually failed (v1.138.1)", () 
     );
     expect(steps[0]!.title).toBe("Give the document a title and set its language");
   });
+
+  // 2026-10-05: Word and PowerPoint now judge a declared language the way
+  // PDF does (unusable code, or a mismatch with the text), and their own
+  // "no language" lines were never matched at all — so an Office file with
+  // a fine title and a language problem fell to the combined default and
+  // was told to give itself a title. PowerPoint's title line is
+  // "Presentation title:", which the language-only step did not accept.
+  it.each([
+    [
+      "docx",
+      'Document title: "Aviso de reunión pública"',
+      'The document declares its language as "en-US" (English), but the text reads as Spanish.',
+    ],
+    [
+      "pptx",
+      'Presentation title: "Programa del curso"',
+      'The presentation declares its language as "en-US" (English), but the text reads as Spanish.',
+    ],
+    [
+      "docx",
+      'Document title: "Quarterly Report"',
+      'Language declared as "english" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation.',
+    ],
+    [
+      "docx",
+      'Document title: "Quarterly Report"',
+      "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
+    ],
+    [
+      "pptx",
+      'Presentation title: "Quarterly Briefing"',
+      "No default presentation language is declared. In PowerPoint this comes from the presentation's default language setting; it tells screen readers which pronunciation rules to use.",
+    ],
+  ] as const)(
+    "%s: a language problem under a fine title → the language-only step",
+    (fmt, t, lang) => {
+      const steps = buildActionPlan([cat([t, lang])] as never, fmt);
+      expect(steps[0]!.title).toBe("Fix the document's language declaration");
+      expect(steps[0]!.why).toMatch(/title is already set/i);
+    },
+  );
+
+  it("docx: no title AND no language → the combined default step", () => {
+    const steps = buildActionPlan(
+      [
+        cat([
+          "No document title is set. In Word: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the document opens.",
+          "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
+        ]),
+      ] as never,
+      "docx",
+    );
+    expect(steps[0]!.title).toBe("Give the document a title and set its language");
+  });
 });
 
 describe("heading_structure: blank headings get their own fix, not the fake-heading one (2026-08-31)", () => {

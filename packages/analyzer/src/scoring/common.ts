@@ -15,6 +15,8 @@ import {
 import { applyAdvisorySeverity, capScoreBySeverity } from "@file-audit/shared";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 import type { AdobeParityResult } from "./adobeParity.js";
+import { detectLanguageMismatch, LANGUAGE_NAMES } from "../languagePlausibility.js";
+import type { LanguageMismatch } from "../languagePlausibility.js";
 import type { ConformanceVerdict } from "./conformance.js";
 import { generateSummary } from "./summary.js";
 
@@ -409,8 +411,8 @@ export type LinkClass = "descriptive" | "rawUrl" | "unnamed" | "vague";
 // A /Lang whose value screen readers cannot parse ("english", "en_US", free
 // text) defeats pronunciation switching exactly as if no language were set —
 // but the document still HAS a declaration, so this is scored as partial
-// credit with a targeted fix, never asserted as a confirmed 3.1.1 failure
-// (the gate stays conservative).
+// credit with a targeted fix. Since v1.136.0 (the legal-only sweep) the gate
+// also asserts it as 3.1.1: the language is not programmatically determined.
 //
 // Deliberately SHAPE-only, no registry lookup: the primary subtag must be
 // the 2–3 letters every real-world language code uses (ISO 639), followed by
@@ -421,6 +423,77 @@ export type LinkClass = "descriptive" | "rawUrl" | "unnamed" | "vague";
 // ---------------------------------------------------------------------------
 export function isPlausibleLanguageTag(tag: string): boolean {
   return /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{1,8})*$/.test(tag.trim());
+}
+
+// ---------------------------------------------------------------------------
+// The declared-language verdict (2026-10-05): PDF's two checks as one
+// function, so every format that declares a document language judges it the
+// same way. A value that is not a language code, or a well-formed code the
+// text overwhelmingly contradicts (languagePlausibility.ts — four guards,
+// deliberately hard to trigger), earns half the language credit and is a
+// 3.1.1 failure. `declaredElsewhere` is Office's own guard: Word and
+// PowerPoint also declare language per run, so a language the file itself
+// declares somewhere is never called a mismatch — a screen reader switches
+// to it there.
+// ---------------------------------------------------------------------------
+export type DeclaredLanguageVerdict =
+  { kind: "ok" } | { kind: "unusable" } | { kind: "mismatch"; mismatch: LanguageMismatch };
+
+export function judgeDeclaredLanguage(
+  declared: string,
+  textSample: string | undefined,
+  declaredElsewhere: readonly string[] = [],
+): DeclaredLanguageVerdict {
+  const tag = declared.trim();
+  if (!isPlausibleLanguageTag(tag)) return { kind: "unusable" };
+  const mismatch = detectLanguageMismatch(textSample ?? "", tag);
+  if (!mismatch || declaredElsewhere.includes(mismatch.detected)) return { kind: "ok" };
+  return { kind: "mismatch", mismatch };
+}
+
+const languageName = (code: string): string => LANGUAGE_NAMES[code] ?? code;
+
+/** The report findings for an Office declaration judged unusable or
+ *  contradicted — worded once for Word and PowerPoint, after PDF's (which
+ *  keeps its own Acrobat-specific steps). `howToFixMismatch` is the
+ *  program's own route to marking the text with its real language; doing it
+ *  declares that language on the text, which is exactly what clears the
+ *  finding (the declared-elsewhere guard). */
+export function officeLanguageFindings(
+  verdict: Exclude<DeclaredLanguageVerdict, { kind: "ok" }>,
+  declared: string,
+  noun: "document" | "presentation",
+  howToFixMismatch: string,
+): string[] {
+  if (verdict.kind === "unusable") {
+    return [
+      `Language declared as "${declared}" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation. Language codes are short standard identifiers such as "en-US" (US English) or "es" (Spanish), not language names.`,
+      `How to fix: Word and PowerPoint only ever write standard codes, so a value like this comes from the program that generated the file. Set the language there to a standard code such as "en-US" and regenerate the ${noun}.`,
+    ];
+  }
+  const m = verdict.mismatch;
+  const declaredName = languageName(m.declared);
+  const detectedName = languageName(m.detected);
+  return [
+    `The ${noun} declares its language as "${declared}" (${declaredName}), but the text reads as ${detectedName}. A screen reader follows the declaration, so it would pronounce this ${noun} with ${declaredName} pronunciation rules throughout — the words come out as ${declaredName} sounds, which is very hard to listen to and often unintelligible.`,
+    `What the check saw: of ${m.wordCount.toLocaleString()} words sampled, ${m.detectedHits} are common ${detectedName} words and only ${m.declaredHits} are common ${declaredName} words — and ${detectedName} is not declared anywhere in the file.`,
+    `How to fix: ${howToFixMismatch}`,
+    `If part of this ${noun} really is in ${declaredName}, that is handled differently: mark just the other passages with their own language, and leave the ${noun} language as the one most of the text is written in.`,
+  ];
+}
+
+/** The conformance-gate reason for the same verdict (3.1.1). */
+export function officeLanguageGateReason(
+  verdict: Exclude<DeclaredLanguageVerdict, { kind: "ok" }>,
+  declared: string,
+  noun: "document" | "presentation",
+): string {
+  if (verdict.kind === "unusable") {
+    return `The declared language "${declared}" is not a usable language code, so the ${noun}'s language cannot be programmatically determined — screen readers fall back to their default pronunciation. Use a standard code such as "en-US".`;
+  }
+  const m = verdict.mismatch;
+  const detectedName = languageName(m.detected);
+  return `The ${noun} declares its language as "${declared}" but the text reads as ${detectedName} (${m.detectedHits} common ${detectedName} words vs ${m.declaredHits} in the declared language, of ${m.wordCount.toLocaleString()} sampled), and ${detectedName} is declared nowhere in the file. The programmatically determined language is not the language of the text, so screen readers pronounce the ${noun} with the wrong rules.`;
 }
 
 export function classifyLinkText(text: string): LinkClass {

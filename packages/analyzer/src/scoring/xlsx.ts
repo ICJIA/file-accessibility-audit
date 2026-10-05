@@ -4,7 +4,7 @@
  * file's imports need to change.
  */
 import { XLSX } from "#config";
-import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
+import { UNHEADERED_DATA_TABLE_SCORE, shareScore } from "@file-audit/shared";
 import { classifyTitleShape } from "../titleShape.js";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { XlsxAnalysis } from "../xlsxService.js";
@@ -122,6 +122,9 @@ function scoreXlsxText(a: XlsxAnalysis): CategoryResult {
 
 function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
   const hasTitle = !!a.metadata.title;
+  // The guard Word has had since 2026-09-01 (2026-10-05): an unparseable
+  // properties part says nothing about the title — never scored as missing.
+  const coreUnreadable = !hasTitle && a.parse?.coreState === "unparseable";
   // F25 IN EXCEL TOO (2026-10-05) — see scoreDocxTitleLanguage. Excel's
   // category is title-only (no language to declare), so half the title
   // credit is 75 here, the same figure as every other format.
@@ -141,6 +144,10 @@ function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
         `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the workbook, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the workbook well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
       );
     }
+  } else if (coreUnreadable) {
+    findings.push(
+      "The workbook's title could not be read — the file's core-properties part is unparseable, so it is not scored.",
+    );
   } else {
     findings.push(
       "No workbook title is set. In Excel: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the workbook opens.",
@@ -156,7 +163,7 @@ function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
     // 50, not 0: a missing title costs HALF this category in every other
     // format (language being structurally absent in Excel is not the
     // author's fault and must not double the penalty).
-    !hasTitle ? 50 : shape === "tool-generated" ? 75 : 100,
+    coreUnreadable ? 100 : !hasTitle ? 50 : shape === "tool-generated" ? 75 : 100,
     findings,
     "A meaningful workbook title is announced by screen readers when the file opens. Unlike Word or PowerPoint, Excel workbooks have no document-language property to declare, so that half of this check is always not assessed.",
     [XLSX_HELP.overview],
@@ -363,14 +370,12 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
     );
   }
   const missingAlt = nonDec.filter((i) => !i.altText || i.altText.trim().length === 0);
-  let score = Math.round((100 * (nonDec.length - missingAlt.length)) / nonDec.length);
+  // shareScore (packages/shared, 2026-10-05) — the one rule in every format.
+  const score = shareScore(nonDec.length - missingAlt.length, nonDec.length);
   const findings = [
     `${nonDec.length - missingAlt.length} of ${nonDec.length} meaningful image(s) have alt text.`,
   ];
   if (missingAlt.length > 0) {
-    // Cap 85 (Minor ceiling) whenever any image lacks alt — cross-format
-    // convention shared with DOCX so one barrier has one grade consequence.
-    score = Math.min(score, 85);
     findings.push(
       `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
@@ -401,9 +406,9 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.color_contrast,
       null,
       [
-        "No cell styles with a resolvable font-plus-solid-fill color pair were found (literal, theme-based, and legacy indexed colors are all resolved since v1.95.0; automatic colors and non-solid fills are not).",
+        "No cell style with a resolvable font color was found to check — against its solid fill, or the white grid when the cell has no fill. (Literal, theme-based, and legacy indexed colors are all resolved; automatic colors, patterned or gradient fills, and sheets with a background picture are not.)",
       ],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color and a solid fill are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color is set — against the cell's solid fill, or the white grid when the cell has no fill.",
       [XLSX_HELP.contrast],
       unresolvedRuns > 0,
     );
@@ -415,7 +420,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.color_contrast,
       100,
       [`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color and a solid fill are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color is set — against the cell's solid fill, or the white grid when the cell has no fill.",
       [XLSX_HELP.contrast],
     );
   }
@@ -435,7 +440,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
     XLSX.SCORING_WEIGHTS.color_contrast,
     clamp100(score),
     findings,
-    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color and a solid fill are set.",
+    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color is set — against the cell's solid fill, or the white grid when the cell has no fill.",
     [XLSX_HELP.contrast],
   );
 }
@@ -489,7 +494,7 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
   const unnamed = assessable.filter((l) => classifyLinkText(l.text) === "unnamed");
   const vague = assessable.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = assessable.filter((l) => classifyLinkText(l.text) === "rawUrl");
-  const score = Math.round((100 * (assessable.length - unnamed.length)) / assessable.length);
+  const score = shareScore(assessable.length - unnamed.length, assessable.length);
   const findings = [
     `${assessable.length} link(s) assessed; ${unnamed.length} with no link text at all.`,
   ];

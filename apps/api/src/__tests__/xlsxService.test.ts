@@ -802,11 +802,93 @@ describe("xlsxService: styles contrast", () => {
           ],
         },
       ],
-      styles: [{ fontTheme: true, fillRgb: "FFFFFFFF" }, { fontRgb: "FF000000" }],
+      styles: [
+        { fontTheme: true, fillRgb: "FFFFFFFF" },
+        { fontRgb: "FF000000", fillRgb: "FFFFFFFF", fillPattern: "gray125" },
+      ],
     });
     const a = await analyzeXlsx(buf);
     expect(a.contrast.checkedRuns).toBe(0);
     expect(a.contrast.unresolvedRuns).toBe(2);
+  });
+});
+
+// A cell with NO fill shows the white grid (2026-10-05). Word has always
+// checked unshaded text against the page (white unless the document sets a
+// background); Excel left every no-fill cell unresolved, so light-grey text
+// typed straight onto the grid — a confirmed 1.4.3 failure on screen — was
+// never caught in a workbook and always caught in the same text as a Word
+// document. Non-solid patterns and sheets with a background picture stay
+// unresolved: their real background is not one color.
+describe("xlsxService: a cell with no fill is checked against the white grid", () => {
+  const sheet = (extra?: string) => ({
+    name: "S",
+    dimensionRef: "A1:A2",
+    cells: [
+      { ref: "A1", styleIndex: 1, value: "Total" },
+      { ref: "A2", styleIndex: 2, value: "Total" },
+    ],
+    rawSheetExtra: extra,
+  });
+
+  it("fails light text on a no-fill cell, naming white as the background", async () => {
+    const a = await analyzeXlsx(
+      await buildXlsx({
+        sheets: [sheet()],
+        styles: [
+          { fontRgb: "FFDDDDDD" }, // ≈1.35:1 on white → fail
+          { fontRgb: "FF000000" }, // 21:1 → pass
+        ],
+      }),
+    );
+    expect(a.contrast.checkedRuns).toBe(2);
+    expect(a.contrast.unresolvedRuns).toBe(0);
+    expect(a.contrast.failing).toHaveLength(1);
+    expect(a.contrast.failing[0]).toMatchObject({
+      foreground: "#DDDDDD",
+      background: "#FFFFFF",
+    });
+  });
+
+  it("treats a bare <patternFill/> (no type, no color) as no fill", async () => {
+    const stylesXml =
+      '<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts><font><sz val="11"/></font><font><sz val="11"/><color rgb="FFDDDDDD"/></font></fonts><fills><fill><patternFill/></fill><fill><patternFill patternType="gray125"/></fill></fills><cellXfs><xf fontId="0" fillId="0"/><xf fontId="1" fillId="0"/><xf fontId="1" fillId="0"/></cellXfs></styleSheet>';
+    const a = await analyzeXlsx(await buildXlsx({ sheets: [sheet()], stylesXml }));
+    expect(a.contrast.checkedRuns).toBe(2);
+    expect(a.contrast.failing).toHaveLength(2);
+  });
+
+  it("leaves a non-solid pattern unresolved — its background is two colors", async () => {
+    const a = await analyzeXlsx(
+      await buildXlsx({
+        sheets: [sheet()],
+        styles: [
+          { fontRgb: "FFDDDDDD", fillPattern: "gray125" },
+          { fontRgb: "FFDDDDDD", fillPattern: "darkGrid", fillRgb: "FF000000" },
+        ],
+      }),
+    );
+    expect(a.contrast.checkedRuns).toBe(0);
+    expect(a.contrast.unresolvedRuns).toBe(2);
+    expect(a.contrast.failing).toHaveLength(0);
+  });
+
+  it("leaves a no-fill cell unresolved on a sheet with a background picture", async () => {
+    const a = await analyzeXlsx(
+      await buildXlsx({
+        sheets: [sheet('<picture r:id="rId99"/>')],
+        styles: [{ fontRgb: "FFDDDDDD" }, { fontRgb: "FF000000" }],
+      }),
+    );
+    expect(a.contrast.checkedRuns).toBe(0);
+    expect(a.contrast.unresolvedRuns).toBe(2);
+    expect(a.contrast.failing).toHaveLength(0);
+  });
+
+  it("still ignores a font with no color element — the default ink is not an explicit choice", async () => {
+    const a = await analyzeXlsx(await buildXlsx({ sheets: [sheet()], styles: [{}, {}] }));
+    expect(a.contrast.checkedRuns).toBe(0);
+    expect(a.contrast.unresolvedRuns).toBe(0);
   });
 });
 

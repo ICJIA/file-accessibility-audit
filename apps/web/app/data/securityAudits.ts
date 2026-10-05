@@ -54,6 +54,49 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.160.0",
+    meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: the last small grading differences between file formats, two new checks for Word, PowerPoint and Excel files, and clearer advice about logos in page headers.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to the advice the report gives. To check a document&rsquo;s declared language, Word and PowerPoint files now have a short sample of their text read while they are being checked &mdash; the same size PDF files have had read since August. That sample exists only inside the separate process that checks the file and is discarded with it: it is never stored with a report, written to a log, or kept in the database. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The same share of described images now earns the same score in every format.</strong> A report with 16 of its 23 images described could grade a letter lower as a PDF than as a Word file, because the two used slightly different arithmetic. All four formats now use one rule.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>A damaged file is no longer reported as having no title.</strong> When the part of a PowerPoint or Excel file that holds its title could not be read, the report said the title was missing &mdash; a claim about something it never saw. Word files already said &ldquo;could not be read&rdquo; instead; all three now do.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>A table used only to line things up on a slide is no longer graded as a data table.</strong> Word files have always been treated this way; PowerPoint files now are too.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Two problems that were missed in Office files are now caught.</strong> Light-colored text typed onto a spreadsheet&rsquo;s plain white grid is now checked for contrast, as the same text in a Word document always was. And a Word or PowerPoint file whose declared language does not match its text &mdash; a Spanish notice labeled English, for example, which a screen reader would read aloud with English pronunciation &mdash; is now flagged, as PDF files already were. A passage the file itself marks as Spanish is never flagged.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Logos in page headers are explained.</strong> A logo without a description in a Word document&rsquo;s header still counts, but the report now says where it is and how to mark a purely decorative logo so it no longer counts.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The fix-it step for a language problem no longer asks for a title that is already there.</strong> A Word or PowerPoint file with a good title and a missing or wrong language was told to &ldquo;give the document a title and set its language&rdquo;. It is now told to fix the language only.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Nine new test documents pin the new rules; each one that checks a fix was shown to fail when the old rules were put back. Every pinned document&rsquo;s grade was re-checked: no real document&rsquo;s grade changed. The scan for known problems still finds the same two, which have no fix published yet.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.159.0",
     meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: three more grading rules made the same across file formats, and the fix-it step for document titles.",
     body: [

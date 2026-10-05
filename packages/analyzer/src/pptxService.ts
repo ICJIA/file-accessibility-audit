@@ -17,6 +17,10 @@ import {
   firstChild,
   descendants,
   textOf,
+  rawText,
+  languageSample,
+  addLanguagePrimary,
+  LANGUAGE_SAMPLE_CHARS,
   rootElement,
   parseRelationships,
   parseRelationshipEntries,
@@ -42,6 +46,10 @@ export interface PptxMetadata {
 
 export interface PptxAnalysis {
   metadata: PptxMetadata;
+  /** Whether docProps/core.xml (title) was present and readable (2026-10-05,
+   *  the guard Word has had since 2026-09-01): "could not be read" must never
+   *  score or gate as "no title". Optional so stored payloads stay valid. */
+  parse?: { coreState: "ok" | "absent" | "unparseable" };
   slides: Array<{
     /** Slide is hidden (p:sld show="0") — excluded from title judgment. */
     hidden?: boolean;
@@ -60,7 +68,15 @@ export interface PptxAnalysis {
    *  and deliberately unscored. */
   fakeHeadings: Array<{ slide: number; text: string }>;
   images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
-  tables: Array<{ hasHeaderRow: boolean; rowCount: number; colCount: number }>;
+  tables: Array<{
+    hasHeaderRow: boolean;
+    rowCount: number;
+    colCount: number;
+    /** A bare grid — no table style (or "No Style, No Grid"), no visible cell
+     *  border or fill, no header row: Word's looksLikeLayout rule, adopted
+     *  2026-10-05. Never scored or gated. Optional for stored payloads. */
+    looksLikeLayout?: boolean;
+  }>;
   links: Array<{ text: string; url: string | null }>;
   lists: { realListItems: number; manualBulletParagraphs: number };
   contrast: {
@@ -76,6 +92,14 @@ export interface PptxAnalysis {
   };
   hasMedia: boolean;
   shapeCount: number;
+  /** The first ~4,000 characters of visible slides' text, in slide order —
+   *  the sample the declared language is checked against (2026-10-05, as
+   *  PDF's textSample). Never leaves the worker. */
+  textSample?: string;
+  /** Every language (primary subtag) declared anywhere — on visible slides'
+   *  runs and paragraph defaults, the presentation, or the master. A
+   *  mismatch is never asserted for a language listed here. */
+  declaredLanguages?: string[];
 }
 
 export class PptxParseError extends Error {
@@ -170,6 +194,29 @@ export function countTextElementsAnyDepth(spTree: PONode): number {
   return descendants(spTree, "p").length + descendants(spTree, "r").length;
 }
 
+/** PowerPoint's "No Style, No Grid" table style — style present, nothing drawn. */
+const NO_STYLE_NO_GRID = "{2D5ABB26-0587-4C30-8999-92F81FD0307C}";
+const FILL_TAGS = ["solidFill", "gradFill", "pattFill", "blipFill"];
+
+/** Word's looksLikeLayout rule for a PowerPoint table (2026-10-05): no table
+ *  style (or "No Style, No Grid"), no visible cell border, no cell fill. Every
+ *  table Insert → Table creates carries a style, so a bare grid is one an
+ *  author stripped down to line things up — overwhelmingly a layout
+ *  construct, which Word has never scored or gated. */
+function tableLooksBare(tbl: PONode, tblPr: PONode | undefined): boolean {
+  const styleEl = tblPr ? firstChild(tblPr, "tableStyleId") : undefined;
+  const styleId = styleEl ? rawText(styleEl).trim().toUpperCase() : "";
+  if (styleId && styleId !== NO_STYLE_NO_GRID) return false;
+  for (const tcPr of descendants(tbl, "tcPr")) {
+    if (FILL_TAGS.some((t) => firstChild(tcPr, t))) return false;
+    for (const side of ["lnL", "lnR", "lnT", "lnB"]) {
+      const ln = firstChild(tcPr, side);
+      if (ln && !firstChild(ln, "noFill") && FILL_TAGS.some((t) => firstChild(ln, t))) return false;
+    }
+  }
+  return true;
+}
+
 export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   let zip: JSZip;
   try {
@@ -206,7 +253,10 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     );
   }
   const presRoot = rootElement(parseXml(presentationXml), "presentation");
-  const coreRoot = rootElement(parseXml(await read("docProps/core.xml")), "coreProperties");
+  const coreXml = await read("docProps/core.xml");
+  const coreRoot = rootElement(parseXml(coreXml), "coreProperties");
+  const coreState: "ok" | "absent" | "unparseable" =
+    coreXml === null ? "absent" : coreRoot ? "ok" : "unparseable";
   // Resolve every scheme color ONCE per analysis (not once per text run —
   // see buildSchemeColorMap's doc comment) and drop the theme AST once the
   // map is built so a large theme part isn't retained across the slide loop.
@@ -271,6 +321,22 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     language = defRPr ? (attrOf(defRPr, "lang") ?? null) : null;
   }
 
+  // Declared-language plausibility inputs (2026-10-05) — see ooxml.ts.
+  // PowerPoint declares language on runs (a:rPr), paragraph defaults
+  // (a:defRPr) and paragraph ends (a:endParaRPr); every one counts.
+  const LANG_CARRIERS = ["rPr", "defRPr", "endParaRPr"];
+  const declaredLanguageSet = new Set<string>();
+  const collectLangs = (root: PONode | undefined): void => {
+    if (!root) return;
+    for (const tag of LANG_CARRIERS) {
+      for (const el of descendants(root, tag))
+        addLanguagePrimary(declaredLanguageSet, attrOf(el, "lang"));
+    }
+  };
+  collectLangs(presRoot);
+  collectLangs(masterRoot);
+  let textSample = "";
+
   // Per-level body bullet defaults from the master's bodyStyle: lvlNpPr with
   // buChar/buAutoNum = bulleted level; buNone = explicitly unbulleted.
   const masterBodyBullets = new Map<number, "bullet" | "none">();
@@ -291,6 +357,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   }
 
   const analysis: PptxAnalysis = {
+    parse: { coreState },
     fakeHeadings: [],
     metadata: {
       title: corePropertyText(coreRoot, "title"),
@@ -409,6 +476,19 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       const runLang = attrOf(rPr, "lang");
       if (runLang) runLangTally.set(runLang, (runLangTally.get(runLang) ?? 0) + 1);
     }
+    // Hidden slides are not presented, so they neither feed the sample nor
+    // vouch for a language.
+    if (attrOf(slideRoot, "show") !== "0") {
+      collectLangs(slideRoot);
+      if (textSample.length < LANGUAGE_SAMPLE_CHARS) {
+        const more = languageSample(descendants(slideRoot, "p"));
+        if (more)
+          textSample = (textSample ? `${textSample} ${more}` : more).slice(
+            0,
+            LANGUAGE_SAMPLE_CHARS,
+          );
+      }
+    }
 
     collectSlideContent(analysis, slideRoot, relMap, schemeColorMap, spTree, masterBodyBullets);
   }
@@ -416,6 +496,8 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   if (!analysis.metadata.language && runLangTally.size > 0) {
     analysis.metadata.language = [...runLangTally.entries()].sort((a, b) => b[1] - a[1])[0][0];
   }
+  analysis.textSample = textSample;
+  analysis.declaredLanguages = [...declaredLanguageSet].sort();
 
   return analysis;
 }
@@ -523,10 +605,12 @@ function collectSlideContent(
       const tblPr = firstChild(tbl, "tblPr");
       // ST_Boolean admits "true" as well as "1".
       const firstRow = tblPr ? (attrOf(tblPr, "firstRow") ?? "") : "";
+      const hasHeaderRow = firstRow === "1" || firstRow.toLowerCase() === "true";
       analysis.tables.push({
-        hasHeaderRow: firstRow === "1" || firstRow.toLowerCase() === "true",
+        hasHeaderRow,
         rowCount: rows,
         colCount: cols,
+        looksLikeLayout: !hasHeaderRow && tableLooksBare(tbl, tblPr),
       });
     } else if (frame.cNvPr) {
       analysis.images.push(drawingAltText(frame.cNvPr));

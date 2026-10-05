@@ -88,6 +88,6 @@ A cross-format sweep run alongside this fix found the same class of mismatch els
 2. **Fixed in v1.159.0 — see `cross-format-parity-lists-headings-titles-fix.md`.** **A list typed entirely by hand:** Word and PowerPoint 0/Critical (D); PDF does not detect typed bullets (A).
 3. **Fixed in v1.159.0.** **Several fake headings and no real ones:** PDF and Word Critical (D); PowerPoint 70/Minor (B) for two, Moderate at three or more.
 4. **Fixed in v1.159.0.** **A title that is a filename or tool default ("Document1"):** PDF 75/Minor under W3C F25; never checked in Office.
-5. Smaller: Excel leaves default-white contrast unassessed where Word assumes white; Office rounds alt-text and link ratios with an 85 cap PDF never adopted; PowerPoint and Excel lack Word's guard for an unreadable properties part; PowerPoint has no layout-grid exemption for tables.
+5. **Fixed in v1.160.0 — see `cross-format-parity-smaller-inconsistencies-fix.md`.** Smaller: Excel leaves default-white contrast unassessed where Word assumes white; Office rounds alt-text and link ratios with an 85 cap PDF never adopted; PowerPoint and Excel lack Word's guard for an unreadable properties part; PowerPoint has no layout-grid exemption for tables.
 
 Each is a scoring-policy decision and is left for its own release.

@@ -8,6 +8,7 @@ import {
   TYPED_LIST_FLOOR,
   UNHEADERED_DATA_TABLE_SCORE,
   VISUAL_HEADINGS_FOR_FAILURE,
+  shareScore,
 } from "@file-audit/shared";
 import { classifyTitleShape } from "../titleShape.js";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
@@ -22,6 +23,8 @@ import {
   applyWcagCriteria,
   headingOutlineLines,
   truncateHeadingText,
+  judgeDeclaredLanguage,
+  officeLanguageFindings,
   type ScoringResult,
 } from "./common.js";
 import { evaluateDocxConformance } from "./conformance.js";
@@ -155,8 +158,25 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
     );
   }
   if (a.metadata.language) {
-    score += 50;
-    findings.push(`Document language: ${a.metadata.language}`);
+    // PDF's two language checks (2026-10-05): a value that is not a language
+    // code, or a code the text overwhelmingly contradicts, earns half credit
+    // — never for a language the file itself declares on some run or style
+    // (judgeDeclaredLanguage). conformance.ts rule 2b mirrors this.
+    const verdict = judgeDeclaredLanguage(a.metadata.language, a.textSample, a.declaredLanguages);
+    if (verdict.kind === "ok") {
+      score += 50;
+      findings.push(`Document language: ${a.metadata.language}`);
+    } else {
+      score += 25;
+      findings.push(
+        ...officeLanguageFindings(
+          verdict,
+          a.metadata.language,
+          "document",
+          "In Word: select all the text (Ctrl+A; ⌘A on a Mac), then Review → Language → Set Proofing Language → choose the language the document is written in → OK, and save.",
+        ),
+      );
+    }
   }
   if ((a.runLanguages?.length ?? 0) > 0) {
     findings.push(
@@ -332,10 +352,12 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
     );
   }
   const withAlt = nonDecorative.filter((i) => i.altText && i.altText.trim().length > 0).length;
-  let score = Math.round((withAlt / nonDecorative.length) * 100);
+  // shareScore (packages/shared, 2026-10-05): floor, as PDF always did. This
+  // rounded and capped any failure at 85, so 16 of 23 described read 70
+  // (Minor) here and 69 (Moderate) as a PDF.
+  const score = shareScore(withAlt, nonDecorative.length);
   const findings = [`${withAlt} of ${nonDecorative.length} meaningful image(s) have alt text.`];
   if (withAlt < nonDecorative.length) {
-    score = Math.min(score, 85);
     findings.push(
       `${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text (some Word versions call it Edit Alt Text) and add a description.`,
     );
@@ -343,6 +365,21 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
     if (titleOnly > 0) {
       findings.push(
         `${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title. Move the text into the Description box.`,
+      );
+    }
+    // Header/footer images stay scored (user decision, 2026-10-05) — an
+    // undescribed logo is still an undescribed image — but the report says
+    // where they are and how to clear a purely decorative one. Word's tagged-
+    // PDF export marks header and footer content as artifacts, which is why
+    // the same logo is usually not flagged in the PDF.
+    const inPageFurniture = nonDecorative.filter(
+      (i) =>
+        !(i.altText && i.altText.trim().length > 0) &&
+        (i.location === "header" || i.location === "footer"),
+    ).length;
+    if (inPageFurniture > 0) {
+      findings.push(
+        `${inPageFurniture} of them ${inPageFurniture === 1 ? "is" : "are"} in a page header or footer — usually a letterhead logo or seal repeated on every page. If it adds nothing the text does not already say, mark it decorative (right-click → View Alt Text → Mark as decorative) and it stops counting here; if it carries information — a seal that certifies, or a logo that is the only place the agency is named — describe it instead. (When Word saves a tagged PDF, header and footer content is marked as page decoration that screen readers skip, so the PDF may not flag the same image.)`,
       );
     }
   }
@@ -463,7 +500,7 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
   const unnamed = a.links.filter((l) => classifyLinkText(l.text) === "unnamed");
   const vague = a.links.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
-  const score = Math.round(((a.links.length - unnamed.length) / a.links.length) * 100);
+  const score = shareScore(a.links.length - unnamed.length, a.links.length);
   const findings = [`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`];
   if (unnamed.length > 0) {
     findings.push(

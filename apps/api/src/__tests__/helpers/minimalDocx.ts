@@ -91,6 +91,9 @@ export interface DocxPartOverrides {
   /** Inner `<w:body>` XML; wrapped in a default envelope. */
   body?: string;
   stylesXml?: string;
+  /** The docDefaults language in the default styles part (default "en-US").
+   *  Ignored when `stylesXml` is given. */
+  language?: string;
   coreXml?: string;
   appXml?: string;
   numberingXml?: string;
@@ -119,7 +122,13 @@ export async function buildDocx(overrides: DocxPartOverrides = {}): Promise<Buff
       wordDocument(overrides.body ?? "<w:p><w:r><w:t>Hello world</w:t></w:r></w:p>");
     zip.file("word/document.xml", doc);
   }
-  zip.file("word/styles.xml", overrides.stylesXml ?? DEFAULT_STYLES);
+  zip.file(
+    "word/styles.xml",
+    overrides.stylesXml ??
+      (overrides.language === undefined
+        ? DEFAULT_STYLES
+        : DEFAULT_STYLES.replace('w:val="en-US"', `w:val="${overrides.language}"`)),
+  );
   if (!overrides.omitCore) zip.file("docProps/core.xml", overrides.coreXml ?? DEFAULT_CORE);
   zip.file("docProps/app.xml", overrides.appXml ?? DEFAULT_APP);
   if (overrides.numberingXml) zip.file("word/numbering.xml", overrides.numberingXml);

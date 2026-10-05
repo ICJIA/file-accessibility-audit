@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "cross-format-parity-smaller-2026-10-05",
+    badge: "Scoring",
+    text: "The last small grading differences between file formats are closed. Light-colored text typed onto an Excel spreadsheet\u2019s plain grid is now checked for contrast, as the same text in a Word document always was, and a Word or PowerPoint file whose declared language does not match its text \u2014 a Spanish notice labeled English, for example \u2014 is now flagged, as PDF files already were. A table used only to line things up on a slide is no longer graded as a data table, a damaged file is no longer reported as having no title, and the same share of described images now earns the same score whatever program made the file. A logo in a Word document\u2019s page header still needs a description or a decorative mark, and the report now says where it is and how to mark it.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 5, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "cross-format-parity-2026-10-05",
     badge: "Scoring",
     text: "Three more problems now cost the same whichever program made the file. A list typed by hand instead of made with the Bullets or Numbering buttons no longer drops a Word or PowerPoint file to D \u2014 every word is still there and in order \u2014 so it now costs what an unmarked table does (a C at most). A PowerPoint deck whose section headings are all typed into text boxes, with no slide titles anywhere, now costs what the same headings cost in Word or a PDF. And Word, PowerPoint and Excel titles now get the check PDF titles always had: a title that is a file name or a program\u2019s default \u2014 including PowerPoint\u2019s own \u201cPowerPoint Presentation\u201d \u2014 does not identify the document and costs half the title points.",

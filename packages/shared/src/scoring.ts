@@ -660,3 +660,27 @@ export const VISUAL_HEADINGS_FOR_FAILURE = 2;
 // SAFE TO CHANGE: only together with UNHEADERED_DATA_TABLE_SCORE's band.
 // ---------------------------------------------------------------------------
 export const TYPED_LIST_FLOOR = UNHEADERED_DATA_TABLE_SCORE;
+
+// ---------------------------------------------------------------------------
+// SHARE SCORE — one rule for "what share of the items pass" (2026-10-05)
+// ---------------------------------------------------------------------------
+// Alt text and link names are scored as the share of items that pass, in
+// every format. PDF floored the share; Word, PowerPoint and Excel rounded it
+// and then capped any failing category at 85 (a v1.36.0 "cross-format
+// convention" PDF never adopted, written before the severity cap existed, to
+// stop a single failure rounding up to a clean 100). At band edges the two
+// disagreed on the letter — 16 of 23 images described was 69 (Moderate, C
+// ceiling) as a PDF and 70 (Minor, B ceiling) as a Word file — and the cap
+// reported 199 of 200 described as 85.
+//
+// Flooring does both jobs honestly: a failing share never rounds UP into a
+// better band, and never reaches 100 while anything fails.
+//
+// Proportional scoring itself is deliberate (user decision, 2026-10-05):
+// one undescribed image of one loses all the visual information; one of ten
+// loses a tenth. It is the same in every format.
+// ---------------------------------------------------------------------------
+export function shareScore(passed: number, total: number): number {
+  if (!(total > 0)) return 100;
+  return Math.floor((Math.max(0, Math.min(passed, total)) / total) * 100);
+}

@@ -108,7 +108,9 @@ describe("XLSX config", () => {
     expect(cat.findings.join(" ")).toMatch(/text box|not assessed/i);
   });
 
-  it("alt_text caps at 85 with any missing alt and is N/A when all images are decorative", () => {
+  it("alt_text is the floored share described — 39 of 40 is 97, never a clean 100 — and N/A when all images are decorative", () => {
+    // The old 85 cap (a v1.36.0 Office-only convention) gave way to
+    // shareScore on 2026-10-05: one rule in every format, PDF's.
     const capped = scoreXlsx(
       baseAnalysis({
         images: [
@@ -122,7 +124,8 @@ describe("XLSX config", () => {
         ],
       }),
     );
-    expect(capped.categories.find((c) => c.id === "alt_text")!.score).toBe(85);
+    expect(capped.categories.find((c) => c.id === "alt_text")!.score).toBe(97);
+    expect(capped.categories.find((c) => c.id === "alt_text")!.severity).toBe("Minor");
 
     const allDecorative = scoreXlsx(
       baseAnalysis({ images: [{ altText: null, decorative: true, titleOnly: false }] }),

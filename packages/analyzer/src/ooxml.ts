@@ -157,6 +157,36 @@ export function textOf(node: PONode): string {
     .join("");
 }
 
+// ---------------------------------------------------------------------------
+// Declared-language plausibility inputs (2026-10-05) — what PDF has checked
+// since 2026-08-29 (languagePlausibility.ts), gathered for Word and
+// PowerPoint. The sample never leaves the OOXML worker: only metadata and
+// scoring cross the IPC boundary, so no document text is stored.
+// ---------------------------------------------------------------------------
+
+/** Characters of text sampled — the same size PDF takes. */
+export const LANGUAGE_SAMPLE_CHARS = 4000;
+
+/** The first LANGUAGE_SAMPLE_CHARS characters of the paragraphs' text, in
+ *  order, one space between paragraphs. */
+export function languageSample(paragraphs: PONode[]): string {
+  let out = "";
+  for (const p of paragraphs) {
+    if (out.length >= LANGUAGE_SAMPLE_CHARS) break;
+    const t = textOf(p).trim();
+    if (t) out += (out ? " " : "") + t;
+  }
+  return out.slice(0, LANGUAGE_SAMPLE_CHARS);
+}
+
+/** Adds a declared language's primary subtag ("es" from "es-ES") to `into`.
+ *  Values not shaped like a language code are dropped, and the set is
+ *  bounded — a forged file must not grow it without limit. */
+export function addLanguagePrimary(into: Set<string>, value: string | undefined): void {
+  const primary = (value ?? "").trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  if (/^[a-z]{2,3}$/.test(primary) && into.size < 32) into.add(primary);
+}
+
 /** The single root element of a parsed part (skips the xml declaration node). */
 export function rootElement(nodes: PONode[], tag: string): PONode | undefined {
   return nodes.find((n) => tagOf(n) === tag);

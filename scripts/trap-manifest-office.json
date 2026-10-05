@@ -1,5 +1,5 @@
 {
-  "count": 56,
+  "count": 65,
   "generated": "2026-10-05",
   "items": [
     {
@@ -282,6 +282,51 @@
     {
       "file": "synthetic-162-docx-pasted-borderless-grid.docx",
       "label": "Word: a borderless grid pasted from the web, carrying “no shading” marks",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-170-pptx-bare-layout-grid.pptx",
+      "label": "PowerPoint: an agenda lined up in a table stripped bare — no style, borders or header row",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-171-xlsx-light-text-no-fill.xlsx",
+      "label": "Excel: a ledger typed in light grey straight onto the plain grid",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-172-xlsx-dark-text-no-fill-twin.xlsx",
+      "label": "Excel: the same ledger in near-black on the plain grid",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-173-docx-spanish-declared-english.docx",
+      "label": "Word: a notice written in Spanish, declared English",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-174-docx-spanish-marked-es-twin.docx",
+      "label": "Word: the same notice with its Spanish marked Spanish",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-175-pptx-corrupt-core.pptx",
+      "label": "PowerPoint: a deck whose properties part is damaged — unreadable is not missing",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-176-docx-header-logo-no-alt.docx",
+      "label": "Word: the agency logo in the page header, with no alt text",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-177-docx-header-logo-decorative-twin.docx",
+      "label": "Word: the same logo marked decorative",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-178-docx-16-of-23-images-described.docx",
+      "label": "Word: 16 of 23 images described — now the same letter as the PDF",
       "chip": "bug"
     }
   ]

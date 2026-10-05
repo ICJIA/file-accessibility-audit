@@ -97,8 +97,8 @@ describe("pptxService: images, tables, links, lists, media", () => {
     });
     const a = await analyzePptx(buf);
     expect(a.tables).toEqual([
-      { hasHeaderRow: true, rowCount: 3, colCount: 2 },
-      { hasHeaderRow: false, rowCount: 2, colCount: 2 },
+      { hasHeaderRow: true, rowCount: 3, colCount: 2, looksLikeLayout: false },
+      { hasHeaderRow: false, rowCount: 2, colCount: 2, looksLikeLayout: false },
     ]);
     expect(a.images).toHaveLength(0);
   });
@@ -779,7 +779,12 @@ describe("pptxService: linear frame/pic walk (V2 DoS hardening)", () => {
     // the outer frame's own "not a table" image branch. The linear pass
     // attributes each element to its innermost enclosing frame only.
     expect(a.tables).toHaveLength(1);
-    expect(a.tables[0]).toEqual({ hasHeaderRow: true, rowCount: 2, colCount: 2 });
+    expect(a.tables[0]).toEqual({
+      hasHeaderRow: true,
+      rowCount: 2,
+      colCount: 2,
+      looksLikeLayout: false,
+    });
     expect(a.images).toHaveLength(1);
   });
 
@@ -878,5 +883,42 @@ describe("pptxService: aggregate zip-package limits (C1 DoS hardening)", () => {
     const base = await build({ slides: [{ title: "T" }] });
     const buf = await addOversizedEntry(base, 3_000);
     await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+});
+
+describe("PowerPoint layout grids (2026-10-05) — Word's rule, applied to decks", () => {
+  // Word has never scored a bare grid — no table style, borders, shading or
+  // header mark anywhere — because that is overwhelmingly a layout construct.
+  // PowerPoint scored every table, so a deck using an unstyled grid to line
+  // up text was accused of a headerless data table.
+  it("a bare grid (no table style, borders, fills or header row) is layout-like", async () => {
+    const a = await analyzePptx(
+      await buildPptx({
+        slides: [{ title: "T", body: pptTable({ rows: 3, cols: 2, bare: true }) }],
+      }),
+    );
+    expect(a.tables[0].looksLikeLayout).toBe(true);
+  });
+
+  it("a styled table without a header row is still a data table", async () => {
+    const a = await analyzePptx(
+      await buildPptx({ slides: [{ title: "T", body: pptTable({ rows: 3, cols: 2 }) }] }),
+    );
+    expect(a.tables[0].looksLikeLayout).toBe(false);
+  });
+
+  it('"No Style, No Grid" counts as no style; a visible cell border or fill is a data-table sign', async () => {
+    const noStyle = pptTable({
+      rows: 3,
+      cols: 2,
+      bare: true,
+      styleId: "{2D5ABB26-0587-4C30-8999-92F81FD0307C}",
+    });
+    const bordered = pptTable({ rows: 3, cols: 2, bare: true, cellBorderHex: "000000" });
+    const filled = pptTable({ rows: 3, cols: 2, bare: true, cellFillHex: "D9E2F3" });
+    const a = await analyzePptx(
+      await buildPptx({ slides: [{ title: "T", body: noStyle + bordered + filled }] }),
+    );
+    expect(a.tables.map((t) => t.looksLikeLayout)).toEqual([true, false, false]);
   });
 });

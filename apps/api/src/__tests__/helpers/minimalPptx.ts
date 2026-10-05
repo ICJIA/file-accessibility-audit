@@ -152,15 +152,40 @@ export function picture(
     <p:blipFill><a:blip r:embed="rIdImg"/></p:blipFill><p:spPr>${xfrmXml(opts.bounds)}</p:spPr></p:pic>`;
 }
 
-export function pptTable(opts: { firstRow?: boolean; rows?: number; cols?: number } = {}): string {
+/** PowerPoint's default table style ("Medium Style 2 – Accent 1"), which
+ *  Insert → Table applies to every new table. */
+export const PPT_DEFAULT_TABLE_STYLE = "{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}";
+
+export function pptTable(
+  opts: {
+    firstRow?: boolean;
+    rows?: number;
+    cols?: number;
+    /** No table style at all — a bare grid (2026-10-05). Default: styled,
+     *  as every table PowerPoint inserts is. */
+    bare?: boolean;
+    /** An explicit table style GUID (overrides the default and `bare`). */
+    styleId?: string;
+    /** Give every cell a visible left border in this color. */
+    cellBorderHex?: string;
+    /** Give every cell a solid fill in this color. */
+    cellFillHex?: string;
+  } = {},
+): string {
   const rows = opts.rows ?? 2;
   const cols = opts.cols ?? 2;
   const grid = `<a:tblGrid>${'<a:gridCol w="1000"/>'.repeat(cols)}</a:tblGrid>`;
-  const cell = "<a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>c</a:t></a:r></a:p></a:txBody></a:tc>";
+  const tcPr =
+    opts.cellBorderHex || opts.cellFillHex
+      ? `<a:tcPr>${opts.cellBorderHex ? `<a:lnL w="12700"><a:solidFill><a:srgbClr val="${opts.cellBorderHex}"/></a:solidFill></a:lnL>` : ""}${opts.cellFillHex ? `<a:solidFill><a:srgbClr val="${opts.cellFillHex}"/></a:solidFill>` : ""}</a:tcPr>`
+      : "";
+  const cell = `<a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>c</a:t></a:r></a:p></a:txBody>${tcPr}</a:tc>`;
   const tr = `<a:tr h="370">${cell.repeat(cols)}</a:tr>`;
+  const styleId = opts.styleId ?? (opts.bare ? null : PPT_DEFAULT_TABLE_STYLE);
+  const tblPr = `<a:tblPr${opts.firstRow ? ' firstRow="1"' : ""}>${styleId ? `<a:tableStyleId>${styleId}</a:tableStyleId>` : ""}</a:tblPr>`;
   return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="7" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>
     <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
-    <a:tbl><a:tblPr${opts.firstRow ? ' firstRow="1"' : ""}/>${grid}${tr.repeat(rows)}</a:tbl>
+    <a:tbl>${tblPr}${grid}${tr.repeat(rows)}</a:tbl>
     </a:graphicData></a:graphic></p:graphicFrame>`;
 }
 
@@ -183,6 +208,8 @@ export interface BuildPptxOpts {
   coreXml?: string;
   /** Default-language declaration on the presentation part. true by default. */
   declareLanguage?: boolean;
+  /** The declared default language when declareLanguage is on (default "en-US"). */
+  language?: string;
   /** Slide background solid fill hex (applied to every slide). */
   slideBgHex?: string;
   /** Override ppt/theme/theme1.xml (default = Office scheme from Task 2's test). */
@@ -220,7 +247,7 @@ export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
   const lang =
     opts.declareLanguage === false
       ? ""
-      : `<p:defaultTextStyle><a:defPPr><a:defRPr lang="en-US"/></a:defPPr></p:defaultTextStyle>`;
+      : `<p:defaultTextStyle><a:defPPr><a:defRPr lang="${opts.language ?? "en-US"}"/></a:defPPr></p:defaultTextStyle>`;
   const sldIds = opts.slides
     .map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`)
     .join("");

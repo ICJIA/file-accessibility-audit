@@ -57,6 +57,10 @@ export interface XlsxMetadata {
 
 export interface XlsxAnalysis {
   metadata: XlsxMetadata;
+  /** Whether docProps/core.xml (title) was present and readable (2026-10-05,
+   *  the guard Word has had since 2026-09-01): "could not be read" must never
+   *  score or gate as "no title". Optional so stored payloads stay valid. */
+  parse?: { coreState: "ok" | "absent" | "unparseable" };
   sheets: Array<{
     name: string;
     hidden: boolean;
@@ -258,7 +262,10 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     throw new XlsxParseError("xl/workbook.xml is missing — the package is not an Excel workbook.");
   }
   const workbookRoot = rootElement(parseXml(workbookXml), "workbook");
-  const coreRoot = rootElement(parseXml(await read("docProps/core.xml")), "coreProperties");
+  const coreXml = await read("docProps/core.xml");
+  const coreRoot = rootElement(parseXml(coreXml), "coreProperties");
+  const coreState: "ok" | "absent" | "unparseable" =
+    coreXml === null ? "absent" : coreRoot ? "ok" : "unparseable";
   const workbookRels = parseRelationshipEntries(await read("xl/_rels/workbook.xml.rels"));
 
   const sheetEls = workbookRoot ? descendants(workbookRoot, "sheet") : [];
@@ -269,6 +276,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   }
 
   const analysis: XlsxAnalysis = {
+    parse: { coreState },
     metadata: {
       title: corePropertyText(coreRoot, "title"),
       creator: corePropertyText(coreRoot, "creator"),
@@ -298,6 +306,10 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
 
   let totalCells = 0;
   const appliedStyleIndices = new Set<number>();
+  // Styles applied on a sheet with a background picture (Page Layout →
+  // Background): a no-fill cell there shows the picture, not the white grid,
+  // so its contrast cannot be judged (2026-10-05).
+  const pictureSheetStyleIndices = new Set<number>();
   // Cross-sheet accumulators for the defined-table, drawing-REL, drawing-
   // object, and hyperlink caps (FIX C, + D1 pre-merge re-audit). Kept local
   // (not on XlsxAnalysis) so the analysis OUTPUT shape is unchanged for
@@ -357,6 +369,9 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     let firstData: { row: number | null; col: number | null } = { row: null, col: null };
     if (!hidden && sheetRoot) {
       collectAppliedCellStyles(sheetRoot, appliedStyleIndices);
+      if (firstChild(sheetRoot, "picture")) {
+        collectAppliedCellStyles(sheetRoot, pictureSheetStyleIndices);
+      }
       analysis.totalCellsWithValue += countValueCells(sheetRoot);
       firstData = firstDataCell(sheetRoot);
       // Legacy form controls / OLE controls (v1.95.0): presence only.
@@ -396,7 +411,13 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     rootElement(parseXml(await read("xl/theme/theme1.xml")), "theme"),
   );
 
-  await collectStylesContrast(analysis, read, appliedStyleIndices, schemeMap);
+  await collectStylesContrast(
+    analysis,
+    read,
+    appliedStyleIndices,
+    pictureSheetStyleIndices,
+    schemeMap,
+  );
   return analysis;
 }
 
@@ -603,6 +624,7 @@ async function collectStylesContrast(
   analysis: XlsxAnalysis,
   read: (p: string) => Promise<string | null>,
   appliedStyleIndices: Set<number>,
+  pictureSheetStyleIndices: Set<number>,
   schemeMap: Map<string, string>,
 ): Promise<void> {
   const stylesRoot = rootElement(parseXml(await read("xl/styles.xml")), "styleSheet");
@@ -679,12 +701,31 @@ async function collectStylesContrast(
     if (!colorEl) return; // default ink — nothing explicit to check
     const fg = resolveColorEl(colorEl);
     const pattern = firstChild(fill, "patternFill");
-    const solid = pattern && attrOf(pattern, "patternType") === "solid";
+    const patternType = pattern ? attrOf(pattern, "patternType") : undefined;
     const fgColorEl = pattern ? firstChild(pattern, "fgColor") : undefined;
-    const bg = solid && fgColorEl ? resolveColorEl(fgColorEl) : null;
+    // NO fill — patternType="none" (Excel's fill 0), or a bare <patternFill/>
+    // with neither a type nor a color — shows the white grid, the same
+    // default page Word checks unshaded text against (2026-10-05). Until
+    // then a no-fill cell was unresolved, so light-grey text typed straight
+    // onto the grid was never caught in a workbook. A sheet background
+    // picture replaces the white, so those styles stay unresolved.
+    const noFill =
+      childrenOf(fill).length === 0 ||
+      (!!pattern &&
+        (patternType === "none" ||
+          (patternType === undefined && !fgColorEl && !firstChild(pattern, "bgColor"))));
+    const bg =
+      patternType === "solid"
+        ? fgColorEl
+          ? resolveColorEl(fgColorEl)
+          : null
+        : noFill && !pictureSheetStyleIndices.has(idx)
+          ? "FFFFFF"
+          : null;
     if (!fg || !bg) {
-      // Auto colors and non-solid fills stay unresolved; rgb=, theme= (+tint)
-      // and indexed= all resolve since v1.95.0.
+      // Auto colors, non-solid patterns, gradients and picture-backed sheets
+      // stay unresolved; rgb=, theme= (+tint) and indexed= all resolve since
+      // v1.95.0.
       analysis.contrast.unresolvedRuns++;
       return;
     }

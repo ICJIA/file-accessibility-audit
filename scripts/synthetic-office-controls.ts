@@ -82,14 +82,33 @@ function docx(
      *  real destinations — docxService reads link TEXT either way, but these
      *  controls are also meant to open correctly in Word. */
     hyperlinks?: Array<{ id: string; target: string }>;
+    /** Inner XML of a default page header (word/header1.xml), wired the way
+     *  Word writes it: a header relationship plus a w:headerReference in the
+     *  body's closing w:sectPr — so the control opens with its letterhead. */
+    headerXml?: string;
   } = {},
 ): Promise<Buffer> {
+  const rels = [
+    ...(opts.hyperlinks ?? []).map(
+      (h) =>
+        `<Relationship Id="${h.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${h.target}" TargetMode="External"/>`,
+    ),
+    ...(opts.headerXml !== undefined
+      ? [
+          '<Relationship Id="rIdH1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>',
+        ]
+      : []),
+  ];
+  const sectPr =
+    opts.headerXml !== undefined
+      ? '<w:sectPr><w:headerReference w:type="default" r:id="rIdH1"/></w:sectPr>'
+      : "";
   return zip({
     "[Content_Types].xml": `${XMLDECL}
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${opts.styles ? '\n<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${opts.styles ? '\n<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}${opts.headerXml !== undefined ? '\n<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ""}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
     // After [Content_Types].xml, never before it: OPC readers are forgiving,
@@ -105,17 +124,23 @@ function docx(
       opts.title === undefined ? "Synthetic Office Control" : opts.title,
       opts.language === undefined ? "en-US" : opts.language,
     ),
-    ...(opts.hyperlinks && opts.hyperlinks.length > 0
+    ...(rels.length > 0
       ? {
           "word/_rels/document.xml.rels": `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-${opts.hyperlinks.map((h) => `<Relationship Id="${h.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${h.target}" TargetMode="External"/>`).join("\n")}
+${rels.join("\n")}
 </Relationships>`,
+        }
+      : {}),
+    ...(opts.headerXml !== undefined
+      ? {
+          "word/header1.xml": `${XMLDECL}
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${opts.headerXml}</w:hdr>`,
         }
       : {}),
     "word/document.xml": `${XMLDECL}
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<w:body>${bodyXml}</w:body>
+<w:body>${bodyXml}${sectPr}</w:body>
 </w:document>`,
   });
 }
@@ -144,10 +169,30 @@ const FAKE_HEADING = (text: string) =>
   `<w:p><w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
 const DRAWING = (id: number, descr?: string) =>
   `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="1905000"/><wp:docPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/></wp:inline></w:drawing></w:r></w:p>`;
+/** DRAWING marked decorative the way Word 365 writes Alt Text → "Mark as
+ *  decorative": an adec:decorative extension on the drawing's docPr. */
+const DECORATIVE_DRAWING = (id: number) =>
+  `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="1905000" cy="1905000"/><wp:docPr id="${id}" name="Picture ${id}"><a:extLst><a:ext uri="{C183D7F6-B498-43B3-948B-1728B52AA6E4}"><adec:decorative xmlns:adec="http://schemas.microsoft.com/office/drawing/2017/decorative" val="1"/></a:ext></a:extLst></wp:docPr></wp:inline></w:drawing></w:r></w:p>`;
 const BODY_TEXT =
   "This paragraph carries enough ordinary running prose to count as real document body text for the analyzer, with plain words continuing along in an unremarkable way.";
 
 const EMPTY_P = "<w:p/>";
+
+// A Spanish public notice — enough plain prose for the declared-language
+// check (60+ words, overwhelmingly Spanish function words). Traps 173/174.
+const SPANISH_NOTICE = [
+  "La comisión celebrará una reunión pública el martes en la sala de conferencias del edificio principal.",
+  "Todas las personas que deseen participar pueden asistir en persona o por teléfono.",
+  "La agenda incluye el informe del presupuesto, las solicitudes de subvenciones y los comentarios del público.",
+  "Los documentos de la reunión están disponibles en el sitio web de la comisión.",
+  "Las personas que necesiten un intérprete o una adaptación deben comunicarse con la oficina por lo menos dos días antes de la reunión.",
+];
+/** P / HEADING with the run marked in a language — what Word's autodetect,
+ *  or Review → Language → Set Proofing Language on a selection, writes. */
+const P_LANG = (text: string, lang: string) =>
+  `<w:p><w:r><w:rPr><w:lang w:val="${lang}"/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+const HEADING_LANG = (level: number, text: string, lang: string) =>
+  `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/></w:pPr><w:r><w:rPr><w:lang w:val="${lang}"/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
 /** A Heading style on a blank line — no run, so docxService's textOf() is
  *  empty and it lands in emptyHeadingCount rather than in `headings`. */
 const EMPTY_HEADING = (level: number) =>
@@ -263,7 +308,12 @@ const agendaDocx = (table: string) =>
 
 function pptx(
   slides: string[],
-  opts: { title?: string | null; slideBgHex?: string } = {},
+  opts: {
+    title?: string | null;
+    slideBgHex?: string;
+    /** Replaces docProps/core.xml verbatim — e.g. a part that cannot be parsed. */
+    coreXml?: string;
+  } = {},
 ): Promise<Buffer> {
   const files: Record<string, string> = {
     "[Content_Types].xml": `${XMLDECL}
@@ -279,9 +329,9 @@ ${slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" Conte
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
 <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
 </Relationships>`,
-    "docProps/core.xml": corePropsXml(
-      opts.title === undefined ? "Synthetic Office Control" : opts.title,
-    ),
+    "docProps/core.xml":
+      opts.coreXml ??
+      corePropsXml(opts.title === undefined ? "Synthetic Office Control" : opts.title),
     "ppt/presentation.xml": `${XMLDECL}
 <p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`).join("")}</p:sldIdLst>
@@ -355,9 +405,13 @@ const SLIDE_TYPED_LIST = (items: string[]) =>
 /** A real PowerPoint table (Insert → Table) on a graphic frame. PowerPoint
  *  has exactly one way to mark a header row — Table Design → Header Row,
  *  which writes `firstRow="1"` on <a:tblPr> — so `withHeader` toggles only
- *  that attribute; the cells are identical either way. */
-const SLIDE_TABLE = (rows: string[][], withHeader: boolean) =>
-  `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="40" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="1000000" y="1800000"/><a:ext cx="8000000" cy="2400000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr${withHeader ? ' firstRow="1"' : ""} bandRow="1"/><a:tblGrid>${rows[0]
+ *  that attribute; the cells are identical either way. Insert → Table always
+ *  writes a table style (the default Medium Style 2 – Accent 1 GUID), so the
+ *  style is present either way; `bare: true` strips it, which is what an
+ *  author does to use a table as an invisible layout grid. */
+const PPT_DEFAULT_TABLE_STYLE = "{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}";
+const SLIDE_TABLE = (rows: string[][], withHeader: boolean, bare = false) =>
+  `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="40" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="1000000" y="1800000"/><a:ext cx="8000000" cy="2400000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr${withHeader ? ' firstRow="1"' : ""} bandRow="1">${bare ? "" : `<a:tableStyleId>${PPT_DEFAULT_TABLE_STYLE}</a:tableStyleId>`}</a:tblPr><a:tblGrid>${rows[0]
     .map(() => '<a:gridCol w="2600000"/>')
     .join(
       "",
@@ -377,14 +431,21 @@ interface XlsxTable {
 
 function xlsx(
   sheets: { name: string; rows: string[][]; table?: XlsxTable }[],
-  opts: { title?: string | null } = {},
+  opts: {
+    title?: string | null;
+    /** Give every cell an explicit font color (ARGB) and NO fill — Home →
+     *  Font Color on the plain grid. Writes xl/styles.xml with that one cell
+     *  format; otherwise no styles part is written, as before. */
+    fontArgb?: string;
+  } = {},
 ): Promise<Buffer> {
+  const styled = opts.fontArgb !== undefined;
   const files: Record<string, string> = {
     "[Content_Types].xml": `${XMLDECL}
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${styled ? '\n<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' : ""}
 ${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("\n")}
 ${sheets
   .map((sh, i) =>
@@ -410,14 +471,20 @@ ${sheets
 </workbook>`,
     "xl/_rels/workbook.xml.rels": `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("\n")}
+${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("\n")}${styled ? `\n<Relationship Id="rIdS1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` : ""}
 </Relationships>`,
   };
+  if (styled) {
+    // Excel's own two leading fills (none, gray125) and default font, then the
+    // one test format: the colored font on fill 0 — no fill at all.
+    files["xl/styles.xml"] = `${XMLDECL}
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="${opts.fontArgb}"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellXfs count="2"><xf fontId="0" fillId="0" borderId="0"/><xf fontId="1" fillId="0" borderId="0" applyFont="1"/></cellXfs></styleSheet>`;
+  }
   sheets.forEach((s, i) => {
     const rows = s.rows
       .map(
         (r, ri) =>
-          `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${String.fromCharCode(65 + ci)}${ri + 1}" t="inlineStr"><is><t>${v}</t></is></c>`).join("")}</row>`,
+          `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${String.fromCharCode(65 + ci)}${ri + 1}"${styled ? ' s="1"' : ""} t="inlineStr"><is><t>${v}</t></is></c>`).join("")}</row>`,
       )
       .join("");
     // xlsxService finds tables by walking the SHEET's rels for a /table
@@ -446,6 +513,18 @@ interface Sample {
 }
 
 const cat = (id: string) => (r: AnalysisResult) => r.categories.find((c) => c.id === id);
+/** Does the verdict name `sc` against `category`? */
+const names = (r: AnalysisResult, sc: string, category: string): boolean =>
+  !!(
+    r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+  ).conformance?.failures?.some(
+    (f) => String(f.sc ?? "") === sc && String(f.category ?? "") === category,
+  );
+/** Does the verdict name ANY criterion against `category`? */
+const accused = (r: AnalysisResult, category: string): boolean =>
+  !!(
+    r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+  ).conformance?.failures?.some((f) => String(f.category ?? "") === category);
 const allFindings = (r: AnalysisResult) => r.categories.flatMap((c) => c.findings).join("\n");
 const noAccusation = (r: AnalysisResult): string | null => {
   const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
@@ -1792,10 +1871,256 @@ const SAMPLES: Sample[] = [
       return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
     },
   },
+  // ---- v1.160.0: the smaller cross-format inconsistencies (2026-10-05) ----
+  {
+    file: "synthetic-170-pptx-bare-layout-grid.pptx",
+    truth:
+      "A titled agenda slide whose times and items are lined up in a table stripped bare — no table style, no borders, no fill, Header Row unticked — the way an author uses an invisible table to line things up. Word has never scored or gated a bare grid like this (looksLikeLayout); PowerPoint scored it as an unheadered data table — 45, WCAG 1.3.1 asserted, the deck capped at 79/C (found 2026-10-05 by comparing the same defect across all four formats). It must stay a layout grid: table_markup at 100 with the bare-grid advisory, no criterion asserted against table_markup, and the deck 100/A. Trap 160 — a styled table with no header row — must still be caught.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Meeting Agenda") +
+            SLIDE_TABLE(
+              [
+                ["9:00", "Welcome and roll call"],
+                ["9:15", "Budget update"],
+                ["10:00", "Public comment"],
+              ],
+              false,
+              true,
+            ),
+        ],
+        { title: "Task Force Meeting Agenda" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score === null) return "table_markup unscored";
+      if (c.score !== 100) return `a bare layout grid was scored ${c.score} as a data table`;
+      if (!/bare grid/i.test(allFindings(r))) return "the bare-grid advisory did not fire";
+      if (accused(r, "table_markup")) return "1.3.1 asserted against a layout grid";
+      return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-171-xlsx-light-text-no-fill.xlsx",
+    truth:
+      "A grant ledger typed in light grey (#BFBFBF — 1.8:1 against white) straight onto the plain grid, with no cell fill. A cell with no fill shows Excel's white grid, just as unshaded Word text sits on the white page — and Word has always checked that text against white. Excel left every no-fill cell unresolved, so this confirmed WCAG 1.4.3 failure was never caught in a workbook (until 2026-10-05). Every checked cell format fails, so color_contrast must score 0, the finding must name white as the background, and the verdict must name 1.4.3 against color_contrast.",
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Grants",
+            rows: [
+              ["Program", "Award"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+            table: { name: "Grants", ref: "A1:B3", headerRowCount: 1 },
+          },
+        ],
+        { title: "FY26 Grant Ledger", fontArgb: "FFBFBFBF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null)
+        return "color_contrast was not assessed — the plain grid is white";
+      if (c.score !== 0) return `light grey on every cell scored ${c.score}, not 0`;
+      if (!/#BFBFBF on #FFFFFF/i.test(c.findings.join(" ")))
+        return "the finding does not name white as the background";
+      return names(r, "1.4.3", "color_contrast")
+        ? null
+        : "points lost with no 1.4.3 failure attributed to color_contrast";
+    },
+  },
+  {
+    file: "synthetic-172-xlsx-dark-text-no-fill-twin.xlsx",
+    truth:
+      "The same ledger typed in near-black (#1F1F1F — 16.6:1) on the same plain grid. Now that a no-fill cell is checked against white, this must be checked and pass: color_contrast 100, nothing asserted against it, the workbook 100/A — and it must never score below its light-grey twin.",
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Grants",
+            rows: [
+              ["Program", "Award"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+            table: { name: "Grants", ref: "A1:B3", headerRowCount: 1 },
+          },
+        ],
+        { title: "FY26 Grant Ledger", fontArgb: "FF1F1F1F" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null)
+        return "color_contrast was not assessed — the plain grid is white";
+      if (c.score !== 100) return `near-black on white scored ${c.score}`;
+      if (accused(r, "color_contrast")) return "1.4.3 asserted against 16.6:1 text";
+      return r.overallScore === 100 ? null : `the workbook scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-173-docx-spanish-declared-english.docx",
+    truth:
+      "A public notice written entirely in Spanish whose only declared language is English (en-US) — no run, style or default marks any Spanish. A screen reader follows the declaration and reads every Spanish word with English pronunciation: WCAG 3.1.1 failing in the most literal way. PDF has caught this since 2026-08-29 (trap 118); Word and PowerPoint gave any declaration full credit (until 2026-10-05). title_language must lose half the language credit (75), the finding must say the text reads as Spanish, and the verdict must name 3.1.1 against title_language.",
+    build: () =>
+      docx([HEADING(1, "Aviso de reunión pública"), ...SPANISH_NOTICE.map(P)].join(""), {
+        title: "Aviso de reunión pública",
+        styles: true,
+      }),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 75) return `Spanish declared as English scored ${c.score}, not 75`;
+      if (!/reads as Spanish/.test(c.findings.join(" ")))
+        return "the finding does not say the text reads as Spanish";
+      return names(r, "3.1.1", "title_language")
+        ? null
+        : "points lost with no 3.1.1 failure attributed to title_language";
+    },
+  },
+  {
+    file: "synthetic-174-docx-spanish-marked-es-twin.docx",
+    truth:
+      "The same notice, still declared en-US at document level, with its text marked Spanish (es-ES) — what Word's automatic language detection, or Review → Language → Set Proofing Language on the selection, writes. A screen reader switches to Spanish wherever the file says so, so nothing is wrong: title_language 100, nothing asserted against it, the document 100/A, and never below the unmarked twin. This is the guard that keeps the check from accusing every document Word's autodetect has already handled.",
+    build: () =>
+      docx(
+        [
+          HEADING_LANG(1, "Aviso de reunión pública", "es-ES"),
+          ...SPANISH_NOTICE.map((t) => P_LANG(t, "es-ES")),
+        ].join(""),
+        { title: "Aviso de reunión pública", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 100) return `Spanish marked Spanish scored ${c.score}`;
+      if (accused(r, "title_language")) return "3.1.1 asserted against text marked in its language";
+      return r.overallScore === 100 ? null : `the notice scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-175-pptx-corrupt-core.pptx",
+    truth:
+      'A clean two-slide deck whose document-properties part (docProps/core.xml) is damaged and cannot be parsed. A part that cannot be read says nothing about the title — Word has scored that half as not assessed since 2026-09-01 — but PowerPoint and Excel read the same part with no such guard, so a damaged part became a confirmed "no presentation title" and a WCAG 2.4.2 failure about a title the checker never saw (found 2026-10-05). title_language must keep the title half (100), the finding must say the title could not be read, no 2.4.2 may be asserted, and the deck must be 100/A.',
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Update") + SLIDE_BODY("Enrollment rose 12 percent this quarter."),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { coreXml: "<cp:coreProperties <<< damaged in transit" },
+      ),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 100) return `an unreadable title was scored as missing (${c.score})`;
+      if (!/could not be read/i.test(c.findings.join(" ")))
+        return "the report does not say the title could not be read";
+      if (names(r, "2.4.2", "title_language"))
+        return "2.4.2 asserted against a title the checker never saw";
+      return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-176-docx-header-logo-no-alt.docx",
+    truth:
+      "A memo with a described chart in the body and the agency logo in the page header with no alt text — the commonest image in an agency document. An undescribed logo is still an undescribed image, so it stays scored (alt_text 50: one of two images described, 1.1.1 named), but since 2026-10-05 the report says it is in the header and how to clear a purely decorative logo — mark it decorative — and why the PDF of the same memo may not flag it: Word's PDF export marks header content as page decoration.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Quarterly Program Report"),
+          P(BODY_TEXT),
+          DRAWING(2, "Bar chart of enrollment by quarter, rising from 120 to 180"),
+        ].join(""),
+        { title: "Quarterly Program Report", styles: true, headerXml: DRAWING(1) },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score === null) return "alt_text unscored";
+      if (c.score !== 50) return `one of two images described scored ${c.score}, not 50`;
+      const f = c.findings.join(" ");
+      if (!/1 of them is in a page header or footer/.test(f))
+        return "the header logo is not located in the report";
+      if (!/Mark as decorative/.test(f)) return "the decorative route is not explained";
+      return names(r, "1.1.1", "alt_text")
+        ? null
+        : "points lost with no 1.1.1 failure attributed to alt_text";
+    },
+  },
+  {
+    file: "synthetic-177-docx-header-logo-decorative-twin.docx",
+    truth:
+      "The same memo with the header logo marked decorative (Alt Text → Mark as decorative). A decorative image needs no description: alt_text 100 with no header advice, nothing asserted against it, the memo 100/A, and never below its undescribed twin.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Quarterly Program Report"),
+          P(BODY_TEXT),
+          DRAWING(2, "Bar chart of enrollment by quarter, rising from 120 to 180"),
+        ].join(""),
+        { title: "Quarterly Program Report", styles: true, headerXml: DECORATIVE_DRAWING(1) },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score === null) return "alt_text unscored";
+      if (c.score !== 100) return `a decorative header logo still cost ${100 - c.score} points`;
+      if (/header or footer/.test(c.findings.join(" ")))
+        return "header advice given for a logo already marked decorative";
+      if (accused(r, "alt_text")) return "1.1.1 asserted against a decorative logo";
+      return r.overallScore === 100 ? null : `the memo scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-178-docx-16-of-23-images-described.docx",
+    truth:
+      "A report with 23 images, 16 of them described — 69.6 percent. PDF has always floored that share to 69: Moderate, a C ceiling. Word, PowerPoint and Excel rounded it to 70 — Minor, a B ceiling — and capped any failing share at 85, so the same images graded a letter apart by format (found 2026-10-05). Every format now scores alt text and link names by one rule (shareScore): alt_text must be exactly 69, the otherwise-clean report must cap at 79/C, and the verdict must name 1.1.1 against alt_text.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Annual Program Report"),
+          P(BODY_TEXT),
+          ...Array.from({ length: 23 }, (_, i) =>
+            DRAWING(i + 1, i < 16 ? `Chart ${i + 1}: enrollment by county` : undefined),
+          ),
+        ].join(""),
+        { title: "Annual Program Report", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score === null) return "alt_text unscored";
+      if (c.score !== 69) return `16 of 23 described scored ${c.score}, not PDF's 69`;
+      if (r.overallScore !== 79) return `the report graded ${r.overallScore}/${r.grade}, not 79/C`;
+      return names(r, "1.1.1", "alt_text")
+        ? null
+        : "points lost with no 1.1.1 failure attributed to alt_text";
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-171-xlsx-light-text-no-fill.xlsx",
+    good: "synthetic-172-xlsx-dark-text-no-fill-twin.xlsx",
+    category: "color_contrast",
+  },
+  {
+    bad: "synthetic-173-docx-spanish-declared-english.docx",
+    good: "synthetic-174-docx-spanish-marked-es-twin.docx",
+    category: "title_language",
+  },
+  {
+    bad: "synthetic-176-docx-header-logo-no-alt.docx",
+    good: "synthetic-177-docx-header-logo-decorative-twin.docx",
+    category: "alt_text",
+  },
+  {
+    bad: "synthetic-160-pptx-table-headerless.pptx",
+    good: "synthetic-170-pptx-bare-layout-grid.pptx",
+    category: "table_markup",
+  },
   {
     bad: "synthetic-158-docx-agenda-header-row-unticked.docx",
     good: "synthetic-157-docx-agenda-header-row-box.docx",
@@ -1908,6 +2233,43 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-170-pptx-bare-layout-grid.pptx": {
+    label:
+      "PowerPoint: an agenda lined up in a table stripped bare — no style, borders or header row",
+    chip: "bug",
+  },
+  "synthetic-171-xlsx-light-text-no-fill.xlsx": {
+    label: "Excel: a ledger typed in light grey straight onto the plain grid",
+    chip: "caught",
+  },
+  "synthetic-172-xlsx-dark-text-no-fill-twin.xlsx": {
+    label: "Excel: the same ledger in near-black on the plain grid",
+    chip: "held",
+  },
+  "synthetic-173-docx-spanish-declared-english.docx": {
+    label: "Word: a notice written in Spanish, declared English",
+    chip: "caught",
+  },
+  "synthetic-174-docx-spanish-marked-es-twin.docx": {
+    label: "Word: the same notice with its Spanish marked Spanish",
+    chip: "held",
+  },
+  "synthetic-175-pptx-corrupt-core.pptx": {
+    label: "PowerPoint: a deck whose properties part is damaged — unreadable is not missing",
+    chip: "bug",
+  },
+  "synthetic-176-docx-header-logo-no-alt.docx": {
+    label: "Word: the agency logo in the page header, with no alt text",
+    chip: "caught",
+  },
+  "synthetic-177-docx-header-logo-decorative-twin.docx": {
+    label: "Word: the same logo marked decorative",
+    chip: "held",
+  },
+  "synthetic-178-docx-16-of-23-images-described.docx": {
+    label: "Word: 16 of 23 images described — now the same letter as the PDF",
+    chip: "bug",
+  },
   "synthetic-166-docx-typed-list-only.docx": {
     label: "Word: a memo whose only list is typed by hand",
     chip: "caught",

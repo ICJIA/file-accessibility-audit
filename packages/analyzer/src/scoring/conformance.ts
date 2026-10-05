@@ -34,7 +34,11 @@ import type { XlsxAnalysis } from "../xlsxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { detectLanguageMismatch, LANGUAGE_NAMES } from "../languagePlausibility.js";
-import { isPlausibleLanguageTag } from "./common.js";
+import {
+  isPlausibleLanguageTag,
+  judgeDeclaredLanguage,
+  officeLanguageGateReason,
+} from "./common.js";
 import { structTreeIsContentFree, untaggedContentImageCount } from "./common.js";
 import { WCAG_UNDERSTANDING_SLUGS } from "@file-audit/shared";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
@@ -1018,6 +1022,27 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
+  // 2b. Language declared but not a usable code, or contradicted by the
+  //     text (and declared nowhere else in the file) → 3.1.1 — PDF's rules
+  //     4b/4c, through the same judgeDeclaredLanguage the scorer uses
+  //     (2026-10-05).
+  if (analysis.metadata.language) {
+    const verdict = judgeDeclaredLanguage(
+      analysis.metadata.language,
+      analysis.textSample,
+      analysis.declaredLanguages,
+    );
+    if (verdict.kind !== "ok") {
+      add(
+        "3.1.1",
+        "Language of Page",
+        "A",
+        "title_language",
+        officeLanguageGateReason(verdict, analysis.metadata.language, "document"),
+      );
+    }
+  }
+
   // 3. No document title → 2.4.2 (suppressed when core.xml was unparseable).
   if (!analysis.metadata.title && !coreUnreadable) {
     add(
@@ -1231,11 +1256,30 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
     );
   }
 
+  // 2b. Declared but unusable, or contradicted by the text → 3.1.1 — the
+  //     docx gate's rule 2b (2026-10-05).
+  if (analysis.metadata.language) {
+    const verdict = judgeDeclaredLanguage(
+      analysis.metadata.language,
+      analysis.textSample,
+      analysis.declaredLanguages,
+    );
+    if (verdict.kind !== "ok") {
+      add(
+        "3.1.1",
+        "Language of Page",
+        "A",
+        "title_language",
+        officeLanguageGateReason(verdict, analysis.metadata.language, "presentation"),
+      );
+    }
+  }
+
   // 3. No document title → 2.4.2. This is the file's Title property (what a
   //    screen reader announces on open), not a slide's own title placeholder
   //    text and not footer text — those are separate things and neither one
   //    sets this property.
-  if (!analysis.metadata.title) {
+  if (!analysis.metadata.title && analysis.parse?.coreState !== "unparseable") {
     add(
       "2.4.2",
       "Page Titled",
@@ -1260,8 +1304,11 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
   }
 
   // 4. Data tables (≥2×2, to skip layout tables) with no header row → 1.3.1.
+  //    A bare grid (looksLikeLayout — no table style, border, fill or header
+  //    row) is a layout construct and is never asserted, exactly as the Word
+  //    gate's rule 4 (2026-10-05; scoring/pptx.ts follows the same rule).
   const dataTablesNoHeader = analysis.tables.filter(
-    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
+    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true,
   ).length;
   if (dataTablesNoHeader > 0) {
     add(
@@ -1432,7 +1479,7 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
   }
 
   // 2. No document title → 2.4.2.
-  if (!analysis.metadata.title) {
+  if (!analysis.metadata.title && analysis.parse?.coreState !== "unparseable") {
     add(
       "2.4.2",
       "Page Titled",
@@ -1476,8 +1523,9 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
     );
   }
 
-  // 4. Confirmed low-contrast cell styles → 1.4.3 (machine-checkable via
-  //    literal rgb colors on solid fills).
+  // 4. Confirmed low-contrast cell styles → 1.4.3 (machine-checkable: a
+  //    resolved font color on a solid fill, or on the white grid when the
+  //    cell has no fill — 2026-10-05).
   if (analysis.contrast.failing.length > 0) {
     const worst = analysis.contrast.failing.reduce((a, b) => (a.ratio < b.ratio ? a : b));
     add(
@@ -1537,16 +1585,16 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       url: wcagUrl("1.3.2"),
     },
   ];
-  // Contrast is assessed when a literal rgb color on a solid fill was
-  // resolvable; only surface it as "not assessed" when nothing could be
-  // checked.
+  // Contrast is assessed whenever a cell style's font color resolved against
+  // a known background (solid fill, or the white grid for no fill); only
+  // surface it as "not assessed" when nothing could be checked.
   if (analysis.contrast.checkedRuns === 0) {
     notAssessed.push({
       sc: "1.4.3",
       name: "Contrast (Minimum)",
       level: "AA",
       reason:
-        "No cell style with a resolvable color pair was found (literal, theme-based, and legacy indexed colors on solid fills are all checked since v1.95.0; automatic colors and non-solid fills are not), so contrast could not be evaluated.",
+        "No cell style with a resolvable font color was found (literal, theme-based, and legacy indexed colors are checked against a solid fill, or the white grid when the cell has no fill; automatic colors, patterned or gradient fills, and sheets with a background picture are not), so contrast could not be evaluated.",
       url: wcagUrl("1.4.3"),
     });
   }
