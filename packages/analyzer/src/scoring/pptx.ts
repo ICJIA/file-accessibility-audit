@@ -4,7 +4,12 @@
  * other file's imports need to change.
  */
 import { PPTX } from "#config";
-import { UNHEADERED_DATA_TABLE_SCORE, VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
+import {
+  TYPED_LIST_FLOOR,
+  UNHEADERED_DATA_TABLE_SCORE,
+  VISUAL_HEADINGS_FOR_FAILURE,
+} from "@file-audit/shared";
+import { classifyTitleShape } from "../titleShape.js";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { PptxAnalysis } from "../pptxService.js";
 import {
@@ -88,8 +93,27 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
   let score = 0;
   const findings: string[] = [];
   if (a.metadata.title) {
-    score += 50;
+    // F25 IN POWERPOINT TOO (2026-10-05) — see scoreDocxTitleLanguage. Most
+    // often PowerPoint's own default, "PowerPoint Presentation", which every
+    // deck made from a template carrying it inherits.
+    const shape = classifyTitleShape(a.metadata.title);
     findings.push(`Presentation title: "${a.metadata.title}"`);
+    if (shape === "tool-generated") {
+      score += 25;
+      findings.push(
+        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the presentation name, so partial credit only.",
+      );
+      findings.push(
+        'How to fix: In PowerPoint: File → Info → Properties → Title — replace it with a descriptive title (e.g., "2024 Program Results").',
+      );
+    } else {
+      score += 50;
+      if (shape === "filename-shaped") {
+        findings.push(
+          `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the presentation, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the presentation well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
+        );
+      }
+    }
   } else {
     findings.push(
       "No presentation title is set. In PowerPoint: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the presentation opens.",
@@ -171,7 +195,13 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     fakeHeadings.length < VISUAL_HEADINGS_FOR_FAILURE;
   let score = 100;
   if (fakeHeadings.length > 0 && !loneTitle) {
-    score = Math.max(0, 100 - Math.min(40, fakeHeadings.length * 15));
+    // Word's exact formula (2026-10-05, user decision): with no titled slide
+    // anywhere, the deck's sections exist only visually — the outline is
+    // missing entirely, the defect Word scores 30 and PDF 0, both Critical.
+    // Beside titled slides, each typed heading is one unmarked section: 15
+    // points apiece, capped at 40, as in Word. This capped at 40 in both
+    // cases until then, so two typed headings in an untitled deck read Minor.
+    score = 100 - (titledSlides === 0 ? 70 : Math.min(40, fakeHeadings.length * 15));
   }
   const findings: string[] = [];
 
@@ -490,7 +520,8 @@ function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
   // with NO real list formatting (0 of N items real) still score 70+; a deck
   // that is 100% manually-typed bullets is not a "Minor" list problem.
   const total = realListItems + manualBulletParagraphs;
-  const score = Math.min(85, Math.round((realListItems / total) * 100));
+  // Floored at the Moderate band (TYPED_LIST_FLOOR, 2026-10-05), as in Word.
+  const score = Math.max(TYPED_LIST_FLOOR, Math.min(85, Math.round((realListItems / total) * 100)));
   const findings = [
     `${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet paragraph(s).`,
     `${manualBulletParagraphs} paragraph(s) use typed characters (e.g. "-" or "*") instead of PowerPoint's bullet/numbering formatting. In PowerPoint: select the text → Home → Bullets/Numbering.`,

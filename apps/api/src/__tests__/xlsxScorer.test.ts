@@ -348,3 +348,26 @@ describe("scoreXlsx", () => {
     expect(cat.findings.join(" ")).toMatch(/does not store a document language/i);
   });
 });
+
+describe("scoreXlsx — a tool-default or file-name title is F25, as in every format (2026-10-05)", () => {
+  it("a file name as the workbook title loses half the title credit and is named as 2.4.2", () => {
+    const r = scoreXlsx(
+      baseAnalysis({ metadata: { title: "Book1.xlsx", creator: "x", sheetCount: 1 } }),
+    );
+    expect(r.categories.find((c) => c.id === "title_language")!.score).toBe(75);
+    expect(
+      r.conformance.failures.some((f) => f.sc === "2.4.2" && f.category === "title_language"),
+    ).toBe(true);
+  });
+
+  it("a title that only looks like a file name but names the workbook is an advisory", () => {
+    const r = scoreXlsx(
+      baseAnalysis({ metadata: { title: "Grant_Ledger_FY26", creator: "x", sheetCount: 1 } }),
+    );
+    const c = r.categories.find((x) => x.id === "title_language")!;
+    expect(c.score).toBe(100);
+    expect(c.findings.some((f) => /^Advisory — not scored:.*reads like a filename/i.test(f))).toBe(
+      true,
+    );
+  });
+});

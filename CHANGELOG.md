@@ -4,6 +4,47 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.159.0] - 2026-10-05
+
+### Fixed
+
+The remaining three differences from v1.157.0's cross-format check, where the same defect graded differently by file format. The direction of each was a user decision.
+
+- **A list typed by hand no longer drops a Word or PowerPoint file to D.** Both scored lists as the share of real list items, so a list typed entirely by hand scored 0 (Critical). That was the harshest outcome in any format for a failure that loses only the list structure: every word is there and reads in order. It now floors at the Moderate band, `TYPED_LIST_FLOOR`. That is deliberately the same value as an unmarked table (45), so a C at most. Partly typed lists that already scored above the floor are unchanged. PDF still does not score typed bullets; it could only infer them from extracted text, where Word's evidence is exact. That is a documented automation limit, not a severity difference.
+- **A PowerPoint deck whose section headings are all typed into text boxes now costs what the same headings cost in Word or a PDF.** With no titled slide anywhere and two or more typed headings, the sections exist only visually and the outline is missing entirely:
+
+  | Format | Score | Severity |
+  |---|---|---|
+  | Word | 30 | Critical |
+  | PDF | 0 | Critical |
+  | PowerPoint (before) | 70 for two headings, 60 for four or more | Minor or Moderate |
+
+  PowerPoint now uses Word's exact formula: 70 points off with no titled slide, or 15 per typed heading (max 40) beside titled slides.
+- **Word, PowerPoint and Excel titles get the check PDF titles always had.** A title that is a file name or a program's default does not identify the document: W3C failure F25, WCAG 2.4.2. PDF has scored that since the legal-only sweep; the Office formats never checked titles at all.
+  - **No format knew PowerPoint's own default, "PowerPoint Presentation".** Every deck made from a template that carries it inherits it, including the agency template in the control corpus.
+  - **One check for every format.** The classifier moves to `titleShape.ts` (re-exported from `pdfjsService.ts`). Word, PowerPoint and Excel titles now get PDF's treatment: half the title credit and 2.4.2 named in the verdict, or an unscored advisory for a file-name-shaped title that still names the document.
+  - **The default joined the tool-default list** in every format.
+- **The action plan's title step now recognizes Word, PowerPoint and Excel.** It matched only PDF's strings, and missed PDF's own F25 line ("is a filename…", not "looks like a filename…"). Every Office title problem, and every PDF F25, therefore fell to "Give the document a title and set its language", including on files whose language was set. Excel gets its own step ("Give the workbook a title"), because a workbook has no language to set.
+
+### Notes
+
+- **Tests:** 3,865 (API 1,897 · Web 1,918 · CLI 50) across 217 files, written test-first. 30 API tests were RED for the predicted reasons before the change, then 5 web.
+  - `titleParity.test.ts` (new, 32 tests) gives the same title string to all four formats and requires one verdict.
+  - `headingTitleParity.test.ts` now also pins the Critical band at two or more heading-like lines.
+- **Traps:** 169. Four are new:
+  - 166: a Word memo whose only list is typed → 45, 79/C
+  - 167: a deck titled "PowerPoint Presentation" → 89/B, FOUND A REAL BUG
+  - 168: a memo titled with its own file name → 89/B
+  - 169: a workbook whose file-name-shaped title still names it → 100/A
+
+  Traps 145 (two typed headings, 89/B → 69/D) and 152 (a typed list, 69/D → 79/C) assert the new rules. Restoring the old analyzer fails all six with the old behavior's exact symptoms.
+- **Score ledger:** re-blessed in this commit at 300 rows. Two real controls changed a category without changing their grade:
+  - the ICJIA template deck's title: 100 → 75
+  - the Freshservice guide's typed list: 0 → 45
+
+  Both stay D for their other failures. Plus the two trap moves and four new rows; no PDF moved.
+- `pnpm audit --prod`: 2 (`braces`, `node-forge`, no fix published). Write-up: `docs/cross-format-parity-lists-headings-titles-fix.md`.
+
 ## [1.158.0] - 2026-10-05
 
 ### Fixed

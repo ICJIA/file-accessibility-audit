@@ -12,10 +12,9 @@
  *
  * This pins the shared threshold (VISUAL_HEADINGS_FOR_FAILURE) in all three:
  * below it, nothing is scored and no 1.3.1 is asserted; at it, the category
- * loses points and the verdict names 1.3.1. It deliberately does NOT pin the
- * severity band at or above the threshold — PowerPoint caps its typed-heading
- * deduction at 40 while Word and PDF go to Critical, a separate parity
- * question left open for its own decision.
+ * loses points, the verdict names 1.3.1, and — since 2026-10-05 (user
+ * decision) — the category is Critical in every format: PowerPoint, which
+ * capped typed headings at 40 points, now uses Word's exact formula.
  */
 import { describe, it, expect } from "vitest";
 import { VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
@@ -124,6 +123,17 @@ describe("one is a title — the same threshold for missing heading markup in ev
     expect(cat.score!).toBeLessThan(100);
     expect(failures.some((f) => f.sc === "1.3.1")).toBe(true);
   });
+
+  it.each(ALL)(
+    "%s: at the threshold, with no heading markup at all, the category is Critical",
+    (fmt) => {
+      // Aligned 2026-10-05 (user decision): sections that exist only visually
+      // lose the whole outline. PDF scores 0 and Word 30; PowerPoint, which
+      // capped typed headings at 40 points, now uses Word's exact formula.
+      const { cat } = verdict(fmt, VISUAL_HEADINGS_FOR_FAILURE);
+      expect(cat.severity).toBe("Critical");
+    },
+  );
 
   it.each(ALL)(
     "%s: one title line costs nothing — the same score as no heading-like line",

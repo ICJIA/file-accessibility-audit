@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PPTX, WCAG_CATEGORY_MAP } from "#config";
 import { scorePptx } from "../services/scorer.js";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { PptxAnalysis } from "../services/pptxService.js";
 
 describe("PPTX config", () => {
@@ -279,7 +280,10 @@ describe("scorePptx — one typed heading in a deck with no titled slides is a t
     expect(titleFailures(r)).toHaveLength(0);
   });
 
-  it("two typed headings and no titled slides are still scored, with 1.3.1", () => {
+  it("two typed headings and no titled slides are sections with no markup — Critical, with 1.3.1", () => {
+    // Word's exact formula since 2026-10-05: with no titled slide anywhere,
+    // the deck's sections exist only visually — the same defect Word scores
+    // 30 and PDF 0, both Critical. This read 70 (Minor) until then.
     const r = scorePptx(
       baseAnalysis({
         slides: [untitled(1), untitled(2)],
@@ -289,7 +293,8 @@ describe("scorePptx — one typed heading in a deck with no titled slides is a t
         ],
       }),
     );
-    expect(titles(r).score).toBe(70);
+    expect(titles(r).score).toBe(30);
+    expect(titles(r).severity).toBe("Critical");
     expect(titleFailures(r).some((f) => f.sc === "1.3.1")).toBe(true);
   });
 
@@ -305,5 +310,33 @@ describe("scorePptx — one typed heading in a deck with no titled slides is a t
     );
     expect(titles(r).score).toBe(85);
     expect(titleFailures(r).some((f) => f.sc === "1.3.1")).toBe(true);
+  });
+});
+
+describe("scorePptx — a list typed by hand floors at Moderate, as in Word (2026-10-05)", () => {
+  it("a list typed entirely by hand scores the Moderate floor, not 0", () => {
+    const r = scorePptx(baseAnalysis({ lists: { realListItems: 0, manualBulletParagraphs: 3 } }));
+    const c = r.categories.find((x) => x.id === "list_structure")!;
+    expect(c.score).toBe(UNHEADERED_DATA_TABLE_SCORE);
+    expect(c.severity).toBe("Moderate");
+  });
+});
+
+describe("scorePptx — PowerPoint's default title is F25, as in every format (2026-10-05)", () => {
+  it('"PowerPoint Presentation" loses half the title credit and is named as 2.4.2', () => {
+    const r = scorePptx(
+      baseAnalysis({
+        metadata: {
+          title: "PowerPoint Presentation",
+          creator: "x",
+          language: "en-US",
+          slideCount: 2,
+        },
+      }),
+    );
+    expect(r.categories.find((c) => c.id === "title_language")!.score).toBe(75);
+    expect(
+      r.conformance.failures.some((f) => f.sc === "2.4.2" && f.category === "title_language"),
+    ).toBe(true);
   });
 });

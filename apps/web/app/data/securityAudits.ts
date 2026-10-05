@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.159.0",
+    meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: three more grading rules made the same across file formats, and the fix-it step for document titles.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to the advice the report gives. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A list typed by hand no longer costs a D.</strong> In Word and PowerPoint, a list typed by hand instead of made with the Bullets or Numbering buttons graded the whole file down to a D, even though every word is still there and reads in order. It now costs what an unmarked table does: a C at most.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Unmarked section headings in a slide deck now cost what they cost elsewhere.</strong> A deck whose section headings were all typed into text boxes, with no slide titles anywhere, was graded more gently than the same headings in a Word file or a PDF. All three are now graded the same way.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Word, PowerPoint and Excel titles are now checked the way PDF titles always were.</strong> A title that is just a file name, or the default a program fills in, does not tell anyone what the document is &mdash; a standards failure only PDF reports caught. PowerPoint&rsquo;s own default, &ldquo;PowerPoint Presentation&rdquo;, was caught in no format at all, though an agency template carries it. The fix-it advice for titles also stopped asking for a language setting that was already in place, or that a spreadsheet cannot hold.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Four new test documents pin the new rules and two existing ones were updated; each was shown to fail when the old rules were put back. Every pinned document&rsquo;s grade was re-checked: no real document&rsquo;s grade changed. The scan for known problems still finds the same two, which have no fix published yet.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.158.0",
     meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: how a document with no heading styles is graded when one line looks like a heading, and three wording changes on the &ldquo;Can I trust this?&rdquo; page.",
     body: [

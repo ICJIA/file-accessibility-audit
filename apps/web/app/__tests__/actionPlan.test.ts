@@ -954,6 +954,69 @@ describe("title_language step titles match what actually failed (v1.138.1)", () 
     expect(steps[0]!.why).toMatch(/title is already set/i);
   });
 
+  // 2026-10-05: Word, PowerPoint and Excel now report a tool-default or
+  // file-name title (F25) the way PDF does. The matchers knew only PDF's
+  // strings, so every Office title problem fell to the combined default —
+  // "…and set its language" on files whose language was set, and on Excel
+  // workbooks, which have no language setting at all.
+  const TOOL_TITLE =
+    "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.";
+
+  it("PDF: a tool-generated title with the language set → the title-only step", () => {
+    const steps = buildActionPlan(
+      [
+        cat([
+          'Document title: "Microsoft Word - report.docx"',
+          TOOL_TITLE,
+          "Language declared: en",
+        ]),
+      ] as never,
+      "pdf",
+    );
+    expect(steps[0]!.title).toBe("Give the document a title");
+  });
+
+  it.each([
+    ["docx", 'Document title: "Final_Report_v3.docx"', "Document language: en-US"],
+    ["pptx", 'Presentation title: "PowerPoint Presentation"', "Presentation language: en-US"],
+  ] as const)(
+    "%s: a tool-generated title with the language set → the title-only step",
+    (fmt, t, lang) => {
+      const steps = buildActionPlan([cat([t, TOOL_TITLE, lang])] as never, fmt);
+      expect(steps[0]!.title).toBe("Give the document a title");
+      expect(steps[0]!.title).not.toMatch(/language/i);
+    },
+  );
+
+  it("docx: no title with the language set → the title-only step", () => {
+    const steps = buildActionPlan(
+      [
+        cat([
+          "No document title is set. In Word: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the document opens.",
+          "Document language: en-US",
+        ]),
+      ] as never,
+      "docx",
+    );
+    expect(steps[0]!.title).toBe("Give the document a title");
+  });
+
+  it("xlsx: a title problem never asks for a language Excel cannot store", () => {
+    const steps = buildActionPlan(
+      [
+        cat([
+          'Workbook title: "Book1.xlsx"',
+          TOOL_TITLE,
+          "Excel does not store a document language, so WCAG 3.1.1 (Language of Page) is not automatically assessed for Excel workbooks.",
+        ]),
+      ] as never,
+      "xlsx",
+    );
+    expect(steps[0]!.title).toBe("Give the workbook a title");
+    expect(`${steps[0]!.title} ${steps[0]!.why}`).not.toMatch(/already set/i);
+    expect(JSON.stringify(steps[0])).not.toMatch(/Proofing Language/);
+  });
+
   it("both missing → the combined default step survives", () => {
     const steps = buildActionPlan(
       [cat(["No document title found", "No language declaration found"])] as never,

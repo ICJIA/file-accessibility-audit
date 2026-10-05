@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "cross-format-parity-2026-10-05",
+    badge: "Scoring",
+    text: "Three more problems now cost the same whichever program made the file. A list typed by hand instead of made with the Bullets or Numbering buttons no longer drops a Word or PowerPoint file to D \u2014 every word is still there and in order \u2014 so it now costs what an unmarked table does (a C at most). A PowerPoint deck whose section headings are all typed into text boxes, with no slide titles anywhere, now costs what the same headings cost in Word or a PDF. And Word, PowerPoint and Excel titles now get the check PDF titles always had: a title that is a file name or a program\u2019s default \u2014 including PowerPoint\u2019s own \u201cPowerPoint Presentation\u201d \u2014 does not identify the document and costs half the title points.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 5, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "one-title-line-2026-10-05",
     badge: "Scoring",
     text: "A Word memo or notice with one bold title line is no longer graded down for missing headings. One line that looks like a heading is the document\u2019s title; two or more are sections that need real heading styles \u2014 the rule PDF reports have followed since September. Word was taking 70 points for that single title line, so a one-page memo could grade D in Word and A as a PDF, and PowerPoint took a smaller deduction for a lone typed title. All three formats now agree, and a document with two or more unmarked section headings is still flagged.",

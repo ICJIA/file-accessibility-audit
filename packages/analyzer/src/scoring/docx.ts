@@ -4,7 +4,12 @@
  * file's imports need to change.
  */
 import { DOCX } from "#config";
-import { UNHEADERED_DATA_TABLE_SCORE, VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
+import {
+  TYPED_LIST_FLOOR,
+  UNHEADERED_DATA_TABLE_SCORE,
+  VISUAL_HEADINGS_FOR_FAILURE,
+} from "@file-audit/shared";
+import { classifyTitleShape } from "../titleShape.js";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { DocxAnalysis } from "../docxService.js";
 import {
@@ -116,8 +121,29 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
   let score = 0;
   const findings: string[] = [];
   if (a.metadata.title) {
-    score += 50;
+    // F25 IN WORD TOO (2026-10-05): the same classifier and the same half
+    // credit PDF applies — a bare file name or a tool default does not
+    // identify the document, whichever program wrote it. A title that only
+    // LOOKS like a file name but carries real words keeps full credit and is
+    // reported as an advisory. conformance.ts rule 3a-ii mirrors this.
+    const shape = classifyTitleShape(a.metadata.title);
     findings.push(`Document title: "${a.metadata.title}"`);
+    if (shape === "tool-generated") {
+      score += 25;
+      findings.push(
+        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+      );
+      findings.push(
+        'How to fix: In Word: File → Info → Properties → Title — replace it with a descriptive title (e.g., "2024 Annual Crime Report").',
+      );
+    } else {
+      score += 50;
+      if (shape === "filename-shaped") {
+        findings.push(
+          `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
+        );
+      }
+    }
   } else if (coreReadable) {
     findings.push(
       "No document title is set. In Word: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the document opens.",
@@ -535,7 +561,10 @@ function scoreDocxLists(a: DocxAnalysis): CategoryResult {
     `${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet/number paragraph(s).`,
   ];
   if (manualBulletParagraphs > 0) {
-    score = Math.min(score, 85);
+    // Capped at 85 so any typed bullet is a finding; floored at the Moderate
+    // band (TYPED_LIST_FLOOR, 2026-10-05) so a list typed entirely by hand —
+    // every word present and in order — is never Critical.
+    score = Math.max(TYPED_LIST_FLOOR, Math.min(score, 85));
     findings.push(
       `${manualBulletParagraphs} paragraph(s) use typed bullets or numbers instead of Word's list formatting. Use the Bullets/Numbering buttons so the list is announced as a list.`,
     );

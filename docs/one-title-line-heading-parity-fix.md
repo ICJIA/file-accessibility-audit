@@ -40,6 +40,9 @@ A one-page memo with a bold title line graded D as a .docx and A as a PDF. The W
   - **Sabotage:** the old rules fail 163 ("a lone title line was scored 30", 69/D) and 165 ("a lone typed title cost 15 points", 89/B). Traps 101 and 145 (several fake or typed headings) are unchanged.
 - **Ledger:** one real control moved. `ICJIA_Freshservice_Quick_Guide.docx` went 59/F → 69/D: its only heading-like line is its own title, "Freshservice Quick Guide", in a one-row banner table. The detection verified on 2026-09-01 still runs and names that line; it is just no longer scored. The guide stays a D for its other failures (no title or language, typed bullets, contrast). Re-blessed at 296 rows.
 
-## 4. Still open
+## 4. Resolved in v1.159.0
+
+*At v1.159.0 PowerPoint adopted Word's formula, so two or more heading-like lines are Critical in every format — see `cross-format-parity-lists-headings-titles-fix.md` §2. The note below is kept as written.*
+
 
 At **two or more** heading-like lines the formats still differ in *severity*. PowerPoint caps typed headings at −40, so two read 70 (Minor) and three or more 60 (Moderate). Word and PDF go to Critical. That is §5 item 3 of the table write-up: its own decision.

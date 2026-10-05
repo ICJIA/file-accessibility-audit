@@ -722,8 +722,22 @@ const TABLE_MARKUP_VARIANTS: Array<{
  * error a compliance reviewer pokes. Matchers key on the analyzer's own
  * finding strings; anything unrecognized keeps the combined default.
  */
+// Office strings joined 2026-10-05, when Word, PowerPoint and Excel began
+// reporting tool-default and file-name titles (F25) the way PDF does; "is a
+// filename…" is the scorer's own line in every format, PDF's included —
+// "looks like a filename…" is only the verdict's wording, so PDF's F25 never
+// matched here either.
 const TITLE_PROBLEM = (f: string): boolean =>
-  /No document title found|looks like a filename or tool-generated string/.test(f);
+  /No document title found|No (?:document|presentation|workbook) title is set|(?:looks like|is) a filename or tool-generated string/.test(
+    f,
+  );
+/** The language half is demonstrably fine — the line each format writes when
+ *  a language is declared. */
+const LANGUAGE_SET = (f: string): boolean =>
+  /^(?:Language declared:|Document language:|Presentation language:)/.test(f);
+/** Excel stores no document language at all (scoreXlsxTitleLanguage). */
+const EXCEL_NO_LANGUAGE = (f: string): boolean =>
+  /^Excel does not store a document language/.test(f);
 const LANG_PROBLEM = (f: string): boolean =>
   /No language declaration found|not a usable language code|declares its language as/.test(f);
 const TITLE_LANGUAGE_VARIANTS: Array<{
@@ -731,11 +745,20 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
   entry: PlanCopyEntry;
 }> = [
   {
+    // Excel (2026-10-05): a workbook has a title to fix and no language to
+    // set — the combined default would ask for a setting Excel lacks, and
+    // the title-only step below would claim it "is already set".
+    matches: (strs) => strs.some(TITLE_PROBLEM) && strs.some(EXCEL_NO_LANGUAGE),
+    entry: {
+      title: "Give the workbook a title",
+      why: "Without a title, screen readers announce the raw filename when the workbook opens. (Excel has no document-language setting, so there is nothing to set there.)",
+      source: { xlsx: ["File → Info → Properties → set a descriptive Title"] },
+    },
+  },
+  {
     // Title missing/weak, language demonstrably fine → say only what's left.
     matches: (strs) =>
-      strs.some(TITLE_PROBLEM) &&
-      !strs.some(LANG_PROBLEM) &&
-      strs.some((f) => /^Language declared:/.test(f)),
+      strs.some(TITLE_PROBLEM) && !strs.some(LANG_PROBLEM) && strs.some(LANGUAGE_SET),
     entry: {
       title: "Give the document a title",
       why: "Without a title, screen readers announce the raw filename when the document opens. (This document's language is already set — nothing to do there.)",

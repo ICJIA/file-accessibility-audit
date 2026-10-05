@@ -39,7 +39,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "100|No issues found",
+        "title_language": "75|Minor",
         "slide_titles": "100|No scored issues",
         "alt_text": "0|Critical",
         "reading_order": "null|none",
@@ -877,7 +877,7 @@
         "alt_text": "null|none",
         "table_markup": "100|No issues found",
         "color_contrast": "85|Minor",
-        "list_structure": "0|Critical",
+        "list_structure": "45|Moderate",
         "link_quality": "100|No scored issues",
         "reading_order": "null|none",
         "form_accessibility": "null|none"
@@ -2817,12 +2817,12 @@
       }
     },
     "synthetic-145-pptx-typed-heading.pptx": {
-      "score": 89,
-      "grade": "B",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "slide_titles": "70|Minor",
+        "slide_titles": "30|Critical",
         "alt_text": "null|none",
         "reading_order": "null|none",
         "table_markup": "null|none",
@@ -2945,8 +2945,8 @@
       }
     },
     "synthetic-152-pptx-typed-bullets.pptx": {
-      "score": 69,
-      "grade": "D",
+      "score": 79,
+      "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
@@ -2955,7 +2955,7 @@
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "list_structure": "0|Critical",
+        "list_structure": "45|Moderate",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
@@ -3180,6 +3180,68 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-166-docx-typed-list-only.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "45|Moderate",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-167-pptx-default-title.pptx": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-168-docx-filename-title.docx": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-169-xlsx-filename-shaped-title.xlsx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No scored issues",
+        "sheet_names": "100|No issues found",
+        "table_markup": "100|No issues found",
+        "alt_text": "null|none",
+        "color_contrast": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
       }

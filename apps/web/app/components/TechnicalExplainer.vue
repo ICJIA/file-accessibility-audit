@@ -1090,9 +1090,11 @@
               carries real words ("Annual_Report_2024", a real title with an export timestamp glued
               on) names the document, so it earns full credit and is reported as an unscored
               advisory — whether it describes the document well is a judgment for a person (since
-              2026-09-02). Plus 50 points for a usable language declaration. The language
-              <em>value</em> is checked two ways, each a confirmed 3.1.1 failure at half credit: a
-              declaration that is not a usable code ("english", "en_US"), and a declaration that
+              2026-09-02). Word, PowerPoint and Excel titles get the same check since 2026-10-05 —
+              PowerPoint's own default, "PowerPoint Presentation", included. Plus 50 points for a
+              usable language declaration. The language <em>value</em> is checked two ways, each a
+              confirmed 3.1.1 failure at half credit: a declaration that is not a usable code
+              ("english", "en_US"), and a declaration that
               <em>contradicts the text's actual language</em> (a stopword-based check with four
               guards against false accusations). The <code>DisplayDocTitle</code> viewer flag counts
               too (since 2026-09-01): a title that is set but not displayed earns half the title
@@ -1123,10 +1125,10 @@
               headings (since 2026-09-02; before that the failure was inferred from page and
               paragraph counts). Word and PowerPoint apply the same threshold (since 2026-10-05):
               with no Heading styles — or no titled slide — one bold or large line is the document's
-              title and is not scored; two or more are sections. Everything about the outline's
-              <em>shape</em> — level skips (W3C's own guidance: not a WCAG failure), multiple H1s,
-              generic <code>/H</code> tags, mixing conventions (PDF/UA 7.4.4 / Matterhorn 14-007),
-              and whether the headings' text reads like headings — is
+              title and is not scored; two or more are sections, Critical in all three formats.
+              Everything about the outline's <em>shape</em> — level skips (W3C's own guidance: not a
+              WCAG failure), multiple H1s, generic <code>/H</code> tags, mixing conventions (PDF/UA
+              7.4.4 / Matterhorn 14-007), and whether the headings' text reads like headings — is
               <strong>reported as clearly labelled advisories and never scored</strong>.
             </p>
           </div>
@@ -1297,13 +1299,13 @@
               sections.
             </li>
             <li>
-              <strong>Title shape (PDF, 2.4.2 / F25):</strong> confirmed only for a title that ends
-              in a document file extension, matches an authoring-tool default or placeholder
-              ("Untitled", "Document1", "scan_001", "Microsoft Word - X.doc"), or is a pure
-              timestamp / digit run / hash with fewer than two real words left once file-name
-              machinery is stripped. Anything else that looks like a file name (underscores, two or
-              more hyphens, a 20+ character token with digits, an export timestamp or hash beside
-              real words) is an unscored advisory.
+              <strong>Title shape (every format, 2.4.2 / F25):</strong> confirmed only for a title
+              that ends in a document file extension, matches an authoring-tool default or
+              placeholder ("Untitled", "Document1", "scan_001", "Microsoft Word - X.doc",
+              "PowerPoint Presentation"), or is a pure timestamp / digit run / hash with fewer than
+              two real words left once file-name machinery is stripped. Anything else that looks
+              like a file name (underscores, two or more hyphens, a 20+ character token with digits,
+              an export timestamp or hash beside real words) is an unscored advisory.
             </li>
             <li>
               <strong>Untagged visible text (PDF, 1.3.1):</strong> characters painted outside the
@@ -1325,6 +1327,8 @@
               <strong>Typed bullets (Word / PowerPoint, 1.3.1):</strong> a paragraph that starts
               with a hand-typed bullet or enumerator counts only when another typed or real list
               item sits within two non-empty paragraphs of it — a lone "1." is a label, not a list.
+              A list typed entirely by hand floors at 45 (Moderate), the same band as an unmarked
+              table: every word is there and in order; only the list structure is missing.
             </li>
             <li>
               <strong>Word fake headings (1.3.1 / F2):</strong> a paragraph with no Heading style,

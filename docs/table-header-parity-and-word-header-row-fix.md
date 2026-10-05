@@ -85,9 +85,9 @@ axes4 says the same of Word 365's export: *"these `<TH>` tags lack the Scope att
 A cross-format sweep run alongside this fix found the same class of mismatch elsewhere — Office values set before the severity cap, never re-checked. In order of impact:
 
 1. **Fixed in v1.158.0 — see `one-title-line-heading-parity-fix.md`.** **One bold title line in a document with no heading styles:** Word 30/Critical (D), PowerPoint 85/Minor (B), PDF not scored (A). The PDF rule — "two or more is sections; one is a title" (2026-09-02) — was settled after a real one-page document graded D; Word and PowerPoint never adopted it.
-2. **A list typed entirely by hand:** Word and PowerPoint 0/Critical (D); PDF does not detect typed bullets (A).
-3. **Several fake headings and no real ones:** PDF and Word Critical (D); PowerPoint 70/Minor (B) for two, Moderate at three or more.
-4. **A title that is a filename or tool default ("Document1"):** PDF 75/Minor under W3C F25; never checked in Office.
+2. **Fixed in v1.159.0 — see `cross-format-parity-lists-headings-titles-fix.md`.** **A list typed entirely by hand:** Word and PowerPoint 0/Critical (D); PDF does not detect typed bullets (A).
+3. **Fixed in v1.159.0.** **Several fake headings and no real ones:** PDF and Word Critical (D); PowerPoint 70/Minor (B) for two, Moderate at three or more.
+4. **Fixed in v1.159.0.** **A title that is a filename or tool default ("Document1"):** PDF 75/Minor under W3C F25; never checked in Office.
 5. Smaller: Excel leaves default-white contrast unassessed where Word assumes white; Office rounds alt-text and link ratios with an 85 cap PDF never adopted; PowerPoint and Excel lack Word's guard for an unreadable properties part; PowerPoint has no layout-grid exemption for tables.
 
 Each is a scoring-policy decision and is left for its own release.

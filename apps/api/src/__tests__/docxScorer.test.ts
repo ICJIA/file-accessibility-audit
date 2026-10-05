@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { scoreDocx } from "../services/scorer.js";
+import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { DocxAnalysis } from "../services/docxService.js";
 
 /** A clean, fully-accessible analysis; override per test. */
@@ -375,5 +376,67 @@ describe("scoreDocx — one bold title line is a title, not missing sections (20
       true,
     );
     expect(headingFailures(r).some((f) => /look like headings/i.test(f.issue))).toBe(false);
+  });
+});
+
+describe("scoreDocxLists — a list typed by hand floors at Moderate (2026-10-05)", () => {
+  // The same band as an unmarked table: every word is present and reads in
+  // order; only the list structure is missing. A wholly typed list scored 0
+  // (Critical → a D ceiling), the harshest outcome in any format.
+  const lists = (r: ReturnType<typeof scoreDocx>) =>
+    r.categories.find((c) => c.id === "list_structure")!;
+
+  it("a list typed entirely by hand scores the Moderate floor, not 0, and keeps its 1.3.1", () => {
+    const r = scoreDocx(analysis({ lists: { realListItems: 0, manualBulletParagraphs: 3 } }));
+    expect(lists(r).score).toBe(UNHEADERED_DATA_TABLE_SCORE);
+    expect(lists(r).severity).toBe("Moderate");
+    expect(
+      r.conformance.failures.some((f) => f.sc === "1.3.1" && f.category === "list_structure"),
+    ).toBe(true);
+  });
+
+  it("partly typed lists above the floor score exactly as before", () => {
+    const one = scoreDocx(analysis({ lists: { realListItems: 1, manualBulletParagraphs: 1 } }));
+    const nine = scoreDocx(analysis({ lists: { realListItems: 9, manualBulletParagraphs: 1 } }));
+    expect(lists(one).score).toBe(50);
+    expect(lists(nine).score).toBe(85);
+  });
+});
+
+describe("scoreDocxTitleLanguage — a tool-default or file-name title is F25, as in PDF (2026-10-05)", () => {
+  const title = (t: string) => {
+    const r = scoreDocx(
+      analysis({
+        metadata: { title: t, creator: "x", language: "en-US", pageCount: 2, wordCount: 500 },
+      }),
+    );
+    return {
+      cat: r.categories.find((c) => c.id === "title_language")!,
+      f25: r.conformance.failures.filter(
+        (f) => f.sc === "2.4.2" && f.category === "title_language",
+      ),
+    };
+  };
+
+  it("a file name as the title loses half the title credit and is named as 2.4.2", () => {
+    const { cat, f25 } = title("Final_Report_v3.docx");
+    expect(cat.score).toBe(75);
+    expect(cat.findings.join(" ")).toMatch(/filename or tool-generated string/i);
+    expect(f25).toHaveLength(1);
+  });
+
+  it("a title that only looks like a file name but names the document is an advisory", () => {
+    const { cat, f25 } = title("Annual_Report_2024");
+    expect(cat.score).toBe(100);
+    expect(
+      cat.findings.some((f) => /^Advisory — not scored:.*reads like a filename/i.test(f)),
+    ).toBe(true);
+    expect(f25).toHaveLength(0);
+  });
+
+  it("a descriptive title is full credit with nothing asserted", () => {
+    const { cat, f25 } = title("2024 Annual Crime Report");
+    expect(cat.score).toBe(100);
+    expect(f25).toHaveLength(0);
   });
 });

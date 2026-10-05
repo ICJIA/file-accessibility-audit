@@ -24,6 +24,7 @@
  * The gate never says "conformant". By design — only a human review can.
  */
 import { VISUAL_HEADINGS_FOR_FAILURE } from "@file-audit/shared";
+import { classifyTitleShape } from "../titleShape.js";
 import { classifyLinkText } from "./common.js";
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
@@ -1028,6 +1029,20 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
+  // F25 in Docx too (2026-10-05) — mirrors scoreDocxTitleLanguage: a title
+  // that is a bare file name or a tool default (classifyTitleShape
+  // "tool-generated", the shapes PDF's rule 5b asserts) does not identify
+  // the document. A title that merely LOOKS like a file name is advisory only.
+  if (analysis.metadata.title && classifyTitleShape(analysis.metadata.title) === "tool-generated") {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      `The document's title ("${analysis.metadata.title}") looks like a filename or tool-generated string rather than a description — screen readers announce it as the document's name. WCAG failure F25: a title that does not identify the document's topic or purpose fails 2.4.2. Replace it with a descriptive title (In Word: File → Info → Properties → Title).`,
+    );
+  }
+
   // 3b. Paragraphs styled to LOOK like headings without Heading styles —
   //     WCAG's documented failure F2 for 1.3.1 (styling conveys structure
   //     the markup does not). Mirrors scoreDocxHeadings' `fakes` deduction,
@@ -1230,6 +1245,20 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
     );
   }
 
+  // F25 in Pptx too (2026-10-05) — mirrors scorePptxTitleLanguage: a title
+  // that is a bare file name or a tool default (classifyTitleShape
+  // "tool-generated", the shapes PDF's rule 5b asserts) does not identify
+  // the presentation. A title that merely LOOKS like a file name is advisory only.
+  if (analysis.metadata.title && classifyTitleShape(analysis.metadata.title) === "tool-generated") {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      `The presentation's title ("${analysis.metadata.title}") looks like a filename or tool-generated string rather than a description — screen readers announce it as the presentation's name. WCAG failure F25: a title that does not identify the presentation's topic or purpose fails 2.4.2. Replace it with a descriptive title (In PowerPoint: File → Info → Properties → Title).`,
+    );
+  }
+
   // 4. Data tables (≥2×2, to skip layout tables) with no header row → 1.3.1.
   const dataTablesNoHeader = analysis.tables.filter(
     (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
@@ -1410,6 +1439,20 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       "A",
       "title_language",
       "The workbook has no title in its properties, so no programmatically determinable title exists — assistive technology, document listings, and the PDF exported from this workbook fall back to the filename. In Excel: File → Info → Properties → Title.",
+    );
+  }
+
+  // F25 in Xlsx too (2026-10-05) — mirrors scoreXlsxTitleLanguage: a title
+  // that is a bare file name or a tool default (classifyTitleShape
+  // "tool-generated", the shapes PDF's rule 5b asserts) does not identify
+  // the workbook. A title that merely LOOKS like a file name is advisory only.
+  if (analysis.metadata.title && classifyTitleShape(analysis.metadata.title) === "tool-generated") {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      `The workbook's title ("${analysis.metadata.title}") looks like a filename or tool-generated string rather than a description — screen readers announce it as the workbook's name. WCAG failure F25: a title that does not identify the workbook's topic or purpose fails 2.4.2. Replace it with a descriptive title (In Excel: File → Info → Properties → Title).`,
     );
   }
 

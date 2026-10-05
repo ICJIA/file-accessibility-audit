@@ -643,3 +643,20 @@ export const UNHEADERED_DATA_TABLE_SCORE = 45;
 // .test.ts fails if the formats stop agreeing.
 // ---------------------------------------------------------------------------
 export const VISUAL_HEADINGS_FOR_FAILURE = 2;
+
+// ---------------------------------------------------------------------------
+// A LIST TYPED BY HAND — the Moderate floor (2026-10-05)
+// ---------------------------------------------------------------------------
+// Word and PowerPoint score lists as the share of real list items, so a list
+// typed entirely by hand scored 0 — Critical, a D ceiling — the harshest
+// outcome of any format for a failure whose words all survive, in order, with
+// only the list structure missing. That is the same band as an unmarked table
+// (UNHEADERED_DATA_TABLE_SCORE), and deliberately the same value: a confirmed
+// Level A failure (1.3.1), not the Critical tier. Partly typed lists that
+// already score above the floor are unchanged. (PDF does not score typed
+// bullets — it can only infer them from extracted text, where Word's evidence
+// is exact — a documented automation limit, not a severity difference.)
+//
+// SAFE TO CHANGE: only together with UNHEADERED_DATA_TABLE_SCORE's band.
+// ---------------------------------------------------------------------------
+export const TYPED_LIST_FLOOR = UNHEADERED_DATA_TABLE_SCORE;

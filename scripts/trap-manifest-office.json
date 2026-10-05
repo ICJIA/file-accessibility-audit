@@ -1,5 +1,5 @@
 {
-  "count": 52,
+  "count": 56,
   "generated": "2026-10-05",
   "items": [
     {
@@ -232,6 +232,26 @@
     {
       "file": "synthetic-165-pptx-one-typed-title-no-titled-slides.pptx",
       "label": "PowerPoint: one typed title on a deck with no titled slides",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-166-docx-typed-list-only.docx",
+      "label": "Word: a memo whose only list is typed by hand",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-167-pptx-default-title.pptx",
+      "label": "PowerPoint: a deck still titled “PowerPoint Presentation”",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-168-docx-filename-title.docx",
+      "label": "Word: a memo titled with its own file name",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-169-xlsx-filename-shaped-title.xlsx",
+      "label": "Excel: a file-name-shaped title that still names the workbook",
       "chip": "held"
     },
     {

@@ -124,6 +124,12 @@ describe("classifyTitleShape — confirmed F25 vs advisory vs descriptive", () =
     "210525T15080148",
     "7c7ba4f4f0",
     "20240115120000",
+    // PowerPoint's own default title for a new deck (2026-10-05) — the ICJIA
+    // template in the control corpus carries it, so every deck made from it
+    // does too. It names the program, not the document.
+    "PowerPoint Presentation",
+    "PowerPoint Presentation 2",
+    "Microsoft PowerPoint Presentation",
   ];
   const ADVISORY = [
     "Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808",

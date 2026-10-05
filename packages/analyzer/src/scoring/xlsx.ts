@@ -5,6 +5,7 @@
  */
 import { XLSX } from "#config";
 import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
+import { classifyTitleShape } from "../titleShape.js";
 import type { CategoryResult, HelpLink } from "@file-audit/shared";
 import type { XlsxAnalysis } from "../xlsxService.js";
 import {
@@ -121,9 +122,25 @@ function scoreXlsxText(a: XlsxAnalysis): CategoryResult {
 
 function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
   const hasTitle = !!a.metadata.title;
+  // F25 IN EXCEL TOO (2026-10-05) — see scoreDocxTitleLanguage. Excel's
+  // category is title-only (no language to declare), so half the title
+  // credit is 75 here, the same figure as every other format.
+  const shape = hasTitle ? classifyTitleShape(a.metadata.title!) : null;
   const findings: string[] = [];
   if (hasTitle) {
     findings.push(`Workbook title: "${a.metadata.title}"`);
+    if (shape === "tool-generated") {
+      findings.push(
+        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the workbook name, so partial credit only.",
+      );
+      findings.push(
+        'How to fix: In Excel: File → Info → Properties → Title — replace it with a descriptive title (e.g., "FY26 Grant Ledger").',
+      );
+    } else if (shape === "filename-shaped") {
+      findings.push(
+        `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the workbook, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the workbook well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
+      );
+    }
   } else {
     findings.push(
       "No workbook title is set. In Excel: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the workbook opens.",
@@ -139,7 +156,7 @@ function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
     // 50, not 0: a missing title costs HALF this category in every other
     // format (language being structurally absent in Excel is not the
     // author's fault and must not double the penalty).
-    hasTitle ? 100 : 50,
+    !hasTitle ? 50 : shape === "tool-generated" ? 75 : 100,
     findings,
     "A meaningful workbook title is announced by screen readers when the file opens. Unlike Word or PowerPoint, Excel workbooks have no document-language property to declare, so that half of this check is always not assessed.",
     [XLSX_HELP.overview],

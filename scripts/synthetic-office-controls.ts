@@ -27,7 +27,7 @@ import { createRequire } from "node:module";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
 import { twinViolations } from "./gateLogic.mjs";
-import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
+import { TYPED_LIST_FLOOR, UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 
 // jszip lives in the analyzer package's dependency tree, not the root's.
 const requireAnalyzer = createRequire(
@@ -1195,7 +1195,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-152-pptx-typed-bullets.pptx",
     truth:
-      "A titled slide whose three agenda points are typed with a leading dash instead of PowerPoint's bullet formatting — visual list structure with no programmatic list, the same WCAG 1.3.1 Level A class Word has scored since the start. Until 2026-09-01 the deck lost the points with NO criterion in the verdict: the pptx gate had no list rule at all, so a deck capped at D named nothing — invisible to legal-basis because no control exercised it. list_structure must score 0 (no real items among three typed ones), and the verdict must name 1.3.1 against list_structure.",
+      "A titled slide whose three agenda points are typed with a leading dash instead of PowerPoint's bullet formatting — visual list structure with no programmatic list, the same WCAG 1.3.1 Level A class Word has scored since the start. Until 2026-09-01 the deck lost the points with NO criterion in the verdict: the pptx gate had no list rule at all, so a deck capped at D named nothing — invisible to legal-basis because no control exercised it. Since 2026-10-05 a list typed entirely by hand floors at the Moderate band (TYPED_LIST_FLOOR — every word present and in order, only the structure missing; it scored 0 and capped the deck at D until then): list_structure must score exactly that floor, the otherwise-clean deck must cap at 79/C, and the verdict must name 1.3.1 against list_structure.",
     build: () =>
       pptx(
         [
@@ -1207,7 +1207,9 @@ const SAMPLES: Sample[] = [
     check: (r) => {
       const c = cat("list_structure")(r);
       if (!c || c.score === null) return "list_structure unscored";
-      if (c.score !== 0) return `three typed bullets with no real item scored ${c.score}, not 0`;
+      if (c.score !== TYPED_LIST_FLOOR)
+        return `three typed bullets with no real item scored ${c.score}, not the Moderate floor ${TYPED_LIST_FLOOR}`;
+      if (r.overallScore !== 79) return `the deck graded ${r.overallScore}/${r.grade}, not 79/C`;
       const failing = (
         r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
       ).conformance?.failures?.some(
@@ -1296,7 +1298,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-145-pptx-typed-heading.pptx",
     truth:
-      "Two slides whose heading is typed into a floating 32-point bold text box instead of the slide's title placeholder — no <p:ph> on the shape at all, and the size set explicitly on the run. The heading EXISTS and is simply not marked up, which is WCAG 1.3.1 Level A, the same failure Word has scored since the start. PowerPoint had no equivalent check until 2026-08-31: this was a real Level A failure the report never mentioned in any form. slide_titles must lose points (15 per slide, capped at 40) AND the verdict must name 1.3.1. Deliberately NOT the same question as a slide with no heading at all, which is 2.4.10 Section Headings — Level AAA — and stays unscored.",
+      "Two slides whose heading is typed into a floating 32-point bold text box instead of the slide's title placeholder — no <p:ph> on the shape at all, and the size set explicitly on the run. The heading EXISTS and is simply not marked up, which is WCAG 1.3.1 Level A, the same failure Word has scored since the start. PowerPoint had no equivalent check until 2026-08-31: this was a real Level A failure the report never mentioned in any form. slide_titles must lose points AND the verdict must name 1.3.1 — and since 2026-10-05 (user decision) at Word's severity: with no titled slide anywhere, two typed headings are sections that exist only visually, so the category drops to 30 (Critical), the same as Word's 30 and PDF's 0 for the same defect. It read 70 (Minor) until then. Deliberately NOT the same question as a slide with no heading at all, which is 2.4.10 Section Headings — Level AAA — and stays unscored.",
     build: () =>
       pptx(
         [
@@ -1308,8 +1310,8 @@ const SAMPLES: Sample[] = [
     check: (r) => {
       const c = cat("slide_titles")(r);
       if (!c || c.score === null) return "slide_titles unscored";
-      if (c.score !== 70)
-        return `two typed headings scored ${c.score}, not the 100 - 2x15 the rule defines`;
+      if (c.score !== 30)
+        return `two typed headings in an untitled deck scored ${c.score}, not Word's 30 (Critical)`;
       const f = allFindings(r);
       if (!/typed into an ordinary text box/i.test(f)) return "the typed headings are not named";
       const failing = (
@@ -1572,6 +1574,117 @@ const SAMPLES: Sample[] = [
     },
   },
   {
+    file: "synthetic-166-docx-typed-list-only.docx",
+    truth:
+      "A titled Word memo whose only list is three bullets typed by hand — no Bullets/Numbering formatting anywhere. A WCAG 1.3.1 failure, and the Word twin of PowerPoint's trap 152: since 2026-10-05 a list typed entirely by hand floors at the Moderate band in both (it scored 0, Critical, until then). list_structure must score exactly TYPED_LIST_FLOOR, the otherwise-clean memo must cap at 79/C, and the verdict must name 1.3.1 against list_structure.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Application Checklist"),
+          P(BODY_TEXT),
+          TYPED_BULLET_P("A completed application form"),
+          TYPED_BULLET_P("Two letters of support"),
+          TYPED_BULLET_P("A signed budget summary"),
+        ].join(""),
+        { title: "Application Checklist" },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null) return "list_structure unscored";
+      if (c.score !== TYPED_LIST_FLOOR)
+        return `a wholly typed list scored ${c.score}, not the Moderate floor ${TYPED_LIST_FLOOR}`;
+      if (r.overallScore !== 79) return `the memo graded ${r.overallScore}/${r.grade}, not 79/C`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "1.3.1" && String(f.category ?? "") === "list_structure",
+      );
+      return failing ? null : "points lost with no 1.3.1 failure attributed to list_structure";
+    },
+  },
+  {
+    file: "synthetic-167-pptx-default-title.pptx",
+    truth:
+      "A clean, titled deck whose document title is still \"PowerPoint Presentation\" — PowerPoint's own default, which every deck made from a template carrying it inherits (the agency template in the control corpus does). It names the program, not the document: WCAG failure F25 for 2.4.2. Until 2026-10-05 no format caught it — PDF's tool-default list lacked it, and Word, PowerPoint and Excel never checked titles at all. title_language must lose half the title credit (75), the verdict must name 2.4.2, and the deck must cap at 89/B.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Update") + SLIDE_BODY("Enrollment rose 12 percent this quarter."),
+          SLIDE_TITLE("Next Steps") + SLIDE_BODY("Budget review in March."),
+        ],
+        { title: "PowerPoint Presentation" },
+      ),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 75) return `PowerPoint's default title scored ${c.score}, not 75`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "2.4.2" && String(f.category ?? "") === "title_language",
+      );
+      if (!failing) return "the default title cost points with no 2.4.2 failure named";
+      return r.overallScore === 89
+        ? null
+        : `the deck graded ${r.overallScore}/${r.grade}, not 89/B`;
+    },
+  },
+  {
+    file: "synthetic-168-docx-filename-title.docx",
+    truth:
+      'A Word memo whose title property is its own file name, "Final_Report_v3.docx" — F25\'s own example, "filenames that are not descriptive in their own right." PDF has scored this since the legal-only sweep; Word now does too (2026-10-05). title_language must lose half the title credit (75), the verdict must name 2.4.2, and the memo must cap at 89/B.',
+    build: () =>
+      docx([HEADING(1, "Contents Inside"), P(BODY_TEXT)].join(""), {
+        title: "Final_Report_v3.docx",
+      }),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 75) return `a file-name title scored ${c.score}, not 75`;
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some(
+        (f) => String(f.sc ?? "") === "2.4.2" && String(f.category ?? "") === "title_language",
+      );
+      if (!failing) return "the file-name title cost points with no 2.4.2 failure named";
+      return r.overallScore === 89
+        ? null
+        : `the memo graded ${r.overallScore}/${r.grade}, not 89/B`;
+    },
+  },
+  {
+    file: "synthetic-169-xlsx-filename-shaped-title.xlsx",
+    truth:
+      'A workbook titled "Grant_Ledger_FY26": file-name machinery (underscores) around real words that still name the workbook. As in PDF since 2026-09-02, that is a judgment for a person, not F25 — title_language must keep full credit with the title reported as an advisory, no criterion may be asserted, and the workbook must be 100/A.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Grants",
+            rows: [
+              ["Program", "Award"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+            table: { name: "Grants", ref: "A1:B3", headerRowCount: 1 },
+          },
+        ],
+        { title: "Grant_Ledger_FY26" },
+      ),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 100) return `a title that still names the workbook scored ${c.score}`;
+      if (!c.findings.some((f) => /^Advisory — not scored:.*reads like a filename/i.test(f)))
+        return "the file-name-shaped title is not reported as an advisory";
+      const failing = (
+        r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
+      ).conformance?.failures?.some((f) => String(f.category ?? "") === "title_language");
+      if (failing) return "2.4.2 asserted against a title that names the workbook";
+      return r.overallScore === 100 ? null : `the workbook graded ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
     file: "synthetic-160-pptx-table-headerless.pptx",
     truth:
       "A titled slide carrying a real PowerPoint table whose Table Design → Header Row box is unticked, so no row is marked as the header (PowerPoint's only header mechanism). The first PowerPoint table trap: until 2026-10-05 this scored 30/Critical and capped the deck at 69/D, while the same table capped at 79/C as a PDF and 89/B in Excel. It must now score exactly the one value every format gives an unheadered data table (Moderate), the otherwise-clean deck must cap at 79/C, and the verdict must name WCAG 1.3.1 against table_markup.",
@@ -1795,6 +1908,22 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-166-docx-typed-list-only.docx": {
+    label: "Word: a memo whose only list is typed by hand",
+    chip: "caught",
+  },
+  "synthetic-167-pptx-default-title.pptx": {
+    label: "PowerPoint: a deck still titled “PowerPoint Presentation”",
+    chip: "bug",
+  },
+  "synthetic-168-docx-filename-title.docx": {
+    label: "Word: a memo titled with its own file name",
+    chip: "caught",
+  },
+  "synthetic-169-xlsx-filename-shaped-title.xlsx": {
+    label: "Excel: a file-name-shaped title that still names the workbook",
+    chip: "held",
+  },
   "synthetic-163-docx-one-bold-title-line.docx": {
     label: "Word: a memo whose only heading-like line is its bold title",
     chip: "bug",
