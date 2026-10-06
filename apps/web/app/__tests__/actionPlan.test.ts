@@ -1050,12 +1050,12 @@ describe("title_language step titles match what actually failed (v1.138.1)", () 
     [
       "docx",
       'Document title: "Quarterly Report"',
-      "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
+      "No document language is declared — neither as the document's default nor on most of its text. In Word: select all the text (Ctrl+A; ⌘A on a Mac), then Review → Language → Set Proofing Language → choose the document's language → OK, and save. This tells screen readers which pronunciation rules to use.",
     ],
     [
       "pptx",
       'Presentation title: "Quarterly Briefing"',
-      "No default presentation language is declared. In PowerPoint this comes from the presentation's default language setting; it tells screen readers which pronunciation rules to use.",
+      "No default presentation language is declared, and none is declared on most of the text. In PowerPoint: select the text — in View → Outline View, click in the outline and press Ctrl+A (⌘A on a Mac) to select every slide's title and body text; text boxes and tables are selected on their own slides — then Review → Language → Set Proofing Language → choose the language → OK, and save. It tells screen readers which pronunciation rules to use.",
     ],
   ] as const)(
     "%s: a language problem under a fine title → the language-only step",
@@ -1071,7 +1071,7 @@ describe("title_language step titles match what actually failed (v1.138.1)", () 
       [
         cat([
           "No document title is set. In Word: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the document opens.",
-          "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
+          "No document language is declared — neither as the document's default nor on most of its text. In Word: select all the text (Ctrl+A; ⌘A on a Mac), then Review → Language → Set Proofing Language → choose the document's language → OK, and save. This tells screen readers which pronunciation rules to use.",
         ]),
       ] as never,
       "docx",

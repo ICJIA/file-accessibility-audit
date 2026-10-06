@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.161.0] - 2026-10-06
+
+### Fixed
+
+The three items v1.160.0 left open. Two directions were user decisions.
+
+- **PDF section titles tagged as plain paragraphs are now scored, as Word's always were** (user decision). In a PDF that has heading tags, a line that looks like a section heading but is tagged as an ordinary paragraph costs 15 points, at most 40, and names WCAG 1.3.1. That is Word's exact formula for a paragraph formatted to look like a heading. PDF's visual-heading check used to run only on documents with no heading tags at all, so two agency annual reports (3 heading tags, about 70 section titles tagged as paragraphs) read "Heading Structure 100 — No issues found". The new `untaggedVisualHeadings` was measured against the corpus first. Its guards remove every false shape found there, and each is proven by a test that fails without it:
+  - cover pages and letterheads (lines must appear on two or more pages);
+  - pull quotes (the line must be most of its paragraph);
+  - captions and source lines;
+  - lines ending mid-sentence;
+  - anything tagged other than as a paragraph.
+- **The language marked on the text counts in Word, and must cover most of it in PowerPoint** (user decision: one rule). Word read only its document default, so a file fixed exactly as this report advised (select all → Set Proofing Language, which marks every run) was still accused of declaring no language. PowerPoint credited any run's language, so one stray marked word stood in for a whole deck. Now, in both, with no document-wide default the language declared on more than half of the text is the document's language. The majority is counted by language, so en-US and en-GB together are English. Word follows run, character-style and paragraph-style languages through `basedOn`, and the finding says when the language comes from the text. The "no language" advice now says to select the text first, in the scorers, gate rules and action plan.
+- **PowerPoint gets its own best-practice row for bare layout grids** (`pptx-layout-grids`), the twin of Word's. Since v1.160.0 PowerPoint reports such grids, and until now nothing in the catalog read that line for a deck. The catalog is now 43 practices (PDF 21 · Word 9 · PowerPoint 5 · Excel 8). The README's "41 practices … PowerPoint 3" had been stale since PowerPoint's descriptive-link row was added.
+
+### Notes
+
+- **Tests:** 3,971 (API 1,990 · Web 1,931 · CLI 50) across 220 files, written test-first.
+  - `visualHeadings.test.ts`: 8 → 35. Every guard has a test that fails without it.
+  - `headingTitleParity.test.ts` (+6): Word and PDF cost the same.
+  - `languageParity.test.ts` (+8).
+  - `bestPracticesOffice.test.ts` (+7).
+- **Traps:** 185. Seven are new:
+  - 179: untagged section titles → heading score 60, 79/C, FOUND A REAL BUG
+  - 180: its twin with the titles tagged H2 → 100/A
+  - 181 / 182 / 183: a cover page, a pull quote and captions → all 100/A
+  - 184: a Word file whose language is set only on its text → 100/A, FOUND A REAL BUG
+  - 185: a deck whose only language mark is one French word → 79/C
+
+  The analyzer changes stashed fail 179, 184 and 185 with the old symptoms. Removing each guard fails its held trap.
+- **Score ledger:** re-blessed in this commit at 316 rows. Four real PDFs lost a heading score they had never earned; all stay D for other failures:
+  - FINAL REPORT: 69 → 64
+  - Juvenile Justice 2007: 68 → 62
+  - SFY24: 69 → 66
+  - SFY25: 69 → 67
+
+  Plus seven new trap rows. No Office row moved. `best-practice-basis`: three new heading pairings reviewed and recorded (each is about tagged headings, not missing tags).
+- **`pnpm audit --prod`: 12** (3 critical, 8 high, 1 moderate). Ten were published since v1.160.0; none is reachable in production.
+  - `simple-git` ×4 (Nuxt devtools), `seroval` and `postcss-selector-parser` are dev or build tooling and do not ship.
+  - `source-map-js` ships in the web server bundle (a dependency of Vue's template compiler), but its flaw is in parsing indexed source maps, which no server code does.
+  - `proxy-addr`'s flaw is in subnet trust matching. The API trusts a hop count (`trust proxy` = 1), which Express evaluates without that code.
+  - `@vue/server-renderer`'s flaw needs attribute names from untrusted input. The web app binds none.
+  - `braces` and `node-forge` have no fix published.
+
+  The dependency pass follows as v1.161.1. Write-up: `docs/untagged-visual-headings-and-text-language-fix.md`.
+
 ## [1.160.0] - 2026-10-05
 
 ### Fixed

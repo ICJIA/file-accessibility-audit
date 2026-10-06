@@ -148,6 +148,94 @@ function multiPageObjs(
   };
 }
 
+/** One tagged block on a page: a structure element of type `tag` holding one
+ *  marked-content sequence, painted LINE BY LINE (pdf.js truncates a single
+ *  Tj wider than the page) at `size` points, bold via Helvetica-Bold. */
+interface Block {
+  tag: string;
+  size: number;
+  lines: string[];
+  bold?: boolean;
+}
+/** Ordinary 11-pt body prose: two lines, each long enough to be a body line
+ *  for the visual-heading census (40+ characters, not bold). */
+const BODY_LINES = (seed: string): string[] => [
+  `${seed} continues here with plain words that read as an ordinary body`,
+  "paragraph of running prose, the kind every section of a report contains.",
+];
+const body = (seed: string): Block => ({ tag: "P", size: 11, lines: BODY_LINES(seed) });
+
+/** A tagged, multi-page document built from blocks (2026-10-06): the shape
+ *  the untagged-visual-heading traps need — real heading tags on some lines,
+ *  paragraph tags on others, each with its own MCID and size. */
+function blocksDoc(pages: Block[][], title: string): Buffer {
+  const pageObj = (i: number) => 3 + i * 2;
+  const contentObj = (i: number) => 4 + i * 2;
+  const structRoot = 3 + pages.length * 2;
+  const docElem = structRoot + 1;
+  const firstElem = docElem + 1;
+  const elemCount = pages.reduce((n, p) => n + p.length, 0);
+  const parentTree = firstElem + elemCount;
+  const font = parentTree + 1;
+  const bold = font + 1;
+  const objs: string[] = [
+    `<< /Type /Catalog /Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>`,
+    `<< /Type /Pages /Kids [${pages.map((_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count ${pages.length} >>`,
+  ];
+  const elems: string[] = [];
+  const parentNums: string[] = [];
+  let elemNo = firstElem;
+  pages.forEach((blocks, i) => {
+    let y = 740;
+    let content = "";
+    const refs: string[] = [];
+    blocks.forEach((b, mcid) => {
+      content += `/${b.tag} << /MCID ${mcid} >> BDC\n`;
+      for (const l of b.lines) {
+        content += `BT /${b.bold ? "F2" : "F1"} ${b.size} Tf 72 ${y} Td (${l}) Tj ET\n`;
+        y -= Math.round(b.size * 1.5);
+      }
+      content += "EMC\n";
+      y -= 10;
+      elems.push(
+        `<< /Type /StructElem /S /${b.tag} /P ${docElem} 0 R /Pg ${pageObj(i)} 0 R /K ${mcid} >>`,
+      );
+      refs.push(`${elemNo++} 0 R`);
+    });
+    objs.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${font} 0 R /F2 ${bold} 0 R >> >> /Contents ${contentObj(i)} 0 R /StructParents ${i} >>`,
+    );
+    objs.push(stream(content));
+    parentNums.push(`${i} [${refs.join(" ")}]`);
+  });
+  objs.push(`<< /Type /StructTreeRoot /K ${docElem} 0 R /ParentTree ${parentTree} 0 R >>`);
+  objs.push(
+    `<< /Type /StructElem /S /Document /P ${structRoot} 0 R /K [${Array.from({ length: elemCount }, (_, k) => `${firstElem + k} 0 R`).join(" ")}] >>`,
+  );
+  objs.push(...elems);
+  objs.push(`<< /Nums [${parentNums.join(" ")}] >>`);
+  objs.push(FONT);
+  objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  return buildPdf(objs, `<< /Title (${title}) >>`);
+}
+
+/** The four-page report behind traps 179/180: a real H1, then three section
+ *  titles at 16 pt tagged as `sectionTag` — <P> (the defect) or <H2>. */
+const sectionedReport = (sectionTag: string) =>
+  blocksDoc(
+    [
+      [{ tag: "H1", size: 18, lines: ["Annual Program Report"] }, body("The annual report")],
+      [{ tag: sectionTag, size: 16, lines: ["Grants Administration"] }, body("Grant making")],
+      [{ tag: sectionTag, size: 16, lines: ["Research and Analysis"] }, body("Research work")],
+      [{ tag: sectionTag, size: 16, lines: ["Information Systems"] }, body("Systems work")],
+    ],
+    "Annual Program Report",
+  );
+
+/** Does the verdict name `sc` against `category`? */
+const namesCriterion = (r: AnalysisResult, sc: string, category: string): boolean =>
+  r.conformance.failures.some((f) => f.sc === sc && f.category === category);
+
 interface Sample {
   file: string;
   truth: string;
@@ -4173,6 +4261,144 @@ const SAMPLES: Sample[] = [
       return null;
     },
   },
+  // ---- v1.161.0: visual headings tagged as ordinary text (2026-10-06) ----
+  {
+    file: "synthetic-179-untagged-section-headings.pdf",
+    truth:
+      "A tagged four-page report with a real <H1> — and three section titles set at 16 pt over their sections but tagged <P>: the PDF form of Word's paragraph formatted to look like a heading, and the shape of the SFY24 and SFY25 annual reports in the corpus (3 heading tags, 70+ section headings tagged as paragraphs), which read \"Heading Structure 100 — No issues found\". PDF's visual-heading census ran only on documents with NO heading tags (found 2026-10-06). It must score exactly as Word scores the same three lines — heading_structure 60, Moderate — name 1.3.1 against heading_structure, list each line with its page, and cap the report at 79/C.",
+    build: () => sectionedReport("P"),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score === null) return "heading_structure unscored";
+      if (h.score !== 60) return `three untagged section titles scored ${h.score}, not Word's 60`;
+      const text = h.findings.join("\n");
+      if (!/3 line\(s\) are formatted to look like headings/.test(text))
+        return "the untagged section titles are not reported";
+      if (!/"Research and Analysis" \(page 3\)/.test(text)) return "a line or its page is missing";
+      if (!namesCriterion(r, "1.3.1", "heading_structure"))
+        return "points lost with no 1.3.1 failure attributed to heading_structure";
+      return r.overallScore === 79
+        ? null
+        : `the report graded ${r.overallScore}/${r.grade}, not 79/C`;
+    },
+  },
+  {
+    file: "synthetic-180-section-headings-tagged-twin.pdf",
+    truth:
+      "The same report with its three section titles tagged <H2>. heading_structure must be a clean 100, nothing may be asserted against it, the report must be 100/A, and it must never score below its untagged twin.",
+    build: () => sectionedReport("H2"),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100) return `tagged section titles scored ${h?.score}`;
+      if (r.conformance.failures.some((f) => f.category === "heading_structure"))
+        return "1.3.1 asserted against real heading tags";
+      return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-181-cover-page-not-sections.pdf",
+    truth:
+      'A report whose cover page carries three large lines tagged <P> — "A Report to the General Assembly", the unit that prepared it, the agency\'s name — over a line of body text, with real <H1>/<H2> tags on the pages after. Cover lines look like headings and are not sections; every one is on one page, and the check counts only lines on two or more pages. Nothing may be scored or asserted: 100/A.',
+    build: () =>
+      blocksDoc(
+        [
+          [
+            { tag: "P", size: 20, lines: ["A Report to the General Assembly"] },
+            { tag: "P", size: 16, lines: ["Prepared by the Research Unit"] },
+            { tag: "P", size: 16, lines: ["Illinois Criminal Justice Information Authority"] },
+            body("This report"),
+          ],
+          [{ tag: "H1", size: 18, lines: ["Introduction"] }, body("The introduction")],
+          [{ tag: "H2", size: 16, lines: ["Findings"] }, body("The findings")],
+        ],
+        "Report to the General Assembly",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100)
+        return `a cover page was scored as untagged sections (${h?.score})`;
+      if (/formatted to look like headings/.test(h.findings.join(" ")))
+        return "cover-page lines reported as headings";
+      return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-182-pull-quote-not-a-heading.pdf",
+    truth:
+      'Real <H1>/<H2> headings, and on two pages a 14-pt pull quote tagged <P> whose last line is short ("support for families"). Every line of the quote looks like a heading on its own — short, large, over body text — but each is part of one longer paragraph, not the whole element. Nothing may be scored or asserted: 100/A. (A corpus annual report\'s pull quotes were the largest false class when this check was measured.)',
+    build: () =>
+      blocksDoc(
+        [
+          [{ tag: "H1", size: 18, lines: ["Annual Program Report"] }, body("The annual report")],
+          [
+            { tag: "H2", size: 16, lines: ["Program Results"] },
+            {
+              tag: "P",
+              size: 14,
+              lines: [
+                "Enrollment rose twelve percent across every region this year",
+                "as partner agencies added evening sessions and transportation",
+                "support for families",
+              ],
+            },
+            body("The results"),
+          ],
+          [
+            { tag: "H2", size: 16, lines: ["Next Year"] },
+            {
+              tag: "P",
+              size: 14,
+              lines: [
+                "Three more counties will join the program in the spring and",
+                "the evening sessions will run every week of the school year",
+                "for the first time",
+              ],
+            },
+            body("The plans"),
+          ],
+        ],
+        "Annual Program Report",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100)
+        return `a pull quote was scored as untagged headings (${h?.score})`;
+      if (/formatted to look like headings/.test(h.findings.join(" ")))
+        return "pull-quote lines reported as headings";
+      return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-183-captions-not-headings.pdf",
+    truth:
+      'Real <H1>/<H2> headings, and on two pages 13-pt lines tagged <P> that caption a figure and a table, plus a source line — "Figure 1 …", "Table 2 …", "Source …" — each set a size above the 11-pt body text. A short line larger than the text beneath it looks like a heading to the census; a caption is not one. Nothing may be scored or asserted: 100/A. (Larger, not bold: pdf.js cannot name a non-embedded standard font, so a bold Helvetica caption would never reach the check at all and the trap would prove nothing.)',
+    build: () =>
+      blocksDoc(
+        [
+          [{ tag: "H1", size: 18, lines: ["Annual Program Report"] }, body("The annual report")],
+          [
+            { tag: "H2", size: 16, lines: ["Arrest Trends"] },
+            { tag: "P", size: 13, lines: ["Figure 1 Arrests by county 2020 to 2024"] },
+            body("The arrest data"),
+          ],
+          [
+            { tag: "H2", size: 16, lines: ["Court Filings"] },
+            { tag: "P", size: 13, lines: ["Table 2 Filings by judicial circuit"] },
+            body("The filings data"),
+            { tag: "P", size: 13, lines: ["Source Administrative Office of the Courts"] },
+            body("The source notes"),
+          ],
+        ],
+        "Annual Program Report",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100) return `captions were scored as untagged headings (${h?.score})`;
+      if (/formatted to look like headings/.test(h.findings.join(" ")))
+        return "caption lines reported as headings";
+      return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4186,6 +4412,27 @@ const SAMPLES: Sample[] = [
 // ---------------------------------------------------------------------------
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-179-untagged-section-headings.pdf": {
+    label:
+      "Section titles that look like headings but are tagged as paragraphs, beside real headings",
+    chip: "bug",
+  },
+  "synthetic-180-section-headings-tagged-twin.pdf": {
+    label: "The same report with its section titles tagged as headings",
+    chip: "held",
+  },
+  "synthetic-181-cover-page-not-sections.pdf": {
+    label: "A cover page of large lines — a title page is not sections",
+    chip: "held",
+  },
+  "synthetic-182-pull-quote-not-a-heading.pdf": {
+    label: "A large-print pull quote whose short last line looks like a heading",
+    chip: "held",
+  },
+  "synthetic-183-captions-not-headings.pdf": {
+    label: "Figure and table captions set larger than the text — a caption is not a heading",
+    chip: "held",
+  },
   "synthetic-01-well-built.pdf": {
     label: "A correctly built document — no false accusations allowed",
     chip: "held",
@@ -4617,6 +4864,11 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
 // no single-file test can see. Checked after the per-file pass, same gate.
 // ---------------------------------------------------------------------------
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-179-untagged-section-headings.pdf",
+    good: "synthetic-180-section-headings-tagged-twin.pdf",
+    category: "heading_structure",
+  },
   {
     bad: "synthetic-16-form-unlabeled.pdf",
     good: "synthetic-17-form-labeled.pdf",

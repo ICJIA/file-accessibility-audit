@@ -165,7 +165,9 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
     const verdict = judgeDeclaredLanguage(a.metadata.language, a.textSample, a.declaredLanguages);
     if (verdict.kind === "ok") {
       score += 50;
-      findings.push(`Document language: ${a.metadata.language}`);
+      findings.push(
+        `Document language: ${a.metadata.language}${a.languageFromText ? " (declared on the text itself — the document sets no default language)" : ""}`,
+      );
     } else {
       score += 25;
       findings.push(
@@ -186,7 +188,7 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
   if (!a.metadata.language) {
     if (langReadable) {
       findings.push(
-        "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
+        "No document language is declared — neither as the document's default nor on most of its text. In Word: select all the text (Ctrl+A; ⌘A on a Mac), then Review → Language → Set Proofing Language → choose the document's language → OK, and save. This tells screen readers which pronunciation rules to use.",
       );
     } else {
       score += 50;

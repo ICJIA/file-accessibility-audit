@@ -117,8 +117,14 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     why: "Without these, screen readers announce the raw filename and guess the wrong language.",
     source: {
       pdf: ["In Word: File → Info → set Title", "Re-export the PDF (File → Save As → PDF)"],
-      docx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
-      pptx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
+      docx: [
+        "File → Info → set Title",
+        "Select all the text (Ctrl+A), then Review → Language → Set Proofing Language",
+      ],
+      pptx: [
+        "File → Info → set Title",
+        "Select the text (View → Outline View, then Ctrl+A), then Review → Language → Set Proofing Language",
+      ],
       xlsx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
     },
     sourceInDesign: [
@@ -800,8 +806,14 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
           "In Word: Review → Language → Set Proofing Language for the whole document",
           "Re-export the PDF (File → Save As → PDF)",
         ],
-        docx: ["Review → Language → Set Proofing Language"],
-        pptx: ["Review → Language → Set Proofing Language"],
+        docx: [
+          "Select all the text (Ctrl+A)",
+          "Review → Language → Set Proofing Language → choose the document's language",
+        ],
+        pptx: [
+          "Select the text (View → Outline View, then Ctrl+A)",
+          "Review → Language → Set Proofing Language → choose the language",
+        ],
         xlsx: ["Review → Language → Set Proofing Language"],
       },
       sourceInDesign: [

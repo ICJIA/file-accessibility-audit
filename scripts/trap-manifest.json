@@ -1,6 +1,6 @@
 {
-  "count": 113,
-  "generated": "2026-10-05",
+  "count": 118,
+  "generated": "2026-10-06",
   "items": [
     {
       "file": "synthetic-01-well-built.pdf",
@@ -572,6 +572,31 @@
     {
       "file": "synthetic-156-one-page-chart-one-bookmark.pdf",
       "label": "A one-page chart with one bookmark — one title is not sections",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-179-untagged-section-headings.pdf",
+      "label": "Section titles that look like headings but are tagged as paragraphs, beside real headings",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-180-section-headings-tagged-twin.pdf",
+      "label": "The same report with its section titles tagged as headings",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-181-cover-page-not-sections.pdf",
+      "label": "A cover page of large lines — a title page is not sections",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-182-pull-quote-not-a-heading.pdf",
+      "label": "A large-print pull quote whose short last line looks like a heading",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-183-captions-not-headings.pdf",
+      "label": "Figure and table captions set larger than the text — a caption is not a heading",
       "chip": "held"
     }
   ]

@@ -54,6 +54,41 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.161.0",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: section titles in PDFs that are tagged as plain text, a document&rsquo;s language when it is marked on the text itself, one new best-practice row, and ten newly published warnings about third-party code.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to the advice the report gives. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>PDF section titles tagged as plain text are now counted, as they always were in Word.</strong> Two annual reports tag only three of their headings &mdash; about seventy section titles are tagged as ordinary paragraphs &mdash; and their heading score read &ldquo;No issues found&rdquo;. Such titles now cost what they cost in a Word file. The check was measured against the test documents first, so that cover pages, letterheads, pull quotes and captions, which all look like headings, are never counted. Four real reports lost a score they had never earned; all four were already graded D for other problems.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>A language marked on the text itself now counts.</strong> A Word file with no overall language setting, whose every word was marked English exactly as this report advises, was still told it declared no language. Word and PowerPoint now both take the language marked on most of the text, and a single marked word no longer stands in for a whole presentation.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>PowerPoint gets the best-practice check Word has for tables used only to line things up.</strong>",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Ten new warnings about third-party code, none affecting the live service.</strong> The routine scan of the code this service depends on found ten warnings published since the previous release. Seven concern tools used only while building or developing the service. The other three concern code that does run in the live service, and each affects only a way of using it that this service does not use: one is about trusting address ranges where this service trusts a fixed number of hops, one about attribute names taken from outside data, which this service never does, and one about reading a kind of file (an indexed source map) that the service never reads. The update that clears the fixable ones follows as the next release. Two older warnings still have no fix published.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Seven new test documents pin the new rules, and each one that checks a fix was shown to fail when the old rules were put back. Every safeguard against a false accusation was shown to matter by switching it off and watching a test fail.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.160.0",
     meta: "Reviewed <strong>2026-10-05</strong> &middot; scope: the last small grading differences between file formats, two new checks for Word, PowerPoint and Excel files, and clearer advice about logos in page headers.",
     body: [

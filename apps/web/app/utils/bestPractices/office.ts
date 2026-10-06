@@ -1036,6 +1036,94 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       );
     },
   },
+  {
+    // PowerPoint's twin of docx-layout-grids (2026-10-06). The bare-grid
+    // advisory reached PowerPoint in v1.160.0 (2026-10-05), when a table
+    // stripped bare — no style, or "No Style, No Grid"; no visible border or
+    // fill; no header row — stopped being scored as an unheadered data table.
+    id: "pptx-layout-grids",
+    advisorySince: "2026-10-05",
+    formats: ["pptx"],
+    categoryId: "table_markup",
+    label: "Bare layout grids",
+    description:
+      "A table-shaped grid with no table style, borders, shading, or header row is usually a layout construct rather than a data table — worth a quick check that none of them actually holds data.",
+    why: "A screen reader announces a real data table's header with each cell. A layout grid does not need one — but stripping a table's style is also how a genuine data table can end up looking identical to a layout grid in the file.",
+    links: [],
+    standard:
+      "A genuine layout table needs no header row — W3C failure F46 fails the reverse case, a layout table given header cells (F46 is written for HTML and is cited here by analogy; PowerPoint has no equivalent markup). Read this row with care: it is by construction the set this tool could NOT classify, so if one of these is really a data table, its missing header row IS a WCAG 1.3.1 (Level A) failure.",
+    wcagSlugs: [
+      { slug: "info-and-relationships", label: "WCAG 1.3.1: Info and Relationships — Level A" },
+    ],
+    detect(ctx) {
+      if (categoryAbsent(ctx)) {
+        return notChecked(
+          "This report contains no table-markup data for this presentation.",
+          "not-run",
+        );
+      }
+      const line = matchAdvisory(ctx, "bare grid");
+      if (line) {
+        const n = firstNumber(line);
+        return {
+          status: "not-met",
+          evidence: [
+            n !== null
+              ? `This presentation has ${n} bare grid${n === 1 ? "" : "s"} — a table with no table style, borders, shading, or header row.`
+              : "This presentation has at least one bare grid — a table with no table style, borders, shading, or header row.",
+            "These usually line things up rather than hold data, so a header row is not expected — but it is worth checking that none of them is really a data table whose style was removed.",
+          ],
+          fix: {
+            source:
+              "If a flagged grid genuinely holds data, select it in PowerPoint, apply a table style (Table Design), and check Header Row. If it only lines things up, no change is needed.",
+            app: OFFICE_FIX_APP,
+          },
+        };
+      }
+      if (matchMain(ctx, "no tables were found")) {
+        return { status: "not-applicable", evidence: ["This presentation has no tables."] };
+      }
+      // ORDER IS LOAD-BEARING: pptx.ts pushes "N table(s) found."
+      // unconditionally whenever any table exists, before the bare-grid
+      // advisory — a deck with a bare grid carries both, so the advisory
+      // check above must win. The two eras, as in docx-layout-grids:
+      //   SINCE 2026-10-05 the advisory fires for every bare grid of two or
+      //   more rows and columns, and "N data table(s) have no header row"
+      //   excludes bare grids — a scored WCAG 1.3.1 failure, so this row
+      //   defers to the score.
+      //   BEFORE it, that line counted bare grids too (a bare grid has no
+      //   header row by construction), so its ABSENCE still proves there is
+      //   no bare grid — MET is sound in either era — while its PRESENCE is
+      //   ambiguous.
+      const headerless = matchAdvisory(ctx, "data table(s) have no header row");
+      if (matchMain(ctx, "table(s) found")) {
+        if (!headerless) {
+          return {
+            status: "met",
+            evidence: [
+              // pptx.ts counts a bare grid only at two or more rows and
+              // columns; the claim is scoped to what it examined.
+              "This presentation's tables with two or more rows and columns were checked, and none is a bare, unstyled grid.",
+            ],
+          };
+        }
+        if (ctx.analyzedAt && ctx.analyzedAt < new Date("2026-10-05")) {
+          return notChecked(
+            "This report predates the check that tells a bare layout grid apart from a data table missing its header, so this one needs a person's eye.",
+          );
+        }
+        return {
+          status: "not-applicable",
+          evidence: [
+            `This presentation has a data table with no header row. That is ${SCORED_IN_PLAN}`,
+          ],
+        };
+      }
+      return notChecked(
+        "This report contains no finding about bare layout grids in this presentation.",
+      );
+    },
+  },
 
   // =========================================================================
   // EXCEL

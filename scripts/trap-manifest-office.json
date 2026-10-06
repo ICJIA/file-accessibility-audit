@@ -1,6 +1,6 @@
 {
-  "count": 65,
-  "generated": "2026-10-05",
+  "count": 67,
+  "generated": "2026-10-06",
   "items": [
     {
       "file": "synthetic-101-docx-bold-fake-headings.docx",
@@ -328,6 +328,16 @@
       "file": "synthetic-178-docx-16-of-23-images-described.docx",
       "label": "Word: 16 of 23 images described — now the same letter as the PDF",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-184-docx-language-on-the-text.docx",
+      "label": "Word: no default language, every word marked English — fixed exactly as advised",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-185-pptx-one-stray-language.pptx",
+      "label": "PowerPoint: one French greeting is the deck's only language mark",
+      "chip": "caught"
     }
   ]
 }

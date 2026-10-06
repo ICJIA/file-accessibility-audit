@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-10-05",
+  "blessed": "2026-10-06",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -724,12 +724,12 @@
       }
     },
     "FINAL REPORT PDF FOR POSTING-230207T16344430.pdf": {
-      "score": 69,
+      "score": 64,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "70|Minor",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -980,12 +980,12 @@
       }
     },
     "Juvenile Justice System and Risk Factor Data 2007 Annual Report.pdf": {
-      "score": 68,
+      "score": 62,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
-        "heading_structure": "100|No scored issues",
+        "heading_structure": "60|Moderate",
         "alt_text": "6|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "70|Minor",
@@ -1140,12 +1140,12 @@
       }
     },
     "SFY_24_ICJIA_Annual_Report_FINAL_2538a182e5_1731f93851.pdf": {
-      "score": 69,
+      "score": 66,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No scored issues",
         "table_markup": "45|Moderate",
@@ -1543,12 +1543,12 @@
       }
     },
     "not_-accessible_SFY_25_Annual_Report_Final_67436fc6ff_ba00340a2f.pdf": {
-      "score": 69,
+      "score": 67,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No scored issues",
         "table_markup": "null|none",
@@ -3402,6 +3402,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-179-untagged-section-headings.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "60|Moderate",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-18-rasterized-lettering.pdf": {
       "score": 69,
       "grade": "D",
@@ -3415,6 +3431,102 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-180-section-headings-tagged-twin.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-181-cover-page-not-sections.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-182-pull-quote-not-a-heading.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-183-captions-not-headings.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-184-docx-language-on-the-text.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-185-pptx-one-stray-language.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

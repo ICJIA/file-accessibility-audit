@@ -313,6 +313,9 @@ function pptx(
     slideBgHex?: string;
     /** Replaces docProps/core.xml verbatim — e.g. a part that cannot be parsed. */
     coreXml?: string;
+    /** false = no deck-wide default language in presentation.xml (Google
+     *  Slides exports omit it); the runs' own marks are then all there is. */
+    declareLanguage?: boolean;
   } = {},
 ): Promise<Buffer> {
   const files: Record<string, string> = {
@@ -335,7 +338,7 @@ ${slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" Conte
     "ppt/presentation.xml": `${XMLDECL}
 <p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`).join("")}</p:sldIdLst>
-<p:defaultTextStyle xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:lvl1pPr><a:defRPr lang="en-US"/></a:lvl1pPr></p:defaultTextStyle>
+${opts.declareLanguage === false ? "" : '<p:defaultTextStyle xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:lvl1pPr><a:defRPr lang="en-US"/></a:lvl1pPr></p:defaultTextStyle>'}
 </p:presentation>`,
     "ppt/_rels/presentation.xml.rels": `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -2097,6 +2100,57 @@ const SAMPLES: Sample[] = [
         : "points lost with no 1.1.1 failure attributed to alt_text";
     },
   },
+  // ---- v1.161.0: the language declared on most of the text (2026-10-06) ----
+  {
+    file: "synthetic-184-docx-language-on-the-text.docx",
+    truth:
+      "A Word notice with no document-wide default language — no styles default, no core-properties language — whose every run is marked en-US: exactly what this report's own advice (select all the text → Review → Language → Set Proofing Language) writes. Word read only the document default, so a file fixed exactly as advised was still accused of declaring no language — 3.1.1 named, a C ceiling (found 2026-10-06). The language declared on most of the text is the document's language, as PowerPoint has always read it: title_language 100, the finding says where the language came from, nothing asserted, 100/A.",
+    build: () =>
+      docx(
+        [
+          HEADING_LANG(1, "Public Meeting Notice", "en-US"),
+          P_LANG(BODY_TEXT, "en-US"),
+          P_LANG(BODY_TEXT, "en-US"),
+        ].join(""),
+        { title: "Public Meeting Notice", styles: true, language: null },
+      ),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 100) return `a document fixed as advised scored ${c.score}`;
+      if (!/declared on the text itself/.test(c.findings.join(" ")))
+        return "the finding does not say the language is declared on the text";
+      if (accused(r, "title_language")) return "3.1.1 asserted against text marked en-US";
+      return r.overallScore === 100 ? null : `the notice scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-185-pptx-one-stray-language.pptx",
+    truth:
+      "A deck with no deck-wide default language whose only language mark is one short French greeting; all the rest of its text is unmarked. PowerPoint credited ANY run's language, so that one word stood in for the whole deck and it got full language credit (until 2026-10-06). The language must cover more than half of the text to be the deck's: no presentation language, title_language 50, 3.1.1 named, a 79/C ceiling.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Update") +
+            `<p:sp><p:nvSpPr><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:rPr lang="fr-FR"/><a:t>Bienvenue</a:t></a:r></a:p><a:p><a:r><a:t>Enrollment rose twelve percent this quarter across every region in the state.</a:t></a:r></a:p></p:txBody></p:sp>`,
+          SLIDE_TITLE("Next Steps") +
+            SLIDE_BODY(
+              "The budget review is scheduled for March, with a public comment period after it.",
+            ),
+        ],
+        { title: "Program Update", declareLanguage: false },
+      ),
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score === null) return "title_language unscored";
+      if (c.score !== 50) return `one marked word stood in for the deck: title_language ${c.score}`;
+      if (!names(r, "3.1.1", "title_language"))
+        return "the missing language cost points with no 3.1.1 failure named";
+      return r.overallScore === 79
+        ? null
+        : `the deck graded ${r.overallScore}/${r.grade}, not 79/C`;
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
@@ -2233,6 +2287,14 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-184-docx-language-on-the-text.docx": {
+    label: "Word: no default language, every word marked English — fixed exactly as advised",
+    chip: "bug",
+  },
+  "synthetic-185-pptx-one-stray-language.pptx": {
+    label: "PowerPoint: one French greeting is the deck's only language mark",
+    chip: "caught",
+  },
   "synthetic-170-pptx-bare-layout-grid.pptx": {
     label:
       "PowerPoint: an agenda lined up in a table stripped bare — no style, borders or header row",

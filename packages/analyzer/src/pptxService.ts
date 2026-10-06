@@ -21,6 +21,7 @@ import {
   languageSample,
   addLanguagePrimary,
   LANGUAGE_SAMPLE_CHARS,
+  predominantLanguage,
   rootElement,
   parseRelationships,
   parseRelationshipEntries,
@@ -92,6 +93,9 @@ export interface PptxAnalysis {
   };
   hasMedia: boolean;
   shapeCount: number;
+  /** True when the deck sets no default language and `metadata.language` is
+   *  the one declared on most of its visible text (2026-10-06). */
+  languageFromText?: boolean;
   /** The first ~4,000 characters of visible slides' text, in slide order —
    *  the sample the declared language is checked against (2026-10-05, as
    *  PDF's textSample). Never leaves the worker. */
@@ -380,13 +384,15 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   // analysis OUTPUT shape is unchanged for valid documents.
   let textElementCount = 0;
 
-  // Run-level language tally. PresentationML stores language on each run's
-  // a:rPr@lang; deck-level defaults are frequently ABSENT (Google Slides
-  // exports systematically omit them) while every run still declares its
-  // language. Used after the slide loop as a fallback for
-  // metadata.language, so 3.1.1 is only ever asserted when no language
-  // exists anywhere in the file.
-  const runLangTally = new Map<string, number>();
+  // Run-level language tally, by characters of text. PresentationML stores
+  // language on each run's a:rPr@lang; deck-level defaults are frequently
+  // ABSENT (Google Slides exports systematically omit them) while every run
+  // still declares its language. With no deck default, the language declared
+  // on MORE THAN HALF of the visible text is the deck's language
+  // (predominantLanguage — 2026-10-06, Word's rule too). Until then ANY run's
+  // language stood in for the deck, so one stray marked word could.
+  const textLangChars = new Map<string, number>();
+  let textChars = 0;
 
   for (let i = 0; i < slidePaths.length; i++) {
     const slideXml = await read(slidePaths[i]);
@@ -472,9 +478,20 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       }
     }
 
-    for (const rPr of descendants(slideRoot, "rPr")) {
-      const runLang = attrOf(rPr, "lang");
-      if (runLang) runLangTally.set(runLang, (runLangTally.get(runLang) ?? 0) + 1);
+    if (attrOf(slideRoot, "show") !== "0") {
+      for (const p of descendants(slideRoot, "p")) {
+        const pPr = firstChild(p, "pPr");
+        const pDefRPr = pPr ? firstChild(pPr, "defRPr") : undefined;
+        const paragraphLang = (pDefRPr ? (attrOf(pDefRPr, "lang") ?? "") : "").trim();
+        for (const r of childrenOf(p).filter((c) => tagOf(c) === "r")) {
+          const n = textOf(r).trim().length;
+          if (n === 0) continue;
+          textChars += n;
+          const rPr = firstChild(r, "rPr");
+          const lang = (rPr ? (attrOf(rPr, "lang") ?? "") : "").trim() || paragraphLang;
+          if (lang) textLangChars.set(lang, (textLangChars.get(lang) ?? 0) + n);
+        }
+      }
     }
     // Hidden slides are not presented, so they neither feed the sample nor
     // vouch for a language.
@@ -493,8 +510,12 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     collectSlideContent(analysis, slideRoot, relMap, schemeColorMap, spTree, masterBodyBullets);
   }
 
-  if (!analysis.metadata.language && runLangTally.size > 0) {
-    analysis.metadata.language = [...runLangTally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  if (!analysis.metadata.language) {
+    const fromText = predominantLanguage(textLangChars, textChars);
+    if (fromText) {
+      analysis.metadata.language = fromText;
+      analysis.languageFromText = true;
+    }
   }
   analysis.textSample = textSample;
   analysis.declaredLanguages = [...declaredLanguageSet].sort();

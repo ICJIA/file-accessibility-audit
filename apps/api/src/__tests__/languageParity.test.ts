@@ -197,3 +197,110 @@ describe("Word reads its default language from where Word declares it", () => {
     expect(a.metadata.language).toBe("en-US");
   });
 });
+
+// THE LANGUAGE MOST OF THE TEXT DECLARES (2026-10-06; one rule for Word and
+// PowerPoint, a user decision). With no document-wide default, the language
+// declared on more than half of the text IS the document's language. Word
+// read only the document default, so a file fixed exactly as this report
+// advises — select all the text, Review → Language → Set Proofing Language,
+// which marks every run — was still accused of declaring no language.
+// PowerPoint already read run languages, but credited ANY run's language, so
+// one stray marked run could stand in for a whole deck.
+describe("with no document default, the language declared on most of the text is the language", () => {
+  const STYLES_NO_LANG =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="BodyText"><w:name w:val="Body Text"/><w:basedOn w:val="Normal"/><w:rPr><w:lang w:val="en-US"/></w:rPr></w:style></w:styles>';
+  const CORE_NO_LANG =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Course Syllabus</dc:title></cp:coreProperties>';
+  /** Each sentence a paragraph; `langs[i]` marks sentence i's run (undefined = unmarked). */
+  const wordDoc = (langs: Array<string | undefined>, pStyle?: string) => {
+    const body = ENGLISH.map((s, i) => {
+      const pPr = pStyle ? `<w:pPr><w:pStyle w:val="${pStyle}"/></w:pPr>` : "";
+      const rPr = langs[i] ? `<w:rPr><w:lang w:val="${langs[i]}"/></w:rPr>` : "";
+      return `<w:p>${pPr}<w:r>${rPr}<w:t>${s}</w:t></w:r></w:p>`;
+    }).join("");
+    return buildDocx({ body, stylesXml: STYLES_NO_LANG, coreXml: CORE_NO_LANG });
+  };
+  const deck = (langs: Array<string | undefined>) =>
+    buildPptx({
+      slides: [
+        {
+          title: "Course Syllabus",
+          body: bodyShape(
+            ENGLISH.map((s, i) => para(s, langs[i] ? { lang: langs[i] } : {})).join(""),
+          ),
+        },
+      ],
+      declareLanguage: false,
+      coreXml: CORE_NO_LANG,
+    });
+  const verdictOf = async (buf: Buffer, name: string) => {
+    const r = await analyzeDocument(buf, name);
+    const cat = r.categories.find((c) => c.id === "title_language")!;
+    return {
+      score: cat.score,
+      failed311: (r.conformance?.failures ?? []).some(
+        (f) => f.sc === "3.1.1" && f.category === "title_language",
+      ),
+      findings: cat.findings.join(" "),
+    };
+  };
+  const ALL_EN = ["en-US", "en-US", "en-US", "en-US"];
+  const STRAY = [undefined, undefined, "fr-FR", undefined];
+
+  it("Word: every run marked en-US — what Set Proofing Language on a selection writes — is a declared language", async () => {
+    const v = await verdictOf(await wordDoc(ALL_EN), "syllabus.docx");
+    expect(v.score).toBe(100);
+    expect(v.failed311).toBe(false);
+    expect(v.findings).toMatch(/Document language: en-US \(declared on the text itself/);
+  });
+
+  it("PowerPoint: every run marked en-US is a declared language (unchanged)", async () => {
+    const v = await verdictOf(await deck(ALL_EN), "syllabus.pptx");
+    expect(v.score).toBe(100);
+    expect(v.failed311).toBe(false);
+    expect(v.findings).toMatch(/Presentation language: en-US \(declared on the text itself/);
+  });
+
+  it.each([
+    ["docx", () => wordDoc(STRAY), "syllabus.docx"],
+    ["pptx", () => deck(STRAY), "syllabus.pptx"],
+  ] as const)(
+    "%s: one stray marked run is not the language of the whole file",
+    async (_f, build, name) => {
+      const v = await verdictOf(await build(), name);
+      expect(v.score).toBe(50);
+      expect(v.failed311).toBe(true);
+    },
+  );
+
+  it.each([
+    ["docx", () => wordDoc(["en-US", "en-GB", "en-US", "en-GB"]), "syllabus.docx"],
+    ["pptx", () => deck(["en-US", "en-GB", "en-US", "en-GB"]), "syllabus.pptx"],
+  ] as const)(
+    "%s: two English variants together are English — the majority is by language",
+    async (_f, build, name) => {
+      const v = await verdictOf(await build(), name);
+      expect(v.score).toBe(100);
+      expect(v.failed311).toBe(false);
+    },
+  );
+
+  it("Word: a language inherited from the paragraph style counts as declared on the text", async () => {
+    const v = await verdictOf(
+      await wordDoc([undefined, undefined, undefined, undefined], "BodyText"),
+      "syllabus.docx",
+    );
+    expect(v.score).toBe(100);
+    expect(v.failed311).toBe(false);
+  });
+
+  it("Word: no language anywhere is still no language", async () => {
+    const v = await verdictOf(
+      await wordDoc([undefined, undefined, undefined, undefined]),
+      "syllabus.docx",
+    );
+    expect(v.score).toBe(50);
+    expect(v.failed311).toBe(true);
+    expect(v.findings).toMatch(/No document language is declared/);
+  });
+});

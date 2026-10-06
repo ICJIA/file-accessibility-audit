@@ -1098,7 +1098,10 @@
               <em>contradicts the text's actual language</em> (a stopword-based check with four
               guards against false accusations). Word and PowerPoint declarations get the same two
               checks since 2026-10-05, with one more guard: a language the file itself marks on some
-              passage is never called a mismatch, because a screen reader switches to it there. The
+              passage is never called a mismatch, because a screen reader switches to it there. And
+              when a Word or PowerPoint file sets no document-wide language, the language marked on
+              more than half of its text is its language (since 2026-10-06) — what selecting the
+              text and setting its proofing language produces. The
               <code>DisplayDocTitle</code> viewer flag counts too (since 2026-09-01): a title that
               is set but not displayed earns half the title credit and is a confirmed 2.4.2 failure
               — W3C's own PDF technique for 2.4.2 (PDF18) sets the flag, and with it off every
@@ -1127,10 +1130,16 @@
               headings (since 2026-09-02; before that the failure was inferred from page and
               paragraph counts). Word and PowerPoint apply the same threshold (since 2026-10-05):
               with no Heading styles — or no titled slide — one bold or large line is the document's
-              title and is not scored; two or more are sections, Critical in all three formats.
-              Everything about the outline's <em>shape</em> — level skips (W3C's own guidance: not a
-              WCAG failure), multiple H1s, generic <code>/H</code> tags, mixing conventions (PDF/UA
-              7.4.4 / Matterhorn 14-007), and whether the headings' text reads like headings — is
+              title and is not scored; two or more are sections, Critical in all three formats. When
+              heading tags <em>do</em> exist, a line that looks like a section heading but is tagged
+              as an ordinary paragraph costs 15 points, at most 40 (since 2026-10-06) — Word's own
+              rule for a paragraph formatted to look like a heading. To avoid false accusations, a
+              PDF line counts only if it is its paragraph's whole text, doesn't end mid-sentence,
+              isn't a caption, and such lines appear on at least two pages (so a cover page or
+              letterhead never counts). Everything about the outline's <em>shape</em> — level skips
+              (W3C's own guidance: not a WCAG failure), multiple H1s, generic <code>/H</code> tags,
+              mixing conventions (PDF/UA 7.4.4 / Matterhorn 14-007), and whether the headings' text
+              reads like headings — is
               <strong>reported as clearly labelled advisories and never scored</strong>.
             </p>
           </div>

@@ -33,6 +33,11 @@ export interface VisualTextItem {
   x: number;
   y: number;
   width: number;
+  /** The id of the innermost marked-content sequence the item was painted
+   *  in (pdf.js's "p12R_mc3"), or null for untagged text and artifacts.
+   *  Absent when the caller did not resolve it; only untaggedVisualHeadings
+   *  reads it. */
+  mcid?: string | null;
 }
 
 export interface VisualHeadingCensus {
@@ -59,8 +64,30 @@ interface Line {
 const letterCount = (s: string): number => (s.match(/\p{L}/gu) ?? []).length;
 const roundHalf = (n: number): number => Math.round(n * 2) / 2;
 
+interface CandidateLine {
+  page: number;
+  text: string;
+  items: VisualTextItem[];
+}
+
 export function visualHeadingCensus(items: VisualTextItem[]): VisualHeadingCensus {
-  const empty: VisualHeadingCensus = { candidateCount: 0, samples: [], bodySize: null };
+  const { lines, bodySize } = candidateLines(items);
+  const samples: string[] = [];
+  for (const line of lines) {
+    if (samples.length < MAX_SAMPLES && !samples.includes(line.text)) samples.push(line.text);
+  }
+  return { candidateCount: lines.length, samples, bodySize };
+}
+
+/** The census's candidate lines, in reading order (pages in stream order,
+ *  each top to bottom) — shared by visualHeadingCensus and
+ *  untaggedVisualHeadings so the two can never disagree on what a heading-
+ *  like line is. */
+function candidateLines(items: VisualTextItem[]): {
+  lines: CandidateLine[];
+  bodySize: number | null;
+} {
+  const empty = { lines: [] as CandidateLine[], bodySize: null };
   const usable = items.filter(
     (it) =>
       typeof it.str === "string" &&
@@ -141,8 +168,7 @@ export function visualHeadingCensus(items: VisualTextItem[]): VisualHeadingCensu
     return true;
   };
 
-  let candidateCount = 0;
-  const samples: string[] = [];
+  const candidates: CandidateLine[] = [];
   for (const pageLines of byPage.values()) {
     // Top of the page first (PDF y grows upward).
     const ordered = [...pageLines].sort((a, b) => b.y - a.y);
@@ -167,10 +193,95 @@ export function visualHeadingCensus(items: VisualTextItem[]): VisualHeadingCensu
         }
       }
       if (!followedByBody) continue;
-      candidateCount++;
-      if (samples.length < MAX_SAMPLES && !samples.includes(text)) samples.push(text);
+      candidates.push({ page: line.page, text, items: line.items });
     }
   }
 
-  return { candidateCount, samples, bodySize };
+  return { lines: candidates, bodySize };
+}
+
+// ---------------------------------------------------------------------------
+// Visual headings TAGGED AS ORDINARY TEXT (2026-10-06, user decision: scored
+// like Word's "paragraph formatted to look like a heading" — 15 points each,
+// at most 40, WCAG 1.3.1).
+//
+// The census above runs only on documents with NO heading tags. In a document
+// that HAS some, the same defect is a line that looks like a section heading
+// but whose text is tagged as an ordinary paragraph: screen-reader users
+// cannot find or jump to that section. Measured against the control corpus
+// first (2026-10-06): 281 candidate lines sat outside heading tags in 13
+// tagged PDFs, and the false ones fell into recognisable shapes — each guard
+// below removes one, and what survived (160 lines in four reports) was, line
+// for line, a real section heading:
+//
+//   - Only text tagged as a paragraph (block element <P>, or <NonStruct>) —
+//     never a caption, cell, list body, TOC entry, quote, link, figure or
+//     title, all of which look like headings for good reason.
+//   - The element IS the line: the line is most of its text (which, with
+//     candidate lines capped at 80 characters, also keeps the element short).
+//     The short last line of a large-print paragraph (a pull quote, "carry
+//     out its mandates.") is part of something longer.
+//   - No trailing . , ; : — headings do not end mid-sentence ("Prepared by:",
+//     "…and Report Writer,").
+//   - Not a caption or source line ("Figure 2 …", "Table 4 …", "Source …").
+//   - Every lettered item tagged, none inside a heading, all in ONE element,
+//     on a page whose text could be attributed to its tags at all.
+//   - Lines on at least TWO pages: sections recur through a document; a cover
+//     page or letterhead is all on one.
+// ---------------------------------------------------------------------------
+
+/** Where each marked-content id sits in the structure tree. */
+export interface StructAttribution {
+  /** Ids inside a heading element (H, H1–H6). */
+  headingIds: Set<string>;
+  /** Each id's nearest BLOCK element (its nearest non-Span ancestor): a key
+   *  unique to that element, its role (after the RoleMap), and its text. */
+  elementById: Map<string, { key: string; role: string; text: string }>;
+  /** Pages whose text could not be attributed to their tags. */
+  unreliablePages: Set<number>;
+}
+
+export interface UntaggedVisualHeadings {
+  count: number;
+  /** Every counted line, in reading order. */
+  samples: Array<{ text: string; page: number }>;
+}
+
+const PARAGRAPH_ROLES = new Set(["P", "NonStruct"]);
+const MIN_LINE_SHARE_OF_ELEMENT = 0.6;
+const CAPTION_RE =
+  /^(?:figure|fig\.|table|chart|graph|map|exhibit|photo|image|source|sources|note|notes)\b/i;
+const MIN_PAGES = 2;
+
+export function untaggedVisualHeadings(
+  items: VisualTextItem[],
+  tags: StructAttribution,
+): UntaggedVisualHeadings {
+  const normalize = (t: string): string => t.replace(/\s+/g, " ").trim();
+  const kept: Array<{ text: string; page: number }> = [];
+  for (const line of candidateLines(items).lines) {
+    if (tags.unreliablePages.has(line.page)) continue;
+    if (/[.,;:]$/.test(line.text) || CAPTION_RE.test(line.text)) continue;
+    const lettered = line.items.filter((it) => letterCount(it.str) > 0);
+    const ids = lettered.map((it) => it.mcid ?? "");
+    if (ids.length === 0) continue;
+    // Text inside a heading element — even a <P> nested in an <H1> — is a
+    // heading already.
+    if (ids.some((id) => tags.headingIds.has(id))) continue;
+    // Every item must resolve to a tagged element: untagged text and
+    // artifacts have no marked-content id, so they never do.
+    const elements = ids.map((id) => tags.elementById.get(id));
+    if (elements.some((e) => !e)) continue;
+    const element = elements[0]!;
+    if (elements.some((e) => e!.key !== element.key)) continue;
+    if (!PARAGRAPH_ROLES.has(element.role)) continue;
+    const elementText = normalize(element.text);
+    // The line is most of its element. With candidate lines capped at
+    // MAX_HEADING_CHARS, this also caps the element at under two lines.
+    if (elementText.length === 0) continue;
+    if (normalize(line.text).length < MIN_LINE_SHARE_OF_ELEMENT * elementText.length) continue;
+    kept.push({ text: line.text, page: line.page });
+  }
+  if (new Set(kept.map((k) => k.page)).size < MIN_PAGES) return { count: 0, samples: [] };
+  return { count: kept.length, samples: kept };
 }

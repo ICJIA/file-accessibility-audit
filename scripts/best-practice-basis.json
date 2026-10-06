@@ -1,6 +1,6 @@
 {
   "//": "Reviewed co-occurrences: a Best-practice row reading NOT MET on a document whose SAME category carries a failing WCAG criterion. Each entry means a person confirmed the row is about a different defect than the failure. Regenerate with `pnpm best-practice-basis --bless` and fill in `reviewed` in the same commit.",
-  "blessed": "2026-09-02",
+  "blessed": "2026-10-06",
   "pairs": [
     {
       "practice": "character-mapping",
@@ -31,6 +31,20 @@
       "reviewed": "Different defects. The 1.3.1 failure in text_extractability is untagged visible content or unmappable characters past the scored threshold; this row is about whether a font's glyph program ships inside the file. Assistive technology reads the encoding, not the embedded outlines, so embedding is a print-fidelity matter."
     },
     {
+      "practice": "heading-content",
+      "category": "heading_structure",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects in the same category. The SCORED 1.3.1 failure is about section titles with NO heading tag (they are tagged as paragraphs). This row is the unscored heuristic about the TEXT inside heading tags that exist — whether each reads like a heading (not empty, not half a sentence, not a whole paragraph). One is about headings missing from the outline, the other about the quality of what is in it. Reviewed 2026-10-06 on the Juvenile Justice 2007, SFY24 and SFY25 annual reports."
+    },
+    {
+      "practice": "heading-level-order",
+      "category": "heading_structure",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects in the same category. The SCORED 1.3.1 failure is about lines that look like section headings but are tagged as ordinary paragraphs (untaggedVisualHeadings, 2026-10-06): those sections have no heading tag at all, so screen-reader users cannot find them. This row is about the LEVELS of the heading tags that DO exist — whether the outline skips a level (H1 → H3), which W3C says is not a WCAG failure (Matterhorn 14, PDF/UA). Tagging the missing headings neither creates nor repairs a level skip among the existing ones. Reviewed 2026-10-06 on the Juvenile Justice 2007 annual report."
+    },
+    {
       "practice": "pptx-raw-url-link-text",
       "category": "link_quality",
       "sc": "4.1.2",
@@ -43,6 +57,13 @@
       "sc": "1.3.1",
       "level": "A",
       "reviewed": "Different defects. The scored 1.3.1 failure in link_quality is a link with no tag around it, so no link relationship exists to expose; this row is about the wording of a link that IS tagged. A raw URL satisfies 2.4.4 Level A on its own terms."
+    },
+    {
+      "practice": "single-h1",
+      "category": "heading_structure",
+      "sc": "1.3.1",
+      "level": "A",
+      "reviewed": "Different defects in the same category. The SCORED 1.3.1 failure is about section titles with NO heading tag. This row is the advisory that more than one heading is tagged H1 — a style-guide convention no WCAG criterion requires (PDF/UA permits repeated H1s). Retagging the untagged section titles as H2/H3 would leave the H1 count unchanged. Reviewed 2026-10-06 on the Juvenile Justice 2007 annual report."
     },
     {
       "practice": "table-scope-simple",

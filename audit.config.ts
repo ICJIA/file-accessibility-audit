@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "untagged-headings-text-language-2026-10-06",
+    badge: "Scoring",
+    text: "PDF section titles that look like headings but are tagged as plain text now cost what they always cost in a Word file \u2014 two annual reports that tag only three of their headings had been told \u201cNo issues found\u201d. The check ignores cover pages, letterheads, pull quotes and captions, which look like headings and are not. A language marked on the text itself now counts in Word as it already did in PowerPoint, so a file fixed exactly as this report advises \u2014 select all the text, then set its proofing language \u2014 is no longer told it has no language; in both, the language must cover most of the text. PowerPoint also gets the best-practice check Word has for tables used only to line things up.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 6, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "cross-format-parity-smaller-2026-10-05",
     badge: "Scoring",
     text: "The last small grading differences between file formats are closed. Light-colored text typed onto an Excel spreadsheet\u2019s plain grid is now checked for contrast, as the same text in a Word document always was, and a Word or PowerPoint file whose declared language does not match its text \u2014 a Spanish notice labeled English, for example \u2014 is now flagged, as PDF files already were. A table used only to line things up on a slide is no longer graded as a data table, a damaged file is no longer reported as having no title, and the same share of described images now earns the same score whatever program made the file. A logo in a Word document\u2019s page header still needs a description or a decorative mark, and the report now says where it is and how to mark it.",

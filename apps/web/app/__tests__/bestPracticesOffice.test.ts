@@ -165,6 +165,16 @@ const PPTX_DUP_TWO =
 const PPTX_RAW_URL =
   "Advisory — not scored against you: 3 link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.";
 
+// pptx.ts's table_markup findings[0] — pushed unconditionally whenever
+// a.tables.length > 0, before the bare-grid advisory (2026-10-05). Witnesses
+// pptx-layout-grids.
+const PPTX_TABLE_WITNESS = "2 table(s) found.";
+const PPTX_NO_TABLES = "No tables were found.";
+const PPTX_LAYOUT_GRIDS =
+  "Advisory — not scored: 1 bare grid(s) with no table style, borders, shading, or header row — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.";
+const PPTX_NO_HEADER_ROW =
+  '1 data table(s) have no header row. In PowerPoint: select the table → Table Design → check "Header Row", and mark the top row\'s cells as headers.';
+
 // ---- verbatim analyzer output, packages/analyzer/src/scoring/xlsx.ts ------
 
 const XLSX_NO_SHEETS = "No visible sheets were found.";
@@ -238,6 +248,7 @@ const NOT_MET_TRIGGERS: Record<string, string[]> = {
   "pptx-slide-titles": [PPTX_UNTITLED_MANY],
   "pptx-distinct-slide-titles": [PPTX_DUP_ONE],
   "pptx-raw-url-link-text": [PPTX_LINK_WITNESS, PPTX_RAW_URL],
+  "pptx-layout-grids": [PPTX_TABLE_WITNESS, PPTX_LAYOUT_GRIDS],
   "xlsx-sheet-names": [XLSX_RENAME_ONE, XLSX_RENAME_TWO],
   "xlsx-defined-tables": [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE],
   "xlsx-data-outside-tables": [XLSX_TABLE_WITNESS, XLSX_DATA_OUTSIDE_TABLE],
@@ -838,11 +849,65 @@ describe("xlsx-raw-url-link-text", () => {
   });
 });
 
+// PowerPoint's twin of docx-layout-grids (2026-10-06). Since v1.160.0 a
+// PowerPoint table stripped bare — no style, borders, fill or header row — is
+// a layout grid, as in Word, and the scorer reports it as an advisory; until
+// this row existed nothing in the catalog read that advisory for a deck.
+describe("pptx-layout-grids", () => {
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("pptx-layout-grids", [PPTX_TABLE_WITNESS, PPTX_LAYOUT_GRIDS]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/1 bare grid\b/);
+    expect(JSON.stringify(r.fix)).toMatch(/PowerPoint/);
+  });
+
+  it("is NOT APPLICABLE when the deck has no tables", () => {
+    expect(run("pptx-layout-grids", [PPTX_NO_TABLES]).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED — not NOT APPLICABLE — when the category itself is absent", () => {
+    const ctx = buildContext(null, "pptx", 0);
+    expect(practice("pptx-layout-grids").detect(ctx).status).toBe("not-checked");
+  });
+
+  it("is MET when the witness is present with no bare-grid advisory", () => {
+    expect(run("pptx-layout-grids", [PPTX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
+    expect(run("pptx-layout-grids", []).status).toBe("not-checked");
+  });
+
+  it("a headerless table defers to the score on a current payload, and hedges on an older one", () => {
+    // Before v1.160.0 PowerPoint counted a bare grid as an unheadered data
+    // table, so on an older payload that line is ambiguous; since then it
+    // excludes bare grids and is a scored 1.3.1 failure. Neither is MET.
+    const old = practice("pptx-layout-grids").detect(
+      buildContext(
+        { findings: [PPTX_TABLE_WITNESS, PPTX_NO_HEADER_ROW] },
+        "pptx",
+        0,
+        new Date("2026-10-01"),
+      ),
+    );
+    expect(old.status).toBe("not-checked");
+    expect(old.evidence.join(" ")).toMatch(/predates/);
+    const current = run("pptx-layout-grids", [PPTX_TABLE_WITNESS, PPTX_NO_HEADER_ROW]);
+    expect(current.status).toBe("not-applicable");
+    expect(current.evidence.join(" ")).toMatch(/counted in your score/);
+  });
+
+  it("is era-gated to the advisory's ship date", () => {
+    expect(practice("pptx-layout-grids").advisorySince).toBe("2026-10-05");
+  });
+});
+
 describe("every Office practice", () => {
-  it("has exactly the 18 catalogued practices", () => {
+  it("has exactly the 22 catalogued practices", () => {
     // 19 until 2026-08-31, when docx-empty-headings became a scored WCAG
-    // 1.3.1 (Level A) failure and left this catalog for the action plan.
-    expect(OFFICE_PRACTICES.length).toBe(21);
+    // 1.3.1 (Level A) failure and left this catalog for the action plan;
+    // pptx-layout-grids joined on 2026-10-06.
+    expect(OFFICE_PRACTICES.length).toBe(22);
     expect(OFFICE_PRACTICES.some((p) => p.id === "docx-empty-headings")).toBe(false);
   });
 
@@ -1045,8 +1110,9 @@ describe("advisorySince is declared on every witness-based Office practice", () 
     );
     // 15 since 2026-08-31 (docx-empty-headings left this catalog when it
     // became a scored WCAG 1.3.1 failure); 18 since 2026-09-01, when the
-    // three descriptive-link twins arrived — witness-based like the rest.
-    expect(witnessBased.length).toBe(18);
+    // three descriptive-link twins arrived — witness-based like the rest;
+    // 19 since 2026-10-06 (pptx-layout-grids).
+    expect(witnessBased.length).toBe(19);
     for (const p of witnessBased) expect(p.advisorySince, p.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

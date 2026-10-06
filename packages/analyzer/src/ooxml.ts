@@ -187,6 +187,42 @@ export function addLanguagePrimary(into: Set<string>, value: string | undefined)
   if (/^[a-z]{2,3}$/.test(primary) && into.size < 32) into.add(primary);
 }
 
+/**
+ * The language declared on MORE THAN HALF of a file's text, for a file with
+ * no document-wide default (2026-10-06 — one rule for Word and PowerPoint, a
+ * user decision). `chars` maps each run-level tag to the characters of text
+ * it covers; `totalChars` counts ALL the text, declared or not. The majority
+ * is taken by LANGUAGE — en-US and en-GB together are English — and the
+ * most-used tag of that language is returned. A value that is not a language
+ * code ("english") still counts as a declaration, grouped by its own text, so
+ * the scorer can report it as unusable rather than as missing.
+ *
+ * Why a majority: Review → Language → Set Proofing Language on a selection
+ * (Microsoft's documented route, and this report's advice) marks every run,
+ * so the text's language IS programmatically determined even though no
+ * document default exists — while one stray marked word is not the language
+ * of the whole file.
+ */
+export function predominantLanguage(chars: Map<string, number>, totalChars: number): string | null {
+  if (!(totalChars > 0)) return null;
+  const groups = new Map<string, { total: number; bestTag: string; bestChars: number }>();
+  for (const [rawTag, n] of chars) {
+    const tag = rawTag.trim();
+    if (!tag || !(n > 0)) continue;
+    const key = (/^([a-z]{2,3})(?:[-_]|$)/i.exec(tag)?.[1] ?? tag).toLowerCase();
+    const g = groups.get(key) ?? { total: 0, bestTag: tag, bestChars: 0 };
+    g.total += n;
+    if (n > g.bestChars) {
+      g.bestTag = tag;
+      g.bestChars = n;
+    }
+    groups.set(key, g);
+  }
+  let winner: { total: number; bestTag: string } | null = null;
+  for (const g of groups.values()) if (!winner || g.total > winner.total) winner = g;
+  return winner && winner.total * 2 > totalChars ? winner.bestTag : null;
+}
+
 /** The single root element of a parsed part (skips the xml declaration node). */
 export function rootElement(nodes: PONode[], tag: string): PONode | undefined {
   return nodes.find((n) => tagOf(n) === tag);

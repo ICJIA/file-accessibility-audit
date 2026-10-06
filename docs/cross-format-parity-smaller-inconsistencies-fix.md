@@ -124,7 +124,7 @@ An Office file with a fine title and a language problem therefore fell to the co
 ## 8. Not changed, by decision or by limit
 
 - **Proportional scoring stays (user decision).** Alt text and link names are scored as a share, so a sparse document and a rich one with the same single defect score differently: one undescribed image out of one is 0, and one out of ten is 90. That is deliberate. In the first document all of the visual information is lost; in the second, a tenth. `shareScore` carries the reasoning in its doc-comment.
-- **PDF cannot see a visual heading beside real heading tags.** Word and PowerPoint score a fake heading beside real ones (15 each, at most 40). PDF's visual-heading census (`visualHeadings.ts`) runs only when a document has **no** heading tags. Matching rendered lines against tagged headings, to find the untagged one among them, is not reliable enough to accuse on. This is a documented automation limit, not a severity difference.
+- **Fixed in v1.161.0 — see `untagged-visual-headings-and-text-language-fix.md`.** **PDF cannot see a visual heading beside real heading tags.** Word and PowerPoint score a fake heading beside real ones (15 each, at most 40). PDF's visual-heading census (`visualHeadings.ts`) runs only when a document has **no** heading tags. Matching rendered lines against tagged headings, to find the untagged one among them, is not reliable enough to accuse on. This is a documented automation limit, not a severity difference.
 
 ## 9. Verification
 

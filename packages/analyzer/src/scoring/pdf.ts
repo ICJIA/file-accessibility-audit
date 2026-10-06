@@ -20,6 +20,7 @@ import {
   structTreeIsContentFree,
   untaggedContentImageCount,
   headingOutlineLines,
+  truncateHeadingText,
   splitNonEmbeddedFonts,
   isPlausibleLanguageTag,
   type ScoringResult,
@@ -813,6 +814,31 @@ function headingContentVerdict(census: HeadingContentCensus | null): {
   return { score: 100, findings };
 }
 
+// Heading-like lines TAGGED AS ORDINARY TEXT beside real heading tags
+// (2026-10-06, user decision). The PDF form of Word's "paragraph formatted to
+// look like a heading", scored exactly as Word scores it beside real Heading
+// styles — 15 points each, at most 40 (WCAG 1.3.1): screen-reader users cannot
+// find or jump to those sections. The evidence and its guards live in
+// visualHeadings.ts (untaggedVisualHeadings); it never counts fewer than two
+// pages' worth, so one cover page or letterhead cannot trip it. The
+// conformance gate's rule 6c mirrors this expression — change them together.
+const MAX_UNTAGGED_HEADING_LINES = 15;
+function untaggedHeadingDeduction(pdfjs: PdfjsResult): { deduction: number; findings: string[] } {
+  const n = pdfjs.untaggedVisualHeadingCount ?? 0;
+  if (n <= 0) return { deduction: 0, findings: [] };
+  const findings = [
+    `${n} line(s) are formatted to look like headings (larger or bold text standing over a section) but are tagged as ordinary paragraphs, not headings — screen-reader users cannot find or jump to those sections. Retag each one as a heading at its level in the outline (in Acrobat's Tags panel, change its <P> tag to H2, H3 …), or apply Heading 1–6 styles in the source document and export the PDF again.`,
+    "--- Lines Styled Like Headings ---",
+    ...(pdfjs.untaggedVisualHeadingSamples ?? [])
+      .slice(0, MAX_UNTAGGED_HEADING_LINES)
+      .map((l) => `  "${truncateHeadingText(l.text)}" (page ${l.page})`),
+  ];
+  if (n > MAX_UNTAGGED_HEADING_LINES) {
+    findings.push(`  ... and ${n - MAX_UNTAGGED_HEADING_LINES} more line(s)`);
+  }
+  return { deduction: Math.min(40, n * 15), findings };
+}
+
 // VISUAL_HEADINGS_FOR_FAILURE (packages/shared): visual heading candidates
 // needed before "no heading tags" is a failure — two lines over body text is
 // sections; one is a title. Shared since 2026-10-05, when Word and PowerPoint
@@ -949,13 +975,17 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     findings.push(
       "How to fix (optional): In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
     );
+    const untaggedGeneric = untaggedHeadingDeduction(pdfjs);
+    findings.unshift(...untaggedGeneric.findings.slice(0, 1));
+    findings.push(...untaggedGeneric.findings.slice(1));
+    const genericScore = 100 - untaggedGeneric.deduction;
     return {
       id: "heading_structure",
       label: "Heading Structure",
       weight: SCORING_WEIGHTS.heading_structure,
-      score: 100,
-      grade: "A",
-      severity: "No issues found",
+      score: genericScore,
+      grade: getGrade(genericScore),
+      severity: getSeverity(genericScore),
       findings,
       explanation: headingExplanation,
       helpLinks: headingLinks,
@@ -1039,13 +1069,17 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   }
 
   findings.push(`Found ${levels.length} heading tags with logical hierarchy`);
+  const untagged = untaggedHeadingDeduction(pdfjs);
+  findings.unshift(...untagged.findings.slice(0, 1));
+  findings.push(...untagged.findings.slice(1));
+  const score = 100 - untagged.deduction;
   return {
     id: "heading_structure",
     label: "Heading Structure",
     weight: SCORING_WEIGHTS.heading_structure,
-    score: 100,
-    grade: "A",
-    severity: "No issues found",
+    score,
+    grade: getGrade(score),
+    severity: getSeverity(score),
     findings,
     explanation: headingExplanation,
     helpLinks: headingLinks,

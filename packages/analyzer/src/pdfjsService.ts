@@ -1,4 +1,9 @@
-import { visualHeadingCensus, type VisualTextItem } from "./visualHeadings.js";
+import {
+  visualHeadingCensus,
+  untaggedVisualHeadings,
+  type StructAttribution,
+  type VisualTextItem,
+} from "./visualHeadings.js";
 import { classifyTitleShape } from "./titleShape.js";
 
 export interface PdfMetadata {
@@ -41,6 +46,13 @@ export interface PdfjsResult {
    *  requires; absent on stored reports from before it existed. */
   visualHeadingCandidateCount?: number;
   visualHeadingSamples?: string[];
+  /** Lines that look like section headings but whose text is tagged as an
+   *  ordinary paragraph (2026-10-06) — untaggedVisualHeadings in
+   *  visualHeadings.ts, with every guard it applies. Scored only in a
+   *  document that HAS heading tags (the zero-tags case is the census above).
+   *  Samples are capped; the count is not. Absent on older stored reports. */
+  untaggedVisualHeadingCount?: number;
+  untaggedVisualHeadingSamples?: Array<{ text: string; page: number }>;
   author: string | null;
   subject: string | null;
   lang: string | null;
@@ -347,6 +359,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     // its rendered size, position, and — when the loaded font's name says so
     // — boldness. Cheap (one entry per item already in hand).
     const visualItems: VisualTextItem[] = [];
+    const attribution: StructAttribution = {
+      headingIds: new Set(),
+      elementById: new Map(),
+      unreliablePages: new Set(),
+    };
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
 
@@ -356,7 +373,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       // keep their exact pre-existing semantics.
       const textContent = await page.getTextContent({ includeMarkedContent: true });
       const textItems = textContent.items.filter((item: any) => typeof item.str === "string");
-      collectVisualItems(page, i, textItems, visualItems);
+      collectVisualItems(page, i, textItems, visualItems, markedContentIdsOf(textContent.items));
       const pageText = textItems.map((item: any) => item.str || "").join(" ");
       totalText += pageText + " ";
 
@@ -404,6 +421,16 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           ).length,
           idsWithText: textById.size,
         });
+
+      // Where each marked-content id sits in the tree, for the
+      // untagged-visual-heading check (2026-10-06). A page whose text could
+      // not be attributed says nothing about it.
+      if (tree && textById) {
+        try {
+          collectStructAttribution(tree, textById, attribution);
+        } catch {}
+        if (!pageTextReliable) attribution.unreliablePages.add(i);
+      }
 
       // Link annotations. A link's text is what its <Link> element contains —
       // exact marked-content runs, not "whatever text starts inside the
@@ -683,6 +710,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     const visual = visualHeadingCensus(visualItems);
     result.visualHeadingCandidateCount = visual.candidateCount;
     result.visualHeadingSamples = visual.samples;
+    const untagged = untaggedVisualHeadings(visualItems, attribution);
+    result.untaggedVisualHeadingCount = untagged.count;
+    result.untaggedVisualHeadingSamples = untagged.samples.slice(0, MAX_UNTAGGED_HEADING_SAMPLES);
 
     result.textLength = totalText.trim().length;
     result.hasText = result.textLength > 50; // Minimum meaningful text
@@ -715,6 +745,7 @@ function collectVisualItems(
   pageNumber: number,
   textItems: any[],
   out: VisualTextItem[],
+  mcids: Array<string | null> = [],
 ): void {
   const boldByFont = new Map<string, boolean>();
   const isBold = (fontName: unknown): boolean => {
@@ -735,11 +766,11 @@ function collectVisualItems(
     boldByFont.set(fontName, bold);
     return bold;
   };
-  for (const item of textItems) {
+  textItems.forEach((item, index) => {
     const tr = item?.transform;
-    if (!Array.isArray(tr) || tr.length < 6) continue;
+    if (!Array.isArray(tr) || tr.length < 6) return;
     const size = Math.hypot(tr[0], tr[1]) || (typeof item.height === "number" ? item.height : 0);
-    if (!(size > 0)) continue;
+    if (!(size > 0)) return;
     out.push({
       page: pageNumber,
       str: String(item.str ?? ""),
@@ -748,8 +779,9 @@ function collectVisualItems(
       x: Number(tr[4]),
       y: Number(tr[5]),
       width: typeof item.width === "number" ? item.width : NaN,
+      mcid: mcids[index] ?? null,
     });
-  }
+  });
 }
 
 function findLinkText(annot: any, textItems: any[]): string {
@@ -906,6 +938,80 @@ export function buildMarkedContentTextMap(items: unknown[]): Map<string, string>
     }
   }
   return map;
+}
+
+/** The innermost marked-content id each TEXT item (those with a `str`) was
+ *  painted in, index-aligned with them — the same stack walk as
+ *  buildMarkedContentTextMap, so the two always agree. null = untagged text
+ *  or an artifact. Exported for tests. */
+export function markedContentIdsOf(items: unknown[]): Array<string | null> {
+  const out: Array<string | null> = [];
+  const stack: Array<string | null> = [];
+  for (const raw of items) {
+    const item = raw as any;
+    if (item?.type === "beginMarkedContent" || item?.type === "beginMarkedContentProps") {
+      stack.push(typeof item.id === "string" && item.id ? item.id : null);
+    } else if (item?.type === "endMarkedContent") {
+      stack.pop();
+    } else if (typeof item?.str === "string") {
+      let id: string | null = null;
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i]) {
+          id = stack[i]!;
+          break;
+        }
+      }
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+/** Bound on the samples kept for the report; the count is never capped. */
+const MAX_UNTAGGED_HEADING_SAMPLES = 50;
+
+let structElementSeq = 0;
+
+/** Record, for every content leaf of one page's serialized struct tree, whether
+ *  it lies inside a heading element and which BLOCK element (nearest non-Span
+ *  ancestor) holds it — with that element's role and its text on this page.
+ *  pdf.js resolves roles through the RoleMap, so a custom tag mapped to P
+ *  reads P. Exported for tests. */
+export function collectStructAttribution(
+  tree: unknown,
+  textById: Map<string, string>,
+  out: StructAttribution,
+): void {
+  const keys = new Map<object, { key: string; role: string; text: string }>();
+  const elementInfo = (node: any): { key: string; role: string; text: string } => {
+    let d = keys.get(node);
+    if (!d) {
+      d = {
+        key: `el${++structElementSeq}`,
+        role: String(node.role),
+        text: structNodeText(node, textById),
+      };
+      keys.set(node, d);
+    }
+    return d;
+  };
+  const visit = (node: any, inHeading: boolean, block: any): void => {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "content" && typeof node.id === "string") {
+      if (inHeading) out.headingIds.add(node.id);
+      if (block) out.elementById.set(node.id, elementInfo(block));
+      return;
+    }
+    let heading = inHeading;
+    let nearestBlock = block;
+    if (typeof node.role === "string") {
+      if (HEADING_ROLE.test(node.role)) heading = true;
+      if (node.role !== "Span") nearestBlock = node;
+    }
+    if (Array.isArray(node.children))
+      for (const c of node.children) visit(c, heading, nearestBlock);
+  };
+  visit(tree, false, null);
 }
 
 // Serialized getStructTree() heading roles: H1–H6, or generic H (no level).

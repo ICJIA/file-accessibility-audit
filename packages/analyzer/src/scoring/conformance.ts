@@ -577,6 +577,29 @@ export function evaluateConformance(
     }
   }
 
+  // 6c. Heading tags DO exist, and lines that look like section headings are
+  //     tagged as ordinary paragraphs beside them (2026-10-06, user
+  //     decision). Mirrors scoreHeadingStructure's untaggedHeadingDeduction
+  //     exactly: any count from untaggedVisualHeadings (visualHeadings.ts —
+  //     which never counts lines on fewer than two pages) beside heading
+  //     tags. Word's gate has named 1.3.1 for the same defect all along.
+  {
+    const untagged = pdfjs.untaggedVisualHeadingCount ?? 0;
+    if ((qpdf.headings ?? []).length > 0 && untagged > 0) {
+      const samples = (pdfjs.untaggedVisualHeadingSamples ?? [])
+        .slice(0, 3)
+        .map((l) => `"${l.text.replace(/"/g, "'")}" (page ${l.page})`)
+        .join(", ");
+      add(
+        "1.3.1",
+        "Info and Relationships",
+        "A",
+        "heading_structure",
+        `${untagged} line(s) look like section headings — larger or bold text standing over a section${samples ? ` (e.g., ${samples})` : ""} — but are tagged as ordinary paragraphs beside the document's real heading tags, so screen-reader users cannot find or jump to those sections. Retag them as headings (Acrobat: Tags panel, or re-export from the source with heading styles).`,
+      );
+    }
+  }
+
   // 7c. Structural table defects beyond missing <TH>: rows not grouped in
   //     <TR>, irregular column counts (after row/col-span accounting), or a
   //     complex table (two-axis headers or spans) whose cells carry neither
@@ -1018,7 +1041,7 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       "Language of Page",
       "A",
       "title_language",
-      "No document language is declared, so assistive technology cannot determine which pronunciation rules to apply. In Word: Review → Language → Set Proofing Language.",
+      "No document language is declared — neither as the document's default nor on most of its text — so assistive technology cannot determine which pronunciation rules to apply. In Word: select all the text, then Review → Language → Set Proofing Language.",
     );
   }
 
@@ -1252,7 +1275,7 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       "Language of Page",
       "A",
       "title_language",
-      "No presentation language is declared, so assistive technology cannot determine which pronunciation rules to apply. In PowerPoint: Review → Language → Set Proofing Language.",
+      "No presentation language is declared — neither as the deck's default nor on most of its text — so assistive technology cannot determine which pronunciation rules to apply. In PowerPoint: select the text, then Review → Language → Set Proofing Language.",
     );
   }
 

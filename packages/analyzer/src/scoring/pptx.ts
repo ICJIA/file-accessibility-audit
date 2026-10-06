@@ -137,7 +137,9 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     const verdict = judgeDeclaredLanguage(a.metadata.language, a.textSample, a.declaredLanguages);
     if (verdict.kind === "ok") {
       score += 50;
-      findings.push(`Presentation language: ${a.metadata.language}`);
+      findings.push(
+        `Presentation language: ${a.metadata.language}${a.languageFromText ? " (declared on the text itself — the presentation sets no default language)" : ""}`,
+      );
     } else {
       score += 25;
       findings.push(
@@ -151,7 +153,7 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     }
   } else {
     findings.push(
-      "No default presentation language is declared. In PowerPoint this comes from the presentation's default language setting; it tells screen readers which pronunciation rules to use.",
+      "No default presentation language is declared, and none is declared on most of the text. In PowerPoint: select the text — in View → Outline View, click in the outline and press Ctrl+A (⌘A on a Mac) to select every slide's title and body text; text boxes and tables are selected on their own slides — then Review → Language → Set Proofing Language → choose the language → OK, and save. It tells screen readers which pronunciation rules to use.",
     );
   }
   return pptxCategory(

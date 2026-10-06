@@ -24,6 +24,7 @@ import {
   textOf,
   languageSample,
   addLanguagePrimary,
+  predominantLanguage,
   rootElement,
   parseRelationships,
   corePropertyText,
@@ -109,6 +110,9 @@ export interface DocxAnalysis {
    *  document default — the 3.1.2 evidence the PDF gate already surfaces.
    *  Capped at 8. */
   runLanguages?: string[];
+  /** True when the document sets no default language and `metadata.language`
+   *  is the one declared on most of its text (2026-10-06). */
+  languageFromText?: boolean;
   /** The first ~4,000 characters of body text — the sample the declared
    *  language is checked against (2026-10-05, as PDF's textSample). Never
    *  leaves the worker; no document text is stored with a report. */
@@ -295,6 +299,81 @@ function stylesDefaultLang(stylesRoot: PONode | undefined): string | null {
       ["1", "true", "on"].includes(attrOf(st, "default") ?? ""),
   );
   return langOf(defaultParagraphStyle ? firstChild(defaultParagraphStyle, "rPr") : undefined);
+}
+
+/** Characters of body text per declared run language (2026-10-06): a run's
+ *  own w:lang, else its character style's, else its paragraph style's (the
+ *  default paragraph style when it names none) — styles resolved through
+ *  basedOn. The input to predominantLanguage when the document declares no
+ *  default: Set Proofing Language on a selection writes exactly these marks. */
+function wordTextLanguageTally(
+  body: PONode,
+  stylesRoot: PONode | undefined,
+): { chars: Map<string, number>; total: number } {
+  const styles = new Map<string, { lang: string | null; basedOn: string | null }>();
+  let defaultParagraphStyleId: string | null = null;
+  for (const st of stylesRoot ? childrenOf(stylesRoot) : []) {
+    if (tagOf(st) !== "style") continue;
+    const id = attrOf(st, "styleId");
+    if (!id) continue;
+    if (
+      attrOf(st, "type") === "paragraph" &&
+      ["1", "true", "on"].includes(attrOf(st, "default") ?? "")
+    ) {
+      defaultParagraphStyleId = id;
+    }
+    const rPr = firstChild(st, "rPr");
+    const lang = rPr ? firstChild(rPr, "lang") : undefined;
+    const basedOn = firstChild(st, "basedOn");
+    styles.set(id, {
+      lang: (lang ? (attrOf(lang, "val") ?? "").trim() : "") || null,
+      basedOn: basedOn ? (attrOf(basedOn, "val") ?? null) : null,
+    });
+  }
+  const resolve = (start: string | null | undefined): string | null => {
+    let id = start ?? null;
+    for (let depth = 0; id && depth < 10; depth++) {
+      const st = styles.get(id);
+      if (!st) return null;
+      if (st.lang) return st.lang;
+      id = st.basedOn;
+    }
+    return null;
+  };
+  const chars = new Map<string, number>();
+  let total = 0;
+  // Runs of THIS paragraph only: nested paragraphs (text boxes) are visited
+  // on their own from the descendants(body, "p") loop below.
+  const visit = (node: PONode, paragraphLang: string | null): void => {
+    for (const child of childrenOf(node)) {
+      const t = tagOf(child);
+      if (t === "r") {
+        const text = childrenOf(child)
+          .filter((c) => tagOf(c) === "t")
+          .map((c) => rawText(c))
+          .join("");
+        const n = text.trim().length;
+        if (n === 0) continue;
+        total += n;
+        const rPr = firstChild(child, "rPr");
+        const own = rPr ? firstChild(rPr, "lang") : undefined;
+        const rStyle = rPr ? firstChild(rPr, "rStyle") : undefined;
+        const lang =
+          (own ? (attrOf(own, "val") ?? "").trim() : "") ||
+          resolve(rStyle ? attrOf(rStyle, "val") : null) ||
+          paragraphLang;
+        if (lang) chars.set(lang, (chars.get(lang) ?? 0) + n);
+      } else if (t !== "p" && t !== "txbxContent" && t !== "pPr" && t !== "rPr") {
+        visit(child, paragraphLang);
+      }
+    }
+  };
+  for (const p of descendants(body, "p")) {
+    const pPr = firstChild(p, "pPr");
+    const pStyle = pPr ? firstChild(pPr, "pStyle") : undefined;
+    visit(p, resolve((pStyle ? attrOf(pStyle, "val") : null) ?? defaultParagraphStyleId));
+  }
+  return { chars, total };
 }
 
 // ---------------------------------------------------------------------------
@@ -964,7 +1043,15 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
 
   // --- metadata ---
   const coreText = (tag: string): string | null => corePropertyText(coreRoot, tag);
-  const language = stylesDefaultLang(stylesRoot) ?? coreText("language");
+  // The document default first; with none, the language declared on most of
+  // the text (predominantLanguage — 2026-10-06, PowerPoint's rule too).
+  const defaultLanguage = stylesDefaultLang(stylesRoot) ?? coreText("language");
+  let textLanguage: string | null = null;
+  if (!defaultLanguage && body) {
+    const tally = wordTextLanguageTally(body, stylesRoot);
+    textLanguage = predominantLanguage(tally.chars, tally.total);
+  }
+  const language = defaultLanguage ?? textLanguage;
   const numFromApp = (tag: string): number | null => {
     if (!appRoot) return null;
     const node = firstChild(appRoot, tag);
@@ -1214,6 +1301,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     contrast,
     paragraphCount: paragraphs.length,
     runLanguages: [...runLangSet].sort(),
+    ...(textLanguage ? { languageFromText: true } : {}),
     textSample: languageSample(paragraphs),
     declaredLanguages: [...declaredLanguageSet].sort(),
     floatingObjectCount,
