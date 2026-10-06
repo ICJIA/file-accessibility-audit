@@ -503,9 +503,9 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.color_contrast,
       null,
       [
-        "No text with an explicit color was found; inherited and unresolvable fills are not checked.",
+        "No text whose color and background are each one stated color was found — text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       ],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       [PPTX_HELP.contrast],
       unresolvedRuns > 0,
     );
@@ -517,7 +517,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.color_contrast,
       100,
       [`${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       [PPTX_HELP.contrast],
     );
   }
@@ -537,7 +537,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
     PPTX.SCORING_WEIGHTS.color_contrast,
     clamp100(score),
     findings,
-    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
+    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
     [PPTX_HELP.contrast],
   );
 }

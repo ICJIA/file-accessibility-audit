@@ -382,7 +382,7 @@ describe("pptxService: contrast", () => {
     expect(a.contrast.failing).toHaveLength(0);
   });
 
-  it("counts runs without an explicit color as unresolved", async () => {
+  it("counts runs whose color nothing states — no run color, no colored style — as unresolved", async () => {
     const buf = await buildPptx({
       slides: [{ title: "T", body: bodyShape(para("inherited color text")) }],
     });

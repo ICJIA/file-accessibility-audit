@@ -582,5 +582,5 @@ export function placeholderAltFinding(images: Array<{ placeholderAlt?: string }>
     .slice(0, 3)
     .map((t) => `"${t.length > 60 ? `${t.slice(0, 59)}…` : t}"`)
     .join(", ");
-  return `${named.length} of them carry only a file name or a placeholder word as their description (${quoted}) — that is not a description (WCAG failure F30), so they count as missing. Programs write these when the author leaves the description blank: Google Slides and python-pptx use the image's file name, openpyxl writes "Picture". Replace each with what the picture shows.`;
+  return `${named.length} of them carry only a file name, a placeholder word or a page label as their description (${quoted}) — that is not a description (WCAG failure F30), so they count as missing. Programs write these when nobody wrote a description: Google Slides and python-pptx use the image's file name, openpyxl writes "Picture", and auto-taggers (including the one behind automated remediation) write labels such as "Table (page 30)". Replace each with what the picture shows.`;
 }

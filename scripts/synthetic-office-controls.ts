@@ -652,9 +652,23 @@ const STD_CLRMAP =
 const BGREF_BG1 = '<p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg>';
 const SOLID_BG = (hex: string) =>
   `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`;
-/** A master whose body text style bullets level 1, as PowerPoint's does. */
-const PPT_MASTER = (opts: { bg: string; shapes?: string; clrMap?: string }) =>
-  `${XMLDECL}<p:sldMaster ${P_NS_ALL}><p:cSld>${opts.bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${opts.shapes ?? ""}</p:spTree></p:cSld><p:clrMap ${opts.clrMap ?? STD_CLRMAP}/><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr marL="228600" indent="-228600"><a:buFont typeface="Arial"/><a:buChar char="•"/><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`;
+/** A master whose body text style bullets level 1, as PowerPoint's does.
+ *  Its text styles set sizes only, unless `txStyles` replaces them. */
+const PPT_MASTER = (opts: { bg: string; shapes?: string; clrMap?: string; txStyles?: string }) =>
+  `${XMLDECL}<p:sldMaster ${P_NS_ALL}><p:cSld>${opts.bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${opts.shapes ?? ""}</p:spTree></p:cSld><p:clrMap ${opts.clrMap ?? STD_CLRMAP}/><p:txStyles>${opts.txStyles ?? '<p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr marL="228600" indent="-228600"><a:buFont typeface="Arial"/><a:buChar char="•"/><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle>'}</p:txStyles></p:sldMaster>`;
+/** The master text styles PowerPoint's default template writes — sizes AND
+ *  colours (tx1) — with the body text's fill replaceable. */
+const TX1_FILL = '<a:solidFill><a:schemeClr val="tx1"/></a:solidFill>';
+const COLOURED_TX_STYLES = (bodyFill = TX1_FILL) =>
+  `<p:titleStyle><a:lvl1pPr><a:defRPr sz="4400">${TX1_FILL}</a:defRPr></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr marL="228600" indent="-228600"><a:buFont typeface="Arial"/><a:buChar char="•"/><a:defRPr sz="2800">${bodyFill}</a:defRPr></a:lvl1pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr sz="1800">${TX1_FILL}</a:defRPr></a:lvl1pPr></p:otherStyle>`;
+/** A text box at explicit bounds with one run: rPr is the run's properties
+ *  XML after its attributes (">" + fills, highlight, link …). */
+const RUN_BOX = (text: string, rPr: string, bounds = XFRM(838200, 2000000, 6000000, 800000)) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="5" name="TextBox 4"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>${bounds}</p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr lang="en-US"${rPr}</a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+/** The look PowerPoint gives a shape it inserts: the accent fill (theme
+ *  fill style 1) and white (lt1) text. */
+const INSERTED_SHAPE_STYLE =
+  '<p:style><a:lnRef idx="2"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style>';
 const PPT_LAYOUT = (shapes: string, bg = "") =>
   `${XMLDECL}<p:sldLayout ${P_NS_ALL}><p:cSld>${bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${shapes}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`;
 const XFRM = (x: number, y: number, cx: number, cy: number) =>
@@ -2933,6 +2947,178 @@ const SAMPLES: Sample[] = [
         : `heading_structure ${h?.score} — the bold-off line was read as a heading`;
     },
   },
+  // ---- v1.166.0: text colour and size followed through the text styles ----
+  {
+    file: "synthetic-218-pptx-grey-body-text-from-the-master.pptx",
+    truth:
+      "Body text that sets no colour of its own takes the master's body text style — here a light grey (#999999, 2.85:1 on the white background), the way a template might soften its body text. PowerPoint resolves a run's colour and size through its shape, the layout's placeholder and the master's text styles; the check read only a colour set on the run itself, so text like this — most of the text in a real deck — was never assessed (user decision 2026-10-06: follow it). It is now, and the failure is caught: 1.4.3 named.",
+    build: () =>
+      pptx(
+        [
+          PH_SP(2, '<p:ph type="title"/>', ["Program Notes"]) +
+            PH_SP(3, '<p:ph idx="1"/>', ["Figures in gray are estimates."]),
+        ],
+        {
+          title: "Program Notes",
+          ...deckChain({
+            master: PPT_MASTER({
+              bg: BGREF_BG1,
+              txStyles: COLOURED_TX_STYLES('<a:solidFill><a:srgbClr val="999999"/></a:solidFill>'),
+            }),
+            layouts: [
+              PPT_LAYOUT(
+                LAYOUT_PH('<p:ph type="title"/>', {
+                  xfrm: XFRM(838200, 365125, 10515600, 1325563),
+                }) +
+                  LAYOUT_PH('<p:ph idx="1"/>', { xfrm: XFRM(838200, 1825625, 10515600, 4351338) }),
+              ),
+            ],
+            slideLayouts: [1],
+          }),
+        },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `color_contrast ${c?.score} — the master's grey body text was not caught`;
+      if (!/#999999/.test(c.findings.join(" "))) return "the finding does not name #999999";
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-219-pptx-white-title-on-a-darker-band.pptx",
+    truth:
+      "White titles on a band PowerPoint shades 25% darker than the theme's blue (accent 5, #5B9BD5 → about #2F75B5) — a real survey-results deck in the test set has six of them. The check read the shading off the band and judged the titles against the plain, lighter blue: 2.96:1, six failures that were not there (the shaded band gives about 4.85:1). A shaded colour is not one stated colour, so by the backgrounds' strict rule the band is not guessed at: the titles are not assessed, the black text beside them is, and nothing is asserted — color_contrast 100.",
+    build: () => {
+      const band = `<p:sp><p:nvSpPr><p:cNvPr id="16" name="Rectangle 15"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(832385, 0, 3218914, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="accent5"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>`;
+      const title = `<p:sp><p:nvSpPr><p:cNvPr id="2" name="Title 1"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr>${XFRM(992206, 1608667, 2823275, 4501127)}</p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr lang="en-US" sz="4000" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr><a:t>Overview</a:t></a:r></a:p></p:txBody></p:sp>`;
+      return pptx(
+        [
+          band +
+            title +
+            RUN_BOX(
+              "Survey results for all staff",
+              ` sz="2400"><a:solidFill><a:srgbClr val="000000"/></a:solidFill>`,
+              XFRM(4547698, 1608667, 3421958, 4501127),
+            ),
+        ],
+        {
+          title: "Climate Survey Results",
+          ...deckChain({
+            master: PPT_MASTER({ bg: BGREF_BG1 }),
+            layouts: [PPT_LAYOUT("")],
+            slideLayouts: [1],
+          }),
+        },
+      );
+    },
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100)
+        return `color_contrast ${c?.score} — the titles on the shaded band were judged against the plain colour`;
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-220-pptx-link-in-the-themes-link-colour.pptx",
+    truth:
+      "A link on a navy slide whose run says white — but PowerPoint draws link text in the theme's hyperlink colour (#0563C1, Office's), whatever colour the run states, unless the link carries PowerPoint 2019's \"use the text colour\" mark (the 2018 hlinkClr extension), which this one does not. LibreOffice draws it the same way (verified on two real decks in the test set). The check judged the run's white — 11.6:1, a pass — while what is drawn is blue on navy, 1.97:1. Link text is now judged in the colour it is drawn in: 1.4.3 named, the failure reported in #0563C1.",
+    build: () => {
+      const chain = deckChain({
+        master: PPT_MASTER({ bg: BGREF_BG1 }),
+        layouts: [PPT_LAYOUT("")],
+        slideLayouts: [1],
+      });
+      return pptx(
+        [
+          SLIDE_TITLE("Annual Report") +
+            RUN_BOX(
+              "Read the full report",
+              ` sz="1800"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:hlinkClick xmlns:r="${PPT_REL}" r:id="rIdLink"/>`,
+            ),
+        ],
+        {
+          title: "Annual Report",
+          slideBgHex: "1F3864",
+          ...chain,
+          slideRels: {
+            1:
+              chain.slideRels[1] +
+              `<Relationship Id="rIdLink" Type="${PPT_REL}/hyperlink" Target="https://icjia.illinois.gov/" TargetMode="External"/>`,
+          },
+        },
+      );
+    },
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `color_contrast ${c?.score} — the link was judged in the run's white, not the colour it is drawn in`;
+      if (!/#0563C1/.test(c.findings.join(" "))) return "the finding does not name #0563C1";
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-221-pptx-highlighted-text-on-a-dark-slide.pptx",
+    truth:
+      "Black text on a yellow highlight, on a navy slide. A highlight is painted behind the text, so the text's background is the yellow (19.6:1); the check ignored highlights and judged the black text against the navy slide — 1.81:1, a failure that is not there. Highlighted text is now judged against its highlight: nothing asserted, color_contrast 100.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Deadlines") +
+            RUN_BOX(
+              "Applications close March 31.",
+              ` sz="1800"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:highlight><a:srgbClr val="FFFF00"/></a:highlight>`,
+            ),
+        ],
+        {
+          title: "Deadlines",
+          slideBgHex: "1F3864",
+          ...deckChain({
+            master: PPT_MASTER({ bg: BGREF_BG1 }),
+            layouts: [PPT_LAYOUT("")],
+            slideLayouts: [1],
+          }),
+        },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100)
+        return `color_contrast ${c?.score} — highlighted text was judged against the slide, not its highlight`;
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-222-pptx-designer-backdrop-shows-the-background.pptx",
+    truth:
+      "A full-slide rectangle of the kind PowerPoint's Designer lays under a slide's content: marked useBgFill — show the slide's background — while its theme style still names the accent fill an inserted shape would otherwise take (#4472C4). Five real decks in the test set carry 67 of them; LibreOffice draws them in the slide's white (verified). Small black text on it must be judged against that white (21:1), never against the style's blue (4.45:1, a failure that is not there): nothing asserted, color_contrast 100.",
+    build: () => {
+      const backdrop = `<p:sp useBgFill="1"><p:nvSpPr><p:cNvPr id="10" name="Rectangle 9"/><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1" noMove="1" noResize="1" noEditPoints="1" noAdjustHandles="1" noChangeArrowheads="1" noChangeShapeType="1" noTextEdit="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(0, 0, 12192000, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln><a:noFill/></a:ln></p:spPr>${INSERTED_SHAPE_STYLE}<p:txBody><a:bodyPr rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+      return pptx(
+        [
+          backdrop +
+            SLIDE_TITLE("Sources") +
+            RUN_BOX(
+              "Source: ICJIA analysis of 2025 arrest data.",
+              ` sz="1200"><a:solidFill><a:srgbClr val="000000"/></a:solidFill>`,
+            ),
+        ],
+        {
+          title: "Sources",
+          ...deckChain({
+            master: PPT_MASTER({ bg: BGREF_BG1 }),
+            layouts: [PPT_LAYOUT("")],
+            slideLayouts: [1],
+          }),
+        },
+      );
+    },
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100)
+        return `color_contrast ${c?.score} — the backdrop was read as its style's accent, or the text was not assessed`;
+      return noAccusation(r);
+    },
+  },
   // ---- v1.161.0: the language declared on most of the text (2026-10-06) ----
   {
     file: "synthetic-184-docx-language-on-the-text.docx",
@@ -3125,6 +3311,26 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-218-pptx-grey-body-text-from-the-master.pptx": {
+    label: "PowerPoint: grey body text set by the master\u2019s text style, not by the text",
+    chip: "caught",
+  },
+  "synthetic-219-pptx-white-title-on-a-darker-band.pptx": {
+    label: "PowerPoint: white titles on a band shaded darker than the theme\u2019s blue",
+    chip: "bug",
+  },
+  "synthetic-220-pptx-link-in-the-themes-link-colour.pptx": {
+    label: "PowerPoint: a link drawn in the theme\u2019s link colour, though its text says white",
+    chip: "bug",
+  },
+  "synthetic-221-pptx-highlighted-text-on-a-dark-slide.pptx": {
+    label: "PowerPoint: black text on a yellow highlight, on a navy slide",
+    chip: "bug",
+  },
+  "synthetic-222-pptx-designer-backdrop-shows-the-background.pptx": {
+    label: "PowerPoint: a Designer backdrop set to show the slide\u2019s background",
+    chip: "held",
+  },
   "synthetic-206-pptx-typed-bullets-layout-bullets-off.pptx": {
     label: "PowerPoint: bullets typed by hand where the slide's layout switches bullets off",
     chip: "bug",

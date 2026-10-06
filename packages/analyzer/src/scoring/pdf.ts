@@ -1389,7 +1389,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
         const placeholder = figures[fi].placeholderAlt;
         findings.push(
           placeholder
-            ? `  Image ${fi + 1}: <Figure> tag — its alt text is only "${placeholder}", a file name or placeholder word, not a description (WCAG failure F30)`
+            ? `  Image ${fi + 1}: <Figure> tag — its alt text is only "${placeholder}", a file name, placeholder word or page label, not a description (WCAG failure F30)`
             : `  Image ${fi + 1}: <Figure> tag — no /Alt attribute`,
         );
       }

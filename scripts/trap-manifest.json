@@ -1,5 +1,5 @@
 {
-  "count": 124,
+  "count": 125,
   "generated": "2026-10-06",
   "items": [
     {
@@ -602,6 +602,11 @@
     {
       "file": "synthetic-210-canva-placeholder-alt.pdf",
       "label": "Figures “described” as image 1, image 2 — Canva’s placeholders",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-217-remediation-page-label-alt.pdf",
+      "label": "Figures labelled “Table (page 1)” and “Illustration on page 1” — page labels, not descriptions",
       "chip": "caught"
     },
     {

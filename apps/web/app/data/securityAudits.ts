@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.166.0",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how PowerPoint text colours and sizes are read, and pictures &ldquo;described&rdquo; only by a page label.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. To find the colour and size of PowerPoint text that sets none of its own, the checker now follows the text styles in the slide&rsquo;s layout and master &mdash; parts of the same file it already reads, under the same size limits. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>PowerPoint text is checked in the colour PowerPoint shows it in.</strong> Most text in a deck takes its colour from the deck&rsquo;s design rather than setting its own, and that text was never checked for contrast; now it is. Links are judged in the colour PowerPoint draws links in, and highlighted text against its highlight. A colour shaded lighter or darker, or made see-through, is left unchecked rather than guessed at &mdash; guessing had wrongly failed six titles on a real deck.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>A picture &ldquo;described&rdquo; only by a label such as &ldquo;Table (page 30)&rdquo; now counts as undescribed.</strong> Automatic tagging tools write these when they cannot describe a picture. Some real documents&rsquo; grades went down as a result, correctly.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Six new test documents; the checker as it stood failed all six. Where a reading was in doubt, the slide was drawn by a second program to see what it really shows. The scan of third-party code finds the same six warnings as before, none in the live service.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.165.0",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how pictures&rsquo; descriptions and PowerPoint slide backgrounds and bullets are read, and new test documents built the way real programs write them.",
     body: [

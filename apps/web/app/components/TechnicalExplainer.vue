@@ -1034,9 +1034,13 @@
             Word, PowerPoint, and Excel all read text/fill colors directly from their XML, so
             contrast is machine-checked wherever a resolvable color pair is set — explicit colors,
             theme-based colors (all three formats since v1.95.0), and Excel's legacy indexed
-            palette; only style-inherited and automatic colors stay unresolved. PDF's Color Contrast
-            category, by contrast, remains N/A pending rendered-page analysis — see "Color contrast"
-            under Limitations below.
+            palette. Word's and Excel's tints and shades are computed; in those two formats
+            style-inherited and automatic colors stay unresolved. PowerPoint text that sets no color
+            of its own is followed through its slide's layout and master text styles (since
+            v1.166.0), while a PowerPoint color shaded lighter or darker, or made see-through, is
+            left unassessed rather than guessed at. PDF's Color Contrast category, by contrast,
+            remains N/A pending rendered-page analysis — see "Color contrast" under Limitations
+            below.
           </p>
         </div>
 

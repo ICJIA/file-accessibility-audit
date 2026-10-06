@@ -358,13 +358,13 @@
       }
     },
     "CIEG_112012.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 79,
+      "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
-        "alt_text": "81|Minor",
+        "alt_text": "65|Moderate",
         "bookmarks": "100|No issues found",
         "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
@@ -380,7 +380,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
-        "alt_text": "70|Minor",
+        "alt_text": "64|Moderate",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -431,7 +431,7 @@
         "alt_text": "null|none",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "null|none",
+        "color_contrast": "100|No issues found",
         "list_structure": "75|Minor",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -527,7 +527,7 @@
         "alt_text": "6|Critical",
         "reading_order": "100|No scored issues",
         "table_markup": "100|No issues found",
-        "color_contrast": "50|Moderate",
+        "color_contrast": "100|No issues found",
         "list_structure": "100|No issues found",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -756,13 +756,13 @@
       }
     },
     "FY_22_ICJIA_Annual_Report_7c7ba4f4f0-remediated.pdf": {
-      "score": 69,
+      "score": 65,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "45|Moderate",
         "color_contrast": "null|none",
@@ -1069,7 +1069,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "null|none",
+        "color_contrast": "100|No issues found",
         "list_structure": "100|No issues found",
         "link_quality": "92|Minor",
         "form_accessibility": "null|none"
@@ -1085,7 +1085,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "null|none",
+        "color_contrast": "100|No issues found",
         "list_structure": "100|No issues found",
         "link_quality": "100|No scored issues",
         "form_accessibility": "null|none"
@@ -1101,7 +1101,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
-        "color_contrast": "null|none",
+        "color_contrast": "100|No issues found",
         "list_structure": "100|No issues found",
         "link_quality": "100|No scored issues",
         "form_accessibility": "null|none"
@@ -1220,13 +1220,13 @@
       }
     },
     "WomenInPolicing2021-210525T15080148-remediated.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -1601,13 +1601,13 @@
       "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
     },
     "pdf_test-cases/FY_22_ICJIA_Annual_Report_7c7ba4f4f0-remediated.pdf": {
-      "score": 69,
+      "score": 65,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "45|Moderate",
         "color_contrast": "null|none",
@@ -1697,13 +1697,13 @@
       }
     },
     "pdf_test-cases/Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808-remediated.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
-        "alt_text": "66|Moderate",
+        "alt_text": "11|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -1761,13 +1761,13 @@
       }
     },
     "pdf_test-cases/WomenInPolicing2021-210525T15080148-remediated.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -4066,6 +4066,54 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-217-remediation-page-label-alt.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "33|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-218-pptx-grey-body-text-from-the-master.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "50|Moderate",
+        "list_structure": "100|No issues found",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-219-pptx-white-title-on-a-darker-band.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "100|No issues found",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-22-filename-title.pdf": {
       "score": 89,
       "grade": "B",
@@ -4079,6 +4127,54 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-220-pptx-link-in-the-themes-link-colour.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "0|Critical",
+        "list_structure": "null|none",
+        "link_quality": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-221-pptx-highlighted-text-on-a-dark-slide.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "100|No issues found",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-222-pptx-designer-backdrop-shows-the-background.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "100|No issues found",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

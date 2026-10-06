@@ -1,5 +1,5 @@
 {
-  "count": 92,
+  "count": 97,
   "generated": "2026-10-06",
   "items": [
     {
@@ -453,6 +453,31 @@
       "file": "synthetic-216-docx-python-docx-report.docx",
       "label": "Word: a python-docx report — no header row, no picture description",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-218-pptx-grey-body-text-from-the-master.pptx",
+      "label": "PowerPoint: grey body text set by the master’s text style, not by the text",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-219-pptx-white-title-on-a-darker-band.pptx",
+      "label": "PowerPoint: white titles on a band shaded darker than the theme’s blue",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-220-pptx-link-in-the-themes-link-colour.pptx",
+      "label": "PowerPoint: a link drawn in the theme’s link colour, though its text says white",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-221-pptx-highlighted-text-on-a-dark-slide.pptx",
+      "label": "PowerPoint: black text on a yellow highlight, on a navy slide",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-222-pptx-designer-backdrop-shows-the-background.pptx",
+      "label": "PowerPoint: a Designer backdrop set to show the slide’s background",
+      "chip": "held"
     },
     {
       "file": "synthetic-184-docx-language-on-the-text.docx",

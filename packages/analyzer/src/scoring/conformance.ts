@@ -1416,15 +1416,17 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       url: wcagUrl("1.3.2"),
     },
   ];
-  // Contrast is assessed when an explicit run or theme color was resolvable;
-  // only surface it as "not assessed" when nothing could be checked.
+  // Contrast is assessed wherever a run's color — its own, or followed
+  // through the layout and master text styles (v1.166.0) — and its
+  // background are each one stated color; only surface it as "not assessed"
+  // when nothing could be checked.
   if (analysis.contrast.checkedRuns === 0) {
     notAssessed.push({
       sc: "1.4.3",
       name: "Contrast (Minimum)",
       level: "AA",
       reason:
-        "No text with an explicit run color was found; formatting inherited from a slide layout or master is not resolved in this version, so contrast could not be evaluated.",
+        "No text whose color and background are each one stated color was found — colors are followed through the slide's layout and master text styles, but text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed — so contrast could not be evaluated.",
       url: wcagUrl("1.4.3"),
     });
   }

@@ -598,6 +598,13 @@ interface PptOpts {
   background?: "slide" | "master" | "masterColour" | "layout";
   /** The results slide's bullets: on each paragraph, or from its layout. */
   bullets?: "explicit" | "layout";
+  /** Where the contact slide's grey runs get their colour and size: on the
+   *  run, or inherited — the failing run from the master's body style, the
+   *  passing one from its text box's own list style. */
+  textStyles?: "run" | "master" | "shape";
+  /** The contact text's shrink-to-fit scale, 100%, written as thousandths
+   *  of a percent or as a percentage string — both legal. */
+  fontScale?: "thousandths" | "percent";
 }
 
 function pptParts(o: PptOpts = {}): Parts {
@@ -605,8 +612,15 @@ function pptParts(o: PptOpts = {}): Parts {
   const runLang = language === "runs" ? ' lang="en-US"' : "";
   const run = (text: string, attrs = "", inner = "") =>
     `<a:r><a:rPr${runLang}${attrs} dirty="0">${inner}</a:rPr><a:t>${text}</a:t></a:r>`;
-  const sp = (id: number, name: string, ph: string, paragraphs: string, xfrm = "") =>
-    `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${name}"/><p:cNvSpPr>${ph ? '<a:spLocks noGrp="1"/>' : ""}</p:cNvSpPr><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${xfrm}</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>${paragraphs}</p:txBody></p:sp>`;
+  const sp = (
+    id: number,
+    name: string,
+    ph: string,
+    paragraphs: string,
+    xfrm = "",
+    body: { bodyPr?: string; lstStyle?: string } = {},
+  ) =>
+    `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${name}"/><p:cNvSpPr>${ph ? '<a:spLocks noGrp="1"/>' : ""}</p:cNvSpPr><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${xfrm}</p:spPr><p:txBody>${body.bodyPr ?? "<a:bodyPr/>"}<a:lstStyle>${body.lstStyle ?? ""}</a:lstStyle>${paragraphs}</p:txBody></p:sp>`;
   const title = (text: string, type = "title") =>
     sp(2, "Title 1", `<p:ph type="${type}"/>`, `<a:p>${run(text)}</a:p>`);
   const fill = (hex: string, slot: string) =>
@@ -638,8 +652,12 @@ function pptParts(o: PptOpts = {}): Parts {
   const table = `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="6" name="Table 5"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="1000000" y="1800000"/><a:ext cx="7800000" cy="1110000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="${o.firstRow ?? "1"}" bandRow="1"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr><a:tblGrid>${tableRows[0]!.map(() => '<a:gridCol w="2600000"/>').join("")}</a:tblGrid>${tableRows.map((r) => `<a:tr h="370000">${r.map((t) => `<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p>${run(t)}</a:p></a:txBody><a:tcPr/></a:tc>`).join("")}</a:tr>`).join("")}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
   const contactBody = [
     `<a:p>${run("Read ")}${run(TEXT.link, "", '<a:hlinkClick r:id="rIdLink"/>')}${run(".")}</a:p>`,
-    `<a:p>${run(TEXT.passes, ' sz="1100"', fill(HEX.passes, "accent1"))}</a:p>`,
-    `<a:p>${run(TEXT.fails, ' sz="1100"', fill(HEX.fails, "accent2"))}</a:p>`,
+    o.textStyles === "shape"
+      ? `<a:p><a:pPr lvl="2"/>${run(TEXT.passes)}</a:p>`
+      : `<a:p>${run(TEXT.passes, ' sz="1100"', fill(HEX.passes, "accent1"))}</a:p>`,
+    o.textStyles === "master"
+      ? `<a:p><a:pPr lvl="1"/>${run(TEXT.fails)}</a:p>`
+      : `<a:p>${run(TEXT.fails, ' sz="1100"', fill(HEX.fails, "accent2"))}</a:p>`,
     `<a:p>${run(TEXT.largeBold, ` sz="1400" b="${o.bold ?? "1"}"`, fill(HEX.band, "accent3"))}</a:p>`,
     `<a:p>${run(TEXT.notBold, ' sz="1400"', fill(HEX.band, "accent3"))}</a:p>`,
   ].join("");
@@ -676,6 +694,15 @@ function pptParts(o: PptOpts = {}): Parts {
           BODY_PH,
           contactBody,
           '<a:xfrm><a:off x="838200" y="1825625"/><a:ext cx="10515600" cy="4351338"/></a:xfrm>',
+          {
+            bodyPr: o.fontScale
+              ? `<a:bodyPr><a:normAutofit fontScale="${o.fontScale === "percent" ? "100%" : "100000"}"/></a:bodyPr>`
+              : undefined,
+            lstStyle:
+              o.textStyles === "shape"
+                ? `<a:lvl3pPr><a:defRPr sz="1100">${fill(HEX.passes, "accent1")}</a:defRPr></a:lvl3pPr>`
+                : undefined,
+          },
         ),
       { bg: (o.background ?? "slide") === "slide" ? whiteBg : undefined },
     ),
@@ -787,7 +814,7 @@ function pptParts(o: PptOpts = {}): Parts {
       { id: "rIdMaster", type: "slideMaster", target: "slideMasters/slideMaster1.xml" },
       { id: "rIdTheme", type: "theme", target: "theme/theme1.xml" },
     ]),
-    "ppt/slideMasters/slideMaster1.xml": `${XMLDECL}<p:sldMaster xmlns:a="${NS.a}" xmlns:r="${NS.r}" xmlns:p="${NS.p}"><p:cSld>${masterBg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle><p:otherStyle>${masterOtherLang}<a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`,
+    "ppt/slideMasters/slideMaster1.xml": `${XMLDECL}<p:sldMaster xmlns:a="${NS.a}" xmlns:r="${NS.r}" xmlns:p="${NS.p}"><p:cSld>${masterBg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr><a:defRPr sz="2800"/></a:lvl1pPr>${o.textStyles === "master" ? `<a:lvl2pPr><a:defRPr sz="1100">${fill(HEX.fails, "accent2")}</a:defRPr></a:lvl2pPr>` : ""}</p:bodyStyle><p:otherStyle>${masterOtherLang}<a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`,
     "ppt/slideMasters/_rels/slideMaster1.xml.rels": relsXml([
       { id: "rId1", type: "theme", target: "../theme/theme1.xml" },
     ]),
@@ -1267,6 +1294,26 @@ const POWERPOINT: Family = {
       name: "slide-id-attribute-order",
       why: "<p:sldId r:id=… id=…/> — attribute order carries no meaning in XML",
       build: () => pptParts({ slideIdAttributeOrder: "relationshipFirst" }),
+    },
+    {
+      name: "text-colour-from-the-masters-body-style",
+      why: "the failing grey run sets no colour or size; the master's body text style gives them (its level 2)",
+      build: () => pptParts({ textStyles: "master" }),
+    },
+    {
+      name: "text-colour-from-the-text-boxs-own-style",
+      why: "the passing grey run sets no colour or size; its text box's own list style gives them (its level 3)",
+      build: () => pptParts({ textStyles: "shape" }),
+    },
+    {
+      name: "shrink-to-fit-in-thousandths",
+      why: 'the contact text\'s shrink-to-fit scale written fontScale="100000"',
+      build: () => pptParts({ fontScale: "thousandths" }),
+    },
+    {
+      name: "shrink-to-fit-as-a-percentage",
+      why: 'the same scale written fontScale="100%" — the other legal spelling',
+      build: () => pptParts({ fontScale: "percent" }),
     },
     ...packageEncodings(() => pptParts()),
   ],

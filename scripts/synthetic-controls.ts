@@ -4513,6 +4513,45 @@ const SAMPLES: Sample[] = [
       return namesCriterion(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
     },
   },
+  {
+    file: "synthetic-217-remediation-page-label-alt.pdf",
+    truth:
+      'Three figures as tools leave figures that had no description: one labelled /Alt (Table (page 1)), the form the remediation pipeline\'s auto-tagger (OpenDataLoader) writes on every figure it cannot describe — real remediated reports in the test set carry it throughout, and one jumped 69/D to 89/B on it alone; one labelled /Alt (Illustration on page 1), the form two agency reports in the test set carry; and one real description. A page label is an object type and a page, nothing about what the figure shows — not a description (WCAG failure F30; user decision 2026-10-06, "count it as missing"): one of three figures is described — alt_text 33, 1.1.1 named — and the finding quotes both labels.',
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Body text")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 40 0 0 40 172 600 cm /Im1 Do Q\nEMC\n` +
+        `/Figure << /MCID 3 >> BDC\nq 40 0 0 40 272 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> /XObject << /Im1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 10 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [13 0 R 7 0 R 8 0 R 9 0 R] >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (Table \\(page 1\\)) >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (Illustration on page 1) >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 3 /Alt (Staff greeting families at the service center.) >>",
+          "<< /Nums [0 [13 0 R 7 0 R 8 0 R 9 0 R]] >>",
+          FONT,
+          GRAY_IMG(12),
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Annual Report) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score !== 33)
+        return `alt_text ${c?.score}, not 33 — a placeholder counted as a description`;
+      const said = c.findings.join(" ");
+      if (!/Table \(page 1\)/.test(said) || !/Illustration on page 1/.test(said))
+        return "the finding does not name both page labels";
+      return namesCriterion(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
+    },
+  },
   // ---- v1.161.0: visual headings tagged as ordinary text (2026-10-06) ----
   {
     file: "synthetic-179-untagged-section-headings.pdf",
@@ -4664,6 +4703,11 @@ const SAMPLES: Sample[] = [
 // ---------------------------------------------------------------------------
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-217-remediation-page-label-alt.pdf": {
+    label:
+      "Figures labelled \u201cTable (page 1)\u201d and \u201cIllustration on page 1\u201d \u2014 page labels, not descriptions",
+    chip: "caught",
+  },
   "synthetic-210-canva-placeholder-alt.pdf": {
     label: "Figures \u201cdescribed\u201d as image 1, image 2 \u2014 Canva\u2019s placeholders",
     chip: "caught",

@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.166.0] - 2026-10-06
+
+### Changed
+
+Two more user decisions, each extending a rule from v1.165.0:
+
+- **PowerPoint text colour, size and weight are followed through the text styles** ("follow it", with the backgrounds' strict rules). Most text in a deck sets no colour of its own. PowerPoint takes it from the shape's own list style, then the layout's and the master's matching placeholder, then the master's title, body or "other" text style. A text box takes the master's other style or the presentation's defaults; an inserted shape takes its theme style's font colour. The check read only a colour set on the run itself. Across the 10 real decks in the test set it checked **64 of 900** text runs; it now checks **424**.
+  - Colours are read strictly, as backgrounds are: one stated colour, under the slide's colour map. A colour shaded lighter or darker, tinted or made see-through stays unknown, never guessed, and so does text on a picture, gradient or shaded fill.
+  - Where PowerPoint's own precedence is not certain, two sources that disagree leave the property unknown:
+    - a paragraph's own run defaults;
+    - the master's other style against the presentation's defaults, for a text box;
+    - a theme-style font colour on a placeholder;
+    - on a slide that re-maps its theme colours, the layout's and master's graphics, which keep only the colours both readings give alike.
+  - Size follows the same chain, scaled by the slide's shrink-to-fit (`normAutofit fontScale`, in either legal spelling), so the large-text bar applies to the size actually drawn. Weight follows it too.
+  - **Link text is judged in the theme's link colour**, as PowerPoint draws it and as LibreOffice's renderings of two real decks confirm. When a link carries PowerPoint 2019's "use the text colour" mark, the colour is known only if the two agree.
+  - **A highlighted run is judged against its highlight.**
+  - **A shape marked to show the slide's background** (`useBgFill`, the full-slide backdrop PowerPoint's Designer lays under content) paints that background, not its theme style's accent. Five real decks carry 67 such shapes, and LibreOffice draws them in the slide's white. One that also states a fill of its own is unknown when the two differ (LibreOffice draws the explicit fill).
+- **A page label counts as missing alt text** ("count it as missing", WCAG F30, extending v1.165.0's rule). A page label is an object type and a page and nothing else:
+  - "Table (page 30)" and "Illustration (page 1)", which OpenDataLoader, the remediation pipeline's tagger, writes on figures it cannot describe;
+  - "Illustration on page 32", the same label as two agency reports in the test set carry it.
+
+  Exact matches only; "Illustration of the courthouse on page 3" stands.
+
+### Fixed
+
+- **A shaded band read as its plain colour.** A shape beneath text whose fill was shaded lighter or darker, or made see-through, was read as the unshaded colour, and so were such run colours. A real survey-results deck's six white titles, on a band shaded 25% darker than the theme's blue, failed at 2.96:1; the drawn band gives about 4.85:1. A shaded colour is now unknown, the backgrounds' existing rule, and that deck's contrast goes 50 → 100. Trap 219.
+- **Link text judged in the colour its run states.** PowerPoint draws links in the theme's link colour. A link set to white on a navy slide passed at 11.6:1, while what is drawn, blue on navy, is 1.97:1. Trap 220.
+- **Highlighted text judged against the slide.** Black text on a yellow highlight, on a navy slide, failed at 1.81:1; it is 19.6:1. Trap 221.
+- Also fixed, with no file in the test set affected, each pinned by a unit test:
+  - On a dark slide in a light deck (a slide colour-map override), the master's background was read under the master's own colours, so white text could be accused at 1:1.
+  - A fill a placeholder inherits from its layout was ignored beneath later shapes, so a text box laid on a filled title band was judged against the slide.
+  - Text inside a `useBgFill` shape was judged against its theme style's accent.
+
+### Notes
+
+- **Corpus movement**, every line verified, with LibreOffice renderings where the reading was in doubt:
+  - Contrast newly assessed and passing: Communication with Federal Employees (11 runs; its template swaps theme colour names, rendered black on white), PWDOA Communication Strategies (109), PWDOA Part 3 (38) and Understanding Dynamics (60), each null → 100. DEI: 50 → 100, its six false failures gone.
+  - Page labels:
+    - WomenInPolicing 2021, remediated (two copies): 89/B → 69/D (alt 100 → 0, four "Table (page N)");
+    - FY22 Annual Report, remediated (two copies): 69/D → 65/D (alt 100 → 0, thirteen);
+    - Lewd Sexual Display 2024, remediated: 79/C → 69/D (alt 66 → 11, three "Table (page 1)" and two "Illustration (page 1)");
+    - CIEG: 89/B → 79/C (alt 81 → 65, six "Illustration on page N");
+    - COVID Death in Custody: alt 70 → 64 (one), grade unchanged.
+- **Tests:** 4,118 (API 2,137 · Web 1,931 · CLI 50) across 227 files. New: `pptxInheritedText` (28), `placeholderAltText` +9 (its new page-label cases RED first; the near misses that must stand, green both ways). Of `pptxInheritedText`'s 28, 23 were RED first. Of the five that passed before the code existed, four were proven by breaking their guard, and one pins that a run's own colour still wins. One test was tightened when removing its guard still passed it (black on that accent also clears the large-text bar; its run is now 11 pt).
+- **Traps:** 222. New: 217 (PDF, both page-label forms) and 218–222 (PowerPoint); 219–221 carry FOUND A REAL BUG chips. The released v1.165.0 analyzer fails all six, each with its stated symptom (217 at 100/A, 219 at a false 79/C, 221 at a false 69/D); removing the `useBgFill` guard alone fails 222, and the first, narrower page-label rule fails 217 too.
+- **Gate:** `office-encoding-invariance` is now 89 encodings, adding text colour from the master's body style, text colour from the text box's own style, and shrink-to-fit in thousandths and as a percentage. The released analyzer diverges on both colour variants; breaking the percentage reading diverges its variant.
+- **Ledger:** 353 rows. All gates green. `pnpm audit --prod`: 6, the same six.
+- **Follow-up for the user:** Word and Excel compute their tints and shades; PowerPoint's approved strict rule leaves its shades and see-through colours unknown. 59 runs in the test set's decks are unassessed for their text colour, and many more sit on shaded backgrounds.
+- Write-up: `docs/powerpoint-text-colour-inheritance.md`.
+
 ## [1.165.0] - 2026-10-06
 
 ### Changed

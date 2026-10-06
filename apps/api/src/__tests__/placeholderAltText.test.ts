@@ -34,6 +34,17 @@ describe("isPlaceholderAltText — the whole description is a file name or a pla
     "Photo 12",
     "spacer",
     "  image 2  ",
+    // An auto-tagger's page labels (OpenDataLoader, the remediation
+    // pipeline's tagger — user decision 2026-10-06, "count it as missing").
+    "Table (page 30)",
+    "Image (page 1)",
+    "figure (page 12)",
+    // The same labels as real files in the test set carry them: a
+    // remediated report's "Illustration (page 1)", and "Illustration on
+    // page 32" in two agency reports.
+    "Illustration (page 1)",
+    "Illustration on page 32",
+    "Table on page 3",
   ]) {
     it(`${JSON.stringify(t)} is not a description`, () =>
       expect(isPlaceholderAltText(t)).toBe(true));
@@ -48,6 +59,9 @@ describe("isPlaceholderAltText — the whole description is a file name or a pla
     "Chart",
     "Figure 3 shows the rise in awards",
     "The map, saved as map.png",
+    "Table 3 (page 30) shows awards by county",
+    "Illustration of the courthouse on page 3",
+    "Illustration on page 32 of the 2011 report: drug arrests by county",
     "",
   ]) {
     it(`${JSON.stringify(t)} stands`, () => expect(isPlaceholderAltText(t)).toBe(false));

@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "powerpoint-text-colour-2026-10-06",
+    badge: "Scoring",
+    text: "PowerPoint text is now checked for contrast in the colour PowerPoint shows it in: most text takes its colour and size from the deck’s design rather than setting its own, and that text was never checked before. Across the real decks in our test set, about half of all text is now checked, up from about 7%; links are judged in the colour PowerPoint draws links in, and highlighted text against its highlight. A colour shaded lighter or darker, or made see-through, is left unchecked rather than guessed at. Separately, a picture “described” only by a label such as “Table (page 30)”, which automatic tagging tools write, now counts as undescribed, so some grades will go down, correctly.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 6, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "producer-shaped-2026-10-06",
     badge: "Scoring",
     text: "A picture whose only “description” is its file name or a placeholder word now counts as undescribed. Some programs write these automatically when the author leaves the description blank: Google Slides and some scripting tools use the file name (“chart.png”), and others write “Picture” or “image 1”. PowerPoint slides are now read the way PowerPoint shows them. Text on a slide that takes its background from the slide master is checked for contrast, and bullets typed by hand where the layout turns bullets off are caught. These came from building test documents the way real programs write them, so some grades will go down, correctly.",

@@ -369,19 +369,34 @@ function referencedFill(
 /** What a shape's own properties say it is filled with: a colour,
  *  "unknown" (gradient, picture, pattern, modified or unreadable colour),
  *  null (explicitly no fill), or undefined (it says nothing — a placeholder
- *  then inherits). */
+ *  then inherits).
+ *
+ *  A shape marked useBgFill shows the slide's background (`background`,
+ *  null when that is not one stated colour) over its theme style's fill:
+ *  the full-slide rectangle PowerPoint's designer lays under the content
+ *  still names the accent fill it would otherwise use (LibreOffice draws
+ *  the background — verified on a real deck). One that ALSO states a fill
+ *  of its own is drawn in that fill by LibreOffice; what PowerPoint draws
+ *  is not certain, so the two must agree to be known. */
 function shapeFill(
   sp: PONode,
   scheme: Map<string, string>,
   theme: ThemeInfo,
+  background: string | null,
 ): string | "unknown" | null | undefined {
   const spPr = firstChild(sp, "spPr");
+  let stated: string | "unknown" | null | undefined;
   if (spPr) {
     const solid = firstChild(spPr, "solidFill");
-    if (solid) return strictColor(firstColor(solid), scheme) ?? "unknown";
-    if (firstChild(spPr, "noFill")) return null;
-    if (hasUnresolvableFill(spPr)) return "unknown";
+    if (solid) stated = strictColor(firstColor(solid), scheme) ?? "unknown";
+    else if (firstChild(spPr, "noFill")) stated = null;
+    else if (hasUnresolvableFill(spPr)) stated = "unknown";
   }
+  if (xsdBoolean(attrOf(sp, "useBgFill")) === true) {
+    const bg = background ?? "unknown";
+    return stated === undefined || stated === bg ? bg : "unknown";
+  }
+  if (stated !== undefined) return stated;
   const style = firstChild(sp, "style");
   const fillRef = style ? firstChild(style, "fillRef") : undefined;
   return fillRef ? referencedFill(fillRef, scheme, theme) : undefined;
@@ -411,14 +426,19 @@ function backgroundOf(
 
 /** What a layout or master paints on every slide that shows it: its shapes
  *  that are not placeholders (a placeholder is a template, never drawn). */
-function paintersOfPart(root: PONode | undefined, scheme: Map<string, string>): Painter[] {
+function paintersOfPart(
+  root: PONode | undefined,
+  scheme: Map<string, string>,
+  theme: ThemeInfo,
+  background: string | null,
+): Painter[] {
   const cSld = root ? firstChild(root, "cSld") : undefined;
   const spTree = cSld ? firstChild(cSld, "spTree") : undefined;
   if (!spTree) return [];
   const out: Painter[] = [];
   for (const sp of contentShapes(spTree)) {
     if (descendants(sp, "ph").length > 0) continue;
-    const painter = painterOf(sp, scheme);
+    const painter = painterOf(sp, scheme, theme, background);
     if (painter) out.push(painter);
   }
   return out;
@@ -449,6 +469,152 @@ const masterPlaceholderType = (type: string): string =>
       ? type
       : "body";
 
+// ---------------------------------------------------------------------------
+// A run's colour, size and weight, followed through the text styles
+// (2026-10-06, user decision "follow it"). PowerPoint resolves each through a
+// chain: the run, its paragraph, its shape's own list style, then — for a
+// placeholder — the layout's and the master's matching placeholder and the
+// master's title, body or "other" text style; for any other shape, its theme
+// style's font colour, then the master's "other" style or the presentation's
+// defaults. Colours are read by the backgrounds' strict rule. Where
+// PowerPoint's precedence is not certain, sources that disagree leave the
+// property unknown — never a guess.
+// ---------------------------------------------------------------------------
+
+/** What a run-properties element (a:rPr, a:defRPr) states about what the
+ *  contrast check needs: undefined = says nothing (inherit), "unknown" =
+ *  says something that is not one readable value. */
+interface RunLook {
+  fill?: string | "unknown";
+  size?: number | "unknown";
+  bold?: boolean | "unknown";
+  highlight?: string | "unknown";
+}
+const LOOK_KEYS = ["fill", "size", "bold", "highlight"] as const;
+const UNKNOWN_LOOK: RunLook = {
+  fill: "unknown",
+  size: "unknown",
+  bold: "unknown",
+  highlight: "unknown",
+};
+
+function runLookOf(el: PONode | undefined, scheme: Map<string, string>): RunLook {
+  const look: RunLook = {};
+  if (!el) return look;
+  const solid = firstChild(el, "solidFill");
+  if (solid) look.fill = strictColor(firstColor(solid), scheme) ?? "unknown";
+  // Invisible (noFill), gradient, picture or pattern text has no one colour.
+  else if (firstChild(el, "noFill") || hasUnresolvableFill(el)) look.fill = "unknown";
+  const sz = attrOf(el, "sz");
+  if (sz !== undefined) look.size = Number(sz) > 0 ? Number(sz) : "unknown";
+  const b = attrOf(el, "b");
+  if (b !== undefined) look.bold = xsdBoolean(b) ?? "unknown";
+  const highlight = firstChild(el, "highlight");
+  if (highlight) look.highlight = strictColor(firstColor(highlight), scheme) ?? "unknown";
+  return look;
+}
+
+/** Each property from the higher source when it states one, else the lower. */
+function over(high: RunLook, low: RunLook): RunLook {
+  return {
+    fill: high.fill ?? low.fill,
+    size: high.size ?? low.size,
+    bold: high.bold ?? low.bold,
+    highlight: high.highlight ?? low.highlight,
+  };
+}
+
+/** A property's value as drawn: text no source makes bold is not bold. */
+const drawn = (k: (typeof LOOK_KEYS)[number], v: RunLook[(typeof LOOK_KEYS)[number]]) =>
+  k === "bold" ? (v ?? false) : v;
+
+/** A source PowerPoint may or may not honour, over the chain beneath it: a
+ *  property it states that the chain does not give alike is unknown. */
+function ifAgreeing(maybe: RunLook, chain: RunLook): RunLook {
+  const out = { ...chain };
+  for (const k of LOOK_KEYS)
+    if (maybe[k] !== undefined && drawn(k, maybe[k]) !== drawn(k, chain[k])) out[k] = "unknown";
+  return out;
+}
+
+/** Two sources, either of which may be the one PowerPoint uses: a property
+ *  is known only when both give it alike. */
+function eitherOf(a: RunLook, b: RunLook): RunLook {
+  const out = over(a, b);
+  for (const k of LOOK_KEYS) if (drawn(k, a[k]) !== drawn(k, b[k])) out[k] = "unknown";
+  return out;
+}
+
+/** What a list style (a shape's a:lstStyle, a master's title/body/other
+ *  style, the presentation's defaults) sets for an outline level (1–9):
+ *  that level's run defaults, else the style's default paragraph's. */
+function listStyleLook(
+  list: PONode | undefined,
+  level: number,
+  scheme: Map<string, string>,
+): RunLook {
+  if (!list) return {};
+  const at = (tag: string): RunLook => {
+    const pPr = firstChild(list, tag);
+    return runLookOf(pPr ? firstChild(pPr, "defRPr") : undefined, scheme);
+  };
+  return over(at(`lvl${level}pPr`), at("defPPr"));
+}
+
+const ownListStyle = (sp: PONode | undefined): PONode | undefined => {
+  const txBody = sp ? firstChild(sp, "txBody") : undefined;
+  return txBody ? firstChild(txBody, "lstStyle") : undefined;
+};
+
+/** The text colour a shape's theme style gives it (p:style/a:fontRef). */
+function fontRefFill(
+  sp: PONode | undefined,
+  scheme: Map<string, string>,
+): string | "unknown" | undefined {
+  const style = sp ? firstChild(sp, "style") : undefined;
+  const ref = style ? firstChild(style, "fontRef") : undefined;
+  const color = ref ? firstColor(ref) : undefined;
+  return color ? (strictColor(color, scheme) ?? "unknown") : undefined;
+}
+
+/** "62500" (transitional, thousandths of a percent) or "62.5%" (Strict). */
+function percentOf(v: string | undefined): number | null {
+  if (v === undefined) return 1;
+  const n = v.trim().endsWith("%") ? Number(v.trim().slice(0, -1)) / 100 : Number(v) / 100000;
+  return n > 0 && n <= 1 ? n : null;
+}
+
+/** The share of its stated size a shape's text is drawn at. PowerPoint's
+ *  shrink-text-on-overflow writes it on the slide (a:normAutofit
+ *  fontScale); null when it cannot be told — the slide states no autofit of
+ *  its own while its layout or master placeholder carries a shrink. */
+function fontScaleOf(sp: PONode, inheritedFrom: (PONode | undefined)[]): number | null {
+  const bodyPrOf = (s: PONode | undefined) => {
+    const txBody = s ? firstChild(s, "txBody") : undefined;
+    return txBody ? firstChild(txBody, "bodyPr") : undefined;
+  };
+  const own = bodyPrOf(sp);
+  const fit = own ? firstChild(own, "normAutofit") : undefined;
+  if (fit) return percentOf(attrOf(fit, "fontScale"));
+  if (own && (firstChild(own, "noAutofit") || firstChild(own, "spAutoFit"))) return 1;
+  for (const s of inheritedFrom) {
+    const b = bodyPrOf(s);
+    const f = b ? firstChild(b, "normAutofit") : undefined;
+    if (f && attrOf(f, "fontScale") !== undefined) return null;
+  }
+  return 1;
+}
+
+/** Only the colours two readings of a part's colour map give alike. */
+function agreedScheme(a: Map<string, string>, b: Map<string, string>): Map<string, string> {
+  return new Map([...a].filter(([k, v]) => b.get(k) === v));
+}
+
+const overrideMapOf = (part: PONode | undefined): Record<string, string> | null => {
+  const ovr = part ? firstChild(part, "clrMapOvr") : undefined;
+  return clrMapOf(ovr ? firstChild(ovr, "overrideClrMapping") : undefined);
+};
+
 interface ContrastContext {
   /** The theme's colours under the slide's colour map. */
   scheme: Map<string, string>;
@@ -460,20 +626,36 @@ interface ContrastContext {
   inherited: Painter[];
   /** A placeholder's inherited position and fill (layout, then master). */
   placeholder: (sp: PONode) => { bounds: ShapeRect | null; fill: string | "unknown" | null };
+  /** What a slide shape's text inherits at an outline level (1–9) — its
+   *  own list style and everything beneath it. */
+  textLook: (sp: PONode) => (level: number) => RunLook;
+  /** The share of its stated size a shape's text is drawn at; null = unknown. */
+  fontScale: (sp: PONode) => number | null;
 }
 
 function contrastContextFor(
   slideRoot: PONode,
   layoutRoot: PONode | undefined,
   master: MasterInfo,
+  defaultTextStyle: PONode | undefined,
 ): ContrastContext {
-  const ovr = firstChild(slideRoot, "clrMapOvr");
-  const slideMap = clrMapOf(ovr ? firstChild(ovr, "overrideClrMapping") : undefined);
-  const scheme = schemeFor(master.theme, slideMap ?? master.clrMap);
-  const masterScheme = schemeFor(master.theme, master.clrMap);
+  // The slide's colours: its own override's; else the master's — unless its
+  // layout re-maps them, when the slide may show either mapping and only the
+  // colours both give alike are known. The text on the slide is drawn under
+  // the slide's mapping (that is what an override is for: a dark slide turns
+  // the master's tx1 text light). Whether what the layout and master DRAW
+  // there is re-mapped too is not certain, so their backgrounds, shapes and
+  // placeholder fills keep only the colours both readings give alike.
+  const masterOwn = schemeFor(master.theme, master.clrMap);
+  const layoutMap = overrideMapOf(layoutRoot);
+  const layoutOwn = layoutMap ? schemeFor(master.theme, layoutMap) : masterOwn;
+  const slideMap = overrideMapOf(slideRoot);
+  const scheme = slideMap ? schemeFor(master.theme, slideMap) : agreedScheme(masterOwn, layoutOwn);
+  const layoutScheme = agreedScheme(scheme, layoutOwn);
+  const masterScheme = agreedScheme(scheme, masterOwn);
 
   let background = backgroundOf(slideRoot, scheme, master.theme);
-  if (background === undefined) background = backgroundOf(layoutRoot, scheme, master.theme);
+  if (background === undefined) background = backgroundOf(layoutRoot, layoutScheme, master.theme);
   if (background === undefined) background = backgroundOf(master.root, masterScheme, master.theme);
 
   // showMasterSp="0" on the slide hides what its layout (and so its master)
@@ -483,33 +665,103 @@ function contrastContextFor(
   const inherited = !shows(slideRoot)
     ? []
     : [
-        ...(shows(layoutRoot) ? paintersOfPart(master.root, masterScheme) : []),
-        ...paintersOfPart(layoutRoot, scheme),
+        ...(shows(layoutRoot)
+          ? paintersOfPart(master.root, masterScheme, master.theme, background ?? null)
+          : []),
+        ...paintersOfPart(layoutRoot, layoutScheme, master.theme, background ?? null),
       ];
 
   const layoutPh = placeholderIndex(layoutRoot);
   const masterPh = placeholderIndex(master.root);
-  const placeholder = (sp: PONode) => {
+  const matched = (sp: PONode) => {
     const key = placeholderKey(sp);
-    if (!key) return { bounds: null, fill: null };
+    if (!key) return null;
     const lp =
       key.idx !== undefined && layoutPh.byIdx.has(key.idx)
         ? layoutPh.byIdx.get(key.idx)
         : (layoutPh.byType.get(key.type) ??
           (key.type === "ctrTitle" ? layoutPh.byType.get("title") : undefined));
-    const mp = masterPh.byType.get(masterPlaceholderType(key.type));
+    return { key, lp, mp: masterPh.byType.get(masterPlaceholderType(key.type)) };
+  };
+  const placeholder = (sp: PONode) => {
+    const m = matched(sp);
+    if (!m) return { bounds: null, fill: null };
+    const { lp, mp } = m;
     const bounds =
       (lp ? xfrmRect(firstChild(lp, "spPr")) : null) ??
       (mp ? xfrmRect(firstChild(mp, "spPr")) : null);
-    const fromLayout = lp ? shapeFill(lp, scheme, master.theme) : undefined;
+    const fromLayout = lp
+      ? shapeFill(lp, layoutScheme, master.theme, background ?? null)
+      : undefined;
     const fill =
       fromLayout !== undefined
         ? fromLayout
-        : ((mp ? shapeFill(mp, masterScheme, master.theme) : undefined) ?? null);
+        : ((mp ? shapeFill(mp, masterScheme, master.theme, background ?? null) : undefined) ??
+          null);
     return { bounds, fill };
   };
 
-  return { scheme, theme: master.theme, background: background ?? null, inherited, placeholder };
+  const txStyles = master.root ? firstChild(master.root, "txStyles") : undefined;
+  const txStyle = (name: string) => (txStyles ? firstChild(txStyles, name) : undefined);
+  const textLook = (sp: PONode) => {
+    const m = matched(sp);
+    const ownFontRef = fontRefFill(sp, scheme);
+    return (level: number): RunLook => {
+      const own = listStyleLook(ownListStyle(sp), level, scheme);
+      let below: RunLook;
+      if (m) {
+        // A placeholder: the layout's, then the master's placeholder, then
+        // the master's text style for its kind.
+        const style =
+          m.key.type === "title" || m.key.type === "ctrTitle"
+            ? "titleStyle"
+            : OTHER_STYLE_PLACEHOLDERS.has(m.key.type)
+              ? "otherStyle"
+              : "bodyStyle";
+        below = over(
+          listStyleLook(ownListStyle(m.lp), level, scheme),
+          over(
+            listStyleLook(ownListStyle(m.mp), level, scheme),
+            listStyleLook(txStyle(style), level, scheme),
+          ),
+        );
+        // A theme-style font colour on a placeholder has no certain place in
+        // that chain.
+        for (const ref of [fontRefFill(m.mp, scheme), fontRefFill(m.lp, scheme), ownFontRef])
+          if (ref !== undefined) below = ifAgreeing({ fill: ref }, below);
+      } else {
+        // Any other shape: PowerPoint's own files give the master's "other"
+        // style and the presentation's defaults alike; when they differ it
+        // is not certain which a text box takes. An inserted shape's theme
+        // style colours its text over both (white on the accent fill).
+        below = eitherOf(
+          listStyleLook(txStyle("otherStyle"), level, scheme),
+          listStyleLook(defaultTextStyle, level, scheme),
+        );
+        if (ownFontRef !== undefined) below = { ...below, fill: ownFontRef };
+      }
+      const look = over(own, below);
+      // The shape's own list style against its theme-style font colour:
+      // which wins is not certain.
+      if (ownFontRef !== undefined && own.fill !== undefined && own.fill !== ownFontRef)
+        look.fill = "unknown";
+      return look;
+    };
+  };
+  const fontScale = (sp: PONode) => {
+    const m = matched(sp);
+    return fontScaleOf(sp, m ? [m.lp, m.mp] : []);
+  };
+
+  return {
+    scheme,
+    theme: master.theme,
+    background: background ?? null,
+    inherited,
+    placeholder,
+    textLook,
+    fontScale,
+  };
 }
 
 /**
@@ -602,6 +854,8 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     );
   }
   const presRoot = rootElement(parseXml(presentationXml), "presentation");
+  // A text box's text defaults (with the master's "other" style).
+  const defaultTextStyle = presRoot ? firstChild(presRoot, "defaultTextStyle") : undefined;
   const coreXml = await read("docProps/core.xml");
   const coreRoot = rootElement(parseXml(coreXml), "coreProperties");
   const coreState: "ok" | "absent" | "unparseable" =
@@ -913,7 +1167,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       analysis,
       slideRoot,
       relMap,
-      contrastContextFor(slideRoot, layout.root, master),
+      contrastContextFor(slideRoot, layout.root, master, defaultTextStyle),
       spTree,
       masterBodyBullets,
       layout.bullets,
@@ -1181,26 +1435,6 @@ function collectSlideContent(
   collectSlideContrast(analysis, contrast, spTree);
 }
 
-/** Explicit solidFill color off a properties node: srgbClr or theme schemeClr
- *  (looked up in a pre-resolved map — see buildSchemeColorMap — instead of
- *  re-walking the theme part on every call). */
-function explicitFill(
-  node: PONode | undefined,
-  schemeColorMap: Map<string, string>,
-): string | null {
-  if (!node) return null;
-  const fill = firstChild(node, "solidFill");
-  if (!fill) return null;
-  const srgb = firstChild(fill, "srgbClr");
-  if (srgb) return normalizeHex(attrOf(srgb, "val"));
-  const scheme = firstChild(fill, "schemeClr");
-  if (scheme) {
-    const name = attrOf(scheme, "val");
-    return name ? (schemeColorMap.get(name) ?? null) : null;
-  }
-  return null;
-}
-
 /** A shape's placement in EMU, from its own a:xfrm (a:off + a:ext). null =
  *  not declared on the slide (inherited from the layout/master chain). */
 interface ShapeRect {
@@ -1255,10 +1489,16 @@ function hasUnresolvableFill(props: PONode | undefined): boolean {
 
 /** A shape's contribution as a background painter, or null when it paints
  *  nothing (no fill / noFill / a connector line). Conservative by design:
- *  anything visual that cannot be reduced to a single solid color is
- *  "opaque", which downstream turns intersecting runs into unresolved —
- *  never into a confirmed failure. */
-function painterOf(shape: PONode, schemeColorMap: Map<string, string>): Painter | null {
+ *  anything visual that cannot be reduced to a single solid color — a
+ *  modified colour included, by the backgrounds' strict rule — is "opaque",
+ *  which downstream turns intersecting runs into unresolved, never into a
+ *  confirmed failure. */
+function painterOf(
+  shape: PONode,
+  schemeColorMap: Map<string, string>,
+  theme: ThemeInfo,
+  background: string | null,
+): Painter | null {
   const tag = tagOf(shape);
   if (tag === "pic" || tag === "graphicFrame") {
     const props = tag === "pic" ? firstChild(shape, "spPr") : undefined;
@@ -1269,8 +1509,11 @@ function painterOf(shape: PONode, schemeColorMap: Map<string, string>): Painter 
   if (tag === "grpSp") {
     const grpPr = firstChild(shape, "grpSpPr");
     const bounds = xfrmRect(grpPr);
-    const solid = explicitFill(grpPr, schemeColorMap);
-    if (solid) return { bounds, kind: "solid", color: solid };
+    const solidFill = grpPr ? firstChild(grpPr, "solidFill") : undefined;
+    if (solidFill) {
+      const color = strictColor(firstColor(solidFill), schemeColorMap);
+      return color ? { bounds, kind: "solid", color } : { bounds, kind: "opaque", color: null };
+    }
     if (hasUnresolvableFill(grpPr)) return { bounds, kind: "opaque", color: null };
     // No group-level fill: the group paints whatever its members paint.
     // If anything inside carries a fill or an image, the group is a visual
@@ -1283,18 +1526,12 @@ function painterOf(shape: PONode, schemeColorMap: Map<string, string>): Painter 
     return paintsInside ? { bounds, kind: "opaque", color: null } : null;
   }
   if (tag === "sp") {
-    const spPr = firstChild(shape, "spPr");
-    const bounds = xfrmRect(spPr);
-    const solid = explicitFill(spPr, schemeColorMap);
-    if (solid) return { bounds, kind: "solid", color: solid };
-    if (hasUnresolvableFill(spPr)) return { bounds, kind: "opaque", color: null };
-    // A style fill reference (idx > 0) paints a theme fill we do not resolve.
-    const style = firstChild(shape, "style");
-    const fillRef = style ? firstChild(style, "fillRef") : undefined;
-    if (fillRef && attrOf(fillRef, "idx") && attrOf(fillRef, "idx") !== "0") {
-      return { bounds, kind: "opaque", color: null };
-    }
-    return null; // noFill / no fill at all — transparent.
+    // Read exactly as the shape's own text background is: its fill, else
+    // the theme fill its style references.
+    const fill = shapeFill(shape, schemeColorMap, theme, background);
+    const bounds = xfrmRect(firstChild(shape, "spPr"));
+    if (fill === "unknown") return { bounds, kind: "opaque", color: null };
+    return fill ? { bounds, kind: "solid", color: fill } : null; // no fill — transparent.
   }
   return null; // cxnSp connectors and anything unknown paint no background.
 }
@@ -1356,7 +1593,6 @@ function collectSlideContrast(
   // old "else white" default failed white-titled dark-template decks at
   // "1:1" as a CONFIRMED 1.4.3 violation (2026-09-01); unresolved runs are
   // counted and honestly reported as not-assessed instead.
-  const schemeColorMap = ctx.scheme;
   const slideBg = ctx.background;
 
   if (!spTree) return;
@@ -1364,58 +1600,111 @@ function collectSlideContrast(
   const beneath: Painter[] = [...ctx.inherited];
   for (const sp of contentShapes(spTree)) {
     if (tagOf(sp) !== "sp") {
-      const painter = painterOf(sp, schemeColorMap);
+      const painter = painterOf(sp, ctx.scheme, ctx.theme, slideBg);
       if (painter) beneath.push(painter);
       continue;
     }
-    const spPr = firstChild(sp, "spPr");
     // A placeholder takes its position and fill from the layout's matching
     // placeholder, else the master's, when it states none of its own.
     const inherited = ctx.placeholder(sp);
-    const own = shapeFill(sp, schemeColorMap, ctx.theme);
+    const own = shapeFill(sp, ctx.scheme, ctx.theme, slideBg);
     const fill = own !== undefined ? own : inherited.fill;
+    const bounds = xfrmRect(firstChild(sp, "spPr")) ?? inherited.bounds;
     const shapeBg: string | null =
-      fill === "unknown"
-        ? null
-        : (fill ?? stackedBackground(xfrmRect(spPr) ?? inherited.bounds, beneath, slideBg));
-    // The shape itself paints over what was beneath it for LATER shapes.
-    const ownPainter = painterOf(sp, schemeColorMap);
-    if (ownPainter) beneath.push(ownPainter);
-    for (const run of descendants(sp, "r")) {
-      const text = textOf(run).trim();
-      if (!text) continue;
-      const rPr = firstChild(run, "rPr");
-      const fg = rPr ? explicitFill(rPr, schemeColorMap) : null;
-      if (!fg || !shapeBg) {
-        analysis.contrast.unresolvedRuns++;
-        continue;
-      }
-      const sz = rPr ? Number(attrOf(rPr, "sz")) : NaN;
-      const sizeKnown = Number.isFinite(sz);
-      const bold = rPr ? xsdBoolean(attrOf(rPr, "b")) === true : false;
-      const large =
-        (sizeKnown && sz >= LARGE_HUNDREDTHS) || (bold && sizeKnown && sz >= LARGE_BOLD_HUNDREDTHS);
-      const ratio = contrastRatio(fg, shapeBg);
-      // Font size is frequently inherited from the placeholder/layout/master
-      // chain (no sz on the run). A ratio in the 3.0–4.5 band passes as
-      // large text and fails as normal text — with the size unknown, which
-      // bar applies cannot be determined, so the run is unresolved rather
-      // than failed (master-sized 36pt titles were being held to 4.5:1).
-      if (!sizeKnown && ratio >= CONTRAST_MIN_LARGE && ratio < CONTRAST_MIN_NORMAL) {
-        analysis.contrast.unresolvedRuns++;
-        continue;
-      }
-      analysis.contrast.checkedRuns++;
-      const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
-      if (ratio < min) {
-        analysis.contrast.failing.push({
-          text,
-          ratio: Math.round(ratio * 100) / 100,
-          foreground: `#${fg}`,
-          background: `#${shapeBg}`,
-          large,
-        });
+      fill === "unknown" ? null : (fill ?? stackedBackground(bounds, beneath, slideBg));
+    // The shape paints over what was beneath it for LATER shapes — with the
+    // fill it shows, its own or the one its placeholder inherits.
+    if (fill === "unknown") beneath.push({ bounds, kind: "opaque", color: null });
+    else if (fill) beneath.push({ bounds, kind: "solid", color: fill });
+    const inheritedAt = ctx.textLook(sp);
+    const scale = ctx.fontScale(sp);
+    for (const p of descendants(sp, "p")) {
+      const pPr = firstChild(p, "pPr");
+      const lvl = Number(pPr ? (attrOf(pPr, "lvl") ?? "0") : "0");
+      const fromStyles =
+        Number.isInteger(lvl) && lvl >= 0 && lvl <= 8 ? inheritedAt(lvl + 1) : UNKNOWN_LOOK;
+      // A paragraph's own run defaults: whether PowerPoint honours them over
+      // the styles is not certain, so they count only where they agree.
+      const paragraph = ifAgreeing(
+        runLookOf(pPr ? firstChild(pPr, "defRPr") : undefined, ctx.scheme),
+        fromStyles,
+      );
+      for (const run of childrenOf(p)) {
+        if (tagOf(run) !== "r") continue;
+        const text = textOf(run).trim();
+        if (!text) continue;
+        const rPr = firstChild(run, "rPr");
+        const look = over(runLookOf(rPr, ctx.scheme), paragraph);
+        const link = rPr
+          ? (firstChild(rPr, "hlinkClick") ?? firstChild(rPr, "hlinkMouseOver"))
+          : undefined;
+        if (link) look.fill = linkFill(link, look.fill, ctx.scheme);
+        judgeRun(analysis, text, look, shapeBg, scale);
       }
     }
+  }
+}
+
+/** Link text is drawn in the theme's hyperlink colour, whatever colour the
+ *  run states — unless the link carries PowerPoint 2019's "use the text
+ *  colour" mark (the 2018 hlinkClr extension, val="tx"), which earlier
+ *  versions ignore: the colour is then known only when the two agree. */
+function linkFill(
+  link: PONode,
+  textFill: RunLook["fill"],
+  scheme: Map<string, string>,
+): string | "unknown" {
+  const hlink = scheme.get("hlink") ?? "unknown";
+  const usesText = descendants(link, "hlinkClr").some((e) => attrOf(e, "val") === "tx");
+  return !usesText || textFill === hlink ? hlink : "unknown";
+}
+
+/** One run against what is behind it — its highlight, else its shape's. */
+function judgeRun(
+  analysis: PptxAnalysis,
+  text: string,
+  look: RunLook,
+  shapeBg: string | null,
+  scale: number | null,
+): void {
+  const fg = look.fill;
+  const bg =
+    look.highlight === undefined ? shapeBg : look.highlight === "unknown" ? null : look.highlight;
+  if (fg === undefined || fg === "unknown" || !bg) {
+    analysis.contrast.unresolvedRuns++;
+    return;
+  }
+  const size = typeof look.size === "number" && scale !== null ? look.size * scale : null;
+  const bold = look.bold ?? false;
+  // Large text is 18 pt, or 14 pt bold; null = it cannot be told (no size
+  // anywhere on the chain, or a weight that is not certain at 14–18 pt).
+  const large: boolean | null =
+    size === null
+      ? null
+      : size >= LARGE_HUNDREDTHS
+        ? true
+        : size >= LARGE_BOLD_HUNDREDTHS
+          ? bold === "unknown"
+            ? null
+            : bold
+          : false;
+  const ratio = contrastRatio(fg, bg);
+  // A ratio between the two bars passes as large text and fails as normal
+  // text — with largeness unknown, which bar applies cannot be determined,
+  // so the run is unresolved rather than failed.
+  if (large === null && ratio >= CONTRAST_MIN_LARGE && ratio < CONTRAST_MIN_NORMAL) {
+    analysis.contrast.unresolvedRuns++;
+    return;
+  }
+  analysis.contrast.checkedRuns++;
+  const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
+  if (ratio < min) {
+    analysis.contrast.failing.push({
+      text,
+      ratio: Math.round(ratio * 100) / 100,
+      foreground: `#${fg}`,
+      background: `#${bg}`,
+      large: large === true,
+    });
   }
 }
