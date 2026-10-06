@@ -1422,6 +1422,14 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.164.1 — 2026-10-06 · Trust-page layout; a dev-only `shell-quote` advisory closed (no new attack surface)
+
+No new attack surface. The page change is one inline style (`max-width:none`) on a trust-page paragraph; the CSP already allows inline styles (`style-src 'self' 'unsafe-inline'`). No endpoint, input, stored field or outbound request changed.
+
+**The dependency.** A critical advisory for `shell-quote` (GHSA-pqg4-j6r4-53mv, command injection through a line terminator in `quote()`) entered `pnpm audit --prod` after v1.164.0 shipped, taking the count from 6 to 7. Its only path is `@nuxt/devtools → launch-editor`, the development "open in editor" helper. The package is absent from the built `apps/web/.output`, so production never carried it. The existing `pnpm.overrides` entry was raised from `^1.9.0` to `^1.11.0`, which resolves to 1.12.0 inside `launch-editor`'s `^1.8.4` range. The lockfile diff is that one package.
+
+**Verified rather than assumed.** `pnpm audit --prod`: **6**, the same six as v1.164.0. `launch-editor` links to `shell-quote@1.12.0`, and `.output` contains no reference to it. Tests 4,026; lint, format, typecheck and build clean. The full-width paragraph was checked in a screenshot of the rebuilt brief.
+
 ### v1.164.0 — 2026-10-06 · The Office encoding gate: one document, every legal encoding; seven parser defects fixed (no new attack surface)
 
 No new attack surface, but this release changes how every Office part is decoded and parsed, so the review covered that path:

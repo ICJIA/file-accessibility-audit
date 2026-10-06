@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.164.1] - 2026-10-06
+
+### Fixed
+
+- **Trust page:** the paragraph that closes the list of bugs found and fixed ("And the battery is not just spelling tests…") now spans the card's full width, like the list above it. It was capped at 70 characters by the card's paragraph rule. The fix is one inline style in the brief template, carried by build-brief into both the standalone brief and the in-app `/trust` body.
+
+### Security
+
+- **`shell-quote` raised to 1.12.0** through the existing `pnpm.overrides` entry (`^1.9.0` → `^1.11.0`). This closes a critical advisory that appeared in `pnpm audit --prod` after v1.164.0 shipped: GHSA-pqg4-j6r4-53mv, command injection through a line terminator in `quote()`.
+  - Its only path is `@nuxt/devtools → launch-editor`, the development "open in editor" helper. `shell-quote` appears nowhere in the built `apps/web/.output`, so the live service never carried it.
+  - The lockfile change is that one package (1.10.0 → 1.12.0), and `launch-editor`'s `^1.8.4` range admits it.
+
+### Notes
+
+- **Tests:** 4,026, unchanged.
+- **`pnpm audit --prod`:** 6, the same six as v1.164.0 (it read 7 before the override).
+
 ## [1.164.0] - 2026-10-06
 
 ### Added

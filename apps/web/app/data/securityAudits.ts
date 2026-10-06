@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.164.1",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: one paragraph&rsquo;s width on the &ldquo;Can I trust this?&rdquo; page, and a third-party warning that appeared after the last release.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. One paragraph on the trust page now uses the card&rsquo;s full width, like the list above it. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "OPS",
+            html: "<strong>A new warning about outside code, closed the same day.</strong> After the last release, the scan of third-party code began reporting a seventh warning, in a small text-quoting library. That library is used only by a developer tool that opens files in a code editor; it is not part of the live service, and the built site does not contain it. It was updated to the fixed version anyway, and the scan is back to the same six warnings as before, none in the live service.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.164.0",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how the text inside Word, PowerPoint and Excel files is read, and a new check that reads one document written every legal way.",
     body: [
