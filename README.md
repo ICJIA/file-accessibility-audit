@@ -1419,6 +1419,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.161.1 — 2026-10-06 · Dependency pass: 6 of the 12 advisories disclosed in v1.161.0 are closed; the other 6 are dev-only or have no fix (no new attack surface)
+
+No new attack surface and no application code: five packages move in the lockfile, held by new `pnpm.overrides` floors; no framework version moved. None of the six was reachable in production (see the entry below); they are updated so the scan reads clean.
+
+**Closed.** `proxy-addr` 2.0.7 → **2.0.8** (GHSA-jqcg-44mw-7w3h — the API's client-IP parser; the API trusts hop count 1, which never reaches the subnet code the flaw is in). `vue` 3.5.29 / 3.5.41 → **3.5.43**, bringing `@vue/server-renderer` 3.5.43 (GHSA-g2v6-rqmx-r4w6 — needs untrusted attribute names; none bound) and unifying the two Vue copies. `source-map-js` 1.2.1 → **1.2.2** (GHSA-68fv-2mgg-jv7q — ships in the server bundle via Vue's compiler; the flaw is in indexed source-map parsing, which no server code does). `seroval` 1.6.2 → **1.6.8** (GHSA-jp82-f5mq-hwhp) and `postcss-selector-parser` 7.1.5 → **7.1.6** (GHSA-rj75-hqrm-r3gf) — build tooling, absent from the bundle.
+
+**Remaining six.** `simple-git` ×4 (2 critical, 2 high) through `@nuxt/devtools`, local development only and absent from the production bundle: the fixed 4.x line exports only a named `simpleGit`, devtools 3.4.1 imports a default (`import Git from 'simple-git'`), and the only newer devtools is a 4.0 beta — overriding would break the dev server, so it waits for devtools. `braces` and `node-forge`: still no fixed version.
+
+**Verified rather than assumed.** Lint, typecheck, all 3,971 tests, production build, ledger (no score moved). The built server ships `@vue/server-renderer` 3.5.43 and `source-map-js` 1.2.2, and five pages (home, trust, technical details, data retention, announcements) render 200 with full content from it. `pnpm audit --prod`: **6** (2 critical, 4 high), as listed.
+
 ### v1.161.0 — 2026-10-06 · PDF section titles tagged as text scored like Word; the language marked on the text; PowerPoint's layout-grid row; 12 advisories disclosed, none reachable (no new attack surface)
 
 No new attack surface: scoring rules, two new reads of data pdf.js already returned (each text item's marked-content id; each structure element's role and text on its page), a bounded run-language tally in the Word and PowerPoint parsers, a best-practice row, and report copy. Nothing new is stored: the untagged-heading samples (capped at 50) are heading-like lines the report itself prints, exactly as Word's fake-heading list always has. No endpoint, input, stored field, or outbound request changed.

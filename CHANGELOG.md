@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.161.1] - 2026-10-06
+
+### Security
+
+- **6 of the 12 advisories disclosed in v1.161.0 are closed.** None was reachable in production (see the v1.161.0 entry); they are updated anyway, so the scan reads clean instead of needing an explanation for each:
+  - **`proxy-addr` 2.0.7 → 2.0.8** (GHSA-jqcg-44mw-7w3h, critical). Express's client-IP parser in the API. The flaw is in subnet trust matching; the API trusts a hop count, which never reaches that code.
+  - **`vue` 3.5.29 / 3.5.41 → 3.5.43**, bringing `@vue/server-renderer` 3.5.43 (GHSA-g2v6-rqmx-r4w6, high). The web tier's server renderer. The flaw needs attribute names from untrusted input; the web app binds none. Both Vue copies are now one.
+  - **`source-map-js` 1.2.1 → 1.2.2** (GHSA-68fv-2mgg-jv7q, high). Ships in the web server bundle as a dependency of Vue's template compiler; the flaw is in parsing indexed source maps, which no server code does.
+  - **`seroval` 1.6.2 → 1.6.8** (GHSA-jp82-f5mq-hwhp, high) and **`postcss-selector-parser` 7.1.5 → 7.1.6** (GHSA-rj75-hqrm-r3gf, moderate). Build tooling, absent from the production bundle.
+
+  Each is held by a new `pnpm.overrides` floor (`proxy-addr`, `vue`, `seroval`, `source-map-js`, `postcss-selector-parser@7`); no framework version moved.
+- **Six remain:**
+  - **`simple-git` ×4** (2 critical, 2 high), reached only through `@nuxt/devtools`, which runs during local development and is absent from the production bundle. The fixed versions are a new major (4.x) that exports only a named `simpleGit`. `@nuxt/devtools` 3.4.1 loads it as `import Git from 'simple-git'`, so overriding it would break the local dev server, and the only newer devtools is a 4.0 beta. It clears when devtools moves.
+  - **`braces`** and **`node-forge`**: still no fixed version published.
+
+### Notes
+
+- **Verified:** lint, typecheck, all 3,971 tests, the production build, and the score ledger (no score moved).
+- **The built server ships the patched packages:** `@vue/server-renderer` 3.5.43 and `source-map-js` 1.2.2.
+- **Server smoke test:** the home, trust, technical-details, data-retention and announcements pages each render 200 with their full content.
+- **`pnpm audit --prod` for this release: 6** (2 critical, 4 high), all as above.
+
 ## [1.161.0] - 2026-10-06
 
 ### Fixed

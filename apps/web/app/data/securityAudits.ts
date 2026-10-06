@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.161.1",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: updating third-party code named in the previous release&rsquo;s warnings.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface and no change to the service&rsquo;s own code: only third-party code it depends on was updated. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Six of the twelve warnings from the previous release are cleared.</strong> None affected the live service, as that release explained; the code is updated anyway so the scan reads clean. That includes the three warnings about code that does run in the live service: the part that works out a visitor&rsquo;s network address, the part that builds each page, and a code-mapping library that ships with it.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Six warnings remain, none in the live service.</strong> Four concern a tool used only while developing the service on a programmer&rsquo;s own computer. Its fix is a new major version that the development toolkit cannot load yet, so it waits for that toolkit&rsquo;s next release. The other two still have no fix published. Every test, the full build and the pages of the built site were checked after the update, and no document&rsquo;s grade changed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.161.0",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: section titles in PDFs that are tagged as plain text, a document&rsquo;s language when it is marked on the text itself, one new best-practice row, and ten newly published warnings about third-party code.",
     body: [
