@@ -39,6 +39,7 @@ import {
   buildSchemeColorMap,
   WORD_THEME_COLOR_MAP,
   applyWordTintShade,
+  onOffEnabled,
 } from "./ooxml.js";
 
 export interface DocxMetadata {
@@ -248,9 +249,7 @@ function buildStyleInfo(stylesRoot: PONode | undefined): StyleInfo {
         const rPr = firstChild(cursor, "rPr");
         if (rPr) {
           if (runBold === null && firstChild(rPr, "b")) {
-            const b = firstChild(rPr, "b")!;
-            const v = attrOf(b, "val");
-            runBold = !(v === "0" || v === "false");
+            runBold = onOffEnabled(firstChild(rPr, "b")!);
           }
           if (runSize === null) {
             const sz = firstChild(rPr, "sz");
@@ -391,7 +390,11 @@ interface RunProps {
 function runProps(run: PONode): RunProps {
   const rPr = firstChild(run, "rPr");
   if (!rPr) return { bold: false, sizeHalfPt: null };
-  const bold = !!firstChild(rPr, "b");
+  // The element's VALUE, not its presence: python-docx writes run.bold =
+  // False as <w:b w:val="0"/>, which read as bold made every short 14-pt
+  // plain line a typed heading (2026-10-06, the Office encoding gate).
+  const bNode = firstChild(rPr, "b");
+  const bold = !!bNode && onOffEnabled(bNode);
   const szNode = firstChild(rPr, "sz");
   const szVal = szNode ? attrOf(szNode, "val") : undefined;
   return { bold, sizeHalfPt: szVal ? Number(szVal) : null };
@@ -594,12 +597,6 @@ function tblLookFirstRow(look: PONode | undefined): boolean {
   const hex = attrOf(look, "val");
   if (hex === undefined || !/^[0-9a-f]{1,4}$/i.test(hex)) return false;
   return (parseInt(hex, 16) & 0x0020) !== 0;
-}
-
-/** ST_OnOff: absent = on; "0"/"false"/"off" = off. */
-function onOffEnabled(node: PONode): boolean {
-  const val = attrOf(node, "val");
-  return val === undefined || !/^(0|false|off)$/i.test(val);
 }
 
 function extractTables(
@@ -898,9 +895,7 @@ function isLargeRun(
   const sz = Number.isFinite(ownSz) ? ownSz : inherited.sizeHalfPt;
   if (sz === null || !Number.isFinite(sz)) return false;
   const bNode = rPr ? firstChild(rPr, "b") : undefined;
-  const bold = bNode
-    ? !(attrOf(bNode, "val") === "0" || attrOf(bNode, "val") === "false")
-    : (inherited.bold ?? false);
+  const bold = bNode ? onOffEnabled(bNode) : (inherited.bold ?? false);
   return sz >= LARGE_HALF_PT || (bold && sz >= LARGE_BOLD_HALF_PT);
 }
 

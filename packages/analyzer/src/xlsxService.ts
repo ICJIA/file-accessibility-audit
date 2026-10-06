@@ -47,6 +47,7 @@ import {
   applyExcelTint,
   EXCEL_THEME_INDEX_ORDER,
   EXCEL_INDEXED_PALETTE,
+  onOffEnabled,
 } from "./ooxml.js";
 
 export interface XlsxMetadata {
@@ -160,12 +161,55 @@ function countValueCells(sheetRoot: PONode): number {
 /** 1-based row/col of the first (top-left-most) non-empty cell, from each
  *  cell's own `r` ref (v1.95.0). Null when the sheet has no value cells or
  *  no parsable refs. */
-function firstDataCell(sheetRoot: PONode): { row: number | null; col: number | null } {
+function columnLetters(n: number): string {
+  let s = "";
+  for (let k = n; k > 0; k = Math.floor((k - 1) / 26))
+    s = String.fromCharCode(65 + ((k - 1) % 26)) + s;
+  return s;
+}
+
+/**
+ * Every cell's reference ("B7"), whether or not it writes one. The r
+ * attribute is OPTIONAL on both <row> and <c> (ECMA-376 §18.3.1.73, .4): a row
+ * without one follows the previous row, a cell without one follows the
+ * previous cell in its row, and one that states its own moves the position.
+ * Reading only the attribute (until 2026-10-06) lost a link's text and the
+ * first data cell in workbooks that leave it out.
+ */
+export function cellReferences(sheetRoot: PONode): Map<PONode, string> {
+  const refs = new Map<PONode, string>();
+  const sheetData = firstChild(sheetRoot, "sheetData");
+  if (!sheetData) return refs;
+  let row = 0;
+  for (const rowEl of childrenOf(sheetData)) {
+    if (tagOf(rowEl) !== "row") continue;
+    const r = Number(attrOf(rowEl, "r"));
+    row = Number.isInteger(r) && r > 0 ? r : row + 1;
+    let col = 0;
+    for (const cell of childrenOf(rowEl)) {
+      if (tagOf(cell) !== "c") continue;
+      const m = /^([A-Z]+)(\d+)$/.exec((attrOf(cell, "r") ?? "").trim().toUpperCase());
+      if (m) {
+        col = colToNumber(m[1]!);
+        refs.set(cell, `${m[1]}${m[2]}`);
+      } else {
+        col++;
+        refs.set(cell, `${columnLetters(col)}${row}`);
+      }
+    }
+  }
+  return refs;
+}
+
+function firstDataCell(
+  sheetRoot: PONode,
+  refs: Map<PONode, string>,
+): { row: number | null; col: number | null } {
   let minRow: number | null = null;
   let minCol: number | null = null;
   for (const cell of descendants(sheetRoot, "c")) {
     if (!(firstChild(cell, "v") || firstChild(cell, "is") || firstChild(cell, "f"))) continue;
-    const ref = attrOf(cell, "r");
+    const ref = refs.get(cell) ?? attrOf(cell, "r");
     const m = ref ? /^([A-Z]+)(\d+)$/.exec(ref.toUpperCase()) : null;
     if (!m) continue;
     const col = colToNumber(m[1]);
@@ -372,12 +416,13 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     // and disclose the exclusion via the sheet record.
     let firstData: { row: number | null; col: number | null } = { row: null, col: null };
     if (!hidden && sheetRoot) {
+      const refs = cellReferences(sheetRoot);
       collectAppliedCellStyles(sheetRoot, appliedStyleIndices);
       if (firstChild(sheetRoot, "picture")) {
         collectAppliedCellStyles(sheetRoot, pictureSheetStyleIndices);
       }
       analysis.totalCellsWithValue += countValueCells(sheetRoot);
-      firstData = firstDataCell(sheetRoot);
+      firstData = firstDataCell(sheetRoot, refs);
       // Legacy form controls / OLE controls (v1.95.0): presence only.
       analysis.formControlCount =
         (analysis.formControlCount ?? 0) +
@@ -393,6 +438,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
         contentCounts,
         sharedStrings,
         sheetDir,
+        refs,
       );
     }
 
@@ -472,6 +518,7 @@ async function collectSheetContent(
   },
   sharedStrings: string[],
   sheetDir: string,
+  refs: Map<PONode, string>,
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
@@ -589,7 +636,7 @@ async function collectSheetContent(
     const cellTextByRef = new Map<string, string>();
     if (wantedRefs.size > 0) {
       for (const cell of descendants(sheetRoot, "c")) {
-        const ref = attrOf(cell, "r");
+        const ref = refs.get(cell) ?? attrOf(cell, "r");
         if (!ref || !wantedRefs.has(ref)) continue;
         const type = attrOf(cell, "t");
         let text: string;
@@ -753,7 +800,9 @@ async function collectStylesContrast(
     analysis.contrast.checkedRuns++;
     const szEl = firstChild(font, "sz");
     const sz = szEl ? Number(attrOf(szEl, "val")) : NaN;
-    const bold = !!firstChild(font, "b");
+    // By value: <b val="0"/> is bold switched OFF (2026-10-06).
+    const bNode = firstChild(font, "b");
+    const bold = !!bNode && onOffEnabled(bNode);
     const large = (Number.isFinite(sz) && sz >= 18) || (bold && Number.isFinite(sz) && sz >= 14);
     const ratio = contrastRatio(fg, bg);
     const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;

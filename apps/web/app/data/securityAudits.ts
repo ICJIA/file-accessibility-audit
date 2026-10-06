@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.164.0",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how the text inside Word, PowerPoint and Excel files is read, and a new check that reads one document written every legal way.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. This release changes how the text inside Office files is read, so the review looked closely at that path. The reader now turns the short character codes a file may contain (such as <code>&amp;#xA;</code> for a line break) back into the characters they stand for, as the format requires. Each code becomes at most one character, so nothing can grow, and files that try to define their own codes are still refused before they are read. Files stored in the UTF-16 text encoding are now read too, under the same size limits as every other file. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Seven ways of writing an Office file that the checker misread, all fixed.</strong> A new check builds one Word document, one presentation and one workbook, writes each one 81 different but equally valid ways, and requires the same grade every time. On its first run it found seven misreadings: line breaks in a picture&rsquo;s description kept as codes, files stored as UTF-16 refused, &ldquo;bold: off&rdquo; read as bold in Word and in Excel, &ldquo;true&rdquo; and &ldquo;false&rdquo; not understood, the wrong slide named, and spreadsheet cells without written addresses not found. No real document&rsquo;s grade changed.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Seven new test documents fail on the checker as it stood and pass now. Each of the thirteen individual corrections was undone on its own to confirm a test notices. Claims about what other software writes were checked by making files with that software. The scan of third-party code finds the same six warnings as before, none in the live service.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.163.0",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how PDF tables are told apart from grids used only for layout, and three new notes about table headers that label nothing.",
     body: [

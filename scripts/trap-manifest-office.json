@@ -1,5 +1,5 @@
 {
-  "count": 75,
+  "count": 82,
   "generated": "2026-10-06",
   "items": [
     {
@@ -368,6 +368,41 @@
       "file": "synthetic-198-xlsx-default-column-names.xlsx",
       "label": "Excel: a table still headed “Column1, Column2”",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-199-pptx-alt-text-only-line-breaks.pptx",
+      "label": "PowerPoint: a picture described only by line breaks, written as &#xA;",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-200-docx-utf16-parts.docx",
+      "label": "Word: an accessible memo saved with every part in UTF-16",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-201-docx-bold-switched-off.docx",
+      "label": "Word: a short 14-pt line with bold switched off, as python-docx writes it",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-202-xlsx-bold-switched-off.xlsx",
+      "label": "Excel: 14-pt grey text with bold switched off",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-203-pptx-true-and-false-spelled-out.pptx",
+      "label": "PowerPoint: a hidden slide and a decorative picture, marked \"false\" and \"true\"",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-204-pptx-slide-order-written-differently.pptx",
+      "label": "PowerPoint: slides stored out of order, the slide list written another legal way",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-205-xlsx-no-cell-references.xlsx",
+      "label": "Excel: a workbook whose cells carry no r= references",
+      "chip": "bug"
     },
     {
       "file": "synthetic-184-docx-language-on-the-text.docx",

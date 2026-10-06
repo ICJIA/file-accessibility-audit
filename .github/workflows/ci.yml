@@ -132,3 +132,14 @@ jobs:
       # attributes on its first run, before any document arrived.
       - name: Encoding invariance (same meaning, every legal form)
         run: pnpm encoding-invariance
+
+      # The same gate for Word, PowerPoint and Excel (2026-10-06): one
+      # document, one deck and one workbook, each re-emitted in every legal
+      # encoding of the same meaning — heading/list/header-row/link/image
+      # forms, language placement, true/false and every spelling of bold,
+      # UTF-16, a byte order mark, numeric character references, renamed
+      # prefixes, Strict, absolute targets. Each must grade identically AND
+      # read identically (headings, slide order, alt text, link text, table
+      # headers, contrast pairs). Its first run found seven parser defects.
+      - name: Office encoding invariance (same meaning, every legal form)
+        run: pnpm office-encoding-invariance

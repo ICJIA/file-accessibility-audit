@@ -176,6 +176,9 @@ const trapBugs = trapManifest.items.filter((i) => i.chip === "bug").length;
     // the count fell to 45 (2026-10-05, user: "drop alone"). The counts are
     // live; the framing must hold at any size.
     /last 30 days alone/i,
+    // "Twelve gates stand between…" sat over twelve cards until the Office
+    // encoding gate made it thirteen (2026-10-06). The cards are the count.
+    /\b(ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|\d+) gates stand\b/i,
   ];
   for (const t of ["checker-brief.template.html", "checker-brief.template.md"]) {
     const src = fs.readFileSync(path.join(BRIEF, t), "utf8");

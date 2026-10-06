@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.164.0] - 2026-10-06
+
+### Added
+
+- **`pnpm office-encoding-invariance`: the Office twin of the PDF encoding gate, now in CI.** It builds one Word document, one deck and one workbook, re-emits each in every legal encoding of the same meaning (81 in all), and requires an identical verdict within each family. The verdict is the score, the grade, every category, and a fingerprint of what the parser read: headings, slide titles in order, alt text, link text, table headers and contrast pairs.
+  - **Word:** language placement, five heading encodings, list numbering on the style, three header-row marks, borders from a style or on cells, VML and AlternateContent images, field-code links, theme colours, and every spelling of bold on and off.
+  - **PowerPoint:** `ctrTitle`, four language placements, scheme colours, grouped and AlternateContent pictures, `true`/`false` switches, and attribute order.
+  - **Excel:** inline and rich-text strings, theme and indexed colours, `headerRowCount`, cells without `r=`, and no `<dimension>`.
+  - **All three:** pretty-printed, a byte order mark, UTF-16, numeric character references, renamed prefixes, Strict, absolute targets, stored entries, and no directory entries.
+
+  Step 2 of the plan approved on 2026-10-06.
+
+### Fixed
+
+The gate's first run found seven defects, each now pinned by a trap. No document in the corpus changed score.
+
+- **Numeric character references were never decoded** (all three formats). Real PowerPoint writes line breaks in alt text as `&#xA;`, so descriptions carried the literal code, and a description of only line breaks counted as a description. The parser now decodes exactly what XML 1.0 defines, in one pass. A forbidden reference is left as written, and a DOCTYPE is still rejected before parsing.
+- **A file whose parts are UTF-16 was refused** as "not a supported document". OPC allows UTF-8 or UTF-16. Parts are now decoded by their byte order mark.
+- **Word read "bold switched off" as bold.** python-docx writes `run.bold = False` as `<w:b w:val="0"/>`, so short 14-pt plain lines became typed headings (a 1.3.1 deduction). `w:val="off"` also passed as large text. Bold is now read by value everywhere.
+- **Excel read `<b val="0"/>` as bold,** so 14-pt grey text passed contrast as large text: a failure missed.
+- **PowerPoint and DrawingML understood only "1"/"0", not "true"/"false".** A slide hidden with `show="false"` was judged, `b="true"` was not bold, and a picture marked decorative with `val="true"` read as undescribed, in all three formats.
+- **PowerPoint slide order depended on attribute order and target form.** `<p:sldId r:id=… id=…/>` lost the slide once prefixes were stripped, and `/ppt/slides/…` targets resolved to `ppt/ppt/…`. Either way the report fell back to file names and named the wrong slide.
+- **Excel rows and cells without `r=` lost their position,** so link text went unread and links unassessed. Positions are now computed as the standard defines.
+
+### Notes
+
+- **Tests:** 4,026 (API 2,045 · Web 1,931 · CLI 50) across 223 files. `officeEncodings.test.ts` (21) was written first; 20 failed for the predicted reasons, and the 21st is a passing baseline guard.
+- **Traps:** 205. Seven are new (199–205), each with a FOUND A REAL BUG chip, and the stashed analyzer fails all seven. Reverting each of the 13 individual fixes alone is caught every time (table in the write-up).
+- **Verified producer behaviour:**
+  - python-docx 1.2.0 writes `<w:b w:val="0"/>`.
+  - python-pptx 1.0.2 writes `b="0"`/`"1"`.
+  - openpyxl 3.1.5 writes absolute worksheet targets and inline strings, and does not write `<b val="0"/>`.
+- **Score ledger:** re-blessed at 336 rows; only the seven new trap rows, and every existing row unchanged. All gates green. Write-up: `docs/office-encoding-invariance-gate.md`.
+
 ## [1.163.0] - 2026-10-06
 
 ### Fixed

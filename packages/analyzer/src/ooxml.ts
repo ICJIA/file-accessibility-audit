@@ -10,7 +10,7 @@
  * unchanged against the extraction.
  */
 import JSZip from "jszip";
-import { XMLParser } from "fast-xml-parser";
+import { XMLParser, type X2jOptions } from "fast-xml-parser";
 import type { Readable } from "node:stream";
 
 // ---------------------------------------------------------------------------
@@ -32,14 +32,60 @@ export type PONode = Record<string, unknown>;
 // that happens to contain one of them (e.g. "Smith &amp; Co."). Verified with
 // a throwaway probe script and pinned by the "&amp; still decodes" test in
 // ooxml.test.ts. DOCTYPE rejection (below) is the actual defense instead.
-const parser = new XMLParser({
+//
+// NUMERIC CHARACTER REFERENCES (2026-10-06). The library's own decoder
+// handles &#…; only when its deprecated htmlEntities switch is on, so
+// "&#xA;" stayed in the text literally — and real PowerPoint writes every line
+// break inside alt text that way ("icon&#xA;&#xA;Description automatically
+// generated"). XML requires them decoded. This decoder does exactly what XML
+// 1.0 defines, in ONE pass so "&amp;#233;" stays the literal text "&#233;":
+// the five predefined entities and numeric references to characters XML
+// allows. A reference to a forbidden character (&#0;, a lone surrogate, past
+// U+10FFFF) is left as written rather than invented. Nothing else is
+// expanded: a DOCTYPE never reaches the parser, so no entity is ever declared.
+const XML_PREDEFINED: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+};
+const ENTITY_RE = /&(?:#(\d{1,7})|#x([0-9a-fA-F]{1,6})|(amp|lt|gt|quot|apos));/g;
+const isXmlChar = (cp: number): boolean =>
+  cp === 0x9 ||
+  cp === 0xa ||
+  cp === 0xd ||
+  (cp >= 0x20 && cp <= 0xd7ff) ||
+  (cp >= 0xe000 && cp <= 0xfffd) ||
+  (cp >= 0x10000 && cp <= 0x10ffff);
+export function decodeXmlEntities(text: string): string {
+  if (!text.includes("&")) return text;
+  return text.replace(ENTITY_RE, (ref, dec?: string, hex?: string, name?: string) => {
+    if (name) return XML_PREDEFINED[name]!;
+    const cp = dec !== undefined ? parseInt(dec, 10) : parseInt(hex!, 16);
+    return isXmlChar(cp) ? String.fromCodePoint(cp) : ref;
+  });
+}
+const xmlEntityDecoder: NonNullable<X2jOptions["entityDecoder"]> = {
+  decode: decodeXmlEntities,
+  setExternalEntities: () => {},
+  addInputEntities: () => {},
+  reset: () => {},
+  setXmlVersion: () => {},
+};
+
+const PARSER_OPTIONS = {
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
-  removeNSPrefix: true,
   preserveOrder: true,
   trimValues: false,
   processEntities: true,
-});
+  entityDecoder: xmlEntityDecoder,
+} as const;
+const parser = new XMLParser({ ...PARSER_OPTIONS, removeNSPrefix: true });
+// The same parse with namespace prefixes KEPT, for the one place a local name
+// is ambiguous once they are stripped — see relationshipIdsOf.
+const prefixedParser = new XMLParser({ ...PARSER_OPTIONS, removeNSPrefix: false });
 
 // DOCTYPE_RE matches a literal "<!DOCTYPE" (case-insensitive) anywhere in a
 // part's raw XML text, BEFORE it is ever handed to fast-xml-parser. OOXML
@@ -114,6 +160,95 @@ export function attrOf(node: PONode, name: string): string | undefined {
   const bag = node[":@"] as Record<string, unknown> | undefined;
   const v = bag?.[`@_${name}`];
   return v === undefined || v === null ? undefined : String(v);
+}
+
+// ---------------------------------------------------------------------------
+// Switches, read the way the schemas define them (2026-10-06). The same file
+// must not read two ways because one producer writes "1" and another "true".
+// ---------------------------------------------------------------------------
+
+/** An xsd:boolean attribute — DrawingML and PresentationML (b, show,
+ *  firstRow, the decorative mark): "1"/"true" → true, "0"/"false" → false,
+ *  absent or anything else → undefined. Office writes "1"/"0"; the schema
+ *  admits both spellings, and other producers use the other one. */
+export function xsdBoolean(value: string | undefined): boolean | undefined {
+  const v = value?.trim();
+  if (v === "1" || v === "true") return true;
+  if (v === "0" || v === "false") return false;
+  return undefined;
+}
+
+/** A WordprocessingML ST_OnOff / SpreadsheetML boolean-property ELEMENT that
+ *  is present (<w:b/>, <w:tblHeader/>, Excel's <b/>): on unless its val says
+ *  "0", "false" or "off". python-docx writes run.bold = False as
+ *  <w:b w:val="0"/>, so presence alone does not mean bold. */
+export function onOffEnabled(node: PONode): boolean {
+  const val = attrOf(node, "val");
+  return val === undefined || !/^\s*(0|false|off)\s*$/i.test(val);
+}
+
+/** The relationship id (r:id) on every element with local name `localName`,
+ *  in document order — e.g. the slides of p:sldIdLst. With prefixes stripped,
+ *  <p:sldId id="256" r:id="rId2"/> keeps whichever of its two id attributes
+ *  comes LAST, so attribute order (which carries no meaning in XML) decided
+ *  which value the parser saw (2026-10-06). This parses with prefixes kept and
+ *  takes the attribute whose prefix is bound to the relationships namespace
+ *  (transitional or Strict). An element with none yields undefined. */
+const RELATIONSHIPS_NS = new Set([
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+  "http://purl.oclc.org/ooxml/officeDocument/relationships",
+]);
+export function relationshipIdsOf(
+  xml: string | null,
+  localName: string,
+): Array<string | undefined> {
+  if (!xml || DOCTYPE_RE.test(xml)) return [];
+  let nodes: PONode[];
+  try {
+    nodes = prefixedParser.parse(xml) as PONode[];
+  } catch {
+    return [];
+  }
+  const out: Array<string | undefined> = [];
+  const visit = (list: PONode[], scope: Map<string, string>): void => {
+    for (const node of list) {
+      const tag = tagOf(node);
+      if (!tag || tag === "#text" || tag.startsWith("?")) continue;
+      const bag = (node[":@"] as Record<string, unknown> | undefined) ?? {};
+      let inner = scope;
+      for (const [k, v] of Object.entries(bag)) {
+        const m = /^@_xmlns:(.+)$/.exec(k);
+        if (m) {
+          if (inner === scope) inner = new Map(scope);
+          inner.set(m[1]!, String(v));
+        }
+      }
+      if (tag.replace(/^[^:]*:/, "") === localName) {
+        const relAttr = Object.keys(bag).find((k) => {
+          const m = /^@_([^:]+):id$/.exec(k);
+          return !!m && RELATIONSHIPS_NS.has(inner.get(m[1]!) ?? "");
+        });
+        out.push(relAttr ? String(bag[relAttr]) : undefined);
+      }
+      const kids = node[tag];
+      if (Array.isArray(kids)) visit(kids as PONode[], inner);
+    }
+  };
+  visit(nodes, new Map());
+  return out;
+}
+
+/** A relationship target resolved to a ZIP entry name, the OPC way: an
+ *  absolute target ("/ppt/slides/slide1.xml") is a part name from the
+ *  package root; a relative one resolves against the source part's folder,
+ *  with "." and ".." segments. */
+export function resolveRelTarget(sourceDir: string, target: string): string {
+  const segs = target.startsWith("/") ? [] : sourceDir.split("/").filter(Boolean);
+  for (const s of target.split("/")) {
+    if (s === "..") segs.pop();
+    else if (s !== "." && s !== "") segs.push(s);
+  }
+  return segs.join("/");
 }
 
 /** First direct child with the given local tag name. */
@@ -270,7 +405,9 @@ export function drawingAltText(propsNode: PONode): {
   const descr = attrOf(propsNode, "descr")?.trim();
   const title = attrOf(propsNode, "title")?.trim();
   const altText = descr ? descr : null;
-  const decorative = descendants(propsNode, "decorative").some((d) => attrOf(d, "val") === "1");
+  const decorative = descendants(propsNode, "decorative").some(
+    (d) => xsdBoolean(attrOf(d, "val")) === true,
+  );
   return { altText, decorative, titleOnly: !descr && !!title };
 }
 
@@ -366,8 +503,30 @@ export function readCapped(
       chunks.push(chunk);
     });
     stream.on("error", () => reject(makeError(`A document part (${partName}) could not be read.`)));
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    stream.on("end", () => resolve(decodeXmlBytes(Buffer.concat(chunks))));
   });
+}
+
+/**
+ * A part's bytes as text. OPC allows XML parts in UTF-8 or UTF-16, and XML
+ * requires a UTF-16 entity to begin with a byte order mark, which is how
+ * the encoding is told apart (2026-10-06: every part was decoded as UTF-8,
+ * so a UTF-16 package was rejected as "not a supported document"). A UTF-8
+ * byte order mark is dropped rather than left at the start of the text.
+ */
+export function decodeXmlBytes(bytes: Buffer): string {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return bytes.subarray(2, 2 + ((bytes.length - 2) & ~1)).toString("utf16le");
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return Buffer.from(bytes.subarray(2, 2 + ((bytes.length - 2) & ~1)))
+      .swap16()
+      .toString("utf16le");
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return bytes.subarray(3).toString("utf-8");
+  }
+  return bytes.toString("utf-8");
 }
 
 // ---------------------------------------------------------------------------

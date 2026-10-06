@@ -35,6 +35,9 @@ import {
   buildSchemeColorMap,
   readCapped,
   assertZipWithinLimits,
+  xsdBoolean,
+  relationshipIdsOf,
+  resolveRelTarget,
 } from "./ooxml.js";
 
 export interface PptxMetadata {
@@ -159,7 +162,7 @@ function typedHeadingText(sp: PONode): string | null {
     if (!rPr) continue;
     const raw = attrOf(rPr, "sz");
     const sz = raw === undefined ? NaN : Number(raw);
-    const bold = attrOf(rPr, "b") === "1";
+    const bold = xsdBoolean(attrOf(rPr, "b")) === true;
     if (!Number.isFinite(sz)) continue; // inherited size — proves nothing
     if (sz >= LARGE_HUNDREDTHS || (bold && sz >= LARGE_BOLD_HUNDREDTHS)) return text;
   }
@@ -289,14 +292,15 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   let slidePaths = filenameOrdered;
   if (presRoot) {
     const presRels = parseRelationshipEntries(await read("ppt/_rels/presentation.xml.rels"));
-    const relTargets = new Map(
-      presRels.map((r) => [r.id, `ppt/${r.target.replace(/^\.\//, "").replace(/^\//, "")}`]),
-    );
-    // <p:sldId id="256" r:id="rId2"/> — with removeNSPrefix, r:id serializes
-    // after id and lands in the same "id" attribute slot, so attrOf yields
-    // the RELATIONSHIP id (matching how xlsxService reads sheet r:id).
-    const orderedPaths = descendants(presRoot, "sldId")
-      .map((sldId) => relTargets.get(attrOf(sldId, "id") ?? ""))
+    // Resolved the OPC way (2026-10-06): an absolute target such as
+    // "/ppt/slides/slide1.xml" became "ppt/ppt/slides/…", matched no slide,
+    // and the order silently fell back to file names.
+    const relTargets = new Map(presRels.map((r) => [r.id, resolveRelTarget("ppt", r.target)]));
+    // <p:sldId id="256" r:id="rId2"/> carries two ids, and with prefixes
+    // stripped only the LAST one written survives — so r:id written first
+    // lost the slide. relationshipIdsOf reads the relationship id itself.
+    const orderedPaths = relationshipIdsOf(presentationXml, "sldId")
+      .map((rid) => (rid ? relTargets.get(rid) : undefined))
       .filter((p): p is string => !!p && filenameOrdered.includes(p));
     if (orderedPaths.length > 0) {
       const remainder = filenameOrdered.filter((p) => !orderedPaths.includes(p));
@@ -446,6 +450,8 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       );
     }
 
+    // show is an xsd:boolean: "false" hides a slide exactly as "0" does.
+    const shown = xsdBoolean(attrOf(slideRoot, "show")) !== false;
     const titleSp = shapes.find((s) => tagOf(s) === "sp" && isTitlePlaceholder(s));
     const titleText = titleSp ? textOf(titleSp).trim() : "";
     const contentBearing = shapes.filter((s) => {
@@ -462,7 +468,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     });
     analysis.slides.push({
       index: i + 1,
-      hidden: attrOf(slideRoot, "show") === "0",
+      hidden: !shown,
       title: titleText.length > 0 ? titleText : null,
       titleIsFirstShape: !!titleSp && contentBearing.length > 0 && contentBearing[0] === titleSp,
       shapeCount: shapes.length,
@@ -471,7 +477,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     // Only when the slide has no title placeholder text of its own. With a
     // real title present the heading IS marked up, and a big bold line
     // elsewhere on the slide is just emphasis.
-    if (titleText.length === 0 && attrOf(slideRoot, "show") !== "0") {
+    if (titleText.length === 0 && shown) {
       for (const sp of shapes) {
         const typed = typedHeadingText(sp);
         if (typed) {
@@ -481,7 +487,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       }
     }
 
-    if (attrOf(slideRoot, "show") !== "0") {
+    if (shown) {
       for (const p of descendants(slideRoot, "p")) {
         const pPr = firstChild(p, "pPr");
         const pDefRPr = pPr ? firstChild(pPr, "defRPr") : undefined;
@@ -498,7 +504,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     }
     // Hidden slides are not presented, so they neither feed the sample nor
     // vouch for a language.
-    if (attrOf(slideRoot, "show") !== "0") {
+    if (shown) {
       collectLangs(slideRoot);
       if (textSample.length < LANGUAGE_SAMPLE_CHARS) {
         const more = languageSample(descendants(slideRoot, "p"));
@@ -964,7 +970,7 @@ function collectSlideContrast(
       }
       const sz = rPr ? Number(attrOf(rPr, "sz")) : NaN;
       const sizeKnown = Number.isFinite(sz);
-      const bold = rPr ? attrOf(rPr, "b") === "1" : false;
+      const bold = rPr ? xsdBoolean(attrOf(rPr, "b")) === true : false;
       const large =
         (sizeKnown && sz >= LARGE_HUNDREDTHS) || (bold && sizeKnown && sz >= LARGE_BOLD_HUNDREDTHS);
       const ratio = contrastRatio(fg, shapeBg);

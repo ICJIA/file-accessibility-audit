@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "office-encodings-2026-10-06",
+    badge: "Scoring",
+    text: "Word, PowerPoint and Excel files are now read the same way whichever program wrote them. A new check writes one document 81 different but equally valid ways and requires the same grade every time. Its first run found seven misreadings, all now fixed. Among them: line breaks in a picture’s description were kept as codes; files saved in the UTF-16 text format were turned away; text marked “not bold” was read as bold, which could invent a typed heading in a Word file or pass faint grey text in a workbook; and a slide hidden with “false” was judged anyway. No grade on any file in the test set changed.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 6, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "pdf-tables-drawn-2026-10-06",
     badge: "Scoring",
     text: "PDF tables are now judged by what they show on the page, as Word tables already are. A table with no header cells and nothing drawn \u2014 no lines, no shading \u2014 is a grid used only to line things up, and is no longer accused of a missing header row; a table drawn with lines still needs its header cells. Reports now also point out table headers that say nothing: a header row that is marked but empty, or an Excel table still headed \u201cColumn1, Column2\u201d. Those notes do not change the grade.",

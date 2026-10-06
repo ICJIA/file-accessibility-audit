@@ -48,6 +48,24 @@ async function zip(files: Record<string, string | Buffer>): Promise<Buffer> {
   return z.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
+/** The same package with its XML parts passed through `f` — for the
+ *  encoding traps (2026-10-06), where the document is identical and only how
+ *  it is written changes. */
+async function rewritePackage(
+  buf: Buffer,
+  f: (name: string, xml: string) => string | Buffer,
+): Promise<Buffer> {
+  const src = await JSZip.loadAsync(buf);
+  const files: Record<string, string | Buffer> = {};
+  for (const [name, entry] of Object.entries(src.files) as Array<[string, any]>) {
+    if (entry.dir) continue;
+    files[name] = /\.(xml|rels)$/.test(name)
+      ? f(name, await entry.async("string"))
+      : await entry.async("nodebuffer");
+  }
+  return zip(files);
+}
+
 function corePropsXml(title: string | null, language: string | null = "en-US"): string {
   // `language: null` omits <dc:language> entirely — a READABLE core.xml that
   // simply declares no language, which is the case WCAG 3.1.1 is about. It
@@ -497,13 +515,26 @@ interface XlsxTable {
 }
 
 function xlsx(
-  sheets: { name: string; rows: string[][]; table?: XlsxTable }[],
+  sheets: {
+    name: string;
+    rows: string[][];
+    table?: XlsxTable;
+    /** Hyperlinks on cells, written as Excel writes them: no display
+     *  attribute, the cell's own text is the link's text. */
+    links?: Array<{ ref: string; url: string }>;
+  }[],
   opts: {
     title?: string | null;
     /** Give every cell an explicit font color (ARGB) and NO fill — Home →
      *  Font Color on the plain grid. Writes xl/styles.xml with that one cell
      *  format; otherwise no styles part is written, as before. */
     fontArgb?: string;
+    /** The coloured font's size/weight elements, replacing <sz val="11"/>
+     *  (2026-10-06) — e.g. '<b val="0"/><sz val="14"/>'. */
+    fontProps?: string;
+    /** false = rows and cells carry no r= reference — legal, positioned by
+     *  order (2026-10-06). */
+    cellRefs?: boolean;
   } = {},
 ): Promise<Buffer> {
   const styled = opts.fontArgb !== undefined;
@@ -545,25 +576,29 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     // Excel's own two leading fills (none, gray125) and default font, then the
     // one test format: the colored font on fill 0 — no fill at all.
     files["xl/styles.xml"] = `${XMLDECL}
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="${opts.fontArgb}"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellXfs count="2"><xf fontId="0" fillId="0" borderId="0"/><xf fontId="1" fillId="0" borderId="0" applyFont="1"/></cellXfs></styleSheet>`;
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font>${opts.fontProps ?? '<sz val="11"/>'}<color rgb="${opts.fontArgb}"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellXfs count="2"><xf fontId="0" fillId="0" borderId="0"/><xf fontId="1" fillId="0" borderId="0" applyFont="1"/></cellXfs></styleSheet>`;
   }
   sheets.forEach((s, i) => {
+    const refs = opts.cellRefs !== false;
     const rows = s.rows
       .map(
         (r, ri) =>
-          `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${String.fromCharCode(65 + ci)}${ri + 1}"${styled ? ' s="1"' : ""} t="inlineStr"><is><t>${v}</t></is></c>`).join("")}</row>`,
+          `<row${refs ? ` r="${ri + 1}"` : ""}>${r.map((v, ci) => `<c${refs ? ` r="${String.fromCharCode(65 + ci)}${ri + 1}"` : ""}${styled ? ' s="1"' : ""} t="inlineStr"><is><t>${v}</t></is></c>`).join("")}</row>`,
       )
       .join("");
+    const links = s.links ?? [];
     // xlsxService finds tables by walking the SHEET's rels for a /table
     // relationship, so the rels part is what makes the table real; <tableParts>
     // is emitted too because that is what Excel writes.
     files[`xl/worksheets/sheet${i + 1}.xml`] = `${XMLDECL}
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
-    if (s.table) {
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${links.length ? `<hyperlinks>${links.map((l, k) => `<hyperlink ref="${l.ref}" r:id="rIdL${k + 1}"/>`).join("")}</hyperlinks>` : ""}${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
+    if (s.table || links.length) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>
+${s.table ? `<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>` : ""}${links.map((l, k) => `<Relationship Id="rIdL${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${l.url}" TargetMode="External"/>`).join("")}
 </Relationships>`;
+    }
+    if (s.table) {
       files[`xl/tables/table${i + 1}.xml`] = `${XMLDECL}
 <table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${i + 1}" name="${s.table.name}" displayName="${s.table.name}" ref="${s.table.ref}" headerRowCount="${s.table.headerRowCount}"${s.table.columns ? `><tableColumns count="${s.table.columns.length}">${s.table.columns.map((c, k) => `<tableColumn id="${k + 1}" name="${c}"/>`).join("")}</tableColumns></table>` : "/>"}`;
     }
@@ -2297,6 +2332,184 @@ const SAMPLES: Sample[] = [
       return r.overallScore === 100 ? null : `the workbook scored ${r.overallScore}/${r.grade}`;
     },
   },
+  // ---- the Office encoding gate's finds (2026-10-06) ----
+  // scripts/office-encoding-invariance.ts re-writes one Word document, one
+  // deck and one workbook in every legal encoding of the same meaning. Its
+  // first run found these seven; each trap pins one, in the form a real file
+  // carries it.
+  {
+    file: "synthetic-199-pptx-alt-text-only-line-breaks.pptx",
+    truth:
+      'Two pictures on one slide. The first is described the way PowerPoint writes a description that contains line breaks — "A bar chart of awards by program&#xA;&#xA;Description automatically generated", each break as the character reference &#xA;. The second picture\'s description is NOTHING but two line breaks. XML requires character references decoded; the parser kept them as literal text, so every such description carried "&#xA;", and a description made only of line breaks counted as a description (found by the Office encoding-invariance gate, 2026-10-06). One of the two pictures is described: alt_text 50, and 1.1.1 is named.',
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Photos") +
+            SLIDE_PIC(
+              4,
+              "A bar chart of awards by program&#xA;&#xA;Description automatically generated",
+            ) +
+            SLIDE_PIC(5, "&#xA;&#xA;"),
+        ],
+        { title: "Program Photos 2026" },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score !== 50)
+        return `alt_text ${c?.score}, not 50 — a description of only line breaks counted, or the real one did not`;
+      return names(r, "1.1.1", "alt_text")
+        ? null
+        : "the undescribed picture was not named under 1.1.1";
+    },
+  },
+  {
+    file: "synthetic-200-docx-utf16-parts.docx",
+    truth:
+      'An accessible Word memo — titled, in English, with a real heading and plain prose — whose every XML part is encoded as UTF-16 with a byte order mark. The Open Packaging Conventions allow UTF-8 or UTF-16, and Word reads both; the checker decoded every part as UTF-8, so the file was refused outright as "not a supported document" (found by the Office encoding-invariance gate, 2026-10-06). It must be read exactly as its UTF-8 self is: title and language found, 100/A.',
+    build: async () =>
+      rewritePackage(
+        await docx([HEADING(1, "Program Update"), P(BODY_TEXT), P(BODY_TEXT)].join(""), {
+          title: "Program Update",
+          styles: true,
+        }),
+        (_n, xml) =>
+          Buffer.concat([
+            Buffer.from([0xff, 0xfe]),
+            Buffer.from(xml.replace('encoding="UTF-8"', 'encoding="UTF-16"'), "utf16le"),
+          ]),
+      ),
+    check: (r) => {
+      const t = cat("title_language")(r);
+      if (!t || t.score !== 100)
+        return `title_language ${t?.score} — the UTF-16 parts were not read`;
+      return r.overallScore === 100 ? null : `the memo scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-201-docx-bold-switched-off.docx",
+    truth:
+      'A Word memo with a short 14-pt line that is NOT bold, written the way python-docx writes run.bold = False: <w:b w:val="0"/>, bold switched off (verified against python-docx 1.2.0). The parser took the element\'s presence for bold, so every such line was reported as a heading typed as text, a 1.3.1 deduction on a document with nothing wrong (found by the Office encoding-invariance gate, 2026-10-06). Not bold, so not a typed heading: heading_structure 100, 100/A.',
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Program Update"),
+          P(BODY_TEXT),
+          '<w:p><w:r><w:rPr><w:b w:val="0"/><w:sz w:val="28"/></w:rPr><w:t>Questions? Call the program office.</w:t></w:r></w:p>',
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Program Update", styles: true },
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100)
+        return `heading_structure ${h?.score} — a line with bold switched off was read as a typed heading`;
+      return r.overallScore === 100 ? null : `the memo scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-202-xlsx-bold-switched-off.xlsx",
+    truth:
+      "A workbook whose every cell is set in 14-pt grey (#808080, 3.95:1 on the white grid), with bold explicitly switched OFF: <b val=\"0\"/>. Fourteen-point text is large only when it is bold, so this is normal text and fails WCAG 1.4.3's 4.5:1. The parser took the element's presence for bold and passed it as large text, so a contrast failure was missed — the more damaging direction (found by the Office encoding-invariance gate, 2026-10-06). The failure is scored and 1.4.3 is named.",
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Awards",
+            rows: [
+              ["Program", "Award"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+          },
+        ],
+        { title: "FY26 Awards", fontArgb: "FF808080", fontProps: '<b val="0"/><sz val="14"/>' },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `color_contrast ${c?.score} — 14-pt text with bold switched off passed as large`;
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-203-pptx-true-and-false-spelled-out.pptx",
+    truth:
+      'A two-slide deck that spells its switches the schema\'s other way: a rule picture marked decorative with val="true" (not "1"), and a second slide hidden with show="false" (not "0") — untitled, holding a 32-pt bold text box of draft notes. Both are xsd:boolean values and mean exactly what "1" and "0" mean. The parser compared against "1" and "0" only, so the decorative picture read as an undescribed image and the hidden slide was judged for its missing title and typed heading (found by the Office encoding-invariance gate, 2026-10-06). Neither may count: nothing asserted, 100/A.',
+    build: async () =>
+      rewritePackage(
+        await pptx(
+          [
+            SLIDE_TITLE("Program Update") +
+              SLIDE_BODY(BODY_TEXT) +
+              '<p:pic><p:nvPicPr><p:cNvPr id="6" name="Picture 5"><a:extLst><a:ext uri="{C183D7F6-B498-43B3-948B-1728B52AA6E4}"><adec:decorative xmlns:adec="http://schemas.microsoft.com/office/drawing/2017/decorative" val="true"/></a:ext></a:extLst></p:cNvPr><p:cNvPicPr/><p:nvPr/></p:nvPicPr></p:pic>',
+            SLIDE_FAKE_HEADING("Draft notes for the board"),
+          ],
+          { title: "Program Update 2026" },
+        ),
+        (n, xml) =>
+          n === "ppt/slides/slide2.xml" ? xml.replace("<p:sld ", '<p:sld show="false" ') : xml,
+      ),
+    check: (r) =>
+      noAccusation(r) ??
+      (r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`),
+  },
+  {
+    file: "synthetic-204-pptx-slide-order-written-differently.pptx",
+    truth:
+      "A three-slide deck whose slide parts are not stored in the order shown: slide2.xml is shown first and the untitled slide3.xml second. Its slide list is written r:id before id, and its relationship targets are absolute part names (/ppt/slides/slide3.xml). Attribute order means nothing in XML, and OPC allows absolute targets, but with namespace prefixes stripped only the last of a slide's two ids survived, and an absolute target resolved to ppt/ppt/…. Either way the checker silently fell back to file-name order and named the wrong slide (found by the Office encoding-invariance gate, 2026-10-06). The untitled slide is the second one shown: the advisory names slide 2, never slide 3.",
+    build: async () =>
+      rewritePackage(
+        await pptx(
+          [
+            SLIDE_TITLE("Budget") + SLIDE_BODY(BODY_TEXT),
+            SLIDE_TITLE("Welcome") + SLIDE_BODY(BODY_TEXT),
+            SLIDE_BODY(BODY_TEXT),
+          ],
+          { title: "Board Briefing 2026" },
+        ),
+        (n, xml) => {
+          if (n === "ppt/presentation.xml")
+            return xml.replace(
+              /<p:sldIdLst>.*<\/p:sldIdLst>/s,
+              '<p:sldIdLst><p:sldId r:id="rId2" id="256"/><p:sldId r:id="rId3" id="257"/><p:sldId r:id="rId1" id="258"/></p:sldIdLst>',
+            );
+          if (n === "ppt/_rels/presentation.xml.rels")
+            return xml.replace(/Target="slides\//g, 'Target="/ppt/slides/');
+          return xml;
+        },
+      ),
+    check: (r) => {
+      const t = allFindings(r);
+      if (/slide 3 has/i.test(t))
+        return "the report named slide 3 — file-name order, not the order shown";
+      return /slide 2 has/i.test(t)
+        ? null
+        : "the untitled slide was not named as slide 2, the one shown second";
+    },
+  },
+  {
+    file: "synthetic-205-xlsx-no-cell-references.xlsx",
+    truth:
+      'A workbook written without the optional r= references on its rows and cells, which is legal: each row follows the last, and each cell the one before. Its one link sits on a cell reading "Click here". The parser located cells only by their r= attribute, so it never found the link\'s cell, and link quality went unassessed (found by the Office encoding-invariance gate, 2026-10-06). The cell is found by its position: the link is assessed, and its vague text is reported as the not-scored advisory every format gives it.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Awards",
+            rows: [["Program", "Award"], ["Job Training", "412,000"], ["Click here"]],
+            links: [{ ref: "A3", url: "https://example.org/guidelines" }],
+          },
+        ],
+        { title: "FY26 Awards", cellRefs: false },
+      ),
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c || c.score === null) return "link_quality unassessed — the link's cell was not found";
+      return /Advisory — not scored.*"Click here"/.test(c.findings.join(" "))
+        ? null
+        : "the vague link text was not reported";
+    },
+  },
   // ---- v1.161.0: the language declared on most of the text (2026-10-06) ----
   {
     file: "synthetic-184-docx-language-on-the-text.docx",
@@ -2489,6 +2702,34 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-199-pptx-alt-text-only-line-breaks.pptx": {
+    label: "PowerPoint: a picture described only by line breaks, written as &#xA;",
+    chip: "bug",
+  },
+  "synthetic-200-docx-utf16-parts.docx": {
+    label: "Word: an accessible memo saved with every part in UTF-16",
+    chip: "bug",
+  },
+  "synthetic-201-docx-bold-switched-off.docx": {
+    label: "Word: a short 14-pt line with bold switched off, as python-docx writes it",
+    chip: "bug",
+  },
+  "synthetic-202-xlsx-bold-switched-off.xlsx": {
+    label: "Excel: 14-pt grey text with bold switched off",
+    chip: "bug",
+  },
+  "synthetic-203-pptx-true-and-false-spelled-out.pptx": {
+    label: 'PowerPoint: a hidden slide and a decorative picture, marked "false" and "true"',
+    chip: "bug",
+  },
+  "synthetic-204-pptx-slide-order-written-differently.pptx": {
+    label: "PowerPoint: slides stored out of order, the slide list written another legal way",
+    chip: "bug",
+  },
+  "synthetic-205-xlsx-no-cell-references.xlsx": {
+    label: "Excel: a workbook whose cells carry no r= references",
+    chip: "bug",
+  },
   "synthetic-196-docx-empty-header-row.docx": {
     label: "Word: a header row marked, every header cell empty",
     chip: "caught",
