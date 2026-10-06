@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.165.0",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how pictures&rsquo; descriptions and PowerPoint slide backgrounds and bullets are read, and new test documents built the way real programs write them.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. To find a PowerPoint slide&rsquo;s background and bullets, the checker now reads the slide&rsquo;s layout and master &mdash; parts of the same file, read under the same size limits, a bounded number of them per file. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A picture &ldquo;described&rdquo; only by its file name or a placeholder word now counts as undescribed.</strong> Some programs fill in a picture&rsquo;s description when the author writes none &mdash; Google Slides uses the file name, others write &ldquo;Picture&rdquo; or &ldquo;image 1&rdquo; &mdash; and the checker had counted these as real descriptions. Some real documents&rsquo; grades went down as a result, correctly.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>PowerPoint slides are read the way PowerPoint shows them.</strong> A slide with no background of its own now uses its layout&rsquo;s or master&rsquo;s, so text on it is checked for contrast; and lines whose layout turns bullets off are no longer counted as real list items, so hand-typed bullets are caught.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Eleven new test documents copy what five real programs write; the checker as it stood failed eight of them. Every claim about what a program writes was checked by making a file with it. The scan of third-party code finds the same six warnings as before, none in the live service.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.164.1",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: one paragraph&rsquo;s width on the &ldquo;Can I trust this?&rdquo; page, and a third-party warning that appeared after the last release.",
     body: [

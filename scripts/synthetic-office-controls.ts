@@ -395,6 +395,13 @@ function pptx(
     /** false = no deck-wide default language in presentation.xml (Google
      *  Slides exports omit it); the runs' own marks are then all there is. */
     declareLanguage?: boolean;
+    /** Extra parts — masters, layouts, a theme — with their content types,
+     *  and a relationships part per slide (1-based, e.g. the slide's layout):
+     *  the producer-shaped traps (2026-10-06) need a deck's layout and master
+     *  chain, as real producers write it. */
+    parts?: Record<string, string>;
+    partTypes?: Array<[string, string]>;
+    slideRels?: Record<number, string>;
   } = {},
 ): Promise<Buffer> {
   const files: Record<string, string> = {
@@ -403,7 +410,7 @@ function pptx(
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
-${slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join("\n")}
+${slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join("\n")}${(opts.partTypes ?? []).map(([part, type]) => `\n<Override PartName="${part}" ContentType="${type}"/>`).join("")}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
     "_rels/.rels": `${XMLDECL}
@@ -435,7 +442,13 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
 <p:cSld>${bg}<p:spTree>${spTree}</p:spTree></p:cSld>
 </p:sld>`;
+    const rels = opts.slideRels?.[i + 1];
+    if (rels) {
+      files[`ppt/slides/_rels/slide${i + 1}.xml.rels`] = `${XMLDECL}
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`;
+    }
   });
+  Object.assign(files, opts.parts ?? {});
   return zip(files);
 }
 
@@ -522,6 +535,10 @@ function xlsx(
     /** Hyperlinks on cells, written as Excel writes them: no display
      *  attribute, the cell's own text is the link's text. */
     links?: Array<{ ref: string; url: string }>;
+    /** Pictures, by description, in one drawing part — written the way
+     *  openpyxl writes them (2026-10-06): a default-namespace wsDr whose
+     *  every picture carries descr="Picture" unless the author changes it. */
+    pictures?: string[];
   }[],
   opts: {
     title?: string | null;
@@ -587,15 +604,25 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       )
       .join("");
     const links = s.links ?? [];
+    const pictures = s.pictures ?? [];
     // xlsxService finds tables by walking the SHEET's rels for a /table
     // relationship, so the rels part is what makes the table real; <tableParts>
     // is emitted too because that is what Excel writes.
     files[`xl/worksheets/sheet${i + 1}.xml`] = `${XMLDECL}
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${links.length ? `<hyperlinks>${links.map((l, k) => `<hyperlink ref="${l.ref}" r:id="rIdL${k + 1}"/>`).join("")}</hyperlinks>` : ""}${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
-    if (s.table || links.length) {
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${links.length ? `<hyperlinks>${links.map((l, k) => `<hyperlink ref="${l.ref}" r:id="rIdL${k + 1}"/>`).join("")}</hyperlinks>` : ""}${pictures.length ? '<drawing r:id="rIdD1"/>' : ""}${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
+    if (pictures.length) {
+      files[`xl/drawings/drawing${i + 1}.xml`] = `${XMLDECL}
+<wsDr xmlns="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">${pictures
+        .map(
+          (descr, k) =>
+            `<oneCellAnchor><from><col>${4 + k * 3}</col><colOff>0</colOff><row>1</row><rowOff>0</rowOff></from><ext cx="1905000" cy="1143000"/><pic><nvPicPr><cNvPr id="${k + 1}" name="Image ${k + 1}" descr="${descr}"/><cNvPicPr/></nvPicPr><blipFill/><spPr><a:prstGeom xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" prst="rect"/></spPr></pic><clientData/></oneCellAnchor>`,
+        )
+        .join("")}</wsDr>`;
+    }
+    if (s.table || links.length || pictures.length) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-${s.table ? `<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>` : ""}${links.map((l, k) => `<Relationship Id="rIdL${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${l.url}" TargetMode="External"/>`).join("")}
+${s.table ? `<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>` : ""}${links.map((l, k) => `<Relationship Id="rIdL${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${l.url}" TargetMode="External"/>`).join("")}${pictures.length ? `<Relationship Id="rIdD1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="/xl/drawings/drawing${i + 1}.xml"/>` : ""}
 </Relationships>`;
     }
     if (s.table) {
@@ -605,6 +632,102 @@ ${s.table ? `<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/of
   });
   return zip(files);
 }
+
+// ---------------------------------------------------------------------------
+// Producer-shaped decks and documents (plan step 3, 2026-10-06): a master,
+// layouts and a theme written the way PowerPoint, Google Slides and
+// python-pptx write them, and the markup docx.js and LibreOffice produce —
+// each shape taken from files generated with that producer.
+// ---------------------------------------------------------------------------
+const P_NS_ALL =
+  'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+const PPT_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+/** Office's theme colours (dk1 overridable, for a dark template) and the
+ *  background fill style a bgRef idx="1001" names: solid, in its colour. */
+const OFFICE_THEME = (dk1 = "000000") =>
+  `${XMLDECL}<a:theme ${P_NS_ALL} name="Office Theme"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:srgbClr val="${dk1}"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
+const STD_CLRMAP =
+  'bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"';
+/** PowerPoint's (and python-pptx's) master background: a theme reference. */
+const BGREF_BG1 = '<p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg>';
+const SOLID_BG = (hex: string) =>
+  `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`;
+/** A master whose body text style bullets level 1, as PowerPoint's does. */
+const PPT_MASTER = (opts: { bg: string; shapes?: string; clrMap?: string }) =>
+  `${XMLDECL}<p:sldMaster ${P_NS_ALL}><p:cSld>${opts.bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${opts.shapes ?? ""}</p:spTree></p:cSld><p:clrMap ${opts.clrMap ?? STD_CLRMAP}/><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr marL="228600" indent="-228600"><a:buFont typeface="Arial"/><a:buChar char="•"/><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`;
+const PPT_LAYOUT = (shapes: string, bg = "") =>
+  `${XMLDECL}<p:sldLayout ${P_NS_ALL}><p:cSld>${bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${shapes}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`;
+const XFRM = (x: number, y: number, cx: number, cy: number) =>
+  `<a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>`;
+const LAYOUT_PH = (ph: string, opts: { xfrm?: string; lstStyle?: string } = {}) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="2" name="Placeholder"/><p:cNvSpPr/><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${opts.xfrm ?? ""}</p:spPr><p:txBody><a:bodyPr/><a:lstStyle>${opts.lstStyle ?? ""}</a:lstStyle><a:p/></p:txBody></p:sp>`;
+/** A slide placeholder holding plain paragraphs — no bullet marks of its own. */
+const PH_SP = (id: number, ph: string, paragraphs: string[]) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Placeholder ${id}"/><p:cNvSpPr/><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/>${paragraphs.map((t) => `<a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>${t}</a:t></a:r></a:p>`).join("")}</p:txBody></p:sp>`;
+/** A text box at explicit bounds with one run in an explicit colour and size. */
+const COLOR_BOX = (text: string, hex: string, sz: number) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="5" name="TextBox 4"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(838200, 2000000, 6000000, 800000)}</p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr lang="en-US" sz="${sz}"><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+/** A deck's theme, master and layouts; slideLayouts maps each slide (in
+ *  order) to a layout (1-based). */
+const deckChain = (opts: {
+  master: string;
+  layouts: string[];
+  slideLayouts: number[];
+  theme?: string;
+}) => {
+  const relsOf = (type: string, target: string) =>
+    `${XMLDECL}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${PPT_REL}/${type}" Target="${target}"/></Relationships>`;
+  const parts: Record<string, string> = {
+    "ppt/slideMasters/slideMaster1.xml": opts.master,
+    "ppt/slideMasters/_rels/slideMaster1.xml.rels": relsOf("theme", "../theme/theme1.xml"),
+    "ppt/theme/theme1.xml": opts.theme ?? OFFICE_THEME(),
+  };
+  const partTypes: Array<[string, string]> = [
+    [
+      "/ppt/slideMasters/slideMaster1.xml",
+      "application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml",
+    ],
+    ["/ppt/theme/theme1.xml", "application/vnd.openxmlformats-officedocument.theme+xml"],
+  ];
+  opts.layouts.forEach((xml, k) => {
+    parts[`ppt/slideLayouts/slideLayout${k + 1}.xml`] = xml;
+    parts[`ppt/slideLayouts/_rels/slideLayout${k + 1}.xml.rels`] = relsOf(
+      "slideMaster",
+      "../slideMasters/slideMaster1.xml",
+    );
+    partTypes.push([
+      `/ppt/slideLayouts/slideLayout${k + 1}.xml`,
+      "application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml",
+    ]);
+  });
+  const slideRels = Object.fromEntries(
+    opts.slideLayouts.map((l, i) => [
+      i + 1,
+      `<Relationship Id="rIdLayout" Type="${PPT_REL}/slideLayout" Target="../slideLayouts/slideLayout${l}.xml"/>`,
+    ]),
+  );
+  return { parts, partTypes, slideRels };
+};
+/** docx.js's heading styles (verified, docx 9.8.1): named "Heading 1/2",
+ *  with NO outline level of their own — a heading by name alone. */
+const DOCXJS_STYLES = `${XMLDECL}<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>${[
+  1, 2,
+]
+  .map(
+    (n) =>
+      `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="Heading ${n}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="2E74B5"/><w:sz w:val="${n === 1 ? 32 : 26}"/><w:szCs w:val="${n === 1 ? 32 : 26}"/></w:rPr></w:style>`,
+  )
+  .join("")}</w:styles>`;
+/** A PowerPoint table as LibreOffice 26.2 writes it back (verified): the
+ *  Header Row mark and table style gone — an empty tblPr — and every cell's
+ *  borders baked in as solid black lines. */
+const LIBREOFFICE_TABLE = (rows: string[][]) => {
+  const ln = (side: string) =>
+    `<a:${side} w="12240"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:prstDash val="solid"/></a:${side}>`;
+  const cell = (t: string) =>
+    `<a:tc><a:txBody><a:bodyPr anchor="t"><a:noAutofit/></a:bodyPr><a:p><a:r><a:rPr lang="en-US" sz="1800" b="0"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:rPr><a:t>${t}</a:t></a:r></a:p></a:txBody><a:tcPr anchor="t" marL="91440" marR="91440" marT="45720" marB="45720">${["lnL", "lnR", "lnT", "lnB"].map(ln).join("")}<a:noFill/></a:tcPr></a:tc>`;
+  return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="40" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="1000000" y="1800000"/><a:ext cx="7800000" cy="1110000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr></a:tblPr><a:tblGrid>${rows[0]!.map(() => '<a:gridCol w="2599920"/>').join("")}</a:tblGrid>${rows.map((r) => `<a:tr h="369720">${r.map(cell).join("")}</a:tr>`).join("")}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+};
 
 // ---------------------------------------------------------------------------
 interface Sample {
@@ -2510,6 +2633,306 @@ const SAMPLES: Sample[] = [
         : "the vague link text was not reported";
     },
   },
+  // ---- plan step 3: producer-shaped traps (2026-10-06) ----
+  // Each is built in the shape a real producer writes, taken from files
+  // generated with it — LibreOffice 26.2, python-docx 1.2.0, python-pptx
+  // 1.0.2, openpyxl 3.1.5, docx.js 9.8.1 — or from a real Google Slides
+  // export in the test set.
+  {
+    file: "synthetic-206-pptx-typed-bullets-layout-bullets-off.pptx",
+    truth:
+      'A slide whose points are TYPED — a "•" and a tab before each line — in a placeholder whose LAYOUT switches bullets off (<a:buNone/> in the layout\'s list style): the pattern of a real agency deck in the test set. PowerPoint shows no automatic bullet there, so this is a hand-typed list that a screen reader does not announce as one. The parser read the master alone, whose body style bullets every level, and counted the four lines as real list items — list_structure 100, a typed list missed (found building the plan step 3 decks, 2026-10-06). Read through the layout, it is a typed list: list_structure loses points and 1.3.1 is named.',
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Requests to watch for") +
+            PH_SP(3, '<p:ph sz="quarter" idx="15"/>', [
+              "•\tRequests to alter the language of grant applications.",
+              "•\tRequests to alter the scope of programs.",
+              "•\tRequests to sign a certification of compliance.",
+              "•\tRequests to include new conditions in agreements.",
+            ]),
+        ],
+        {
+          title: "Federal Communications Guidance",
+          ...deckChain({
+            master: PPT_MASTER({ bg: BGREF_BG1 }),
+            layouts: [
+              PPT_LAYOUT(
+                LAYOUT_PH('<p:ph sz="quarter" idx="15"/>', {
+                  lstStyle: '<a:lvl1pPr marL="0" indent="0"><a:buNone/></a:lvl1pPr>',
+                }),
+              ),
+            ],
+            slideLayouts: [1],
+          }),
+        },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `list_structure ${c?.score} — typed bullets under a layout's buNone were counted as a real list`;
+      return names(r, "1.3.1", "list_structure") ? null : "1.3.1 was not named";
+    },
+  },
+  {
+    file: "synthetic-207-pptx-python-pptx-default-template.pptx",
+    truth:
+      "A deck on python-pptx's default template — PowerPoint's own layouts: a Title Slide whose subtitle placeholder has bullets switched off in its layout, a Title and Content slide whose three body lines inherit the master's bullets, and a slide-number placeholder, which takes the master's bullet-free \"other\" style. The parser read the master alone and counted the subtitle and the slide number as list items too — five where there are three (found building the python-pptx report, 2026-10-06). Exactly three real list items, nothing typed, 100/A.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Grant Program Update").replace('type="title"', 'type="ctrTitle"') +
+            PH_SP(3, '<p:ph type="subTitle" idx="1"/>', ["Fiscal year 2026 results for the board"]),
+          SLIDE_TITLE("Program results") +
+            PH_SP(3, '<p:ph idx="1"/>', [
+              "Job training sites opened in six counties.",
+              "Housing support reached four hundred families.",
+              "Every award was reviewed before approval.",
+            ]) +
+            PH_SP(4, '<p:ph type="sldNum" sz="quarter" idx="12"/>', ["2"]),
+        ],
+        {
+          title: "Grant Program Update 2026",
+          ...deckChain({
+            master: PPT_MASTER({ bg: BGREF_BG1 }),
+            layouts: [
+              PPT_LAYOUT(
+                LAYOUT_PH('<p:ph type="ctrTitle"/>') +
+                  LAYOUT_PH('<p:ph type="subTitle" idx="1"/>', {
+                    lstStyle: '<a:lvl1pPr marL="0" indent="0" algn="ctr"><a:buNone/></a:lvl1pPr>',
+                  }),
+              ),
+              PPT_LAYOUT(
+                LAYOUT_PH('<p:ph type="title"/>') +
+                  LAYOUT_PH('<p:ph idx="1"/>') +
+                  LAYOUT_PH('<p:ph type="sldNum" sz="quarter" idx="12"/>'),
+              ),
+            ],
+            slideLayouts: [1, 2],
+          }),
+        },
+      ),
+    check: (r) => {
+      const c = cat("list_structure")(r);
+      if (!/\b3 real list item/.test(c?.findings.join(" ") ?? ""))
+        return `the list census reads "${c?.findings[0]}" — the subtitle or slide number was counted`;
+      return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-208-pptx-google-slides-file-name-alt.pptx",
+    truth:
+      'Two slide pictures as Google Slides exports them when nobody described them: each "description" is the uploaded file\'s name ("GA details.png", "GA real time events.png") — a real Google Slides deck in the test set carries nine. A file name is not a description (WCAG failure F30; user decision 2026-10-06, "count it as missing"): alt_text 0, 1.1.1 named, and the finding quotes the file names.',
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Google Analytics reports") +
+            SLIDE_PIC(4, "GA details.png") +
+            SLIDE_PIC(5, "GA real time events.png"),
+        ],
+        { title: "Analytics Training" },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score !== 0)
+        return `alt_text ${c?.score}, not 0 — a file name counted as a description`;
+      if (!/GA details\.png/.test(c.findings.join(" ")))
+        return "the finding does not name the file name";
+      return names(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
+    },
+  },
+  {
+    file: "synthetic-209-xlsx-openpyxl-picture-alt.xlsx",
+    truth:
+      'A workbook with a chart image added by openpyxl, which writes descr="Picture" on every image it saves (its own source, 3.1.5) — so every openpyxl or pandas report reads as described until someone writes a description. "Picture" is a placeholder, not a description (WCAG failure F30; user decision 2026-10-06): alt_text 0, 1.1.1 named, and the finding quotes "Picture".',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Awards",
+            rows: [
+              ["Program", "Award"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+            pictures: ["Picture"],
+          },
+        ],
+        { title: "FY26 Awards" },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score !== 0)
+        return `alt_text ${c?.score}, not 0 — "Picture" counted as a description`;
+      if (!/"Picture"/.test(c.findings.join(" ")))
+        return "the finding does not name the placeholder";
+      return names(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
+    },
+  },
+  {
+    file: "synthetic-211-pptx-grey-text-on-the-masters-white.pptx",
+    truth:
+      "Grey text (#999999, 2.85:1) in a text box on a slide that declares no background of its own: it shows its master's — a theme reference (bgRef 1001, bg1) that resolves to white, the default in PowerPoint's and python-pptx's templates. Contrast on such slides was never assessed (user decision 2026-10-06: follow the background to the layout and master). It is now, and the failure is caught: 1.4.3 named.",
+    build: () =>
+      pptx([SLIDE_TITLE("Notes") + COLOR_BOX("Figures in gray are estimates.", "999999", 1800)], {
+        title: "Program Notes",
+        ...deckChain({
+          master: PPT_MASTER({ bg: BGREF_BG1 }),
+          layouts: [
+            PPT_LAYOUT(
+              LAYOUT_PH('<p:ph type="title"/>', { xfrm: XFRM(838200, 365125, 10515600, 1325563) }),
+            ),
+          ],
+          slideLayouts: [1],
+        }),
+      }),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `color_contrast ${c?.score} — grey text on the master's white was not caught`;
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-212-pptx-white-text-dark-template.pptx",
+    truth:
+      "White text on a dark template: the master's colour map sends bg1 to the theme's dark colour (bg1=\"dk1\", a navy #1F3864), and its background references bg1, so every slide is navy. Following the background must resolve it through the colour map — reading bg1 as white would accuse the white text of 1:1, the false failure the 2026-09-01 fix ended. The white text passes: color_contrast 100, nothing asserted.",
+    build: () =>
+      pptx([SLIDE_TITLE("Program Update") + COLOR_BOX("Questions for the board", "FFFFFF", 1800)], {
+        title: "Program Update 2026",
+        ...deckChain({
+          master: PPT_MASTER({
+            bg: BGREF_BG1,
+            clrMap: STD_CLRMAP.replace('bg1="lt1" tx1="dk1"', 'bg1="dk1" tx1="lt1"'),
+          }),
+          theme: OFFICE_THEME("1F3864"),
+          layouts: [
+            PPT_LAYOUT(
+              LAYOUT_PH('<p:ph type="title"/>', { xfrm: XFRM(838200, 365125, 10515600, 1325563) }),
+            ),
+          ],
+          slideLayouts: [1],
+        }),
+      }),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100)
+        return `color_contrast ${c?.score} — white text on the dark template was misjudged or not assessed`;
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-213-pptx-title-in-the-bands-own-colour.pptx",
+    truth:
+      "A Google Slides layout paints a blue band (#304FFE) across the top of every slide; on this slide a second title is typed in the band's own blue on top of it, beside the visible white one — the pattern of a real Google Slides deck in the test set, whose screen-reader title differs from the one on screen. Text the colour of what lies beneath it is the real 1:1 case (trap 150 pins the same), and following the background through the layout now sees the band: 1.4.3 named, the 1:1 run reported.",
+    build: () => {
+      const title = (text: string, hex: string, id: number) =>
+        `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Google Shape;${id};p15"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr>${XFRM(311700, 170820, 8520600, 572700)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr lang="en" sz="3600" b="1"><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+      const band = `<p:sp><p:nvSpPr><p:cNvPr id="9" name="Google Shape;9;p2"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(-11200, -37824, 9155100, 1018500)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="304FFE"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>`;
+      return pptx(
+        [
+          title("Progressive Enhancement", "304FFE", 76) +
+            title("Discoverability and progressive web apps", "FAFAFA", 77),
+        ],
+        {
+          title: "Web Strategy",
+          ...deckChain({
+            master: PPT_MASTER({ bg: SOLID_BG("FFFFFF") }),
+            layouts: [
+              PPT_LAYOUT(
+                band +
+                  LAYOUT_PH('<p:ph type="title"/>', {
+                    xfrm: XFRM(311700, 170820, 8520600, 572700),
+                  }),
+              ),
+            ],
+            slideLayouts: [1],
+          }),
+        },
+      );
+    },
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `color_contrast ${c?.score} — the title in the band's own colour was not caught`;
+      if (!/\b1:1\b|Lowest contrast 1:1/.test(c.findings.join(" ")))
+        return "the 1:1 run was not reported";
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-214-docx-docxjs-no-language.docx",
+    truth:
+      'A report built with docx.js (npm "docx" 9.8.1): its heading styles are named "Heading 1" and "Heading 2" with no outline level of their own, its table carries Repeat Header Rows and borders, its picture is described — and, as docx.js writes every document unless told otherwise (verified), it declares no language anywhere: no w:lang, no theme language, no dc:language. The headings, table and picture are all read; the missing language is caught: title_language loses points and 3.1.1 is named.',
+    build: async () =>
+      rewritePackage(
+        await docx(
+          [
+            HEADING(1, "Program Report"),
+            P(BODY_TEXT),
+            HEADING(2, "Program results"),
+            P(BODY_TEXT),
+            docxTable(true),
+            DRAWING(1, "Bar chart of awards by program"),
+          ].join(""),
+          { title: "Program Report", styles: true, language: null },
+        ),
+        (n, xml) => (n === "word/styles.xml" ? DOCXJS_STYLES : xml),
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100)
+        return `heading_structure ${h?.score} — docx.js headings were not read`;
+      const t = cat("table_markup")(r);
+      if (!t || t.score !== 100)
+        return `table_markup ${t?.score} — docx.js's header row was not read`;
+      const l = cat("title_language")(r);
+      if (!l || l.score === null || l.score >= 100)
+        return `title_language ${l?.score} — no language, not caught`;
+      return names(r, "3.1.1", "title_language") ? null : "3.1.1 was not named";
+    },
+  },
+  {
+    file: "synthetic-215-pptx-libreoffice-table-header-lost.pptx",
+    truth:
+      "A PowerPoint table as LibreOffice 26.2 writes it back (verified by round-tripping a headed table): its Header Row mark and table style are dropped — an empty <a:tblPr/> — and every cell's borders are baked in as solid black lines. The file no longer says which row is the header, exactly as PowerPoint would show it, so the checker must not guess one: a data table (it draws lines) with no header row — 45, 1.3.1 named, 79/C.",
+    build: () =>
+      pptx([SLIDE_TITLE("Awards by program") + LIBREOFFICE_TABLE(DATA_ROWS)], {
+        title: "Grant Program Update",
+      }),
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
+  },
+  {
+    file: "synthetic-216-docx-python-docx-report.docx",
+    truth:
+      'A report as python-docx 1.2.0 builds it with no extra recipes: headings from its default template; a "Table Grid" table — python-docx has no way to mark a header row, so it has none; a picture from add_picture, which writes no description; and a 14-pt line with bold switched off (<w:b w:val="0"/>, python-docx\'s bold = False). The two defects python-docx makes easy are caught — the missing header row (45, 1.3.1) and the undescribed picture (alt_text 0, 1.1.1) — and the bold-off line is no typed heading (heading_structure 100).',
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Program Report"),
+          P(BODY_TEXT),
+          wordGrid(DATA_ROWS, { tblPr: '<w:tblStyle w:val="TableGrid"/>' }),
+          DRAWING(1),
+          '<w:p><w:r><w:rPr><w:b w:val="0"/><w:sz w:val="28"/></w:rPr><w:t>Questions? Call the program office.</w:t></w:r></w:p>',
+        ].join(""),
+        { title: "Program Report", styles: true, stylesExtra: TABLE_STYLES },
+      ),
+    check: (r) => {
+      const t = cat("table_markup")(r);
+      if (!t || t.score !== UNHEADERED_DATA_TABLE_SCORE)
+        return `table_markup ${t?.score}, not ${UNHEADERED_DATA_TABLE_SCORE}`;
+      if (!names(r, "1.3.1", "table_markup")) return "1.3.1 not named against the table";
+      const a = cat("alt_text")(r);
+      if (!a || a.score !== 0)
+        return `alt_text ${a?.score} — the undescribed picture was not caught`;
+      if (!names(r, "1.1.1", "alt_text")) return "1.1.1 not named against the picture";
+      const h = cat("heading_structure")(r);
+      return h && h.score === 100
+        ? null
+        : `heading_structure ${h?.score} — the bold-off line was read as a heading`;
+    },
+  },
   // ---- v1.161.0: the language declared on most of the text (2026-10-06) ----
   {
     file: "synthetic-184-docx-language-on-the-text.docx",
@@ -2702,6 +3125,48 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-206-pptx-typed-bullets-layout-bullets-off.pptx": {
+    label: "PowerPoint: bullets typed by hand where the slide's layout switches bullets off",
+    chip: "bug",
+  },
+  "synthetic-207-pptx-python-pptx-default-template.pptx": {
+    label:
+      "PowerPoint: python-pptx's default template — a subtitle and a slide number that are not list items",
+    chip: "held",
+  },
+  "synthetic-208-pptx-google-slides-file-name-alt.pptx": {
+    label:
+      "PowerPoint: pictures \u201cdescribed\u201d by their file names, as Google Slides exports them",
+    chip: "caught",
+  },
+  "synthetic-209-xlsx-openpyxl-picture-alt.xlsx": {
+    label: "Excel: openpyxl\u2019s \u201cPicture\u201d on every image",
+    chip: "caught",
+  },
+  "synthetic-211-pptx-grey-text-on-the-masters-white.pptx": {
+    label: "PowerPoint: grey text on the white background a slide inherits from its master",
+    chip: "caught",
+  },
+  "synthetic-212-pptx-white-text-dark-template.pptx": {
+    label: "PowerPoint: white text on a dark template whose colour map makes the background dark",
+    chip: "held",
+  },
+  "synthetic-213-pptx-title-in-the-bands-own-colour.pptx": {
+    label: "PowerPoint: a title typed in the colour of the band its layout paints",
+    chip: "caught",
+  },
+  "synthetic-214-docx-docxjs-no-language.docx": {
+    label: "Word: a docx.js report that declares no language anywhere",
+    chip: "caught",
+  },
+  "synthetic-215-pptx-libreoffice-table-header-lost.pptx": {
+    label: "PowerPoint: a table LibreOffice wrote back without its Header Row mark",
+    chip: "caught",
+  },
+  "synthetic-216-docx-python-docx-report.docx": {
+    label: "Word: a python-docx report \u2014 no header row, no picture description",
+    chip: "caught",
+  },
   "synthetic-199-pptx-alt-text-only-line-breaks.pptx": {
     label: "PowerPoint: a picture described only by line breaks, written as &#xA;",
     chip: "bug",

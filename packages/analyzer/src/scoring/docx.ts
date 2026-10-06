@@ -26,6 +26,7 @@ import {
   judgeDeclaredLanguage,
   officeLanguageFindings,
   type ScoringResult,
+  placeholderAltFinding,
 } from "./common.js";
 import { evaluateDocxConformance } from "./conformance.js";
 
@@ -363,6 +364,8 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
     findings.push(
       `${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text (some Word versions call it Edit Alt Text) and add a description.`,
     );
+    const placeholders = placeholderAltFinding(nonDecorative);
+    if (placeholders) findings.push(placeholders);
     const titleOnly = nonDecorative.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {
       findings.push(

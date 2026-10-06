@@ -1386,7 +1386,12 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     for (let fi = 0; fi < figures.length && missingCount < 15; fi++) {
       if (!figures[fi].hasAlt) {
         missingCount++;
-        findings.push(`  Image ${fi + 1}: <Figure> tag — no /Alt attribute`);
+        const placeholder = figures[fi].placeholderAlt;
+        findings.push(
+          placeholder
+            ? `  Image ${fi + 1}: <Figure> tag — its alt text is only "${placeholder}", a file name or placeholder word, not a description (WCAG failure F30)`
+            : `  Image ${fi + 1}: <Figure> tag — no /Alt attribute`,
+        );
       }
     }
     const totalMissing = figures.filter((f) => !f.hasAlt).length;

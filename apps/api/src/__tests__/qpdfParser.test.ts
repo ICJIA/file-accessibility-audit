@@ -644,6 +644,39 @@ describe("hollow alternative text", () => {
   });
 });
 
+// A file name or placeholder word is not a description (WCAG F30; user
+// decision 2026-10-06, "count it as missing"): real PDFs in the test set
+// carry /Alt (image 1) … (image 4), and a file name.
+describe("placeholder alternative text", () => {
+  const doc = (key: "/Alt" | "/ActualText", value: string) => ({
+    qpdf: [
+      null,
+      {
+        "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+        "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+        "3 0 R": { "/S": "/Document", "/P": "2 0 R", "/K": ["4 0 R"] },
+        "4 0 R": { "/S": "/Figure", "/P": "3 0 R", [key]: value },
+      },
+    ],
+  });
+
+  it("/Alt (image 1) is not alt text, and the placeholder is recorded", () => {
+    const img = parseJson(doc("/Alt", "u:image 1")).images[0]!;
+    expect(img.hasAlt).toBe(false);
+    expect(img.placeholderAlt).toBe("image 1");
+  });
+
+  it("a file name in /ActualText does not rescue a figure either", () => {
+    expect(parseJson(doc("/ActualText", "u:Map of coverage.jpg")).images[0]!.hasAlt).toBe(false);
+  });
+
+  it("a real description stands", () => {
+    const img = parseJson(doc("/Alt", "u:Map of Illinois task force coverage")).images[0]!;
+    expect(img.hasAlt).toBe(true);
+    expect(img.placeholderAlt).toBeUndefined();
+  });
+});
+
 describe("orphaned struct pruning", () => {
   it("drops orphaned phantom <L> lists but keeps the reachable one", () => {
     const result = parseJson({

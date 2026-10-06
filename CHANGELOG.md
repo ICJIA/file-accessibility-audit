@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.165.0] - 2026-10-06
+
+### Changed
+
+Plan step 3: traps shaped like the programs that write Office files. The gate's report was built with each producer that runs here, compared with what the checker read, and its XML read: LibreOffice 26.2 (all 81 gate encodings re-saved), python-docx 1.2.0, python-pptx 1.0.2, openpyxl 3.1.5, docx.js 9.8.1, and two real Google Slides exports in the test set. Two findings were user decisions:
+
+- **Alt text that is only a file name or placeholder word counts as missing, in every format** ("count it as missing"; WCAG failure F30). Producers write these when the author writes nothing:
+  - Google Slides and python-pptx: the image's file name;
+  - openpyxl: "Picture" on every image (its own source);
+  - real PDFs: "image 1"–"image 4".
+
+  Exact matches only (`isPlaceholderAltText`): the whole description must be an image file name or one placeholder word, optionally numbered. Each scorer names what the picture carries. A corpus scan found 19 hits and left 13 near misses ("Image related to 2008") alone.
+- **A PowerPoint slide's background is followed to its layout and master** ("follow it"). It was read only from the slide, so explicitly coloured text on the default backgrounds of PowerPoint, Google Slides and python-pptx templates was never assessed.
+  - Theme references (`bgRef`) resolve through the theme's fill styles under the master's colour map.
+  - Colours are read strictly: modifiers, gradients and pictures stay unknown.
+  - What the layout and master paint lies beneath slide content unless `showMasterSp="0"` hides it.
+  - Placeholders inherit their position and fill.
+  - A shape's own theme-style fill (`p:style/a:fillRef`) resolves too. Without that, white text in an accent shape would have been judged against the white slide behind it.
+
+### Fixed
+
+- **Bullets a slide's layout switched off were never read.** PowerPoint resolves a paragraph's bullet through its shape, the slide's layout, then the master; the parser read the master alone.
+  - python-pptx's default template counted a subtitle and a slide number as list items: five for three.
+  - A real agency deck's four hand-typed "•" bullets passed as a real list, under a layout that switches bullets off. It goes **100/A → 89/B** (list 75, Minor, 1.3.1).
+
+  Footer, date, slide-number and header placeholders now take no bullets.
+
+### Notes
+
+- **Corpus movement**, every line verified:
+  - `sample-1.pptx` (Google Slides): 79/C → 69/D, nine file-name descriptions. Its contrast 100 → 85 comes from two titles typed in the band's own blue, invisible beside the visible ones.
+  - ILHEALS newsletter and remediated copy: 89/B → 69/D ("image 1"–"image 4").
+  - Elder Abuse (remediated): alt text 100 → 0.
+  - CIEG: alt text 83 → 81, from one descriptive file name.
+  - Communication deck: 100/A → 89/B.
+  - DEI deck: contrast 48 → 50.
+  - `sample-2`: contrast newly assessed, 100.
+- **Tests:** 4,081 (API 2,100 · Web 1,931 · CLI 50) across 226 files. New: `pptxBulletInheritance` (8), `placeholderAltText` (28), `pptxInheritedBackground` (16), `qpdfParser` +3, RED first except two guards that fail when the fill reading is reverted.
+- **Traps:** 216. The 11 new ones are 206–216; 206 carries a FOUND A REAL BUG chip. The stashed analyzer fails 206–213 and 210. 214–216 pin producer shapes that are already read correctly:
+  - docx.js declares no language anywhere;
+  - LibreOffice drops PowerPoint's Header Row mark;
+  - python-docx has no header-row or alt-text API.
+- **Gate:** `office-encoding-invariance` is now 85 encodings, adding the background from the master, as the master's colour, and from a layout, plus bullets from a layout.
+- **Ledger:** 347 rows. All gates green. `pnpm audit --prod`: 6, the same six.
+- **Follow-ups:** OpenDataLoader, the remediation tagger, writes "image N" (now caught) and "Table (page N)" (outside the approved rule); PowerPoint text-colour inheritance is not resolved.
+- **Waiting** on the user's Google Docs, Sheets and Slides and Apple Pages and Keynote files. Write-up: `docs/producer-shaped-traps-plan-step-3.md`.
+
 ## [1.164.1] - 2026-10-06
 
 ### Fixed

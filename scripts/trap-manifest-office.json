@@ -1,5 +1,5 @@
 {
-  "count": 82,
+  "count": 92,
   "generated": "2026-10-06",
   "items": [
     {
@@ -403,6 +403,56 @@
       "file": "synthetic-205-xlsx-no-cell-references.xlsx",
       "label": "Excel: a workbook whose cells carry no r= references",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-206-pptx-typed-bullets-layout-bullets-off.pptx",
+      "label": "PowerPoint: bullets typed by hand where the slide's layout switches bullets off",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-207-pptx-python-pptx-default-template.pptx",
+      "label": "PowerPoint: python-pptx's default template — a subtitle and a slide number that are not list items",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-208-pptx-google-slides-file-name-alt.pptx",
+      "label": "PowerPoint: pictures “described” by their file names, as Google Slides exports them",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-209-xlsx-openpyxl-picture-alt.xlsx",
+      "label": "Excel: openpyxl’s “Picture” on every image",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-211-pptx-grey-text-on-the-masters-white.pptx",
+      "label": "PowerPoint: grey text on the white background a slide inherits from its master",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-212-pptx-white-text-dark-template.pptx",
+      "label": "PowerPoint: white text on a dark template whose colour map makes the background dark",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-213-pptx-title-in-the-bands-own-colour.pptx",
+      "label": "PowerPoint: a title typed in the colour of the band its layout paints",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-214-docx-docxjs-no-language.docx",
+      "label": "Word: a docx.js report that declares no language anywhere",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-215-pptx-libreoffice-table-header-lost.pptx",
+      "label": "PowerPoint: a table LibreOffice wrote back without its Header Row mark",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-216-docx-python-docx-report.docx",
+      "label": "Word: a python-docx report — no header row, no picture description",
+      "chip": "caught"
     },
     {
       "file": "synthetic-184-docx-language-on-the-text.docx",

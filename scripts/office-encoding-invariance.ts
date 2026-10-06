@@ -33,7 +33,13 @@
  * conventional names, which the parsers read directly.
  *
  * Exit code is non-zero if any encoding disagrees with its family's baseline.
+ *
+ * OFFICE_ENCODING_DUMP_DIR=<dir> also writes every encoding's package there
+ * (<family>-<name>.<ext>), to open by hand or feed to another producer — the
+ * LibreOffice round trip of plan step 3 started from these.
  */
+import fs from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
@@ -586,6 +592,12 @@ interface PptOpts {
   hidden?: "0" | "false";
   slideIdAttributeOrder?: "idFirst" | "relationshipFirst";
   decorative?: "1" | "true";
+  /** Where the contact slide's white background is declared: on the slide,
+   *  on the master as a theme reference, on the master as a colour (Google
+   *  Slides' form), or on a layout every slide uses, over a black master. */
+  background?: "slide" | "master" | "masterColour" | "layout";
+  /** The results slide's bullets: on each paragraph, or from its layout. */
+  bullets?: "explicit" | "layout";
 }
 
 function pptParts(o: PptOpts = {}): Parts {
@@ -612,9 +624,10 @@ function pptParts(o: PptOpts = {}): Parts {
     "Housing support reached four hundred families.",
     "Every award was reviewed before approval.",
   ]
-    .map(
-      (t) =>
-        `<a:p><a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>${run(t)}</a:p>`,
+    .map((t) =>
+      (o.bullets ?? "explicit") === "explicit"
+        ? `<a:p><a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>${run(t)}</a:p>`
+        : `<a:p>${run(t)}</a:p>`,
     )
     .join("");
   const tableRows = [
@@ -664,7 +677,7 @@ function pptParts(o: PptOpts = {}): Parts {
           contactBody,
           '<a:xfrm><a:off x="838200" y="1825625"/><a:ext cx="10515600" cy="4351338"/></a:xfrm>',
         ),
-      { bg: whiteBg },
+      { bg: (o.background ?? "slide") === "slide" ? whiteBg : undefined },
     ),
     // Hidden, untitled, with a typed heading: neither may count against the deck.
     "slide5.xml": slide(
@@ -712,6 +725,32 @@ function pptParts(o: PptOpts = {}): Parts {
     masterOnly: '<a:lvl1pPr marL="0" algn="l" defTabSz="914400"><a:defRPr sz="1800"/></a:lvl1pPr>',
     runs: '<a:lvl1pPr marL="0" algn="l" defTabSz="914400"><a:defRPr sz="1800"/></a:lvl1pPr>',
   }[language];
+  const background = o.background ?? "slide";
+  const solidBg = (hex: string) =>
+    `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`;
+  const masterBg =
+    background === "layout"
+      ? solidBg("000000")
+      : background === "masterColour"
+        ? solidBg("FFFFFF")
+        : '<p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg>';
+  /** Layouts, when a variant uses them: every slide's white background, or
+   *  the results slide's bullets on its body placeholder (idx 1). */
+  const layoutXml = (bg: string, shapes: string) =>
+    `${XMLDECL}<p:sldLayout xmlns:a="${NS.a}" xmlns:r="${NS.r}" xmlns:p="${NS.p}"><p:cSld>${bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${shapes}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`;
+  const layouts: Record<string, string> = {};
+  if (background === "layout") layouts["slideLayout1.xml"] = layoutXml(solidBg("FFFFFF"), "");
+  if ((o.bullets ?? "explicit") === "layout")
+    layouts["slideLayout2.xml"] = layoutXml(
+      "",
+      `<p:sp><p:nvSpPr><p:cNvPr id="3" name="Content Placeholder 2"/><p:cNvSpPr/><p:nvPr><p:ph idx="1"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle><a:lvl1pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="•"/></a:lvl1pPr></a:lstStyle><a:p/></p:txBody></p:sp>`,
+    );
+  const layoutFor = (file: string): string | undefined =>
+    file === "slide3.xml" && layouts["slideLayout2.xml"]
+      ? "slideLayout2.xml"
+      : layouts["slideLayout1.xml"]
+        ? "slideLayout1.xml"
+        : undefined;
   const masterOtherLang =
     language === "masterOnly" ? '<a:defPPr><a:defRPr lang="en-US"/></a:defPPr>' : "";
   const parts: Parts = {
@@ -719,6 +758,13 @@ function pptParts(o: PptOpts = {}): Parts {
       ["/ppt/presentation.xml", CT.pptMain],
       ...order.map((f) => [`/ppt/slides/${f}`, CT.pptSlide] as [string, string]),
       ["/ppt/slideMasters/slideMaster1.xml", CT.pptMaster],
+      ...Object.keys(layouts).map(
+        (f) =>
+          [
+            `/ppt/slideLayouts/${f}`,
+            "application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml",
+          ] as [string, string],
+      ),
       ["/ppt/theme/theme1.xml", CT.theme],
       ["/docProps/core.xml", CT.core],
     ]),
@@ -741,17 +787,26 @@ function pptParts(o: PptOpts = {}): Parts {
       { id: "rIdMaster", type: "slideMaster", target: "slideMasters/slideMaster1.xml" },
       { id: "rIdTheme", type: "theme", target: "theme/theme1.xml" },
     ]),
-    "ppt/slideMasters/slideMaster1.xml": `${XMLDECL}<p:sldMaster xmlns:a="${NS.a}" xmlns:r="${NS.r}" xmlns:p="${NS.p}"><p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle><p:otherStyle>${masterOtherLang}<a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`,
+    "ppt/slideMasters/slideMaster1.xml": `${XMLDECL}<p:sldMaster xmlns:a="${NS.a}" xmlns:r="${NS.r}" xmlns:p="${NS.p}"><p:cSld>${masterBg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="4400"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle><p:otherStyle>${masterOtherLang}<a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`,
     "ppt/slideMasters/_rels/slideMaster1.xml.rels": relsXml([
       { id: "rId1", type: "theme", target: "../theme/theme1.xml" },
     ]),
     "ppt/theme/theme1.xml": THEME_XML,
     "ppt/media/image1.png": PNG_1X1,
   };
+  for (const [file, xml] of Object.entries(layouts)) {
+    parts[`ppt/slideLayouts/${file}`] = xml;
+    parts[`ppt/slideLayouts/_rels/${file}.rels`] = relsXml([
+      { id: "rId1", type: "slideMaster", target: "../slideMasters/slideMaster1.xml" },
+    ]);
+  }
   for (const [file, xml] of Object.entries(slides)) {
+    const slideLayout = layoutFor(file);
     parts[`ppt/slides/${file}`] = xml;
     parts[`ppt/slides/_rels/${file}.rels`] = relsXml([
-      { id: "rIdMaster", type: "slideMaster", target: "../slideMasters/slideMaster1.xml" },
+      slideLayout
+        ? { id: "rIdLayout", type: "slideLayout", target: `../slideLayouts/${slideLayout}` }
+        : { id: "rIdMaster", type: "slideMaster", target: "../slideMasters/slideMaster1.xml" },
       ...(file === "slide3.xml"
         ? [{ id: "rIdImg", type: "image", target: "../media/image1.png" }]
         : []),
@@ -1189,6 +1244,26 @@ const POWERPOINT: Family = {
       build: () => pptParts({ decorative: "true" }),
     },
     {
+      name: "background-from-the-master",
+      why: "the contact slide declares no background; the master's — a theme reference (bgRef 1001, bg1) — shows",
+      build: () => pptParts({ background: "master" }),
+    },
+    {
+      name: "background-as-the-masters-own-colour",
+      why: "the master's background written as a plain colour, as Google Slides exports it",
+      build: () => pptParts({ background: "masterColour" }),
+    },
+    {
+      name: "background-from-the-layout",
+      why: "every slide on a layout whose white background covers a black master's",
+      build: () => pptParts({ background: "layout" }),
+    },
+    {
+      name: "bullets-from-the-layout",
+      why: "the results slide's bullets set by its layout's list style, not on each paragraph",
+      build: () => pptParts({ bullets: "layout" }),
+    },
+    {
       name: "slide-id-attribute-order",
       why: "<p:sldId r:id=… id=…/> — attribute order carries no meaning in XML",
       build: () => pptParts({ slideIdAttributeOrder: "relationshipFirst" }),
@@ -1307,6 +1382,11 @@ async function runFamily(f: Family): Promise<number> {
   for (const e of f.encodings) {
     try {
       const buf = await pack(e.build(), e.pack);
+      const dumpDir = process.env.OFFICE_ENCODING_DUMP_DIR;
+      if (dumpDir) {
+        fs.mkdirSync(dumpDir, { recursive: true });
+        fs.writeFileSync(path.join(dumpDir, `${f.name.toLowerCase()}-${e.name}.${f.ext}`), buf);
+      }
       const r = await analyzeDocument(buf, `${e.name}.${f.ext}`);
       results.push({
         name: e.name,

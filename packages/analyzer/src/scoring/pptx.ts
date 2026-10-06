@@ -24,6 +24,7 @@ import {
   judgeDeclaredLanguage,
   officeLanguageFindings,
   type ScoringResult,
+  placeholderAltFinding,
 } from "./common.js";
 import { evaluatePptxConformance } from "./conformance.js";
 
@@ -332,6 +333,8 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
     findings.push(
       `${missing.length} image(s) are missing alt text. In PowerPoint: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
+    const placeholders = placeholderAltFinding(missing);
+    if (placeholders) findings.push(placeholders);
   }
   return pptxCategory(
     "alt_text",

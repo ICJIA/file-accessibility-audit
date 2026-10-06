@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "producer-shaped-2026-10-06",
+    badge: "Scoring",
+    text: "A picture whose only “description” is its file name or a placeholder word now counts as undescribed. Some programs write these automatically when the author leaves the description blank: Google Slides and some scripting tools use the file name (“chart.png”), and others write “Picture” or “image 1”. PowerPoint slides are now read the way PowerPoint shows them. Text on a slide that takes its background from the slide master is checked for contrast, and bullets typed by hand where the layout turns bullets off are caught. These came from building test documents the way real programs write them, so some grades will go down, correctly.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 6, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "office-encodings-2026-10-06",
     badge: "Scoring",
     text: "Word, PowerPoint and Excel files are now read the same way whichever program wrote them. A new check writes one document 81 different but equally valid ways and requires the same grade every time. Its first run found seven misreadings, all now fixed. Among them: line breaks in a picture’s description were kept as codes; files saved in the UTF-16 text format were turned away; text marked “not bold” was read as bold, which could invent a typed heading in a Word file or pass faint grey text in a workbook; and a slide hidden with “false” was judged anyway. No grade on any file in the test set changed.",

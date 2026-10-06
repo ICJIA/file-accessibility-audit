@@ -5,6 +5,7 @@ import {
   type VisualTextItem,
 } from "./visualHeadings.js";
 import { classifyTitleShape } from "./titleShape.js";
+import { isPlaceholderAltText } from "./placeholderAlt.js";
 
 export interface PdfMetadata {
   creator: string | null;
@@ -1456,7 +1457,10 @@ export function collectTextBearingFigures(
       if (text) {
         out.push({
           page,
-          hasAlt: typeof node.alt === "string" && node.alt.trim().length > 0,
+          hasAlt:
+            typeof node.alt === "string" &&
+            node.alt.trim().length > 0 &&
+            !isPlaceholderAltText(node.alt),
           textLength: text.length,
           preview:
             text.length > FIGURE_PREVIEW_CHARS

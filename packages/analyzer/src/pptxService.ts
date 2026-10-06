@@ -71,7 +71,13 @@ export interface PptxAnalysis {
    *  which is 2.4.10 Section Headings — Level AAA, outside what the law asks
    *  and deliberately unscored. */
   fakeHeadings: Array<{ slide: number; text: string }>;
-  images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
+  images: Array<{
+    altText: string | null;
+    decorative: boolean;
+    titleOnly: boolean;
+    /** Only a file name or placeholder word (WCAG F30) — see drawingAltText. */
+    placeholderAlt?: string;
+  }>;
   tables: Array<{
     hasHeaderRow: boolean;
     rowCount: number;
@@ -173,6 +179,339 @@ function contentShapes(spTree: PONode): PONode[] {
   return childrenOf(spTree).filter((c) => CONTENT_SHAPE_TAGS.has(tagOf(c) ?? ""));
 }
 
+// ---------------------------------------------------------------------------
+// Where a placeholder paragraph's bullet comes from (2026-10-06). PowerPoint
+// resolves it through a chain — the paragraph, its shape's own list style,
+// the matching placeholder on the slide's LAYOUT, then the master's text
+// style — and the parser read the master alone. The Title Slide layout's
+// subtitle (bullets off in the layout, as in PowerPoint's and python-pptx's
+// default template) and every footer, date and slide-number placeholder (the
+// master's bullet-free "other" style) were counted as list items.
+// ---------------------------------------------------------------------------
+
+type BulletMark = "bullet" | "none";
+
+/** Bullet marks per outline level (1–9) a txBody's own a:lstStyle sets. */
+function lstStyleBullets(txBody: PONode | undefined): Map<number, BulletMark> {
+  const out = new Map<number, BulletMark>();
+  const lst = txBody ? firstChild(txBody, "lstStyle") : undefined;
+  if (!lst) return out;
+  for (const child of childrenOf(lst)) {
+    const m = /^lvl(\d)pPr$/.exec(tagOf(child) ?? "");
+    if (!m) continue;
+    if (firstChild(child, "buChar") || firstChild(child, "buAutoNum"))
+      out.set(Number(m[1]), "bullet");
+    else if (firstChild(child, "buNone")) out.set(Number(m[1]), "none");
+  }
+  return out;
+}
+
+/** A shape's placeholder: its type (absent = "obj", the schema default) and idx. */
+function placeholderKey(sp: PONode): { type: string; idx: string | undefined } | null {
+  const ph = descendants(sp, "ph")[0];
+  return ph ? { type: attrOf(ph, "type") ?? "obj", idx: attrOf(ph, "idx") } : null;
+}
+
+/** A layout's placeholders' list-style bullet marks, found the way PowerPoint
+ *  matches a slide placeholder to its layout's: by idx, else by type. */
+interface LayoutBullets {
+  byIdx: Map<string, Map<number, BulletMark>>;
+  byType: Map<string, Map<number, BulletMark>>;
+}
+const NO_LAYOUT: LayoutBullets = { byIdx: new Map(), byType: new Map() };
+
+function layoutBullets(layoutRoot: PONode | undefined): LayoutBullets {
+  const out: LayoutBullets = { byIdx: new Map(), byType: new Map() };
+  const spTree = layoutRoot ? descendants(layoutRoot, "spTree")[0] : undefined;
+  if (!spTree) return out;
+  for (const sp of contentShapes(spTree)) {
+    if (tagOf(sp) !== "sp") continue;
+    const key = placeholderKey(sp);
+    if (!key) continue;
+    const marks = lstStyleBullets(firstChild(sp, "txBody"));
+    if (key.idx !== undefined && !out.byIdx.has(key.idx)) out.byIdx.set(key.idx, marks);
+    if (!out.byType.has(key.type)) out.byType.set(key.type, marks);
+  }
+  return out;
+}
+
+/** Placeholder types that take the master's "other" text style — never the
+ *  body style's bullets. */
+const OTHER_STYLE_PLACEHOLDERS = new Set(["dt", "ftr", "sldNum", "hdr"]);
+
+/** At most this many distinct layout parts are read per deck; slides past
+ *  it fall back to the master alone, as every slide did before. */
+const MAX_LAYOUTS_READ = 256;
+
+// ---------------------------------------------------------------------------
+// The slide's background, followed to its layout and master (2026-10-06,
+// user decision "follow it"), and the fills its shapes inherit. Every colour
+// here is read STRICTLY: one stated colour, no modifiers (lumMod, tint,
+// alpha …), no gradient or picture — anything else is unknown, never guessed.
+// ---------------------------------------------------------------------------
+
+/** At most this many distinct slide masters (and themes) are read per deck;
+ *  slides past it use the first master, as every slide did before. */
+const MAX_MASTERS_READ = 64;
+
+/** The small part of a theme the background walk needs: the colour slots,
+ *  and the two fill-style lists a fill or background reference indexes. */
+interface ThemeInfo {
+  slots: Map<string, string>;
+  fills: PONode[];
+  bgFills: PONode[];
+}
+const NO_THEME: ThemeInfo = { slots: new Map(), fills: [], bgFills: [] };
+
+function themeInfo(themeRoot: PONode | undefined): ThemeInfo {
+  if (!themeRoot) return NO_THEME;
+  const list = (tag: string): PONode[] => {
+    const el = descendants(themeRoot, tag)[0];
+    return el ? childrenOf(el).filter((c) => tagOf(c) !== "#text") : [];
+  };
+  return {
+    slots: buildSchemeColorMap(themeRoot),
+    fills: list("fillStyleLst"),
+    bgFills: list("bgFillStyleLst"),
+  };
+}
+
+const CLR_MAP_KEYS = [
+  "bg1",
+  "tx1",
+  "bg2",
+  "tx2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hlink",
+  "folHlink",
+];
+
+/** A p:clrMap or a:overrideClrMapping as name → theme slot, or null. A dark
+ *  template maps bg1 to dk1 and tx1 to lt1. */
+function clrMapOf(el: PONode | undefined): Record<string, string> | null {
+  if (!el) return null;
+  const out: Record<string, string> = {};
+  for (const k of CLR_MAP_KEYS) {
+    const v = attrOf(el, k);
+    if (v) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** The theme's colours under a colour map. */
+function schemeFor(theme: ThemeInfo, clrMap: Record<string, string> | null): Map<string, string> {
+  const m = new Map(theme.slots);
+  for (const [name, slot] of Object.entries(clrMap ?? {})) {
+    const hex = theme.slots.get(slot);
+    if (hex) m.set(name, hex);
+    else m.delete(name);
+  }
+  return m;
+}
+
+interface MasterInfo {
+  root: PONode | undefined;
+  theme: ThemeInfo;
+  clrMap: Record<string, string> | null;
+}
+interface LayoutInfo {
+  bullets: LayoutBullets;
+  root: PONode | undefined;
+  masterPath: string;
+}
+
+const COLOR_TAGS = new Set(["srgbClr", "schemeClr", "sysClr", "scrgbClr", "hslClr", "prstClr"]);
+const firstColor = (node: PONode): PONode | undefined =>
+  childrenOf(node).find((c) => COLOR_TAGS.has(tagOf(c) ?? ""));
+
+/** One colour element resolved STRICTLY, or null: a colour carrying
+ *  modifiers is not guessed at. phClr is the colour a style reference
+ *  supplies. */
+function strictColor(
+  el: PONode | undefined,
+  scheme: Map<string, string>,
+  phClr: string | null = null,
+): string | null {
+  if (!el || childrenOf(el).some((c) => tagOf(c) !== "#text")) return null;
+  const tag = tagOf(el);
+  if (tag === "srgbClr") return normalizeHex(attrOf(el, "val"));
+  if (tag === "sysClr") return normalizeHex(attrOf(el, "lastClr"));
+  if (tag === "schemeClr") {
+    const v = attrOf(el, "val");
+    if (v === "phClr") return phClr;
+    return v ? (scheme.get(v) ?? null) : null;
+  }
+  return null;
+}
+
+/** A fill or background REFERENCE into the theme (fillRef, bgRef): idx
+ *  1–999 is the fill-style list, 1001+ the background list, 0 no fill. A
+ *  solid entry painted in the placeholder colour resolves to the colour the
+ *  reference gives; anything else is unknown. */
+function referencedFill(
+  ref: PONode,
+  scheme: Map<string, string>,
+  theme: ThemeInfo,
+): string | "unknown" | null {
+  const idx = Number(attrOf(ref, "idx"));
+  if (idx === 0) return null;
+  const entry =
+    idx >= 1001 ? theme.bgFills[idx - 1001] : idx >= 1 ? theme.fills[idx - 1] : undefined;
+  if (!entry || tagOf(entry) !== "solidFill") return "unknown";
+  return strictColor(firstColor(entry), scheme, strictColor(firstColor(ref), scheme)) ?? "unknown";
+}
+
+/** What a shape's own properties say it is filled with: a colour,
+ *  "unknown" (gradient, picture, pattern, modified or unreadable colour),
+ *  null (explicitly no fill), or undefined (it says nothing — a placeholder
+ *  then inherits). */
+function shapeFill(
+  sp: PONode,
+  scheme: Map<string, string>,
+  theme: ThemeInfo,
+): string | "unknown" | null | undefined {
+  const spPr = firstChild(sp, "spPr");
+  if (spPr) {
+    const solid = firstChild(spPr, "solidFill");
+    if (solid) return strictColor(firstColor(solid), scheme) ?? "unknown";
+    if (firstChild(spPr, "noFill")) return null;
+    if (hasUnresolvableFill(spPr)) return "unknown";
+  }
+  const style = firstChild(sp, "style");
+  const fillRef = style ? firstChild(style, "fillRef") : undefined;
+  return fillRef ? referencedFill(fillRef, scheme, theme) : undefined;
+}
+
+/** A part's own background (p:cSld/p:bg): undefined when it declares none —
+ *  the next part up decides — null when it declares one that is not a single
+ *  stated colour. */
+function backgroundOf(
+  root: PONode | undefined,
+  scheme: Map<string, string>,
+  theme: ThemeInfo,
+): string | null | undefined {
+  const cSld = root ? firstChild(root, "cSld") : undefined;
+  const bg = cSld ? firstChild(cSld, "bg") : undefined;
+  if (!bg) return undefined;
+  const bgPr = firstChild(bg, "bgPr");
+  if (bgPr) {
+    const solid = firstChild(bgPr, "solidFill");
+    return solid ? strictColor(firstColor(solid), scheme) : null;
+  }
+  const ref = firstChild(bg, "bgRef");
+  if (!ref) return null;
+  const fill = referencedFill(ref, scheme, theme);
+  return fill === "unknown" ? null : fill;
+}
+
+/** What a layout or master paints on every slide that shows it: its shapes
+ *  that are not placeholders (a placeholder is a template, never drawn). */
+function paintersOfPart(root: PONode | undefined, scheme: Map<string, string>): Painter[] {
+  const cSld = root ? firstChild(root, "cSld") : undefined;
+  const spTree = cSld ? firstChild(cSld, "spTree") : undefined;
+  if (!spTree) return [];
+  const out: Painter[] = [];
+  for (const sp of contentShapes(spTree)) {
+    if (descendants(sp, "ph").length > 0) continue;
+    const painter = painterOf(sp, scheme);
+    if (painter) out.push(painter);
+  }
+  return out;
+}
+
+/** A part's placeholder shapes, findable the way PowerPoint matches them. */
+function placeholderIndex(root: PONode | undefined): {
+  byIdx: Map<string, PONode>;
+  byType: Map<string, PONode>;
+} {
+  const out = { byIdx: new Map<string, PONode>(), byType: new Map<string, PONode>() };
+  const cSld = root ? firstChild(root, "cSld") : undefined;
+  const spTree = cSld ? firstChild(cSld, "spTree") : undefined;
+  for (const sp of spTree ? contentShapes(spTree) : []) {
+    const key = placeholderKey(sp);
+    if (!key) continue;
+    if (key.idx !== undefined && !out.byIdx.has(key.idx)) out.byIdx.set(key.idx, sp);
+    if (!out.byType.has(key.type)) out.byType.set(key.type, sp);
+  }
+  return out;
+}
+
+/** The master placeholder a slide placeholder of this type inherits from. */
+const masterPlaceholderType = (type: string): string =>
+  type === "title" || type === "ctrTitle"
+    ? "title"
+    : OTHER_STYLE_PLACEHOLDERS.has(type)
+      ? type
+      : "body";
+
+interface ContrastContext {
+  /** The theme's colours under the slide's colour map. */
+  scheme: Map<string, string>;
+  theme: ThemeInfo;
+  /** The slide's own background, else its layout's, else its master's; null
+   *  when that is not one stated colour. */
+  background: string | null;
+  /** What the master and layout paint beneath the slide's own shapes. */
+  inherited: Painter[];
+  /** A placeholder's inherited position and fill (layout, then master). */
+  placeholder: (sp: PONode) => { bounds: ShapeRect | null; fill: string | "unknown" | null };
+}
+
+function contrastContextFor(
+  slideRoot: PONode,
+  layoutRoot: PONode | undefined,
+  master: MasterInfo,
+): ContrastContext {
+  const ovr = firstChild(slideRoot, "clrMapOvr");
+  const slideMap = clrMapOf(ovr ? firstChild(ovr, "overrideClrMapping") : undefined);
+  const scheme = schemeFor(master.theme, slideMap ?? master.clrMap);
+  const masterScheme = schemeFor(master.theme, master.clrMap);
+
+  let background = backgroundOf(slideRoot, scheme, master.theme);
+  if (background === undefined) background = backgroundOf(layoutRoot, scheme, master.theme);
+  if (background === undefined) background = backgroundOf(master.root, masterScheme, master.theme);
+
+  // showMasterSp="0" on the slide hides what its layout (and so its master)
+  // paints; on the layout, what the master paints.
+  const shows = (el: PONode | undefined): boolean =>
+    xsdBoolean(el ? attrOf(el, "showMasterSp") : undefined) !== false;
+  const inherited = !shows(slideRoot)
+    ? []
+    : [
+        ...(shows(layoutRoot) ? paintersOfPart(master.root, masterScheme) : []),
+        ...paintersOfPart(layoutRoot, scheme),
+      ];
+
+  const layoutPh = placeholderIndex(layoutRoot);
+  const masterPh = placeholderIndex(master.root);
+  const placeholder = (sp: PONode) => {
+    const key = placeholderKey(sp);
+    if (!key) return { bounds: null, fill: null };
+    const lp =
+      key.idx !== undefined && layoutPh.byIdx.has(key.idx)
+        ? layoutPh.byIdx.get(key.idx)
+        : (layoutPh.byType.get(key.type) ??
+          (key.type === "ctrTitle" ? layoutPh.byType.get("title") : undefined));
+    const mp = masterPh.byType.get(masterPlaceholderType(key.type));
+    const bounds =
+      (lp ? xfrmRect(firstChild(lp, "spPr")) : null) ??
+      (mp ? xfrmRect(firstChild(mp, "spPr")) : null);
+    const fromLayout = lp ? shapeFill(lp, scheme, master.theme) : undefined;
+    const fill =
+      fromLayout !== undefined
+        ? fromLayout
+        : ((mp ? shapeFill(mp, masterScheme, master.theme) : undefined) ?? null);
+    return { bounds, fill };
+  };
+
+  return { scheme, theme: master.theme, background: background ?? null, inherited, placeholder };
+}
+
 /**
  * Total shape-tag elements under spTree at ANY depth. contentShapes() above
  * (direct children only) is the correct semantic for reading order — a
@@ -270,15 +609,20 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   // Resolve every scheme color ONCE per analysis (not once per text run —
   // see buildSchemeColorMap's doc comment) and drop the theme AST once the
   // map is built so a large theme part isn't retained across the slide loop.
-  let themeRoot: PONode | undefined = rootElement(
-    parseXml(await read("ppt/theme/theme1.xml")),
-    "theme",
-  );
-  const schemeColorMap = buildSchemeColorMap(themeRoot);
-  // Intentional: drop the (potentially large) parsed theme AST so it isn't
-  // retained by closures across the slide loop below (see comment above).
-  // eslint-disable-next-line no-useless-assignment
-  themeRoot = undefined;
+  // themeInfo keeps only the slot map and the two small fill-style lists a
+  // background reference (p:bgRef) points into — never the theme AST.
+  const themeCache = new Map<string, ThemeInfo>();
+  const readTheme = async (path: string): Promise<ThemeInfo> => {
+    const cached = themeCache.get(path);
+    if (cached) return cached;
+    const info =
+      themeCache.size < MAX_MASTERS_READ
+        ? themeInfo(rootElement(parseXml(await read(path)), "theme"))
+        : NO_THEME;
+    themeCache.set(path, info);
+    return info;
+  };
+  const deckTheme = await readTheme("ppt/theme/theme1.xml");
 
   // Slide parts in PRESENTATION order — resolved from p:sldIdLst through the
   // presentation rels, so findings point at the slides the author actually
@@ -400,6 +744,32 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   // language stood in for the deck, so one stray marked word could.
   const textLangChars = new Map<string, number>();
   let textChars = 0;
+  const layoutCache = new Map<string, LayoutInfo>();
+  const masterCache = new Map<string, MasterInfo>();
+  const DECK_MASTER = "ppt/slideMasters/slideMaster1.xml";
+  const relsPathOf = (part: string) => part.replace(/([^/]+)$/, "_rels/$1.rels");
+  const dirOf = (part: string) => part.replace(/\/[^/]+$/, "");
+  const readMaster = async (path: string): Promise<MasterInfo> => {
+    const cached = masterCache.get(path);
+    if (cached) return cached;
+    if (masterCache.size >= MAX_MASTERS_READ && path !== DECK_MASTER)
+      return readMaster(DECK_MASTER);
+    const root =
+      path === DECK_MASTER ? masterRoot : rootElement(parseXml(await read(path)), "sldMaster");
+    const themeRel = parseRelationshipEntries(await read(relsPathOf(path))).find((r) =>
+      /\/theme$/.test(r.type),
+    );
+    const theme = themeRel
+      ? await readTheme(resolveRelTarget(dirOf(path), themeRel.target))
+      : deckTheme;
+    const info: MasterInfo = {
+      root,
+      theme,
+      clrMap: clrMapOf(root ? firstChild(root, "clrMap") : undefined),
+    };
+    masterCache.set(path, info);
+    return info;
+  };
 
   for (let i = 0; i < slidePaths.length; i++) {
     const slideXml = await read(slidePaths[i]);
@@ -516,7 +886,38 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       }
     }
 
-    collectSlideContent(analysis, slideRoot, relMap, schemeColorMap, spTree, masterBodyBullets);
+    // The slide's layout and master, each read once per distinct part (capped).
+    let layout: LayoutInfo = { bullets: NO_LAYOUT, root: undefined, masterPath: DECK_MASTER };
+    const layoutRel = relEntries.find((r) => /\/slideLayout$/.test(r.type));
+    if (layoutRel) {
+      const layoutPath = resolveRelTarget(dirOf(slidePaths[i]), layoutRel.target);
+      const cached = layoutCache.get(layoutPath);
+      if (cached) layout = cached;
+      else if (layoutCache.size < MAX_LAYOUTS_READ) {
+        const root = rootElement(parseXml(await read(layoutPath)), "sldLayout");
+        const masterRel = parseRelationshipEntries(await read(relsPathOf(layoutPath))).find((r) =>
+          /\/slideMaster$/.test(r.type),
+        );
+        layout = {
+          bullets: layoutBullets(root),
+          root,
+          masterPath: masterRel
+            ? resolveRelTarget(dirOf(layoutPath), masterRel.target)
+            : DECK_MASTER,
+        };
+        layoutCache.set(layoutPath, layout);
+      }
+    }
+    const master = await readMaster(layout.masterPath);
+    collectSlideContent(
+      analysis,
+      slideRoot,
+      relMap,
+      contrastContextFor(slideRoot, layout.root, master),
+      spTree,
+      masterBodyBullets,
+      layout.bullets,
+    );
   }
 
   if (!analysis.metadata.language) {
@@ -606,9 +1007,10 @@ function collectSlideContent(
   analysis: PptxAnalysis,
   slideRoot: PONode,
   relMap: Map<string, string>,
-  schemeColorMap: Map<string, string>,
+  contrast: ContrastContext,
   spTree: PONode | undefined,
   masterBodyBullets: Map<number, "bullet" | "none">,
+  layout: LayoutBullets = NO_LAYOUT,
 ): void {
   // Images: pictures always — except a pic nested inside a graphicFrame,
   // which is the OLE-object fallback preview; the frame itself is the one
@@ -703,15 +1105,29 @@ function collectSlideContent(
   // all). Title paragraphs are excluded; explicit buNone opts a paragraph
   // out of inheritance.
   const titleParagraphs = new Set<PONode>();
-  const placeholderParagraphs = new Set<PONode>();
+  // Each placeholder paragraph's inherited bullet, by outline level: its
+  // shape's own list style, then the layout's matching placeholder, then the
+  // master (body style; "none" for the other-style placeholder types).
+  const placeholderParagraphs = new Map<PONode, (level: number) => BulletMark | undefined>();
   if (spTree) {
     for (const sp of contentShapes(spTree)) {
       if (tagOf(sp) !== "sp") continue;
       if (isTitlePlaceholder(sp)) {
         for (const p of descendants(sp, "p")) titleParagraphs.add(p);
-      } else if (descendants(sp, "ph").length > 0) {
-        for (const p of descendants(sp, "p")) placeholderParagraphs.add(p);
+        continue;
       }
+      const key = placeholderKey(sp);
+      if (!key) continue;
+      const own = lstStyleBullets(firstChild(sp, "txBody"));
+      const fromLayout =
+        key.idx !== undefined && layout.byIdx.has(key.idx)
+          ? layout.byIdx.get(key.idx)
+          : layout.byType.get(key.type);
+      const inherited = (level: number): BulletMark | undefined =>
+        own.get(level) ??
+        fromLayout?.get(level) ??
+        (OTHER_STYLE_PLACEHOLDERS.has(key.type) ? "none" : masterBodyBullets.get(level));
+      for (const p of descendants(sp, "p")) placeholderParagraphs.set(p, inherited);
     }
   }
   // Two passes, mirroring the Word walk (2026-09-01): classify every
@@ -731,8 +1147,7 @@ function collectSlideContent(
     const level = pPr ? Number(attrOf(pPr, "lvl") ?? "0") + 1 : 1;
     const inheritsBullet =
       !hasExplicitNone &&
-      placeholderParagraphs.has(p) &&
-      masterBodyBullets.get(level) === "bullet" &&
+      placeholderParagraphs.get(p)?.(level) === "bullet" &&
       textOf(p).trim().length > 0;
     if (hasExplicitBullet || inheritsBullet) paraStatus.push("real");
     else if (!hasExplicitNone && MANUAL_BULLET_RE.test(textOf(p))) paraStatus.push("manual");
@@ -763,7 +1178,7 @@ function collectSlideContent(
     }
   }
 
-  collectSlideContrast(analysis, slideRoot, schemeColorMap, spTree);
+  collectSlideContrast(analysis, contrast, spTree);
 }
 
 /** Explicit solidFill color off a properties node: srgbClr or theme schemeClr
@@ -925,28 +1340,28 @@ function stackedBackground(
 
 function collectSlideContrast(
   analysis: PptxAnalysis,
-  slideRoot: PONode,
-  schemeColorMap: Map<string, string>,
+  ctx: ContrastContext,
   spTree: PONode | undefined,
 ): void {
-  // Background PROVENANCE: three backgrounds are treated as resolved — an
-  // explicit solid fill on the shape itself, a solid-filled shape stacked
-  // beneath it that fully contains it (the banner/card pattern real decks
-  // put white titles on), or an explicit solid fill on the slide's own
-  // p:bg/p:bgPr when nothing is stacked beneath. Everything else (p:bgRef
-  // theme references, layout/master-inherited backgrounds, gradient/picture
-  // fills, partial covers, unknown geometry) is genuinely unknown at this
-  // layer. The previous "else white" default failed white-titled
-  // dark-template decks at "1:1" as a CONFIRMED 1.4.3 violation, and the
-  // slide-background fallback did the same to white titles on solid banner
-  // shapes (found 2026-09-01 on three real agency decks); unresolved runs
-  // are counted and honestly reported as not-assessed instead.
-  const bgNode = descendants(slideRoot, "bg")[0];
-  const bgPr = bgNode ? firstChild(bgNode, "bgPr") : undefined;
-  const slideBg: string | null = explicitFill(bgPr, schemeColorMap);
+  // Background PROVENANCE: a background is treated as resolved only when it
+  // is one solid colour the file states — an explicit fill on the shape, a
+  // fill its placeholder inherits from the layout or master, a solid shape
+  // stacked beneath that fully contains it (the banner/card pattern real
+  // decks put white titles on), or the slide's background: its own, else its
+  // layout's, else its master's (2026-10-06, user decision "follow it" — the
+  // default in PowerPoint's, Google Slides' and python-pptx's templates), a
+  // theme reference resolved through the theme's fill styles and the
+  // master's colour map. Everything else (gradients, pictures, colour
+  // modifiers, partial covers, unknown geometry) is genuinely unknown. The
+  // old "else white" default failed white-titled dark-template decks at
+  // "1:1" as a CONFIRMED 1.4.3 violation (2026-09-01); unresolved runs are
+  // counted and honestly reported as not-assessed instead.
+  const schemeColorMap = ctx.scheme;
+  const slideBg = ctx.background;
 
   if (!spTree) return;
-  const beneath: Painter[] = [];
+  // What the master and layout paint lies beneath everything on the slide.
+  const beneath: Painter[] = [...ctx.inherited];
   for (const sp of contentShapes(spTree)) {
     if (tagOf(sp) !== "sp") {
       const painter = painterOf(sp, schemeColorMap);
@@ -954,8 +1369,15 @@ function collectSlideContrast(
       continue;
     }
     const spPr = firstChild(sp, "spPr");
+    // A placeholder takes its position and fill from the layout's matching
+    // placeholder, else the master's, when it states none of its own.
+    const inherited = ctx.placeholder(sp);
+    const own = shapeFill(sp, schemeColorMap, ctx.theme);
+    const fill = own !== undefined ? own : inherited.fill;
     const shapeBg: string | null =
-      explicitFill(spPr, schemeColorMap) ?? stackedBackground(xfrmRect(spPr), beneath, slideBg);
+      fill === "unknown"
+        ? null
+        : (fill ?? stackedBackground(xfrmRect(spPr) ?? inherited.bounds, beneath, slideBg));
     // The shape itself paints over what was beneath it for LATER shapes.
     const ownPainter = painterOf(sp, schemeColorMap);
     if (ownPainter) beneath.push(ownPainter);

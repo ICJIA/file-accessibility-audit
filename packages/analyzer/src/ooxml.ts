@@ -12,6 +12,7 @@
 import JSZip from "jszip";
 import { XMLParser, type X2jOptions } from "fast-xml-parser";
 import type { Readable } from "node:stream";
+import { placeholderAltOf } from "./placeholderAlt.js";
 
 // ---------------------------------------------------------------------------
 // preserveOrder walker utilities
@@ -401,14 +402,24 @@ export function drawingAltText(propsNode: PONode): {
    *  reads the Description (descr) field, so a Title alone is NOT alt text
    *  (Word-2010-era documents commonly have only Title filled). */
   titleOnly: boolean;
+  /** The description, when it is only a file name or a placeholder word —
+   *  "GA details.png", "Picture" — which is not a description (WCAG F30;
+   *  2026-10-06). altText is then null. Absent otherwise. */
+  placeholderAlt?: string;
 } {
   const descr = attrOf(propsNode, "descr")?.trim();
   const title = attrOf(propsNode, "title")?.trim();
-  const altText = descr ? descr : null;
+  const placeholderAlt = placeholderAltOf(descr);
+  const altText = descr && !placeholderAlt ? descr : null;
   const decorative = descendants(propsNode, "decorative").some(
     (d) => xsdBoolean(attrOf(d, "val")) === true,
   );
-  return { altText, decorative, titleOnly: !descr && !!title };
+  return {
+    altText,
+    decorative,
+    titleOnly: !descr && !!title,
+    ...(placeholderAlt ? { placeholderAlt } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------

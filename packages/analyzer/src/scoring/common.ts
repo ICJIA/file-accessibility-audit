@@ -567,3 +567,20 @@ export function headingOutlineLines(
   }
   return lines;
 }
+
+/**
+ * The finding that names pictures whose only "description" is a file name or
+ * a placeholder word (WCAG failure F30; user decision 2026-10-06: they count
+ * as missing). The images are already counted as missing alt text; this says
+ * WHY a picture that seems described is not — "GA details.png" — and quotes
+ * up to three. null when there are none.
+ */
+export function placeholderAltFinding(images: Array<{ placeholderAlt?: string }>): string | null {
+  const named = images.map((i) => i.placeholderAlt).filter((t): t is string => !!t);
+  if (named.length === 0) return null;
+  const quoted = [...new Set(named)]
+    .slice(0, 3)
+    .map((t) => `"${t.length > 60 ? `${t.slice(0, 59)}…` : t}"`)
+    .join(", ");
+  return `${named.length} of them carry only a file name or a placeholder word as their description (${quoted}) — that is not a description (WCAG failure F30), so they count as missing. Programs write these when the author leaves the description blank: Google Slides and python-pptx use the image's file name, openpyxl writes "Picture". Replace each with what the picture shows.`;
+}

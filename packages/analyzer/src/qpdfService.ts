@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ANALYSIS } from "#config";
 import { buildChildSpawnEnv } from "./childSpawnEnv.js";
+import { placeholderAltOf } from "./placeholderAlt.js";
 // Pure struct-tree walkers (reference normalization/resolution, the RoleMap
 // tag mapper, and the table/heading tree walkers) live in their own module —
 // see qpdfStructTree.ts for the v1.34.0 structural-split rationale. This file
@@ -65,7 +66,15 @@ export interface QpdfResult {
   outlineTitles: string[];
   hasAcroForm: boolean;
   formFields: Array<{ ref?: string; hasTU: boolean; name?: string }>;
-  images: Array<{ ref: string; hasAlt: boolean; altText?: string }>;
+  images: Array<{
+    ref: string;
+    hasAlt: boolean;
+    altText?: string;
+    /** The text alternative, when it is only a file name or a placeholder
+     *  word — "image 1" — which is not a description (WCAG F30;
+     *  2026-10-06). hasAlt is then false. */
+    placeholderAlt?: string;
+  }>;
   imageObjectCount: number;
   /**
    * Image XObjects shaped like a LINE OF TEXT rather than a picture — wide,
@@ -1141,8 +1150,17 @@ function parseQpdfJson(json: any): QpdfResult {
               : decodedActual.trim() !== ""
                 ? decodedActual
                 : undefined;
-          const hasAlt = altText !== undefined;
-          result.images.push({ ref: normRef(ref), hasAlt, altText });
+          // A file name or a placeholder word ("image 1") is not a
+          // description either (WCAG F30; user decision 2026-10-06): real
+          // PDFs in the test set carry /Alt (image 1) … (image 4).
+          const placeholderAlt = placeholderAltOf(altText);
+          const hasAlt = altText !== undefined && !placeholderAlt;
+          result.images.push({
+            ref: normRef(ref),
+            hasAlt,
+            altText,
+            ...(placeholderAlt ? { placeholderAlt } : {}),
+          });
         }
 
         // Formulas (v1.92.0 — Matterhorn 17). Same Alt-or-ActualText doctrine

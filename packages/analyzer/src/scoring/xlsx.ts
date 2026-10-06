@@ -17,6 +17,7 @@ import {
   applyAdvisorySeverity,
   applyWcagCriteria,
   type ScoringResult,
+  placeholderAltFinding,
 } from "./common.js";
 import { evaluateXlsxConformance } from "./conformance.js";
 
@@ -394,6 +395,8 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
     findings.push(
       `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
+    const placeholders = placeholderAltFinding(missingAlt);
+    if (placeholders) findings.push(placeholders);
     const titleOnly = nonDec.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {
       findings.push(

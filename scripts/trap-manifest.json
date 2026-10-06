@@ -1,5 +1,5 @@
 {
-  "count": 123,
+  "count": 124,
   "generated": "2026-10-06",
   "items": [
     {
@@ -597,6 +597,11 @@
     {
       "file": "synthetic-195-empty-header-cells.pdf",
       "label": "Header cells tagged <TH> but every one empty",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-210-canva-placeholder-alt.pdf",
+      "label": "Figures “described” as image 1, image 2 — Canva’s placeholders",
       "chip": "caught"
     },
     {

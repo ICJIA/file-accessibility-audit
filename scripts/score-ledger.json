@@ -364,7 +364,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
-        "alt_text": "83|Minor",
+        "alt_text": "81|Minor",
         "bookmarks": "100|No issues found",
         "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
@@ -422,8 +422,8 @@
       }
     },
     "Communication_with_Federal_Employees_and_Grantees_3f709e162e.pptx": {
-      "score": 100,
-      "grade": "A",
+      "score": 89,
+      "grade": "B",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
@@ -432,7 +432,7 @@
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "list_structure": "100|No issues found",
+        "list_structure": "75|Minor",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
@@ -527,7 +527,7 @@
         "alt_text": "6|Critical",
         "reading_order": "100|No scored issues",
         "table_markup": "100|No issues found",
-        "color_contrast": "48|Moderate",
+        "color_contrast": "50|Moderate",
         "list_structure": "100|No issues found",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -714,7 +714,7 @@
         "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "100|No issues found",
         "color_contrast": "null|none",
@@ -916,13 +916,13 @@
       }
     },
     "ILHEALSFallWinter2022FINAL.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -932,13 +932,13 @@
       }
     },
     "ILHEALSFallWinter2022FINAL_remediated.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -1853,16 +1853,16 @@
       }
     },
     "sample-1.pptx": {
-      "score": 79,
-      "grade": "C",
+      "score": 69,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "slide_titles": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "0|Critical",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "85|Minor",
         "list_structure": "100|No issues found",
         "link_quality": "100|No issues found",
         "form_accessibility": "null|none"
@@ -1878,7 +1878,7 @@
         "alt_text": "92|Minor",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "null|none",
+        "color_contrast": "100|No issues found",
         "list_structure": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -3876,6 +3876,68 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-206-pptx-typed-bullets-layout-bullets-off.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "45|Moderate",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-207-pptx-python-pptx-default-template.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "100|No issues found",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-208-pptx-google-slides-file-name-alt.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "0|Critical",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-209-xlsx-openpyxl-picture-alt.xlsx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "sheet_names": "100|No issues found",
+        "table_markup": "null|none",
+        "alt_text": "0|Critical",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-21-mixed-h-conventions.pdf": {
       "score": 100,
       "grade": "A",
@@ -3889,6 +3951,118 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-210-canva-placeholder-alt.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "33|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-211-pptx-grey-text-on-the-masters-white.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "0|Critical",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-212-pptx-white-text-dark-template.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "100|No issues found",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-213-pptx-title-in-the-bands-own-colour.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "50|Moderate",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-214-docx-docxjs-no-language.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-215-pptx-libreoffice-table-header-lost.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-216-docx-python-docx-report.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
     },

@@ -88,7 +88,13 @@ export interface XlsxAnalysis {
      *  (2026-10-06). Reported, never scored. Absent on older payloads. */
     defaultHeaderNames?: string[];
   }>;
-  images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
+  images: Array<{
+    altText: string | null;
+    decorative: boolean;
+    titleOnly: boolean;
+    /** Only a file name or placeholder word (WCAG F30) — see drawingAltText. */
+    placeholderAlt?: string;
+  }>;
   /**
    * text = the linked cell's visible text (shared/inline/cached string),
    * falling back to the legacy `display` attribute. resolved: false means

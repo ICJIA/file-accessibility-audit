@@ -41,6 +41,7 @@ import {
   applyWordTintShade,
   onOffEnabled,
 } from "./ooxml.js";
+import { placeholderAltOf } from "./placeholderAlt.js";
 
 export interface DocxMetadata {
   title: string | null;
@@ -68,6 +69,8 @@ export interface DocxAnalysis {
      *  header or footer — the letterhead logo — or a foot/endnote. Absent
      *  for body images and on stored payloads. */
     location?: "header" | "footer" | "note";
+    /** Only a file name or placeholder word (WCAG F30) — see drawingAltText. */
+    placeholderAlt?: string;
   }>;
   tables: Array<{
     hasHeaderRow: boolean;
@@ -493,7 +496,13 @@ function extractImages(body: PONode): DocxAnalysis["images"] {
     for (const shape of descendants(pict, "shape")) {
       if (descendants(shape, "imagedata").length === 0) continue;
       const alt = attrOf(shape, "alt")?.trim();
-      images.push({ altText: alt ? alt : null, decorative: false, titleOnly: false });
+      const placeholderAlt = placeholderAltOf(alt);
+      images.push({
+        altText: alt && !placeholderAlt ? alt : null,
+        decorative: false,
+        titleOnly: false,
+        ...(placeholderAlt ? { placeholderAlt } : {}),
+      });
     }
   }
   return images;
