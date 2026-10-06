@@ -1,5 +1,5 @@
 {
-  "count": 67,
+  "count": 72,
   "generated": "2026-10-06",
   "items": [
     {
@@ -328,6 +328,31 @@
       "file": "synthetic-178-docx-16-of-23-images-described.docx",
       "label": "Word: 16 of 23 images described — now the same letter as the PDF",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-186-docx-borders-explicitly-none.docx",
+      "label": "Word: a layout grid whose borders are all explicitly switched off",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-187-docx-style-draws-nothing.docx",
+      "label": "Word: a layout grid carrying a table style that draws nothing (Google Docs' shape)",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-188-docx-cell-borders-no-header.docx",
+      "label": "Word: a data table drawn with cell borders and no header row",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-189-docx-cell-borders-header-twin.docx",
+      "label": "Word: the same table with Header Row ticked",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-190-docx-table-grid-style-no-header.docx",
+      "label": "Word: a Table Grid-styled data table with no header row",
+      "chip": "caught"
     },
     {
       "file": "synthetic-184-docx-language-on-the-text.docx",

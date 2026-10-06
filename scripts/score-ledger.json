@@ -3530,6 +3530,70 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-186-docx-borders-explicitly-none.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "100|No scored issues",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-187-docx-style-draws-nothing.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "100|No scored issues",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-188-docx-cell-borders-no-header.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-189-docx-cell-borders-header-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-19-skipped-heading-levels.pdf": {
       "score": 100,
       "grade": "A",
@@ -3540,6 +3604,54 @@
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-190-docx-table-grid-style-no-header.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "table_markup": "45|Moderate",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-191-thead-tbody-tfoot-table.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "100|No scored issues",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-192-row-header-table.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "100|No scored issues",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",

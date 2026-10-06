@@ -1,5 +1,5 @@
 {
-  "count": 118,
+  "count": 120,
   "generated": "2026-10-06",
   "items": [
     {
@@ -572,6 +572,16 @@
     {
       "file": "synthetic-156-one-page-chart-one-bookmark.pdf",
       "label": "A one-page chart with one bookmark — one title is not sections",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-191-thead-tbody-tfoot-table.pdf",
+      "label": "A table with its rows grouped in header, body and footer sections",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-192-row-header-table.pdf",
+      "label": "A schedule whose headers run down the first column instead of across the top",
       "chip": "held"
     },
     {

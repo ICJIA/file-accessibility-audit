@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "word-tables-drawn-2026-10-06",
+    badge: "Scoring",
+    text: "Word tables are now judged by what they show on the page. A grid with its borders switched off \u2014 how Google Docs and LibreOffice save an invisible table \u2014 or one carrying a table style that draws nothing is a layout grid, not a data table, so it is no longer accused of a missing header row. A data table drawn with lines around each cell, instead of around the whole table, is now checked like any other and needs its header row marked. These came from a new round of test documents for tables, written before any fix.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 6, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "untagged-headings-text-language-2026-10-06",
     badge: "Scoring",
     text: "PDF section titles that look like headings but are tagged as plain text now cost what they always cost in a Word file \u2014 two annual reports that tag only three of their headings had been told \u201cNo issues found\u201d. The check ignores cover pages, letterheads, pull quotes and captions, which look like headings and are not. A language marked on the text itself now counts in Word as it already did in PowerPoint, so a file fixed exactly as this report advises \u2014 select all the text, then set its proofing language \u2014 is no longer told it has no language; in both, the language must cover most of the text. PowerPoint also gets the best-practice check Word has for tables used only to line things up.",

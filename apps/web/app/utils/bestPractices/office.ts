@@ -445,7 +445,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     categoryId: "table_markup",
     label: "Bare layout grids",
     description:
-      "A table-shaped grid with no table style, borders, shading, or header marks anywhere is usually a layout construct rather than a data table — worth a quick check that none of them actually holds data.",
+      "A table-shaped grid with nothing drawn — no visible borders or shading, from the table or its style — and no header marks anywhere is usually a layout construct rather than a data table — worth a quick check that none of them actually holds data.",
     why: "A screen reader announces a real data table's header with each cell. A layout grid does not need one — but it is easy to build a genuine data table without ever applying a table style, which would leave it looking identical to a layout grid in the file.",
     links: [],
     standard:
@@ -467,8 +467,8 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             n !== null
-              ? `This document has ${n} bare grid${n === 1 ? "" : "s"} — a table-shaped layout with no table style, borders, shading, or header marks anywhere.`
-              : "This document has at least one bare grid — a table-shaped layout with no table style, borders, shading, or header marks anywhere.",
+              ? `This document has ${n} bare grid${n === 1 ? "" : "s"} — a table-shaped layout with nothing drawn (no visible borders or shading) and no header marks anywhere.`
+              : "This document has at least one bare grid — a table-shaped layout with nothing drawn (no visible borders or shading) and no header marks anywhere.",
             "These usually hold layout content rather than data, so a header row is not expected — but it is worth checking that none of them is really a data table someone forgot to style.",
           ],
           fix: {

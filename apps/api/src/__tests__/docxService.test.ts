@@ -416,6 +416,69 @@ describe("docx table header semantics", () => {
     expect(r.tables[0].looksLikeLayout).toBe(true);
   });
 
+  // 2026-10-06 (table traps 186–190, written before this fix): what a
+  // table DRAWS, not which markup it carries, decides layout vs data.
+  // Explicit "no border" marks (nil/none) draw nothing; a named style that
+  // draws nothing is no style; borders on the table's own CELLS are borders.
+  describe("drawn, not merely marked up — borders and table styles", () => {
+    const SIDES = ["top", "left", "bottom", "right", "insideH", "insideV"];
+    const grid = (tblPr: string, tcPr = "") => {
+      const cell = `<w:tc>${tcPr ? `<w:tcPr>${tcPr}</w:tcPr>` : ""}<w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc>`;
+      return `<w:tbl><w:tblPr>${tblPr}</w:tblPr><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid><w:tr>${cell}${cell}</w:tr><w:tr>${cell}${cell}</w:tr></w:tbl>`;
+    };
+    const styles = (defs: string) =>
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${DOCX_NS}>` +
+      `<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblCellMar><w:left w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>` +
+      `${defs}</w:styles>`;
+    const tblBorders = (val: string) =>
+      `<w:tblBorders>${SIDES.map((x) => `<w:${x} w:val="${val}" w:sz="4" w:space="0" w:color="auto"/>`).join("")}</w:tblBorders>`;
+    const layoutOf = async (body: string, stylesXml?: string) =>
+      (await analyzeDocx(await buildDocx({ body, ...(stylesXml ? { stylesXml } : {}) }))).tables[0]!
+        .looksLikeLayout;
+
+    it.each(["nil", "none"])(
+      'table borders that are all w:val="%s" draw nothing — layout',
+      async (val) => {
+        expect(await layoutOf(grid(tblBorders(val)))).toBe(true);
+      },
+    );
+
+    it("a single visible table border makes it drawn — data", async () => {
+      const mixed = `<w:tblBorders>${SIDES.map((x, i) => `<w:${x} w:val="${i === 2 ? "single" : "nil"}" w:sz="4"/>`).join("")}</w:tblBorders>`;
+      expect(await layoutOf(grid(mixed))).toBe(false);
+    });
+
+    it("visible borders on the table's own cells make it drawn — data", async () => {
+      const tcBorders = `<w:tcBorders>${["top", "left", "bottom", "right"].map((x) => `<w:${x} w:val="single" w:sz="4"/>`).join("")}</w:tcBorders>`;
+      expect(await layoutOf(grid("", tcBorders))).toBe(false);
+    });
+
+    it("cell borders that are all switched off draw nothing — layout", async () => {
+      const off = `<w:tcBorders>${["top", "left", "bottom", "right"].map((x) => `<w:${x} w:val="nil"/>`).join("")}</w:tcBorders>`;
+      expect(await layoutOf(grid("", off))).toBe(true);
+    });
+
+    it("a named style that draws nothing (based on Normal Table) is no style — layout", async () => {
+      const a = `<w:style w:type="table" w:styleId="a"><w:name w:val="a"/><w:basedOn w:val="TableNormal"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/></w:tblPr></w:style>`;
+      expect(await layoutOf(grid('<w:tblStyle w:val="a"/>'), styles(a))).toBe(true);
+      expect(await layoutOf(grid('<w:tblStyle w:val="TableNormal"/>'), styles(""))).toBe(true);
+    });
+
+    it("a style that draws borders — directly, through basedOn, or in a conditional format — is drawn", async () => {
+      const gridStyle = `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:tblPr>${tblBorders("single")}</w:tblPr></w:style>`;
+      const child = `<w:style w:type="table" w:styleId="Child"><w:name w:val="Child"/><w:basedOn w:val="TableGrid"/></w:style>`;
+      const banded = `<w:style w:type="table" w:styleId="Banded"><w:name w:val="Banded"/><w:basedOn w:val="TableNormal"/><w:tblStylePr w:type="firstRow"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="1F3864"/></w:tcPr></w:tblStylePr></w:style>`;
+      const all = styles(gridStyle + child + banded);
+      expect(await layoutOf(grid('<w:tblStyle w:val="TableGrid"/>'), all)).toBe(false);
+      expect(await layoutOf(grid('<w:tblStyle w:val="Child"/>'), all)).toBe(false);
+      expect(await layoutOf(grid('<w:tblStyle w:val="Banded"/>'), all)).toBe(false);
+    });
+
+    it("a style the styles part does not define is treated as drawn — nothing to prove otherwise", async () => {
+      expect(await layoutOf(grid('<w:tblStyle w:val="Missing"/>'), styles(""))).toBe(false);
+    });
+  });
+
   it("a real cell fill still marks the table as a styled data table", async () => {
     const fill = '<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>';
     const cell = `<w:tc><w:tcPr>${fill}</w:tcPr><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc>`;

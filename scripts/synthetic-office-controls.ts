@@ -82,6 +82,9 @@ function docx(
      *  real destinations — docxService reads link TEXT either way, but these
      *  controls are also meant to open correctly in Word. */
     hyperlinks?: Array<{ id: string; target: string }>;
+    /** Extra <w:style> definitions appended to the heading styles part (table
+     *  styles, for the table traps); implies `styles: true`. */
+    stylesExtra?: string;
     /** Inner XML of a default page header (word/header1.xml), wired the way
      *  Word writes it: a header relationship plus a w:headerReference in the
      *  body's closing w:sectPr — so the control opens with its letterhead. */
@@ -108,13 +111,20 @@ function docx(
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${opts.styles ? '\n<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}${opts.headerXml !== undefined ? '\n<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ""}
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${opts.styles || opts.stylesExtra ? '\n<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}${opts.headerXml !== undefined ? '\n<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ""}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
     // After [Content_Types].xml, never before it: OPC readers are forgiving,
     // but these controls are also meant to be opened by hand in Word, and
     // the content-types part conventionally leads the package.
-    ...(opts.styles ? { "word/styles.xml": HEADING_STYLES_XML } : {}),
+    ...(opts.styles || opts.stylesExtra
+      ? {
+          "word/styles.xml": HEADING_STYLES_XML.replace(
+            "</w:styles>",
+            `${opts.stylesExtra ?? ""}</w:styles>`,
+          ),
+        }
+      : {}),
     "_rels/.rels": `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
@@ -305,6 +315,57 @@ const agendaDocx = (table: string) =>
     ].join(""),
     { title: "Task Force Meeting Agenda", styles: true },
   );
+
+/** A Word table for the 2026-10-06 table traps: `rows` of plain cells, with
+ *  the table-level and cell-level properties under test passed in verbatim. */
+function wordGrid(
+  rows: string[][],
+  opts: { tblPr?: string; tcPr?: string; look?: string } = {},
+): string {
+  const cell = (t: string) =>
+    `<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/>${opts.tcPr ?? ""}</w:tcPr><w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:tc>`;
+  return (
+    `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/>${opts.tblPr ?? ""}${opts.look ?? ""}</w:tblPr>` +
+    `<w:tblGrid>${rows[0]!.map(() => '<w:gridCol w:w="3000"/>').join("")}</w:tblGrid>` +
+    rows.map((r) => `<w:tr>${r.map(cell).join("")}</w:tr>`).join("") +
+    "</w:tbl>"
+  );
+}
+const SIDES = ["top", "left", "bottom", "right", "insideH", "insideV"];
+/** Explicit "no border" on every edge — what Google Docs, LibreOffice and
+ *  pasted web content write for an invisible grid. */
+const NIL_BORDERS = `<w:tblBorders>${SIDES.map((s) => `<w:${s} w:val="nil"/>`).join("")}</w:tblBorders>`;
+const CELL_BORDERS = `<w:tcBorders>${["top", "left", "bottom", "right"].map((s) => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="000000"/>`).join("")}</w:tcBorders>`;
+/** Table styles as their producers define them: Word's default "Normal
+ *  Table", a Google Docs-style "a" based on it that draws nothing, and Word's
+ *  "Table Grid", which draws every border. */
+const TABLE_STYLES = `<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:left w:w="108" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style><w:style w:type="table" w:styleId="a"><w:name w:val="a"/><w:basedOn w:val="TableNormal"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/><w:tblStyleColBandSize w:val="1"/></w:tblPr></w:style><w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:tblPr><w:tblBorders>${SIDES.map((s) => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="auto"/>`).join("")}</w:tblBorders></w:tblPr></w:style>`;
+const AGENDA_ROWS = [
+  ["9:00", "Welcome and roll call"],
+  ["9:15", "Budget update"],
+  ["10:00", "Public comment"],
+];
+const DATA_ROWS = [
+  ["Program", "Award", "Sites"],
+  ["Job Training", "412,000", "6"],
+  ["Housing Support", "268,000", "4"],
+];
+const tableMemo = (table: string, stylesExtra?: string) =>
+  docx([HEADING(1, "Program Grants"), P(BODY_TEXT), table, P(BODY_TEXT)].join(""), {
+    title: "Program Grants",
+    styles: true,
+    stylesExtra,
+  });
+/** The bare-grid truth (Word's rule since 2026-08-29): never scored or
+ *  gated, the advisory reported, the document 100/A. */
+const layoutGridHeld = (r: AnalysisResult): string | null => {
+  const c = cat("table_markup")(r);
+  if (!c || c.score === null) return "table_markup unscored";
+  if (c.score !== 100) return `a layout grid was scored ${c.score} as a data table`;
+  if (!/bare grid/i.test(allFindings(r))) return "the bare-grid advisory did not fire";
+  if (accused(r, "table_markup")) return "1.3.1 asserted against a layout grid";
+  return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
+};
 
 function pptx(
   slides: string[],
@@ -2100,6 +2161,49 @@ const SAMPLES: Sample[] = [
         : "points lost with no 1.1.1 failure attributed to alt_text";
     },
   },
+  // ---- table traps, written before any fix (2026-10-06) ----
+  {
+    file: "synthetic-186-docx-borders-explicitly-none.docx",
+    truth:
+      'An agenda lined up in a Word table whose every border is explicitly switched off — <w:tblBorders> with w:val="nil" on each edge, the way Google Docs, LibreOffice and pasted web content write an invisible grid. No style, no header row, nothing drawn: a bare layout grid. The marks mean NO border, exactly as v1.157.0\'s "no shading" marks meant no shading, and counting them as styling made the grid a data table accused of 1.3.1. It must stay a layout grid: table_markup 100 with the bare-grid advisory, nothing asserted, 100/A.',
+    build: () => tableMemo(wordGrid(AGENDA_ROWS, { tblPr: NIL_BORDERS })),
+    check: layoutGridHeld,
+  },
+  {
+    file: "synthetic-187-docx-style-draws-nothing.docx",
+    truth:
+      'The same agenda grid carrying a named table style that draws nothing — "a", based on Word\'s own Normal Table, the shape Google Docs exports. No border, no shading, no header row anywhere: on the page it is a bare grid. Any named style used to make a table a data table; a style that draws nothing is no style. It must stay a layout grid: table_markup 100 with the bare-grid advisory, nothing asserted, 100/A.',
+    build: () =>
+      tableMemo(wordGrid(AGENDA_ROWS, { tblPr: '<w:tblStyle w:val="a"/>' }), TABLE_STYLES),
+    check: layoutGridHeld,
+  },
+  {
+    file: "synthetic-188-docx-cell-borders-no-header.docx",
+    truth:
+      "A data table drawn with borders on every CELL (<w:tcBorders>) instead of at table level, no table style, and no header row marked. It is a visible grid of data on the page, but only table-level borders were ever checked, so it passed as a layout grid and its missing header row — a real WCAG 1.3.1 failure — was never reported. It must score exactly the one value every format gives an unheadered data table (Moderate), cap the memo at 79/C, and name 1.3.1 against table_markup.",
+    build: () => tableMemo(wordGrid(DATA_ROWS, { tcPr: CELL_BORDERS })),
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
+  },
+  {
+    file: "synthetic-189-docx-cell-borders-header-twin.docx",
+    truth:
+      "The same cell-bordered data table with Table Design → Header Row ticked. table_markup must score a clean 100, nothing may be asserted against it, the memo must be 100/A, and it must never score below its unmarked twin.",
+    build: () => tableMemo(wordGrid(DATA_ROWS, { tcPr: CELL_BORDERS, look: LOOK_HEADER_ROW_ON })),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score !== 100) return `a marked header row scored ${c?.score}`;
+      if (accused(r, "table_markup")) return "1.3.1 asserted against a marked header row";
+      return r.overallScore === 100 ? null : `the memo scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-190-docx-table-grid-style-no-header.docx",
+    truth:
+      "A data table whose borders come from Word's own Table Grid style — the style every Insert → Table uses — with no header row marked. The table carries no border of its own; the style draws them. A style that draws nothing is no style, but this one draws a full grid, so the table is data and its missing header row is a WCAG 1.3.1 failure: the one unheadered-table value (Moderate), 79/C, 1.3.1 named. The guard that keeps the style rule from exempting real tables.",
+    build: () =>
+      tableMemo(wordGrid(DATA_ROWS, { tblPr: '<w:tblStyle w:val="TableGrid"/>' }), TABLE_STYLES),
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
+  },
   // ---- v1.161.0: the language declared on most of the text (2026-10-06) ----
   {
     file: "synthetic-184-docx-language-on-the-text.docx",
@@ -2155,6 +2259,11 @@ const SAMPLES: Sample[] = [
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-188-docx-cell-borders-no-header.docx",
+    good: "synthetic-189-docx-cell-borders-header-twin.docx",
+    category: "table_markup",
+  },
   {
     bad: "synthetic-171-xlsx-light-text-no-fill.xlsx",
     good: "synthetic-172-xlsx-dark-text-no-fill-twin.xlsx",
@@ -2287,6 +2396,26 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-186-docx-borders-explicitly-none.docx": {
+    label: "Word: a layout grid whose borders are all explicitly switched off",
+    chip: "bug",
+  },
+  "synthetic-187-docx-style-draws-nothing.docx": {
+    label: "Word: a layout grid carrying a table style that draws nothing (Google Docs' shape)",
+    chip: "held",
+  },
+  "synthetic-188-docx-cell-borders-no-header.docx": {
+    label: "Word: a data table drawn with cell borders and no header row",
+    chip: "caught",
+  },
+  "synthetic-189-docx-cell-borders-header-twin.docx": {
+    label: "Word: the same table with Header Row ticked",
+    chip: "held",
+  },
+  "synthetic-190-docx-table-grid-style-no-header.docx": {
+    label: "Word: a Table Grid-styled data table with no header row",
+    chip: "caught",
+  },
   "synthetic-184-docx-language-on-the-text.docx": {
     label: "Word: no default language, every word marked English — fixed exactly as advised",
     chip: "bug",

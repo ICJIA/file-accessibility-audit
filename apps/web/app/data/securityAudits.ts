@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.162.0",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how Word tables are told apart from grids used only for layout, and seven new test documents for tables.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to one line of the report&rsquo;s wording. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Word tables are judged by what they show on the page.</strong> A grid with its borders switched off &mdash; how Google Docs and other programs save an invisible table &mdash; or one carrying a table style that draws nothing, was treated as a data table and accused of a missing header row. A data table drawn with lines around each cell, rather than around the whole table, was never checked at all. All three are now judged by what is actually drawn.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Seven new test documents for tables were written before any fix and run against the checker as it stood: three showed the problems above, and four confirm things it already gets right, each shown to fail if the part of the checker it protects is switched off. No real document&rsquo;s grade changed. The scan of third-party code finds the same six warnings as the previous release, none in the live service.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.161.1",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: updating third-party code named in the previous release&rsquo;s warnings.",
     body: [

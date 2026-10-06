@@ -232,6 +232,82 @@ const sectionedReport = (sectionTag: string) =>
     "Annual Program Report",
   );
 
+/** One table row: its cells, and optionally the section it sits in. */
+interface TableRowSpec {
+  section?: "THead" | "TBody" | "TFoot";
+  cells: Array<{ tag: "TH" | "TD"; text: string }>;
+}
+/** A one-page tagged document holding one <Table> (2026-10-06): a body
+ *  paragraph, then the rows — grouped in <THead>/<TBody>/<TFoot> when a row
+ *  names a section, as Acrobat and InDesign write them, or directly under the
+ *  <Table> otherwise. Every cell is its own marked-content sequence. */
+function tableDoc(rows: TableRowSpec[], title: string): Buffer {
+  const objs: string[] = [];
+  const add = (body: string): number => {
+    objs.push(body);
+    return objs.length;
+  };
+  const catalog = add("{{CATALOG}}");
+  const pages = add("<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  const page = add("{{PAGE}}");
+  const contents = add("{{CONTENTS}}");
+  const font = add(FONT);
+  const root = add("{{ROOT}}");
+  const docEl = add("{{DOC}}");
+  const parentTree = add("{{PARENTTREE}}");
+  let mcid = 0;
+  let content = `/P << /MCID ${mcid} >> BDC\nBT /F1 11 Tf 72 740 Td (${BODY_LINES("The table below")[0]}) Tj ET\nEMC\n`;
+  const pEl = add(`<< /Type /StructElem /S /P /P ${docEl} 0 R /Pg ${page} 0 R /K ${mcid++} >>`);
+  const mcidRefs: number[] = [pEl];
+  const tableEl = add("{{TABLE}}");
+  const tableKids: number[] = [];
+  const sectionEls = new Map<string, { el: number; kids: number[] }>();
+  let y = 700;
+  for (const row of rows) {
+    const parent = row.section
+      ? (sectionEls.get(row.section) ??
+        (() => {
+          const el = add("{{SECTION}}");
+          const entry = { el, kids: [] as number[] };
+          sectionEls.set(row.section!, entry);
+          tableKids.push(el);
+          return entry;
+        })())
+      : null;
+    const trEl = add("{{TR}}");
+    (parent ? parent.kids : tableKids).push(trEl);
+    const cellEls: number[] = [];
+    row.cells.forEach((c, i) => {
+      content += `/${c.tag} << /MCID ${mcid} >> BDC\nBT /F1 10 Tf ${72 + i * 150} ${y} Td (${c.text}) Tj ET\nEMC\n`;
+      const cellEl = add(
+        `<< /Type /StructElem /S /${c.tag} /P ${trEl} 0 R /Pg ${page} 0 R /K ${mcid++} >>`,
+      );
+      cellEls.push(cellEl);
+      mcidRefs.push(cellEl);
+    });
+    objs[trEl - 1] =
+      `<< /Type /StructElem /S /TR /P ${parent ? parent.el : tableEl} 0 R /K [${cellEls.map((e) => `${e} 0 R`).join(" ")}] >>`;
+    y -= 20;
+  }
+  for (const [name, { el, kids }] of sectionEls) {
+    objs[el - 1] =
+      `<< /Type /StructElem /S /${name} /P ${tableEl} 0 R /K [${kids.map((k) => `${k} 0 R`).join(" ")}] >>`;
+  }
+  objs[tableEl - 1] =
+    `<< /Type /StructElem /S /Table /P ${docEl} 0 R /K [${tableKids.map((k) => `${k} 0 R`).join(" ")}] >>`;
+  objs[catalog - 1] =
+    `<< /Type /Catalog /Pages ${pages} 0 R /StructTreeRoot ${root} 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>`;
+  objs[page - 1] =
+    `<< /Type /Page /Parent ${pages} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${contents} 0 R /StructParents 0 >>`;
+  objs[contents - 1] = stream(content);
+  objs[root - 1] = `<< /Type /StructTreeRoot /K ${docEl} 0 R /ParentTree ${parentTree} 0 R >>`;
+  objs[docEl - 1] =
+    `<< /Type /StructElem /S /Document /P ${root} 0 R /K [${pEl} 0 R ${tableEl} 0 R] >>`;
+  objs[parentTree - 1] = `<< /Nums [0 [${mcidRefs.map((e) => `${e} 0 R`).join(" ")}]] >>`;
+  return buildPdf(objs, `<< /Title (${title}) >>`);
+}
+const cells = (tag: "TH" | "TD", ...texts: string[]) => texts.map((text) => ({ tag, text }));
+
 /** Does the verdict name `sc` against `category`? */
 const namesCriterion = (r: AnalysisResult, sc: string, category: string): boolean =>
   r.conformance.failures.some((f) => f.sc === sc && f.category === category);
@@ -4261,6 +4337,54 @@ const SAMPLES: Sample[] = [
       return null;
     },
   },
+  // ---- table traps, written before any fix (2026-10-06) ----
+  {
+    file: "synthetic-191-thead-tbody-tfoot-table.pdf",
+    truth:
+      "A plain data table tagged the way Acrobat and InDesign write one: the header row inside <THead>, the data rows inside <TBody>, a totals row inside <TFoot> — rows grouped in sections rather than directly under <Table>. One header row along the top, nothing spanned: it is fully determinable, and no trap guarded the grouped form until 2026-10-06. table_markup must be a clean 100 (the missing /Scope reported as PDF/UA-only, never scored), nothing asserted, 100/A.",
+    build: () =>
+      tableDoc(
+        [
+          { section: "THead", cells: cells("TH", "Program", "Award", "Sites") },
+          { section: "TBody", cells: cells("TD", "Job Training", "412,000", "6") },
+          { section: "TBody", cells: cells("TD", "Housing Support", "268,000", "4") },
+          { section: "TBody", cells: cells("TD", "Youth Services", "190,000", "3") },
+          { section: "TFoot", cells: cells("TD", "Total", "870,000", "13") },
+        ],
+        "Program Grants",
+      ),
+    check: (r) => {
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      if (t.score !== 100) return `a well-formed grouped table was docked (table ${t.score})`;
+      if (r.conformance.failures.some((f) => f.category === "table_markup"))
+        return "a criterion asserted against a well-formed grouped table";
+      return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-192-row-header-table.pdf",
+    truth:
+      "A table whose headers run DOWN the first column — each row starts with a <TH> naming it (a schedule: the day, then its events) — and no header row, no /Scope, nothing spanned. One axis only, so the header of every data cell is determinable: WCAG 1.3.1 is met, and the missing /Scope is PDF/UA's concern. table_markup 100 with the unscored PDF/UA note, nothing asserted, 100/A.",
+    build: () =>
+      tableDoc(
+        [
+          { cells: [{ tag: "TH", text: "Monday" }, ...cells("TD", "Intake", "Case review")] },
+          { cells: [{ tag: "TH", text: "Tuesday" }, ...cells("TD", "Training", "Site visit")] },
+          { cells: [{ tag: "TH", text: "Wednesday" }, ...cells("TD", "Intake", "Reporting")] },
+          { cells: [{ tag: "TH", text: "Thursday" }, ...cells("TD", "Board call", "Case review")] },
+        ],
+        "Weekly Schedule",
+      ),
+    check: (r) => {
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      if (t.score !== 100) return `a row-header table was docked (table ${t.score})`;
+      if (r.conformance.failures.some((f) => f.category === "table_markup"))
+        return "a criterion asserted against a determinable row-header table";
+      return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
+    },
+  },
   // ---- v1.161.0: visual headings tagged as ordinary text (2026-10-06) ----
   {
     file: "synthetic-179-untagged-section-headings.pdf",
@@ -4412,6 +4536,14 @@ const SAMPLES: Sample[] = [
 // ---------------------------------------------------------------------------
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-191-thead-tbody-tfoot-table.pdf": {
+    label: "A table with its rows grouped in header, body and footer sections",
+    chip: "held",
+  },
+  "synthetic-192-row-header-table.pdf": {
+    label: "A schedule whose headers run down the first column instead of across the top",
+    chip: "held",
+  },
   "synthetic-179-untagged-section-headings.pdf": {
     label:
       "Section titles that look like headings but are tagged as paragraphs, beside real headings",

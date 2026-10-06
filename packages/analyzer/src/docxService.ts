@@ -521,6 +521,66 @@ function isVisibleShading(shd: PONode): boolean {
   return fill !== "auto" || attrOf(shd, "themeFill") !== undefined;
 }
 
+/** Whether one border element (w:top, w:insideH …) draws a line. "nil" and
+ *  "none" are explicit NO border — what Google Docs, LibreOffice and pasted
+ *  web content write for an invisible grid (2026-10-06, trap 186). Counting
+ *  the bare element made such grids read as data tables, the border twin of
+ *  the 2026-10-05 "no shading" bug. */
+function isVisibleBorder(el: PONode): boolean {
+  const val = (attrOf(el, "val") ?? "").trim().toLowerCase();
+  return val !== "nil" && val !== "none";
+}
+
+/** A w:tblBorders / w:tcBorders container with at least one visible edge. */
+function drawsBorders(container: PONode | undefined): boolean {
+  return !!container && childrenOf(container).some(isVisibleBorder);
+}
+
+/** Whether a table STYLE draws anything — a visible border or shading in its
+ *  table, cell, or conditional-format (w:tblStylePr) properties, following
+ *  w:basedOn (2026-10-06, trap 187). A style that draws nothing — Google
+ *  Docs' "a", Word's own Normal Table — is no style: the table is as bare on
+ *  the page as one with no style at all. A style the part does not define is
+ *  treated as drawn, the pre-2026-10-06 behavior for every named style:
+ *  nothing proves it draws nothing — except Word's built-in Normal Table
+ *  ("TableNormal"), which by definition never does. */
+function buildTableStyleDraws(stylesRoot: PONode | undefined): (id: string) => boolean {
+  const defs = new Map<string, PONode>();
+  for (const st of stylesRoot ? childrenOf(stylesRoot) : []) {
+    if (tagOf(st) !== "style" || attrOf(st, "type") !== "table") continue;
+    const id = attrOf(st, "styleId");
+    if (id) defs.set(id, st);
+  }
+  const drawsHere = (st: PONode): boolean =>
+    [st, ...childrenOf(st).filter((c) => tagOf(c) === "tblStylePr")].some((props) => {
+      const tblPr = firstChild(props, "tblPr");
+      const tcPr = firstChild(props, "tcPr");
+      const shd = [tblPr && firstChild(tblPr, "shd"), tcPr && firstChild(tcPr, "shd")];
+      return (
+        drawsBorders(tblPr ? firstChild(tblPr, "tblBorders") : undefined) ||
+        drawsBorders(tcPr ? firstChild(tcPr, "tcBorders") : undefined) ||
+        shd.some((x) => !!x && isVisibleShading(x))
+      );
+    });
+  const memo = new Map<string, boolean>();
+  const draws = (id: string, depth: number): boolean => {
+    const cached = memo.get(id);
+    if (cached !== undefined) return cached;
+    const st = defs.get(id);
+    let result: boolean;
+    if (!st) result = id !== "TableNormal";
+    else if (depth > 10 || drawsHere(st)) result = true;
+    else {
+      const basedOn = firstChild(st, "basedOn");
+      const parent = basedOn ? (attrOf(basedOn, "val") ?? "").trim() : "";
+      result = parent ? draws(parent, depth + 1) : false;
+    }
+    memo.set(id, result);
+    return result;
+  };
+  return (id) => draws(id, 0);
+}
+
 /** Table Design → Header Row, as Word stores it: w:tblLook's explicit
  *  firstRow attribute (Word 2010+), else bit 0x0020 of the legacy hex w:val
  *  Word 2007 wrote (current Word writes both, consistently). */
@@ -539,7 +599,10 @@ function onOffEnabled(node: PONode): boolean {
   return val === undefined || !/^(0|false|off)$/i.test(val);
 }
 
-function extractTables(body: PONode): DocxAnalysis["tables"] {
+function extractTables(
+  body: PONode,
+  tableStyleDraws: (id: string) => boolean,
+): DocxAnalysis["tables"] {
   return topLevelTables(body).map((tbl) => {
     const rows = childrenOf(tbl).filter((c) => tagOf(c) === "tr");
     let cellCols = 0;
@@ -589,10 +652,25 @@ function extractTables(body: PONode): DocxAnalysis["tables"] {
     if (!hasHeaderRow && tblPr && tblLookFirstRow(firstChild(tblPr, "tblLook"))) {
       hasHeaderRow = true;
     }
+    // What the table DRAWS decides layout vs data, not which elements it
+    // carries (2026-10-06): a style that draws nothing, or borders that are
+    // all switched off, leave a bare grid; borders on the table's OWN cells
+    // draw one (only table-level borders were ever checked).
+    const styleEl = tblPr ? firstChild(tblPr, "tblStyle") : undefined;
+    const styleId = styleEl ? (attrOf(styleEl, "val") ?? "").trim() : "";
+    const ownCellBorders = rows.some((row) =>
+      childrenOf(row)
+        .filter((c) => tagOf(c) === "tc")
+        .some((tc) => {
+          const tcPr = firstChild(tc, "tcPr");
+          return drawsBorders(tcPr ? firstChild(tcPr, "tcBorders") : undefined);
+        }),
+    );
     const looksLikeLayout =
       !anyTblHeaderMark &&
-      !(tblPr && firstChild(tblPr, "tblStyle")) &&
-      !(tblPr && firstChild(tblPr, "tblBorders")) &&
+      !(styleId && tableStyleDraws(styleId)) &&
+      !drawsBorders(tblPr ? firstChild(tblPr, "tblBorders") : undefined) &&
+      !ownCellBorders &&
       !descendants(tbl, "shd").some(isVisibleShading);
     const grid = firstChild(tbl, "tblGrid");
     const gridCols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
@@ -1295,7 +1373,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     fakeHeadings,
     emptyHeadingCount,
     images,
-    tables: body ? extractTables(body) : [],
+    tables: body ? extractTables(body, buildTableStyleDraws(stylesRoot)) : [],
     links,
     lists: extractLists(paragraphs, styleInfo),
     contrast,

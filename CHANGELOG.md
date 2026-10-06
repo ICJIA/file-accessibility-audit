@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.162.0] - 2026-10-06
+
+### Fixed
+
+The first round of table traps, written before any fix: the user asked for more after noticing that tables cause the most problems, and 7 of the first 15 checker bugs on the trust page were table bugs.
+
+- **Word decides layout vs data by what a table draws, not by which elements it carries.** Since the 2026-08-29 legal-only sweep, a table with nothing drawn and no header marks has been a layout construct: never scored, with an advisory. The implementation counted elements instead.
+  - **A grid whose borders were all explicitly switched off** (`w:val="nil"` or `"none"`, as Google Docs, LibreOffice and pasted web content write an invisible table) was accused of a missing header row: 45, a C ceiling. This is the border twin of v1.157.0's "no shading" bug.
+  - **A table style that draws nothing** made a grid a data table: Google Docs' "a", or Word's own Normal Table. A style now draws only if its table, cell or conditional-format properties carry a visible border or shading, through `basedOn`. An undefined style is still treated as drawn, except Normal Table.
+  - **A data table drawn with borders on its cells** instead of the table was never checked at all, so its missing header row (a real WCAG 1.3.1 failure) went unreported. The table's own cell borders now count.
+
+  The bare-grid advisory now says "nothing drawn" rather than "no table style".
+
+### Notes
+
+- **Tests:** 3,979 (API 1,998 · Web 1,931 · CLI 50) across 220 files. `docxService.test.ts` gains 8.
+- **Traps:** 192. Seven are new, every one run before any fix:
+  - 186: an invisible-bordered Word grid → 100/A, FOUND A REAL BUG
+  - 187: a grid whose style draws nothing → 100/A
+  - 188: a cell-bordered data table with no header row → 45, 79/C
+  - 189: 188's twin with Header Row ticked → 100/A
+  - 190: a Table Grid-styled data table with no header row → 45, 79/C (the guard for the style rule)
+  - 191: a PDF table grouped in THead/TBody/TFoot → 100/A
+  - 192: a PDF schedule with headers down the first column → 100/A
+
+  186–188 failed on the old code. Removing what 190, 191 and 192 guard fails each one: a styled table slips through, a grouped table drops out of scoring, a row-header table is docked to 89/B.
+- **Score ledger:** re-blessed at 323 rows. Only the new trap rows; no real document moved. No real Word file in the test set carries a table style, which is itself the finding.
+- **Open, for the user** (write-up §4):
+  - PDF layout grids, which Word exempts but the same grid saved as a PDF is accused;
+  - header cells that are empty;
+  - Excel tables still headed "Column1, Column2…".
+- **`pnpm audit --prod`: 6**, the same six as v1.161.1. Write-up: `docs/table-traps-round-1-word-tables-drawn-not-marked.md`.
+
 ## [1.161.1] - 2026-10-06
 
 ### Security
