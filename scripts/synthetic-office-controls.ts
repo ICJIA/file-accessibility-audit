@@ -491,6 +491,9 @@ interface XlsxTable {
   name: string;
   ref: string;
   headerRowCount: 0 | 1;
+  /** The header names Excel stores in the table part (<tableColumns>) —
+   *  written only when given, so earlier traps keep their exact bytes. */
+  columns?: string[];
 }
 
 function xlsx(
@@ -562,7 +565,7 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 <Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>
 </Relationships>`;
       files[`xl/tables/table${i + 1}.xml`] = `${XMLDECL}
-<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${i + 1}" name="${s.table.name}" displayName="${s.table.name}" ref="${s.table.ref}" headerRowCount="${s.table.headerRowCount}"/>`;
+<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${i + 1}" name="${s.table.name}" displayName="${s.table.name}" ref="${s.table.ref}" headerRowCount="${s.table.headerRowCount}"${s.table.columns ? `><tableColumns count="${s.table.columns.length}">${s.table.columns.map((c, k) => `<tableColumn id="${k + 1}" name="${c}"/>`).join("")}</tableColumns></table>` : "/>"}`;
     }
   });
   return zip(files);
@@ -2204,6 +2207,96 @@ const SAMPLES: Sample[] = [
       tableMemo(wordGrid(DATA_ROWS, { tblPr: '<w:tblStyle w:val="TableGrid"/>' }), TABLE_STYLES),
     check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
   },
+  // ---- table traps round 2: headers that label nothing (2026-10-06) ----
+  {
+    file: "synthetic-196-docx-empty-header-row.docx",
+    truth:
+      "A bordered Word data table with Table Design → Header Row ticked — but every cell of that header row empty. The header structure exists, so WCAG 1.3.1 is met on paper and nothing is scored (user decision, 2026-10-06), but a screen reader announces no header for those columns. table_markup stays 100, the advisory names the empty header row, nothing is asserted, 100/A.",
+    build: () =>
+      tableMemo(
+        wordGrid(
+          [
+            ["", "", ""],
+            ["Job Training", "412,000", "6"],
+            ["Housing Support", "268,000", "4"],
+          ],
+          { tcPr: CELL_BORDERS, look: LOOK_HEADER_ROW_ON },
+        ),
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score !== 100) return `an empty header row changed the score (${c?.score})`;
+      if (
+        !/Advisory — not scored:.*header row whose cells are all empty/.test(c.findings.join(" "))
+      )
+        return "the empty header row was not reported";
+      if (accused(r, "table_markup")) return "a criterion asserted against a marked header row";
+      return r.overallScore === 100 ? null : `the memo scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-197-pptx-empty-header-row.pptx",
+    truth:
+      "A PowerPoint table with Header Row ticked and every cell of that row empty. Reported, not scored (user decision, 2026-10-06): table_markup 100, the advisory names the empty header row, nothing asserted, 100/A.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Program Enrollment") +
+            SLIDE_TABLE(
+              [
+                ["", "", ""],
+                ["Job Training", "412", "6"],
+                ["Housing Support", "268", "4"],
+              ],
+              true,
+            ),
+        ],
+        { title: "Program Enrollment 2026" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score !== 100) return `an empty header row changed the score (${c?.score})`;
+      if (
+        !/Advisory — not scored:.*header row whose cells are all empty/.test(c.findings.join(" "))
+      )
+        return "the empty header row was not reported";
+      if (accused(r, "table_markup")) return "a criterion asserted against a marked header row";
+      return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-198-xlsx-default-column-names.xlsx",
+    truth:
+      'A defined Excel table whose header row still carries the names Excel invents when a range becomes a table without one — "Column1", "Column2". The header row exists, so WCAG 1.3.1 is met on paper and nothing is scored (user decision, 2026-10-06), but the names say nothing about the columns. table_markup stays 100, the advisory names the default names, nothing is asserted, 100/A.',
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Grants",
+            rows: [
+              ["Column1", "Column2"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+            table: {
+              name: "Grants",
+              ref: "A1:B3",
+              headerRowCount: 1,
+              columns: ["Column1", "Column2"],
+            },
+          },
+        ],
+        { title: "FY26 Grant Ledger" },
+      ),
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (!c || c.score !== 100) return `default header names changed the score (${c?.score})`;
+      if (!/Advisory — not scored:.*default header names.*Column1/.test(c.findings.join(" ")))
+        return "the default header names were not reported";
+      if (accused(r, "table_markup")) return "a criterion asserted against a marked header row";
+      return r.overallScore === 100 ? null : `the workbook scored ${r.overallScore}/${r.grade}`;
+    },
+  },
   // ---- v1.161.0: the language declared on most of the text (2026-10-06) ----
   {
     file: "synthetic-184-docx-language-on-the-text.docx",
@@ -2396,6 +2489,18 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-196-docx-empty-header-row.docx": {
+    label: "Word: a header row marked, every header cell empty",
+    chip: "caught",
+  },
+  "synthetic-197-pptx-empty-header-row.pptx": {
+    label: "PowerPoint: a header row marked, every header cell empty",
+    chip: "caught",
+  },
+  "synthetic-198-xlsx-default-column-names.xlsx": {
+    label: "Excel: a table still headed \u201cColumn1, Column2\u201d",
+    chip: "caught",
+  },
   "synthetic-186-docx-borders-explicitly-none.docx": {
     label: "Word: a layout grid whose borders are all explicitly switched off",
     chip: "bug",

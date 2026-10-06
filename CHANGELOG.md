@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.163.0] - 2026-10-06
+
+### Fixed
+
+Table traps, round 2: the three questions round 1 left open. Each direction was a user decision.
+
+- **A PDF table with no header cells that draws nothing is a layout grid, as in Word** ("detect drawn lines"). Word has never scored a bare grid; the same grid saved as a PDF became a `<Table>` with no `<TH>` and was accused of a missing header row. PDF now reads what the page draws.
+  - The analyzer matches each table to its area on the page by marked-content id (`contentIds`, in pdf.js's own `p12R_mc3` form).
+  - It walks the operator list for visibly painted lines and fills, tracking transforms and colours.
+  - A header-less table with nothing drawn in its area is excluded from scoring, with an advisory.
+
+  A ruled table is still accused. With no evidence either way, the old rule stands. The scorer and gate rules 7 and 7c share one predicate (`isPdfDataTable`). On the corpus, 38 header-less tables draw lines, including the real budget tables, which are still accused. No real document moved.
+- **Headers that label nothing are reported** (report, don't score). Each case has a marked header structure, so WCAG 1.3.1 is met on paper and the score is unchanged:
+  - a marked header row whose cells are all empty, in Word and PowerPoint;
+  - `<TH>` cells with no text and no `/Alt`, in PDF;
+  - Excel tables still headed with Excel's own default names ("Column1", "Column2").
+
+### Notes
+
+- **Tests:** 4,005 (API 2,024 · Web 1,931 · CLI 50) across 222 files. New: `pdfTableDrawn.test.ts` (16) and `tableHeaderLabels.test.ts` (10), RED first.
+- **Traps:** 198. Six are new:
+  - 193: a header-less PDF table drawing nothing → 100/A
+  - 194: the same table, ruled → 45, 79/C
+  - 195–198: empty `<TH>` cells, an empty Word header row, an empty PowerPoint header row, and Excel's "ColumnN" names → each 100/A, with the advisory
+
+  The stashed analyzer fails 193 and 195–198. PDF traps 08, 27 and 76, whose defects live in data tables, now draw ruled lines as real exporters do, and 27's check is strengthened. Blinding the drawn-line detector fails 27, 76 and 194.
+- **Score ledger:** re-blessed at 329 rows; only new trap rows. All gates green. `pnpm audit --prod`: 6, the same six. Write-up: `docs/table-traps-round-2-pdf-drawn-tables-and-empty-headers.md`.
+
 ## [1.162.0] - 2026-10-06
 
 ### Fixed

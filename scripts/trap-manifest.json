@@ -1,5 +1,5 @@
 {
-  "count": 120,
+  "count": 123,
   "generated": "2026-10-06",
   "items": [
     {
@@ -583,6 +583,21 @@
       "file": "synthetic-192-row-header-table.pdf",
       "label": "A schedule whose headers run down the first column instead of across the top",
       "chip": "held"
+    },
+    {
+      "file": "synthetic-193-borderless-grid-nothing-drawn.pdf",
+      "label": "A header-less table that draws nothing — a layout grid, as in Word",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-194-ruled-grid-no-header.pdf",
+      "label": "The same table with ruled lines — a data table missing its header row",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-195-empty-header-cells.pdf",
+      "label": "Header cells tagged <TH> but every one empty",
+      "chip": "caught"
     },
     {
       "file": "synthetic-179-untagged-section-headings.pdf",

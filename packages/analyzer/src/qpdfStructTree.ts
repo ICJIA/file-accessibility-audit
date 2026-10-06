@@ -40,7 +40,27 @@ export interface TableAnalysis {
    *  failure and is scored. */
   simpleHeaderLayout: boolean;
   hasHeaderAssociation: boolean;
+  /** The first marked-content ids of the table's cells, in structure order,
+   *  in pdf.js's own form ("p12R_mc3" — page object, then MCID), so the
+   *  scorer can find this table's region on the page in the pdf.js pass and
+   *  ask whether anything is DRAWN there (2026-10-06). Capped; optional for
+   *  stored payloads. */
+  contentIds?: string[];
 }
+
+/** pdf.js's marked-content id for an MCID on the page whose object reference
+ *  is `pageRef` ("12 0 R" → "p12R_mc3"; a non-zero generation "12 2 R" →
+ *  "p12R2_mc3"), or null when the reference is not one. */
+export function pdfjsContentId(pageRef: unknown, mcid: unknown): string | null {
+  if (typeof pageRef !== "string" || typeof mcid !== "number" || !Number.isInteger(mcid)) {
+    return null;
+  }
+  const m = /^\s*(\d+)\s+(\d+)\s+R\s*$/.exec(pageRef.replace(/^obj:/, ""));
+  if (!m) return null;
+  return `p${m[1]}R${m[2] === "0" ? "" : m[2]}_mc${mcid}`;
+}
+
+const MAX_TABLE_CONTENT_IDS = 24;
 
 // Normalize an object-map KEY to the reference-VALUE form: qpdf JSON v2 keys
 // the object map as "obj:N 0 R" while indirect-reference values inside
@@ -339,6 +359,7 @@ export function analyzeTable(
     columnCounts: [],
     simpleHeaderLayout: false,
     hasHeaderAssociation: false,
+    contentIds: [],
   };
 
   const kids = tableObj["/K"];
@@ -476,13 +497,20 @@ export function analyzeTable(
   // and turning a handful of objects into exponential work. Matches the guard
   // collectDescendantTableRefs/collectHeadingsInOrder already use.
   const visited = new Set<any>();
-  const walk = (node: any, depth: number): void => {
+  const contentIds = result.contentIds!;
+  const addContentId = (pageRef: unknown, mcid: unknown): void => {
+    if (contentIds.length >= MAX_TABLE_CONTENT_IDS) return;
+    const id = pdfjsContentId(pageRef, mcid);
+    if (id) contentIds.push(id);
+  };
+  const walk = (node: any, depth: number, inheritedPage: unknown = null): void => {
     if (depth > 15 || !node) return;
     const resolved = resolve(node);
     if (!resolved) return;
     if (visited.has(resolved)) return;
     visited.add(resolved);
     const tag = getTag(resolved);
+    const page = typeof resolved["/Pg"] === "string" ? resolved["/Pg"] : inheritedPage;
 
     if (tag === "/TH") {
       result.headerCount++;
@@ -510,12 +538,15 @@ export function analyzeTable(
     if (!childKids) return;
     const items = Array.isArray(childKids) ? childKids : [childKids];
     for (const item of items) {
-      if (
-        typeof item === "number" ||
-        (item && typeof item === "object" && item["/MCID"] !== undefined)
-      )
+      if (typeof item === "number") {
+        addContentId(page, item);
         continue;
-      walk(item, depth + 1);
+      }
+      if (item && typeof item === "object" && item["/MCID"] !== undefined) {
+        addContentId(typeof item["/Pg"] === "string" ? item["/Pg"] : page, item["/MCID"]);
+        continue;
+      }
+      walk(item, depth + 1, page);
     }
   };
 

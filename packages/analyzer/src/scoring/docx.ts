@@ -442,6 +442,17 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
       `Advisory — not scored: ${layoutish} bare grid(s) — nothing drawn (no visible border or shading from the table, its cells, or its style) and no header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
     );
   }
+  // Headers that label nothing (2026-10-06, user decision: reported, never
+  // scored): a marked header row whose cells are all empty.
+  const emptyHeaders = a.tables.filter(
+    (t) =>
+      t.emptyHeaderRow === true && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true,
+  ).length;
+  if (emptyHeaders > 0) {
+    findings.push(
+      `Advisory — not scored: ${emptyHeaders} table(s) mark a header row whose cells are all empty — the structure is there, so this is not counted against your grade, but screen readers announce no header for those columns. Type a label into each header cell.`,
+    );
+  }
   // Nested tables: reported, never scored (2026-08-29 — same rule as the
   // PDF path since v1.131.0: properly built nesting is still determinable).
   if (a.tables.some((t) => t.hasNestedTable)) {

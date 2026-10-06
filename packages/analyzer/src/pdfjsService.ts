@@ -53,6 +53,12 @@ export interface PdfjsResult {
    *  Samples are capped; the count is not. Absent on older stored reports. */
   untaggedVisualHeadingCount?: number;
   untaggedVisualHeadingSamples?: Array<{ text: string; page: number }>;
+  /** Each <Table>'s area on each page it appears on, and whether the page
+   *  visibly DRAWS anything there — a ruled line or a cell fill (2026-10-06).
+   *  Matched to qpdf's tables by marked-content id (TableAnalysis.contentIds);
+   *  a header-less table that draws nothing is a layout grid, as in Word
+   *  (pdfTableDrawsNothing). Capped; absent on older stored reports. */
+  tableRegions?: TableRegion[];
   author: string | null;
   subject: string | null;
   lang: string | null;
@@ -364,6 +370,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       elementById: new Map(),
       unreliablePages: new Set(),
     };
+    const pendingTablePages = new Map<number, { tree: unknown; boxes: Map<string, number[]> }>();
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
 
@@ -421,6 +428,13 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           ).length,
           idsWithText: textById.size,
         });
+
+      // Pages carrying <Table> elements, for the drawn-or-bare table check
+      // (2026-10-06): the regions are finished in the operator-list pass
+      // below, which knows what the page paints.
+      if (tree && pageTextReliable && treeHasTable(tree)) {
+        pendingTablePages.set(i, { tree, boxes: textBoxesById(textContent.items) });
+      }
 
       // Where each marked-content id sits in the tree, for the
       // untagged-visual-heading check (2026-10-06). A page whose text could
@@ -584,6 +598,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       ].filter((v) => v !== undefined),
     );
     const visibleTextFonts = new Set<string>();
+    const tableRegions: TableRegion[] = [];
     // A text run painted visible glyphs under a font pdfjs could not resolve:
     // the usage signal is incomplete, so it must not be used for exemptions.
     let fontResolutionFailed = false;
@@ -591,6 +606,13 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       const page = await doc.getPage(i);
       const ops = await page.getOperatorList();
       seenPerPage.clear();
+      const tablePage = pendingTablePages.get(i);
+      if (tablePage && tableRegions.length < MAX_TABLE_REGIONS) {
+        try {
+          const painted = paintedPathBoxes(ops.fnArray, ops.argsArray, OPS);
+          tableRegions.push(...tableRegionsForPage(tablePage.tree, tablePage.boxes, painted, i));
+        } catch {}
+      }
       const pageMcids: number[] = [];
       // Stack of "is this marked-content run inside an /Artifact?" flags.
       const artifactStack: boolean[] = [];
@@ -699,6 +721,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       }
     }
     result.imageCount = imageCount;
+    result.tableRegions = tableRegions;
     result.nonArtifactImageCount = nonArtifactImageCount;
     result.artifactRunCount = artifactRunCount;
     // Left ABSENT (never an empty array) when any visible run's font could not
@@ -1012,6 +1035,277 @@ export function collectStructAttribution(
       for (const c of node.children) visit(c, heading, nearestBlock);
   };
   visit(tree, false, null);
+}
+
+/** One table's area on one page, and whether anything is drawn in it. */
+export interface TableRegion {
+  /** The first marked-content ids of the table's cells on this page. */
+  ids: string[];
+  page: number;
+  drawn: boolean;
+  /** Header cells (<TH>) on this page, and every one without text or /Alt
+   *  (2026-10-06): headers that label nothing. Reported, never scored. */
+  emptyHeaders?: boolean;
+}
+
+type Matrix = [number, number, number, number, number, number];
+const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
+/** p → m(n(p)): apply n first, then m. */
+const composeMatrix = (m: Matrix, n: Matrix): Matrix => [
+  m[0] * n[0] + m[2] * n[1],
+  m[1] * n[0] + m[3] * n[1],
+  m[0] * n[2] + m[2] * n[3],
+  m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4],
+  m[1] * n[4] + m[3] * n[5] + m[5],
+];
+const asMatrix = (v: unknown): Matrix | null =>
+  Array.isArray(v) && v.length >= 6 && v.slice(0, 6).every((x) => Number.isFinite(x))
+    ? (v.slice(0, 6) as Matrix)
+    : null;
+/** Near-white or transparent paints nothing on a white page. */
+const paintsNothing = (rgb: number[] | null): boolean =>
+  rgb === null || (rgb[0]! >= 245 && rgb[1]! >= 245 && rgb[2]! >= 245);
+const asRgb = (args: unknown): number[] | null => {
+  const a = args as unknown[] | undefined;
+  if (typeof a?.[0] === "string") {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(a[0]);
+    return m ? [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)] : [0, 0, 0];
+  }
+  const nums = (a ?? []).slice(0, 3).map(Number);
+  return nums.length === 3 && nums.every(Number.isFinite) ? nums : [0, 0, 0];
+};
+
+/**
+ * The page-space bounding boxes of every path the page VISIBLY paints — a
+ * stroke or fill in a colour that shows on white (2026-10-06). Walks pdf.js's
+ * operator list tracking the current transform (cm, q/Q, form XObjects) and
+ * the fill/stroke colours; each constructPath carries its own user-space box
+ * (minMax), mapped through the transform. Clipping paths (ended with endPath,
+ * never painted) draw nothing. `ops` is pdf.js's OPS map, passed in so this
+ * stays pure. Exported for tests.
+ */
+export function paintedPathBoxes(
+  fnArray: ArrayLike<number>,
+  argsArray: ArrayLike<unknown>,
+  ops: Record<string, number>,
+): number[][] {
+  const STROKE = new Set(
+    ["stroke", "closeStroke", "fillStroke", "eoFillStroke", "closeFillStroke", "closeEOFillStroke"]
+      .map((k) => ops[k])
+      .filter((v): v is number => v !== undefined),
+  );
+  const FILL = new Set(
+    ["fill", "eoFill", "fillStroke", "eoFillStroke", "closeFillStroke", "closeEOFillStroke"]
+      .map((k) => ops[k])
+      .filter((v): v is number => v !== undefined),
+  );
+  let ctm: Matrix = IDENTITY;
+  let fill: number[] | null = [0, 0, 0];
+  let stroke: number[] | null = [0, 0, 0];
+  const stack: Array<{ ctm: Matrix; fill: number[] | null; stroke: number[] | null }> = [];
+  let pending: number[] | null = null;
+  const out: number[][] = [];
+  for (let j = 0; j < fnArray.length; j++) {
+    const fn = fnArray[j];
+    const args = argsArray[j] as unknown[] | undefined;
+    if (fn === ops.save) {
+      stack.push({ ctm, fill, stroke });
+    } else if (fn === ops.restore) {
+      const prev = stack.pop();
+      if (prev) ({ ctm, fill, stroke } = prev);
+    } else if (fn === ops.transform) {
+      const m = asMatrix(args);
+      if (m) ctm = composeMatrix(ctm, m);
+    } else if (fn === ops.paintFormXObjectBegin) {
+      stack.push({ ctm, fill, stroke });
+      const m = asMatrix(args?.[0]);
+      if (m) ctm = composeMatrix(ctm, m);
+    } else if (fn === ops.paintFormXObjectEnd) {
+      const prev = stack.pop();
+      if (prev) ({ ctm, fill, stroke } = prev);
+    } else if (fn === ops.setFillRGBColor) {
+      fill = asRgb(args);
+    } else if (fn === ops.setStrokeRGBColor) {
+      stroke = asRgb(args);
+    } else if (fn === ops.setFillTransparent) {
+      fill = null;
+    } else if (fn === ops.setStrokeTransparent) {
+      stroke = null;
+    } else if (fn === ops.constructPath) {
+      const mm = args?.[2] as ArrayLike<number> | undefined;
+      if (mm && mm.length >= 4 && [0, 1, 2, 3].every((k) => Number.isFinite(mm[k]))) {
+        const corners = [
+          [mm[0]!, mm[1]!],
+          [mm[2]!, mm[3]!],
+          [mm[0]!, mm[3]!],
+          [mm[2]!, mm[1]!],
+        ].map(([x, y]) => [ctm[0] * x! + ctm[2] * y! + ctm[4], ctm[1] * x! + ctm[3] * y! + ctm[5]]);
+        pending = [
+          Math.min(...corners.map((c) => c[0]!)),
+          Math.min(...corners.map((c) => c[1]!)),
+          Math.max(...corners.map((c) => c[0]!)),
+          Math.max(...corners.map((c) => c[1]!)),
+        ];
+      } else {
+        pending = null;
+      }
+    } else if ((STROKE.has(fn!) || FILL.has(fn!)) && pending) {
+      const visible =
+        (STROKE.has(fn!) && !paintsNothing(stroke)) || (FILL.has(fn!) && !paintsNothing(fill));
+      if (visible) out.push(pending);
+      pending = null;
+    } else if (fn === ops.endPath) {
+      pending = null;
+    }
+  }
+  return out;
+}
+
+/** How far beyond a table's text a ruled line or fill may sit (cell padding
+ *  and borders) and still belong to it. */
+const TABLE_REGION_MARGIN_PT = 8;
+/** A painted shape this many times larger than the table is a page or panel
+ *  background, not the table's own drawing. */
+const MAX_TABLE_SHAPE_AREA_RATIO = 4;
+const MAX_REGION_IDS = 12;
+
+/**
+ * Each <Table> in one page's serialized struct tree: its area (the union of
+ * its cells' text boxes on this page, `boxById` keyed by marked-content id)
+ * and whether any visibly painted path (`painted`, page space) lies in that
+ * area — excluding shapes far larger than the table, which are backgrounds.
+ * A table with no attributable text yields no region: no evidence either way.
+ * Exported for tests.
+ */
+export function tableRegionsForPage(
+  tree: unknown,
+  boxById: Map<string, number[]>,
+  painted: number[][],
+  page: number,
+): TableRegion[] {
+  const tables: any[] = [];
+  const findTables = (n: any): void => {
+    if (!n || typeof n !== "object") return;
+    if (n.role === "Table") tables.push(n);
+    if (Array.isArray(n.children)) for (const c of n.children) findTables(c);
+  };
+  findTables(tree);
+  const regions: TableRegion[] = [];
+  for (const table of tables) {
+    const ids: string[] = [];
+    const collect = (n: any): void => {
+      if (!n || typeof n !== "object") return;
+      if (n.type === "content" && typeof n.id === "string") ids.push(n.id);
+      if (Array.isArray(n.children)) for (const c of n.children) collect(c);
+    };
+    collect(table);
+    // Header cells with no attributable text and no /Alt label nothing.
+    const headerCells: any[] = [];
+    const findHeaders = (n: any): void => {
+      if (!n || typeof n !== "object") return;
+      if (n.role === "TH") {
+        headerCells.push(n);
+        return;
+      }
+      if (Array.isArray(n.children)) for (const c of n.children) findHeaders(c);
+    };
+    findHeaders(table);
+    const cellHasLabel = (cell: any): boolean => {
+      if (typeof cell.alt === "string" && cell.alt.trim()) return true;
+      let found = false;
+      const visit = (n: any): void => {
+        if (found || !n || typeof n !== "object") return;
+        if (n.type === "content" && typeof n.id === "string" && boxById.has(n.id)) {
+          found = true;
+          return;
+        }
+        if (Array.isArray(n.children)) for (const c of n.children) visit(c);
+      };
+      visit(cell);
+      return found;
+    };
+    const emptyHeaders = headerCells.length > 0 && !headerCells.some(cellHasLabel);
+    let box = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const id of ids) {
+      const b = boxById.get(id);
+      if (!b) continue;
+      box = [
+        Math.min(box[0]!, b[0]!),
+        Math.min(box[1]!, b[1]!),
+        Math.max(box[2]!, b[2]!),
+        Math.max(box[3]!, b[3]!),
+      ];
+    }
+    if (!Number.isFinite(box[0])) continue;
+    const ex = [
+      box[0]! - TABLE_REGION_MARGIN_PT,
+      box[1]! - TABLE_REGION_MARGIN_PT,
+      box[2]! + TABLE_REGION_MARGIN_PT,
+      box[3]! + TABLE_REGION_MARGIN_PT,
+    ];
+    const area = Math.max(1, (ex[2]! - ex[0]!) * (ex[3]! - ex[1]!));
+    const drawn = painted.some(
+      (q) =>
+        q[0]! <= ex[2]! &&
+        q[2]! >= ex[0]! &&
+        q[1]! <= ex[3]! &&
+        q[3]! >= ex[1]! &&
+        (q[2]! - q[0]!) * (q[3]! - q[1]!) <= MAX_TABLE_SHAPE_AREA_RATIO * area,
+    );
+    regions.push({
+      ids: ids.filter((id) => boxById.has(id)).slice(0, MAX_REGION_IDS),
+      page,
+      drawn,
+      ...(emptyHeaders ? { emptyHeaders } : {}),
+    });
+  }
+  return regions;
+}
+
+/** Text-item boxes by marked-content id, page space — a table region's area. */
+function textBoxesById(items: unknown[]): Map<string, number[]> {
+  const ids = markedContentIdsOf(items);
+  const textItems = (items as any[]).filter((it) => typeof it?.str === "string");
+  const out = new Map<string, number[]>();
+  textItems.forEach((it, k) => {
+    const id = ids[k];
+    const tr = it?.transform;
+    if (!id || !it.str.trim() || !Array.isArray(tr) || tr.length < 6) return;
+    const x = Number(tr[4]);
+    const y = Number(tr[5]);
+    const w = Number.isFinite(it.width) ? Number(it.width) : 0;
+    const h =
+      Number.isFinite(it.height) && it.height > 0
+        ? Number(it.height)
+        : Math.hypot(tr[2], tr[3]) || 10;
+    if (![x, y].every(Number.isFinite)) return;
+    const b = out.get(id) ?? [Infinity, Infinity, -Infinity, -Infinity];
+    out.set(id, [
+      Math.min(b[0]!, x),
+      Math.min(b[1]!, y),
+      Math.max(b[2]!, x + w),
+      Math.max(b[3]!, y + h),
+    ]);
+  });
+  return out;
+}
+
+const MAX_TABLE_REGIONS = 400;
+
+/** Whether a serialized struct tree holds any <Table> element. */
+function treeHasTable(tree: unknown): boolean {
+  let found = false;
+  const visit = (n: any): void => {
+    if (found || !n || typeof n !== "object") return;
+    if (n.role === "Table") {
+      found = true;
+      return;
+    }
+    if (Array.isArray(n.children)) for (const c of n.children) visit(c);
+  };
+  visit(tree);
+  return found;
 }
 
 // Serialized getStructTree() heading roles: H1–H6, or generic H (no level).

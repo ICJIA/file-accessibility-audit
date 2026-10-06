@@ -77,6 +77,9 @@ export interface PptxAnalysis {
      *  border or fill, no header row: Word's looksLikeLayout rule, adopted
      *  2026-10-05. Never scored or gated. Optional for stored payloads. */
     looksLikeLayout?: boolean;
+    /** The header row is marked but every one of its cells is empty
+     *  (2026-10-06). Reported, never scored. Absent on older payloads. */
+    emptyHeaderRow?: boolean;
   }>;
   links: Array<{ text: string; url: string | null }>;
   lists: { realListItems: number; manualBulletParagraphs: number };
@@ -627,11 +630,18 @@ function collectSlideContent(
       // ST_Boolean admits "true" as well as "1".
       const firstRow = tblPr ? (attrOf(tblPr, "firstRow") ?? "") : "";
       const hasHeaderRow = firstRow === "1" || firstRow.toLowerCase() === "true";
+      const firstTr = childrenOf(tbl).find((c) => tagOf(c) === "tr");
+      const firstCells = firstTr ? childrenOf(firstTr).filter((c) => tagOf(c) === "tc") : [];
       analysis.tables.push({
         hasHeaderRow,
         rowCount: rows,
         colCount: cols,
         looksLikeLayout: !hasHeaderRow && tableLooksBare(tbl, tblPr),
+        ...(hasHeaderRow &&
+        firstCells.length > 0 &&
+        firstCells.every((tc) => textOf(tc).trim() === "")
+          ? { emptyHeaderRow: true }
+          : {}),
       });
     } else if (frame.cNvPr) {
       analysis.images.push(drawingAltText(frame.cNvPr));

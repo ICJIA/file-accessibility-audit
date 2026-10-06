@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.163.0",
+    meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how PDF tables are told apart from grids used only for layout, and three new notes about table headers that label nothing.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: the change is to how documents are graded and to the notes the report gives. To tell a PDF table apart from a layout grid, the checker now looks at whether the page draws lines or shading where the table sits &mdash; information it already read for other checks. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>PDF tables are judged by what they show on the page, as Word tables already were.</strong> A table with no header cells and nothing drawn &mdash; no lines, no shading &mdash; is a grid used only to line things up, and is no longer accused of a missing header row. A table drawn with lines is still a data table and still needs its headers. No real document&rsquo;s grade changed.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Table headers that say nothing are pointed out.</strong> A header row that is marked but empty, or an Excel table still headed &ldquo;Column1, Column2&rdquo;, is now noted in the report. These do not change the grade.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Six new test documents were written before the changes and run against the checker as it stood. Three older test documents were corrected to draw the lines a real data table has, so they keep testing what they were built to test. The scan of third-party code finds the same six warnings as before, none in the live service.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.162.0",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how Word tables are told apart from grids used only for layout, and seven new test documents for tables.",
     body: [

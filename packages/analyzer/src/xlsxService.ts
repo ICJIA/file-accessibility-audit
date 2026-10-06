@@ -82,6 +82,10 @@ export interface XlsxAnalysis {
     hasHeaderRow: boolean;
     /** Column span from the table's ref range; null when unparseable. */
     columnCount?: number | null;
+    /** Header names that are still Excel's own defaults ("Column1" …) or
+     *  blank — written when a range becomes a table without a header row
+     *  (2026-10-06). Reported, never scored. Absent on older payloads. */
+    defaultHeaderNames?: string[];
   }>;
   images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
   /**
@@ -488,11 +492,18 @@ async function collectSheetContent(
     const tableXml = await readAuxPart(resolveXlTarget(rel.target, sheetDir), read, counts);
     const tableRoot = rootElement(parseXml(tableXml), "table");
     if (!tableRoot) continue;
+    const columnsEl = firstChild(tableRoot, "tableColumns");
+    const headerNames = columnsEl
+      ? childrenOf(columnsEl)
+          .filter((c) => tagOf(c) === "tableColumn")
+          .map((c) => (attrOf(c, "name") ?? "").trim())
+      : [];
     analysis.tables.push({
       sheetName,
       name: attrOf(tableRoot, "displayName") ?? attrOf(tableRoot, "name") ?? "",
       hasHeaderRow: attrOf(tableRoot, "headerRowCount") !== "0",
       columnCount: columnSpanOfRef(attrOf(tableRoot, "ref")),
+      ...defaultNamesOf(headerNames),
     });
   }
 
@@ -611,6 +622,16 @@ async function collectSheetContent(
       });
     }
   }
+}
+
+/** The header names that are still Excel's own defaults ("Column1" …) or
+ *  blank, as an optional field — absent when every header is a real name. */
+function defaultNamesOf(names: string[]): { defaultHeaderNames?: string[] } {
+  const defaults = names
+    .filter((n) => n === "" || /^Column\d+$/.test(n))
+    .slice(0, 12)
+    .map((n) => n || "(blank)");
+  return defaults.length > 0 ? { defaultHeaderNames: defaults } : {};
 }
 
 /** ARGB "FFRRGGBB" or plain "RRGGBB" → normalized 6-hex, else null. */

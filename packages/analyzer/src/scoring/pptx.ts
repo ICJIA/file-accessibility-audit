@@ -467,6 +467,14 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
       `${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: select the table → Table Design → check "Header Row", and mark the top row's cells as headers.`,
     );
   }
+  // Headers that label nothing (2026-10-06, user decision: reported, never
+  // scored): a marked header row whose cells are all empty.
+  const emptyHeaders = a.tables.filter((t) => isDataTable(t) && t.emptyHeaderRow === true).length;
+  if (emptyHeaders > 0) {
+    findings.push(
+      `Advisory — not scored: ${emptyHeaders} table(s) mark a header row whose cells are all empty — the structure is there, so this is not counted against your grade, but screen readers announce no header for those columns. Type a label into each header cell.`,
+    );
+  }
   if (bareGrids > 0) {
     findings.push(
       `Advisory — not scored: ${bareGrids} bare grid(s) with no table style, borders, shading, or header row — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,

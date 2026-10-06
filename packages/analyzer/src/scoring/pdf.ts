@@ -21,6 +21,8 @@ import {
   untaggedContentImageCount,
   headingOutlineLines,
   truncateHeadingText,
+  isPdfDataTable,
+  pdfTableDrawsNothing,
   splitNonEmbeddedFonts,
   isPlausibleLanguageTag,
   type ScoringResult,
@@ -167,7 +169,7 @@ function buildCategories(
   categories.push(scoreHeadingStructure(qpdf, pdfjs));
   categories.push(scoreAltText(qpdf, pdfjs));
   categories.push(scoreBookmarks(qpdf, pdfjs));
-  categories.push(scoreTableMarkup(qpdf));
+  categories.push(scoreTableMarkup(qpdf, pdfjs));
   categories.push(scoreColorContrast());
   categories.push(scoreLinkQuality(qpdf, pdfjs));
   categories.push(scoreReadingOrder(qpdf, pdfjs));
@@ -1675,7 +1677,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   };
 }
 
-function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
+function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const tableLinks: CategoryResult["helpLinks"] = [
     {
       label: "Adobe: Make Tables Accessible",
@@ -1725,11 +1727,17 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   // from failure assertions ("overwhelmingly layout constructs"), and the
   // score now follows the same rule the gates do — a one-row [TD TD TD]
   // strip is page furniture, not a data table owed a header.
-  const isDataTable = (t: TableAnalysis): boolean =>
-    (t.columnCounts[0] ?? 2) >= 2 && t.rowCount >= 2;
+  // A header-less table that DRAWS NOTHING joins them (2026-10-06, user
+  // decision): no ruled line and no cell fill anywhere in its area — the PDF
+  // form of the bare grid Word has never scored. isPdfDataTable is the one
+  // predicate this scorer and the gate's rules 7 and 7c share.
+  const isDataTable = (t: TableAnalysis): boolean => isPdfDataTable(t, pdfjs.tableRegions);
+  const isBareGrid = (t: TableAnalysis): boolean =>
+    (t.columnCounts[0] ?? 2) >= 2 && t.rowCount >= 2 && pdfTableDrawsNothing(t, pdfjs.tableRegions);
   const scored = qpdf.tables.map((t, i) => ({ t, i })).filter(({ t }) => isDataTable(t));
   const dataTables = scored.map(({ t }) => t);
-  const layoutCount = qpdf.tables.length - dataTables.length;
+  const bareGridCount = qpdf.tables.filter(isBareGrid).length;
+  const layoutCount = qpdf.tables.length - dataTables.length - bareGridCount;
 
   const totalTables = qpdf.tables.length;
   const findings: string[] = [];
@@ -1755,14 +1763,23 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       parts.push(`inconsistent cols: [${unique.join(", ")}]`);
     }
     if (t.hasHeaderAssociation) parts.push("/Headers assoc: yes");
-    if (!isDataTable(t)) parts.push("single-column — layout, not scored");
+    if (isBareGrid(t)) parts.push("no header cells and nothing drawn — layout, not scored");
+    else if (!isDataTable(t)) parts.push("single-column — layout, not scored");
     findings.push(`  ${label}: ${parts.join(" | ")}`);
   }
 
+  const bareGridAdvisory =
+    bareGridCount > 0
+      ? `Advisory — not scored: ${bareGridCount} table(s) have no header cells and nothing drawn — no ruled line and no cell fill anywhere in their area — usually a grid used only to line things up, so header cells are not demanded and your grade is not affected. If any of these really presents data, its missing header row IS a WCAG 1.3.1 failure: tag its header cells <TH>.`
+      : null;
+
   if (dataTables.length === 0) {
-    findings.push(
-      `${totalTables} single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.`,
-    );
+    if (layoutCount > 0) {
+      findings.push(
+        `${layoutCount} single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.`,
+      );
+    }
+    if (bareGridAdvisory) findings.push(bareGridAdvisory);
     findings.push(
       "If any of these actually presents data relationships, restructure it as a real table with <TH> header cells; if it only positions content, consider whether it needs to be a <Table> at all.",
     );
@@ -1782,6 +1799,21 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   if (layoutCount > 0) {
     findings.push(
       `${layoutCount} single-column table(s) are treated as layout structures and excluded from the checks below; the ${dataTables.length} multi-column data table(s) are scored.`,
+    );
+  }
+  if (bareGridAdvisory) findings.push(bareGridAdvisory);
+  // Headers that label nothing (2026-10-06, user decision: reported, never
+  // scored): header cells (<TH>) with no text and no /Alt on the page.
+  const emptyHeaderTables = dataTables.filter((t) => {
+    if (!t.hasHeaders || !t.contentIds?.length) return false;
+    const ids = new Set(t.contentIds);
+    return (pdfjs.tableRegions ?? []).some(
+      (r) => r.emptyHeaders === true && r.ids.some((id) => ids.has(id)),
+    );
+  }).length;
+  if (emptyHeaderTables > 0) {
+    findings.push(
+      `Advisory — not scored: ${emptyHeaderTables} table(s) have header cells (<TH>) with no text — the header structure is there, so this is not counted against your grade, but screen readers announce nothing for them. Give each header cell its label.`,
     );
   }
 

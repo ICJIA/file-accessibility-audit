@@ -38,6 +38,7 @@ import {
   isPlausibleLanguageTag,
   judgeDeclaredLanguage,
   officeLanguageGateReason,
+  isPdfDataTable,
 } from "./common.js";
 import { structTreeIsContentFree, untaggedContentImageCount } from "./common.js";
 import { WCAG_UNDERSTANDING_SLUGS } from "@file-audit/shared";
@@ -394,8 +395,10 @@ export function evaluateConformance(
   //    already skip them, and asserting a confirmed Level A failure for a
   //    tagged layout table made the PDF verdict diverge from the DOCX one on
   //    the identical construct. The scoring category still reviews them.
+  //    A header-less table that draws nothing is a layout grid (2026-10-06):
+  //    isPdfDataTable — scoreTableMarkup's own predicate.
   const tablesNoHeaders = qpdf.tables.filter(
-    (t) => !t.hasHeaders && t.rowCount >= 2 && (t.columnCounts[0] ?? 2) >= 2,
+    (t) => !t.hasHeaders && isPdfDataTable(t, pdfjs.tableRegions),
   ).length;
   if (tablesNoHeaders > 0) {
     add(
@@ -615,9 +618,7 @@ export function evaluateConformance(
     // widened legal-basis gate on controls/synthetic-09-empty-table.pdf, which
     // graded 100/A with table_markup reported "not scored" beside a 1.3.1
     // Level A failure about that same table.
-    const scoredTables = (qpdf.tables ?? []).filter(
-      (t) => ((t.columnCounts ?? [])[0] ?? 2) >= 2 && (t.rowCount ?? 0) >= 2,
-    );
+    const scoredTables = (qpdf.tables ?? []).filter((t) => isPdfDataTable(t, pdfjs.tableRegions));
     const noRows = scoredTables.filter((t) => !t.hasRowStructure).length;
     const irregular = scoredTables.filter((t) => t.hasConsistentColumns === false).length;
     const complexUnassociated = scoredTables.filter(

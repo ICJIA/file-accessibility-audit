@@ -1,5 +1,5 @@
 {
-  "count": 72,
+  "count": 75,
   "generated": "2026-10-06",
   "items": [
     {
@@ -352,6 +352,21 @@
     {
       "file": "synthetic-190-docx-table-grid-style-no-header.docx",
       "label": "Word: a Table Grid-styled data table with no header row",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-196-docx-empty-header-row.docx",
+      "label": "Word: a header row marked, every header cell empty",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-197-pptx-empty-header-row.pptx",
+      "label": "PowerPoint: a header row marked, every header cell empty",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-198-xlsx-default-column-names.xlsx",
+      "label": "Excel: a table still headed “Column1, Column2”",
       "chip": "caught"
     },
     {

@@ -231,6 +231,21 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
 
   let score = 100;
   const findings: string[] = [`${a.tables.length} defined table(s) found.`];
+  // Headers that label nothing (2026-10-06, user decision: reported, never
+  // scored): a header row still carrying the names Excel invents when a range
+  // becomes a table without one. The structure exists, so 1.3.1 is met.
+  const defaultNamed = a.tables.filter(
+    (t) => t.hasHeaderRow && (t.defaultHeaderNames?.length ?? 0) > 0,
+  );
+  if (defaultNamed.length > 0) {
+    const examples = [...new Set(defaultNamed.flatMap((t) => t.defaultHeaderNames ?? []))].slice(
+      0,
+      3,
+    );
+    findings.push(
+      `Advisory — not scored: ${defaultNamed.length} table(s) still carry Excel's default header names (${examples.map((n) => `"${n}"`).join(", ")}) — the header row exists, so this is not counted against your grade, but its names say nothing about the columns. Type a real name into each header cell.`,
+    );
+  }
 
   // Mirrors the conformance gate (2026-09-01): a SINGLE-COLUMN defined table
   // carries no data-cell/header association to break, so the gate exempts it

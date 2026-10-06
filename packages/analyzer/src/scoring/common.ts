@@ -15,6 +15,8 @@ import {
 import { applyAdvisorySeverity, capScoreBySeverity } from "@file-audit/shared";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 import type { AdobeParityResult } from "./adobeParity.js";
+import type { TableAnalysis } from "../qpdfStructTree.js";
+import type { TableRegion } from "../pdfjsService.js";
 import { detectLanguageMismatch, LANGUAGE_NAMES } from "../languagePlausibility.js";
 import type { LanguageMismatch } from "../languagePlausibility.js";
 import type { ConformanceVerdict } from "./conformance.js";
@@ -494,6 +496,35 @@ export function officeLanguageGateReason(
   const m = verdict.mismatch;
   const detectedName = languageName(m.detected);
   return `The ${noun} declares its language as "${declared}" but the text reads as ${detectedName} (${m.detectedHits} common ${detectedName} words vs ${m.declaredHits} in the declared language, of ${m.wordCount.toLocaleString()} sampled), and ${detectedName} is declared nowhere in the file. The programmatically determined language is not the language of the text, so screen readers pronounce the ${noun} with the wrong rules.`;
+}
+
+// ---------------------------------------------------------------------------
+// A PDF table that DRAWS NOTHING (2026-10-06, user decision): no header cells,
+// and no visible ruled line or cell fill anywhere in its area on the page — a
+// table used only to line things up, which Word has never scored. Bare only
+// with evidence: the table's cells must match at least one pdf.js region and
+// every matched region must have drawn nothing. No matched region — no
+// evidence — leaves the old rule standing (a data table). Shared by
+// scoreTableMarkup and the conformance gate's rules 7 and 7c.
+// ---------------------------------------------------------------------------
+export function pdfTableDrawsNothing(
+  t: Pick<TableAnalysis, "hasHeaders" | "contentIds">,
+  regions: TableRegion[] | undefined,
+): boolean {
+  if (t.hasHeaders || !t.contentIds?.length || !regions?.length) return false;
+  const ids = new Set(t.contentIds);
+  const matched = regions.filter((r) => r.ids.some((id) => ids.has(id)));
+  return matched.length > 0 && matched.every((r) => !r.drawn);
+}
+
+/** The data-table test every PDF table rule shares: at least 2×2, and not a
+ *  header-less table that draws nothing. */
+export function isPdfDataTable(t: TableAnalysis, regions: TableRegion[] | undefined): boolean {
+  return (
+    ((t.columnCounts ?? [])[0] ?? 2) >= 2 &&
+    (t.rowCount ?? 0) >= 2 &&
+    !pdfTableDrawsNothing(t, regions)
+  );
 }
 
 export function classifyLinkText(text: string): LinkClass {

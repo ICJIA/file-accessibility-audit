@@ -170,6 +170,8 @@ export function pptTable(
     cellBorderHex?: string;
     /** Give every cell a solid fill in this color. */
     cellFillHex?: string;
+    /** Leave every cell of the first row without text (2026-10-06). */
+    emptyFirstRow?: boolean;
   } = {},
 ): string {
   const rows = opts.rows ?? 2;
@@ -181,11 +183,13 @@ export function pptTable(
       : "";
   const cell = `<a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>c</a:t></a:r></a:p></a:txBody>${tcPr}</a:tc>`;
   const tr = `<a:tr h="370">${cell.repeat(cols)}</a:tr>`;
+  const emptyCell = `<a:tc><a:txBody><a:bodyPr/><a:p/></a:txBody>${tcPr}</a:tc>`;
+  const firstTr = opts.emptyFirstRow ? `<a:tr h="370">${emptyCell.repeat(cols)}</a:tr>` : tr;
   const styleId = opts.styleId ?? (opts.bare ? null : PPT_DEFAULT_TABLE_STYLE);
   const tblPr = `<a:tblPr${opts.firstRow ? ' firstRow="1"' : ""}>${styleId ? `<a:tableStyleId>${styleId}</a:tableStyleId>` : ""}</a:tblPr>`;
   return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="7" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>
     <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
-    <a:tbl>${tblPr}${grid}${tr.repeat(rows)}</a:tbl>
+    <a:tbl>${tblPr}${grid}${firstTr}${tr.repeat(Math.max(0, rows - 1))}</a:tbl>
     </a:graphicData></a:graphic></p:graphicFrame>`;
 }
 

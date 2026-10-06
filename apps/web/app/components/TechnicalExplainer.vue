@@ -1195,8 +1195,12 @@
             <p class="text-xs text-[var(--text-muted)]">
               <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected; one-row and
               one-column constructs are layout scaffolds and are excluded (the conformance gate
-              applies the identical rule, both halves mirrored since 2026-08-31). What is scored is
-              what WCAG 1.3.1 requires: <strong>header cells</strong> (<code>/TH</code> present),
+              applies the identical rule, both halves mirrored since 2026-08-31). So is a table with
+              no header cells that <em>draws nothing</em> — no ruled line and no cell fill anywhere
+              in its area, read from the page itself (since 2026-10-06): a grid used only to line
+              things up, which Word has never scored either. A ruled table without header cells is
+              still a data table missing its headers. What is scored is what WCAG 1.3.1 requires:
+              <strong>header cells</strong> (<code>/TH</code> present),
               <strong>row structure</strong> (cells grouped in <code>/TR</code>),
               <strong>a regular grid</strong> (consistent column counts after row/column-span
               accounting), and — <em>only</em> for tables whose headers run along more than one edge
@@ -1204,10 +1208,14 @@
               without which the header-to-data relationship cannot be determined.
               <strong>Reported but never scored:</strong> missing <code>/Scope</code> on plain
               one-header-row tables (the shape already answers the question — a PDF/UA-only item),
-              nested tables, and captions. <strong>Word, PowerPoint and Excel:</strong> each data
-              table whose header row is not marked scores 45 — exactly what a PDF table with no
-              header cells scores — so the same defect costs the same in every format. (In Word,
-              either Table Design → Header Row or Table Layout → Repeat Header Rows marks it.)
+              nested tables, captions, and — in every format — header cells that hold no text, or
+              Excel tables still headed with its own default names ("Column1", "Column2").
+              <strong>Word, PowerPoint and Excel:</strong> each data table whose header row is not
+              marked scores 45 — exactly what a PDF table with no header cells scores — so the same
+              defect costs the same in every format. (In Word, either Table Design → Header Row or
+              Table Layout → Repeat Header Rows marks it. A Word table counts as layout when nothing
+              is drawn — borders switched off, or a table style that draws nothing — and as data
+              when borders are drawn on its cells.)
             </p>
           </div>
           <div

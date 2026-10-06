@@ -76,6 +76,9 @@ export interface DocxAnalysis {
     /** No table style, borders, shading, or header semantics anywhere —
      *  overwhelmingly a layout grid; the gate must not assert 1.3.1 on it. */
     looksLikeLayout?: boolean;
+    /** The header row is marked but every one of its cells is empty
+     *  (2026-10-06). Reported, never scored. Absent on older payloads. */
+    emptyHeaderRow?: boolean;
     /** Cells merged horizontally (gridSpan > 1) or vertically (vMerge) —
      *  Microsoft's own checker flags merged/split cells (v1.95.0). */
     mergedCellCount?: number;
@@ -674,12 +677,18 @@ function extractTables(
       !descendants(tbl, "shd").some(isVisibleShading);
     const grid = firstChild(tbl, "tblGrid");
     const gridCols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
+    const firstRowCells = rows[0] ? childrenOf(rows[0]).filter((c) => tagOf(c) === "tc") : [];
+    const emptyHeaderRow =
+      hasHeaderRow &&
+      firstRowCells.length > 0 &&
+      firstRowCells.every((tc) => textOf(tc).trim() === "");
     return {
       hasHeaderRow,
       rowCount: rows.length,
       colCount: Math.max(cellCols, gridCols),
       hasNestedTable,
       looksLikeLayout,
+      ...(emptyHeaderRow ? { emptyHeaderRow } : {}),
       mergedCellCount,
     };
   });

@@ -64,6 +64,12 @@ function buildPdf(objs: string[], info?: string): Buffer {
 
 const stream = (s: string) => `<< /Length ${s.length} >>\nstream\n${s}endstream`;
 const FONT = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+/** Ruled lines around and between table rows, painted as an /Artifact the
+ *  way InDesign and Word draw cell borders (2026-10-06). Since a header-less
+ *  table that draws nothing is a layout grid — as in Word — a trap whose
+ *  designed defect lives in a DATA table must draw what a real one does. */
+const RULES = (x0: number, x1: number, ys: number[]): string =>
+  `/Artifact BMC\n0 0 0 RG 0.5 w\n${ys.map((y) => `${x0} ${y} m ${x1} ${y} l S`).join("\n")}\nEMC\n`;
 // 64x64, not 8x8: real exporters do not ship 8x8 art, and the analyzer's
 // tiny-image skip (MIN_IMAGE_DIM) made an 8x8 fixture's census depend on
 // whether pdf.js could resolve it -- which VARIED with byte layout. Caught by
@@ -241,7 +247,7 @@ interface TableRowSpec {
  *  paragraph, then the rows — grouped in <THead>/<TBody>/<TFoot> when a row
  *  names a section, as Acrobat and InDesign write them, or directly under the
  *  <Table> otherwise. Every cell is its own marked-content sequence. */
-function tableDoc(rows: TableRowSpec[], title: string): Buffer {
+function tableDoc(rows: TableRowSpec[], title: string, opts: { ruled?: boolean } = {}): Buffer {
   const objs: string[] = [];
   const add = (body: string): number => {
     objs.push(body);
@@ -288,6 +294,10 @@ function tableDoc(rows: TableRowSpec[], title: string): Buffer {
     objs[trEl - 1] =
       `<< /Type /StructElem /S /TR /P ${parent ? parent.el : tableEl} 0 R /K [${cellEls.map((e) => `${e} 0 R`).join(" ")}] >>`;
     y -= 20;
+  }
+  if (opts.ruled) {
+    const width = 72 + Math.max(...rows.map((r) => r.cells.length)) * 150;
+    content += RULES(66, width, rows.map((_, k) => 714 - k * 20).concat([714 - rows.length * 20]));
   }
   for (const [name, { el, kids }] of sectionEls) {
     objs[el - 1] =
@@ -580,6 +590,9 @@ const SAMPLES: Sample[] = [
           content += `/TD << /MCID ${mcid} >> BDC\nBT /F1 10 Tf ${72 + col * 90} ${640 - row * 24} Td (Cell ${row + 1}-${col + 1}) Tj ET\nEMC\n`;
           mcid++;
         }
+      // Ruled since 2026-10-06: a header-less table that draws nothing is a
+      // layout grid, as in Word — this trap's data table draws its rules.
+      content += RULES(66, 340, [656, 632, 608, 584]);
       const objs = [
         "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -1268,11 +1281,12 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-27-ragged-table.pdf",
     truth:
-      "Rows covering different numbers of columns (2 then 5) with no spans declared — the grid does not line up for a reader.",
+      "A ruled data table whose rows cover different numbers of columns (2 then 5) with no spans declared — the grid does not line up for a reader. It must lose table-markup points and name WCAG 1.3.1. (Ruled since 2026-10-06: a table that draws nothing is a layout grid, as in Word.)",
     build: () => {
       let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Ragged table")}) Tj ET\nEMC\n`;
       for (let i = 1; i <= 7; i++)
         content += `/TD << /MCID ${i} >> BDC\nBT /F1 10 Tf ${72 + ((i - 1) % 5) * 90} ${660 - Math.floor((i - 1) / 5) * 24} Td (Cell ${i}) Tj ET\nEMC\n`;
+      content += RULES(66, 500, [676, 652, 628]);
       return buildPdf(
         [
           "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
@@ -1298,7 +1312,18 @@ const SAMPLES: Sample[] = [
         "<< /Title (Ragged Table) >>",
       );
     },
-    check: (r) => (/inconsistent/i.test(allFindings(r)) ? null : "ragged columns not flagged"),
+    check: (r) => {
+      // Strengthened 2026-10-06: the word "inconsistent" alone still printed
+      // in the table overview while the ruled-less fixture went unscored —
+      // the check has to prove the defect COSTS points and names 1.3.1.
+      if (!/inconsistent/i.test(allFindings(r))) return "ragged columns not flagged";
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null || t.score >= 100)
+        return `the ragged table was not scored (${t?.score})`;
+      return namesCriterion(r, "1.3.1", "table_markup")
+        ? null
+        : "points lost with no 1.3.1 failure attributed to table_markup";
+    },
   },
   {
     file: "synthetic-28-link-bare-url.pdf",
@@ -2757,14 +2782,15 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-76-indesign-bold-not-th.pdf",
     truth:
-      "A table whose header row is merely styled bold — every cell exported as a data cell. A header you can only see is not a header; the table must be dinged.",
+      "A ruled table whose header row is merely styled to stand out — every cell exported as a data cell, the way InDesign exports a table nobody marked up. A header you can only see is not a header; the table must be dinged. (Ruled since 2026-10-06, as InDesign tables are by default: a table that draws nothing is a layout grid, as in Word — see traps 193/194.)",
     build: () => {
       const content =
         `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Budget table")}) Tj ET\nEMC\n` +
         `/TD << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (Category) Tj ET\nEMC\n` +
         `/TD << /MCID 2 >> BDC\nBT /F1 11 Tf 200 700 Td (Amount) Tj ET\nEMC\n` +
         `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 72 680 Td (Training) Tj ET\nEMC\n` +
-        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 200 680 Td (12,400) Tj ET\nEMC\n`;
+        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 200 680 Td (12,400) Tj ET\nEMC\n` +
+        RULES(66, 300, [716, 694, 674]);
       return buildPdf(
         [
           "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
@@ -4385,6 +4411,70 @@ const SAMPLES: Sample[] = [
       return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
     },
   },
+  {
+    file: "synthetic-193-borderless-grid-nothing-drawn.pdf",
+    truth:
+      "A <Table> with no header cells and nothing drawn — no ruled line, no cell fill — lining up an agenda's times and items: the PDF Word writes for the bare grid it has never scored. Since 2026-10-06 (user decision) PDF reads what the page draws: a header-less table that draws nothing is a layout grid. table_markup is not scored, the advisory names it, nothing is asserted, 100/A — and its ruled twin (194) is still accused.",
+    build: () =>
+      tableDoc(
+        [
+          { cells: cells("TD", "9:00", "Welcome and roll call") },
+          { cells: cells("TD", "9:15", "Budget update") },
+          { cells: cells("TD", "10:00", "Public comment") },
+        ],
+        "Meeting Agenda",
+      ),
+    check: (r) => {
+      const t = cat("table_markup")(r);
+      if (!t) return "table_markup missing";
+      if (t.score !== null) return `a bare layout grid was scored (${t.score})`;
+      if (!/nothing drawn/i.test(t.findings.join(" ")))
+        return "the layout-grid advisory did not fire";
+      if (r.conformance.failures.some((f) => f.category === "table_markup"))
+        return "1.3.1 asserted against a grid that draws nothing";
+      return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-194-ruled-grid-no-header.pdf",
+    truth:
+      "The same agenda table with ruled lines drawn between its rows, still with no header cells. A ruled table is a data table, and its missing header row is a WCAG 1.3.1 failure: the one unheadered-table value (Moderate), 79/C, 1.3.1 named.",
+    build: () =>
+      tableDoc(
+        [
+          { cells: cells("TD", "9:00", "Welcome and roll call") },
+          { cells: cells("TD", "9:15", "Budget update") },
+          { cells: cells("TD", "10:00", "Public comment") },
+        ],
+        "Meeting Agenda",
+        { ruled: true },
+      ),
+    check: (r) => unheaderedTableParity(r, { wholeDocument: true }),
+  },
+  {
+    file: "synthetic-195-empty-header-cells.pdf",
+    truth:
+      "A ruled data table whose header row is tagged <TH> — but every header cell is empty: no text, no /Alt. The header structure exists, so WCAG 1.3.1 is met on paper and nothing is scored (user decision, 2026-10-06), but a screen reader announces nothing for those headers. table_markup stays 100, the advisory names the empty header cells, nothing is asserted, 100/A.",
+    build: () =>
+      tableDoc(
+        [
+          { cells: cells("TH", "", "", "") },
+          { cells: cells("TD", "Job Training", "412,000", "6") },
+          { cells: cells("TD", "Housing Support", "268,000", "4") },
+        ],
+        "Program Grants",
+        { ruled: true },
+      ),
+    check: (r) => {
+      const t = cat("table_markup")(r);
+      if (!t || t.score !== 100) return `empty header cells changed the score (${t?.score})`;
+      if (!/Advisory — not scored:.*header cells \(<TH>\) with no text/.test(t.findings.join(" ")))
+        return "the empty header cells were not reported";
+      if (r.conformance.failures.some((f) => f.category === "table_markup"))
+        return "a criterion asserted against marked (if empty) header cells";
+      return r.overallScore === 100 ? null : `the document scored ${r.overallScore}/${r.grade}`;
+    },
+  },
   // ---- v1.161.0: visual headings tagged as ordinary text (2026-10-06) ----
   {
     file: "synthetic-179-untagged-section-headings.pdf",
@@ -4536,6 +4626,18 @@ const SAMPLES: Sample[] = [
 // ---------------------------------------------------------------------------
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-195-empty-header-cells.pdf": {
+    label: "Header cells tagged <TH> but every one empty",
+    chip: "caught",
+  },
+  "synthetic-193-borderless-grid-nothing-drawn.pdf": {
+    label: "A header-less table that draws nothing — a layout grid, as in Word",
+    chip: "held",
+  },
+  "synthetic-194-ruled-grid-no-header.pdf": {
+    label: "The same table with ruled lines — a data table missing its header row",
+    chip: "caught",
+  },
   "synthetic-191-thead-tbody-tfoot-table.pdf": {
     label: "A table with its rows grouped in header, body and footer sections",
     chip: "held",
