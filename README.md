@@ -745,8 +745,8 @@ file-accessibility-audit/
 ├── scripts/
 │   ├── test.ts                      # `pnpm test` — api/web/cli suites in parallel, one summary
 │   ├── rebrand.ts                   # Regenerate static branding files (pnpm rebrand)
-│   ├── synthetic-controls.ts        # 110-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
-│   ├── synthetic-office-controls.ts # 43-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
+│   ├── synthetic-controls.ts        # 127-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
+│   ├── synthetic-office-controls.ts # 97-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
 │   ├── score-ledger.ts              # Golden score ledger verify/--bless (CI gate) ↔ score-ledger.json
 │   ├── resave-invariance.ts         # qpdf re-save must grade identically + determinism (CI gate)
 │   ├── legal-basis.ts               # Deductions ↔ failing criteria, checked in both directions (CI gate)
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,118 tests** across 227 test files (API 2,137 · Web 1,931 · CLI 50) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,125 tests** across 228 test files (API 2,144 · Web 1,931 · CLI 50) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -886,9 +886,9 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 
 | Gate | Command | What it guarantees |
 | --- | --- | --- |
-| Trap battery (PDF) | `pnpm synthetic-controls` | 125 hand-built adversarial PDFs, each with a designed truth (modeled on Canva, InDesign, and Word exports), rebuilt from scratch and re-judged; **twin orderings** — for every matched good/bad pair, the flawed twin may never outscore the correct one. One violated truth fails the build. |
+| Trap battery (PDF) | `pnpm synthetic-controls` | 127 hand-built adversarial PDFs, each with a designed truth (modeled on Canva, InDesign, and Word exports), rebuilt from scratch and re-judged; **twin orderings** — for every matched good/bad pair, the flawed twin may never outscore the correct one. One violated truth fails the build. |
 | Trap battery (Office) | `pnpm synthetic-office-controls` | 97 hand-built `.docx`/`.pptx`/`.xlsx` traps with designed truths (fake bold headings, alt panels never opened, unmarked header rows, untitled slides, "Sheet1", heading styles on blank lines, a document that declares no language, yellow text on white, a hand-typed bullet list, a link with no link text and a page of "click here" links that must NOT be scored, an Excel table created with "my table has no headers" ticked, a workbook that passes WCAG 2.1 outright while still carrying best-practice work, a white-on-white slide whose text actually sits on a dark banner shape beneath it, a PowerPoint heading typed into a plain text box, a PowerPoint table with its Header Row box unticked, a meeting agenda's roll-call table marked three ways — Word's Table Design Header Row checkbox, Repeat Header Rows, or nothing at all — a borderless grid pasted from the web that must stay a layout grid, a memo whose only heading-like line is its bold title and must not be accused, two bold section lines that must be, a one-slide deck with a typed title, a memo whose only list is typed by hand, a deck still titled "PowerPoint Presentation", a memo titled with its own file name, a workbook whose file-name-shaped title still names it, an agenda slide lined up in a table stripped bare that must stay a layout grid, light-grey text typed onto Excel's plain grid, a Spanish notice declared English beside the same notice marked Spanish, a deck whose properties part is damaged that must not be accused of having no title, a letterhead logo in a page header with no alt text, a report with 16 of 23 images described that must score what its PDF does, a Word file whose language is marked only on its text, a deck whose only language mark is one French word, a Word grid whose borders are all switched off, one whose table style draws nothing, a data table drawn with borders on its cells instead of the table, header rows marked but empty in Word and PowerPoint, an Excel table still headed “Column1, Column2”, and seven files written in legal forms the checker once misread — a picture described only by line breaks, a memo saved as UTF-16, bold switched off in Word and in Excel, a hidden slide and a decorative picture marked “false” and “true”, slides stored out of order, and a workbook whose cells carry no written addresses, plus ten shaped like the programs that write Office files — bullets typed under a layout that switches bullets off, python-pptx's default template, Google Slides' file-name descriptions, openpyxl's “Picture”, grey text on a master's white, white text on a dark template, a title typed in its band's own colour, a docx.js report with no language, a table LibreOffice wrote back without its Header Row mark, and a python-docx report — and five whose text takes its colour from somewhere other than the text: grey body text set by the master's text style, white titles on a band shaded darker than the theme's blue, a link PowerPoint draws in the theme's link colour though its text says white, black text on a yellow highlight on a navy slide, and a Designer backdrop set to show the slide's background) plus done-right twins and the same twin-ordering rule. Every format's unheadered-table trap asserts the same score, severity and grade ceiling. |
-| Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (353 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
+| Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (357 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
 | Corpus coherence | `pnpm audit-corpus [dir]` | Runs every document in a folder (default `controls/`) and checks each report **against itself**: a deduction with no failing criterion behind it, a category marked not-assessed while the verdict accuses it, a perfect score labelled "No issues found" over a finding it printed, a grade that disagrees with its own number, and a Best-practices section listing anything but met/not-met. Plus one **second opinion** rather than a consistency check: where the report claims "no heading tags", it re-reads the PDF's RoleMap and fails if any custom tag actually maps to `/H1`–`/H6` — the false accusation that took two hand inspections to find on 2026-08-31. A violation is a defect in the checker, never in the document; none of these checks cares what a document scores. Not in CI (it needs real documents, which CI has none of) — run it before a release and whenever new agency files arrive. |
 | Legal basis | `pnpm legal-basis` | Only WCAG 2.1 A/AA may move a score. Every scored category sitting below 100 must have at least one failing WCAG criterion attributed to it in the conformance verdict — and, since 2026-09-01, the converse in the same gate: every failing criterion the verdict names must correspond to a deduction (its first run found 11 real divergences). A report that cannot tie its own numbers to the law, in either direction, fails the build. (In CI since 2026-08-29.) |
 | Best-practice basis | `pnpm best-practice-basis` | The converse of the legal-basis gate (2026-08-31): nothing the law **requires** may be filed under "not scored". Where a best-practice row reads NOT MET on a document whose same category carries a failing WCAG criterion, a person must have recorded why the two are different defects (`scripts/best-practice-basis.json`); a new, unreviewed pairing fails the build. Under-scoring — telling an agency it is compliant when it is not — is the more damaging of the two errors. |
@@ -912,13 +912,14 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1,687 tests)
+### API Tests (2,144 tests)
 
 <details>
-<summary><strong>Per-file coverage</strong> — 100 test files — click to expand</summary>
+<summary><strong>Per-file coverage</strong> — 114 of the 120 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
+| `figureImageCensus.test.ts` | 7 | **Images judged by the run they are painted in** (2026-10-26). Full pipeline on hand-built PDFs: a described figure that paints a picture and its drop shadow is ONE described image (the phantom that took a real course catalog from C to D); an image painted outside every tag beside it is still counted; an image in a run the tag tree never claims is counted (proven by breaking reachability); an image in a figure's child element or in a `<Formula>` is covered; an image tagged inside a text element is left alone; vector-only figures no longer hide an untagged image. |
 | `severityGradeCap.test.ts` | 33 | The rule that a document's **score** may never outrank its worst unresolved finding, and that the letter is then derived from that score through the one published scale. Leads with **THE INVARIANT** — an exhaustive sweep over all 101 scores × 4 severities asserting `gradeForScore(capped)` matches 90/80/70/60 — because v1.58.0 capped the letter independently and shipped "D" above "80/100"; this makes that unshippable. Then each rung's ceiling (Critical 69, Moderate 79, Minor 89), that those ceilings are *derived* from `GRADE_THRESHOLDS` rather than hardcoded, that the cap **only lowers**, that the worst severity wins, that a never-assessed category cannot cap anything ("no images were found" is not a finding), idempotency, and pass-through on a null score or a non-array. `scoreCapReason` works from the **already-capped** score — all any consumer has — reporting the ceiling when the score sits at it. Plus `regradeStoredReport`: the stored score lowered *and* the letter re-derived from it, each profile capped against its **own** categories, the summary regenerated rather than patched (a stale one would reintroduce the "D above 80/100" mismatch verbatim), idempotency, and — because this runs on public share links — no throw on a malformed, truncated or ancient row. Closes with the four real documents that caused the change, now permanent fixtures in `controls/` |
 | `tableHeaderParity.test.ts` | 29 | **One defect, one severity, in every format** (2026-10-05). A data table whose header row is not marked fails WCAG 1.3.1 identically in a PDF, a Word document, a PowerPoint deck and an Excel workbook, so all four must score it the same: the PDF rubric — the reference — lands a lone TH-less table at 45 (Moderate), each Office format must score exactly that, every otherwise-clean document carrying one caps at 79/C, two unheadered tables score what one does (Excel used to subtract 30 per table), a non-data table beside it does not dilute it (Word and PowerPoint used to average layout grids in as passing 100s), one headed plus one unheadered table lands in the same band everywhere, and the verdict names 1.3.1 in all four. Until then the same table capped a Word or PowerPoint file at 69/D, a PDF at 79/C and an Excel workbook at 89/B. Since v1.160.0 it also pins the layout-grid rule in Word and PowerPoint: a table with no style, border, fill or header row is never scored or gated |
 | `pdfTableDrawn.test.ts` | 16 | **A PDF table that draws nothing is a layout grid** (2026-10-06, user decision). `analyzeTable` records its cells’ marked-content ids in pdf.js form (page from the cell, an ancestor, or an MCR dict; non-zero generations); `paintedPathBoxes` finds what the page visibly paints (fills and strokes, white and transparent excluded, clip paths never painted, transforms and form XObjects applied); `tableRegionsForPage` marks each table’s area drawn or not (backgrounds excluded, no text = no evidence); `pdfTableDrawsNothing` needs no header cells, a matched region, and nothing drawn; the scorer leaves a bare table unscored with an advisory while a ruled one — or one with no evidence — is still accused |
@@ -1035,10 +1036,10 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 
 </details>
 
-### Web Tests (1,804 tests)
+### Web Tests (1,931 tests)
 
 <details>
-<summary><strong>Per-file coverage</strong> — 97 test files — click to expand</summary>
+<summary><strong>Per-file coverage</strong> — 100 of the 101 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1421,6 +1422,25 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.166.1 — 2026-10-26 · Images judged by the run they are painted in (no new attack surface)
+
+No new attack surface. The pdf.js walk that already counted each content image now also records the marked-content ids of the runs it is painted inside: a few integers per image, from a stack the walk already keeps. The scorer compares them with the per-page id sets qpdf already traces from the tag tree's root for the reading-order check. No new part or object is read, and no endpoint, input, stored field or outbound request changed.
+
+**The defects**, both in one subtraction (images painted minus `<Figure>` tags, clamped at zero):
+1. **One figure, several images.** A real Word for Microsoft 365 export drew its described logo as two images, the picture and its drop shadow, in one figure's run. The shadow was reported as an image "not tagged as `<Figure>` at all", the catalog fell from 79/C to 69/D, and a fully repaired copy could not rise above 79/C. An image in a `<Formula>` was counted twice the same way.
+2. **More figure tags than images.** Vector figures paint no image, so the clamp hid images no tag reached. An agency report graded 100/A while its front and back covers (title, logos, contact details) were full-page images on untagged pages.
+
+An image is now untagged exactly when no run it is painted inside is reachable from the tag tree, which is what the finding and the conformance gate's 1.1.1 claim both state. An image tagged inside a text element is left alone; whether to judge those is an open user decision. Full write-up: `docs/figure-image-census.md`.
+
+**Verified rather than assumed.**
+- Test-first: `figureImageCensus` (7, full pipeline). Five were RED on the released code for the predicted reasons; the orphan-run guard was proven by breaking reachability; the text-element case was RED against a first, figure-only cut, withdrawn as broader than the rule approved.
+- Traps 223–224 (FOUND A REAL BUG): the released analyzer fails both (223 at 79/C, 224 at 100/A).
+- Every moved ledger row was traced to the image that moved it, and the doubtful pages rendered. Ledger 357: DVFR Biennial Report 2024 100/A → 79/C; three county profiles and a brief lose alt-text points with no grade change; three reports gain them.
+- All gates green; tests 4,125. `pnpm audit --prod`: **28** (was 6), from advisories published since v1.166.0 against dependencies already deployed; this release adds or changes no dependency.
+  - **P1 · Open:** in the runtime path: `multer` and `body-parser` (high) in the API's request handling, `zod` (high) under `puppeteer`, and `undici` (high), `nuxt` and `@nuxt/nitro-server` (moderate) on the web server.
+  - **P3 · Open:** development and build tooling: `@nuxt/devtools`' `simple-git` (both criticals), `launch-editor`, `vite`, `node-forge`, `serialize-javascript`; plus `markdown-it` under `@nuxt/ui`'s editor.
+  - **Follow-up:** a dependency release under the overrides playbook, next.
 
 ### v1.166.0 — 2026-10-06 · PowerPoint text colour followed through the text styles; page labels count as missing alt text (no new attack surface)
 

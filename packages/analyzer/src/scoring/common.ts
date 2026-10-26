@@ -187,18 +187,46 @@ export function structTreeIsContentFree(
  * the content stream and already excludes anything inside an /Artifact run,
  * so what remains is the set that genuinely needs alt text.
  *
- * WHY subtract the FIGURE count rather than compare per-image: <Figure>
- * legitimately wraps vector artwork and grouped content, so a document can
- * have far more figures than raster images (44 vs 5 is real, observed in
- * controls/). Clamping at zero means that case can never manufacture phantom
- * untagged images.
+ * WHY per image, by the run it is painted in (v1.166.1): this used to be
+ * images painted minus <Figure> tags, and a count cannot tell which image
+ * belongs to which tag. One figure that paints a picture AND its drop
+ * shadow — a real Word for Microsoft 365 export drew its logo exactly so —
+ * made the shadow a phantom "untagged" image (that document fell from C to
+ * D, and a fully repaired copy still could not rise above C). Clamping at
+ * zero also let vector-only figures (44 figures over 5 rasters is real,
+ * observed in controls/) hide images that no tag reached at all. Now an
+ * image is untagged exactly when the finding says so: none of the runs it
+ * is painted inside is reachable from the live tag tree — painted outside
+ * marked content, or inside a run nothing in the tree claims.
+ *
+ * An image tagged inside a text element (a <Sect>, a <P>) IS in the
+ * reading order, and is not counted here (user decision pending
+ * 2026-10-26).
+ *
+ * The subtraction remains only for inputs that predate the per-image
+ * evidence (stored payloads, hand-built test results).
  */
 export function untaggedContentImageCount(
-  qpdf: { images?: Array<{ ref?: string }> },
-  pdfjs: { error?: string | null; nonArtifactImageCount?: number },
+  qpdf: {
+    images?: Array<{ ref?: string }>;
+    structTreeMcidsByPage?: Record<number, number[]>;
+  },
+  pdfjs: {
+    error?: string | null;
+    nonArtifactImageCount?: number;
+    nonArtifactImageRuns?: Array<{ page: number; mcids: number[] }>;
+  },
 ): number | null {
   if (pdfjs.error) return null;
   if (typeof pdfjs.nonArtifactImageCount !== "number") return null;
+  const reachable = qpdf.structTreeMcidsByPage;
+  if (reachable && Array.isArray(pdfjs.nonArtifactImageRuns)) {
+    const byPage = new Map<number, Set<number>>();
+    for (const [page, mcids] of Object.entries(reachable)) byPage.set(Number(page), new Set(mcids));
+    return pdfjs.nonArtifactImageRuns.filter(
+      (img) => !img.mcids.some((m) => byPage.get(img.page)?.has(m)),
+    ).length;
+  }
   const taggedFigures = Array.isArray(qpdf.images)
     ? qpdf.images.filter((img) => img.ref).length
     : 0;

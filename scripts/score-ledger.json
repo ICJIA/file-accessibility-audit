@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-10-06",
+  "blessed": "2026-10-26",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -332,7 +332,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No scored issues",
-        "alt_text": "60|Moderate",
+        "alt_text": "68|Moderate",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -412,7 +412,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "75|Minor",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "84|Minor",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -476,7 +476,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "75|Minor",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "81|Minor",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -548,13 +548,13 @@
       }
     },
     "DVFR_Biennial_Report_2024_FINAL_PUBLISHED_d01bf7bffd.pdf": {
-      "score": 100,
-      "grade": "A",
+      "score": 79,
+      "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "60|Moderate",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -618,7 +618,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "75|Minor",
         "heading_structure": "100|No issues found",
-        "alt_text": "100|No issues found",
+        "alt_text": "81|Minor",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -991,6 +991,38 @@
         "table_markup": "70|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "Learning and Development Division Course Offerings Quarter 4 2026 (SOI).pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "100|No issues found",
+        "alt_text": "50|Moderate",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "November_2026_Training_Calendar_Distribution_List.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
@@ -1703,7 +1735,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
-        "alt_text": "11|Critical",
+        "alt_text": "16|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -1719,7 +1751,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
-        "alt_text": "11|Critical",
+        "alt_text": "16|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
@@ -1735,7 +1767,7 @@
         "text_extractability": "50|Moderate",
         "title_language": "100|No scored issues",
         "heading_structure": "100|No issues found",
-        "alt_text": "26|Critical",
+        "alt_text": "20|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
@@ -4175,6 +4207,38 @@
         "color_contrast": "100|No issues found",
         "list_structure": "null|none",
         "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-223-logo-picture-and-shadow.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-224-untagged-photo-beside-drawn-figures.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "66|Moderate",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
         "form_accessibility": "null|none"
       }
     },

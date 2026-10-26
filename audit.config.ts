@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "image-census-2026-10-26",
+    badge: "Scoring",
+    text: "Pictures in a PDF are now checked one by one. A picture saved with a drop shadow can arrive as a picture plus a separate shadow image inside one described figure, and the shadow was wrongly reported as an untagged picture, enough to lower a grade by a letter. Each picture is now judged by where it actually sits in the document’s structure. That works in both directions: pictures a screen reader can never reach, such as a cover page saved as one big image with no tags, are no longer hidden in documents that have more tagged figures than pictures, so a few documents now score lower, correctly.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 26, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "powerpoint-text-colour-2026-10-06",
     badge: "Scoring",
     text: "PowerPoint text is now checked for contrast in the colour PowerPoint shows it in: most text takes its colour and size from the deck’s design rather than setting its own, and that text was never checked before. Across the real decks in our test set, about half of all text is now checked, up from about 7%; links are judged in the colour PowerPoint draws links in, and highlighted text against its highlight. A colour shaded lighter or darker, or made see-through, is left unchecked rather than guessed at. Separately, a picture “described” only by a label such as “Table (page 30)”, which automatic tagging tools write, now counts as undescribed, so some grades will go down, correctly.",

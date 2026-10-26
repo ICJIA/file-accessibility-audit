@@ -54,6 +54,38 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.166.1",
+    meta: "Reviewed <strong>2026-10-26</strong> &middot; scope: how pictures are counted when a PDF is checked for picture descriptions.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. When the checker counts the pictures in a PDF, it now also notes which part of the document&rsquo;s structure each picture sits in &mdash; a few numbers per picture, taken from information it already reads. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A picture drawn with a shadow is no longer counted twice.</strong> Word can save a picture&rsquo;s shadow as a second image. The checker counted that shadow as an undescribed picture missing from the document&rsquo;s structure, which wrongly lowered a real course catalog from a C to a D.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Pictures outside the document&rsquo;s structure are no longer hidden.</strong> The old count could hide pictures a screen reader never reaches. One real report graded A while its front and back covers &mdash; its title, logos and contact details &mdash; were pictures of that kind; it now grades C until they are fixed.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Two new test documents; the checker as it stood failed both. Every real document whose score moved was traced to the picture that moved it.",
+          },
+          {
+            badge: "P1",
+            html: "<strong>Third-party software warnings rose from 6 to 28.</strong> These are newly published warnings about software the service already used; this release added or changed none of it. Several concern software in the live service, including two rated high in how it receives uploads and requests.",
+            note: "Open at this release, which changes no third-party software. Updating it is the next release.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.166.0",
     meta: "Reviewed <strong>2026-10-06</strong> &middot; scope: how PowerPoint text colours and sizes are read, and pictures &ldquo;described&rdquo; only by a page label.",
     body: [

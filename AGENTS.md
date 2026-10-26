@@ -99,8 +99,9 @@ re-learn them.
   will not catch `tsc --noEmit` errors. The build is split:
     `pnpm --filter api build`  → `tsc --noEmit` (typecheck only)
     `pnpm --filter web build`  → full `nuxt build`
-- A clean `pnpm --filter api test` is also helpful — currently 1,151
-  tests, all under `apps/api/src/__tests__`.
+- A clean `pnpm --filter api test` is also helpful — the API tests all
+  live under `apps/api/src/__tests__`; `pnpm test` runs every suite and
+  prints the current counts (a number written here only goes stale).
 - **New since the 2026-07 tooling pass:** `pnpm lint` (ESLint, whole
   repo) and `pnpm typecheck` (`apps/api` `tsc --noEmit` + `apps/web`
   `nuxt typecheck`) are both real scripts now, and CI

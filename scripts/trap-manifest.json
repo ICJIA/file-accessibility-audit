@@ -1,6 +1,6 @@
 {
-  "count": 125,
-  "generated": "2026-10-06",
+  "count": 127,
+  "generated": "2026-10-26",
   "items": [
     {
       "file": "synthetic-01-well-built.pdf",
@@ -608,6 +608,16 @@
       "file": "synthetic-217-remediation-page-label-alt.pdf",
       "label": "Figures labelled “Table (page 1)” and “Illustration on page 1” — page labels, not descriptions",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-223-logo-picture-and-shadow.pdf",
+      "label": "A described logo drawn as two images — the picture and its drop shadow",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-224-untagged-photo-beside-drawn-figures.pdf",
+      "label": "A photograph outside every tag, beside two figures drawn as vector art",
+      "chip": "bug"
     },
     {
       "file": "synthetic-179-untagged-section-headings.pdf",

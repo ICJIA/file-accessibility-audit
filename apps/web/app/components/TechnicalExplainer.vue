@@ -1157,13 +1157,13 @@
               hears nothing when they encounter a chart, photo, or diagram.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> The percentage of detected images that have alt text. QPDF
-              identifies image objects (<code>/Image</code>
-              XObjects) and matches them to their
-              <code>/Figure</code> structure elements, then checks whether each Figure has an
-              <code>/Alt</code> attribute. If QPDF finds no tagged images, PDF.js provides a
-              fallback by counting image rendering operations — if images exist but aren't tagged,
-              the category scores <strong>0</strong> (Critical) instead of N/A.
+              <em>How it's scored:</em> The percentage of images that have alt text. QPDF finds each
+              <code>/Figure</code> structure element and checks whether it has an
+              <code>/Alt</code> attribute; a figure counts once, described or not, however many
+              images it paints (a logo and its drop shadow are one figure). PDF.js then checks every
+              image painted on every page: one painted where no tag reaches it, and not marked as a
+              decorative artifact, counts as an undescribed image too (v1.166.1). If images exist
+              but none is tagged, the category scores <strong>0</strong> (Critical) instead of N/A.
               <strong>N/A</strong> only if no images are detected by either tool.
             </p>
           </div>

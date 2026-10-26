@@ -109,6 +109,13 @@ export interface PdfjsResult {
   // the scorer distinguish "every image is a decorative artifact" (no alt
   // needed) from "untagged content images" when the struct tree has 0 figures.
   nonArtifactImageCount?: number;
+  // One entry per image counted in nonArtifactImageCount: the 1-indexed page
+  // it is painted on and the MCIDs of every marked-content run enclosing the
+  // paint, outermost first. The alt-text census matches these against
+  // QpdfResult.structTreeMcidsByPage, so a figure that paints a picture
+  // AND its drop shadow is one figure, not one figure plus an untagged image.
+  // Absent on stored reports from before v1.166.1.
+  nonArtifactImageRuns?: Array<{ page: number; mcids: number[] }>;
   emptyPages: number[];
   // PDF/UA-1 identifier from the XMP metadata (pdfuaid:part). pdfjs parses the
   // XMP stream; `qpdf --json` (no stream-data flag) cannot expose it, so this
@@ -214,6 +221,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     links: [],
     imageCount: 0,
     nonArtifactImageCount: 0,
+    nonArtifactImageRuns: [],
     emptyPages: [],
     hasPdfUaIdentifier: false,
     pdfUaPart: null,
@@ -569,6 +577,8 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     let imageCount = 0;
     // Subset of imageCount painted OUTSIDE any /Artifact run — the content images.
     let nonArtifactImageCount = 0;
+    // …and, for each of those, the runs it is painted inside (see PdfjsResult).
+    const nonArtifactImageRuns: Array<{ page: number; mcids: number[] }> = [];
     // Count top-level /Artifact marked-content runs (a run nested inside
     // another artifact is not counted twice). This is the real artifact signal
     // — artifacts live in the content stream, not the structure tree.
@@ -617,6 +627,8 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       const pageMcids: number[] = [];
       // Stack of "is this marked-content run inside an /Artifact?" flags.
       const artifactStack: boolean[] = [];
+      // Parallel stack: each open run's MCID, or null when it carries none.
+      const mcidStack: Array<number | null> = [];
       let currentFontName: string | null = null;
       let renderMode = 0;
       const textStateStack: Array<{ font: string | null; mode: number }> = [];
@@ -633,12 +645,14 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           const isArtifact = isArtifactTag(tag);
           if (isArtifact && !artifactStack.some((f) => f)) artifactRunCount++;
           artifactStack.push(isArtifact);
+          mcidStack.push(null);
         } else if (fn === bdcOp) {
           const tag = ops.argsArray[j]?.[0];
           const props = ops.argsArray[j]?.[1];
           const isArtifact = isArtifactTag(tag);
           if (isArtifact && !artifactStack.some((f) => f)) artifactRunCount++;
           artifactStack.push(isArtifact);
+          mcidStack.push(extractMcid(props));
           if (!isArtifact) {
             // Check if *any enclosing* run is an artifact (exclude the
             // just-pushed frame — it's this run, which is non-artifact).
@@ -651,6 +665,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           continue;
         } else if (fn === emcOp) {
           artifactStack.pop();
+          mcidStack.pop();
         }
 
         if (fn === setFontOp) {
@@ -715,7 +730,13 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         imageCount++;
         // An image is a content image only if no enclosing marked-content run is
         // an /Artifact. Artifacted images are decorative and need no alt text.
-        if (!artifactStack.some((f) => f)) nonArtifactImageCount++;
+        if (!artifactStack.some((f) => f)) {
+          nonArtifactImageCount++;
+          nonArtifactImageRuns.push({
+            page: i,
+            mcids: mcidStack.filter((m): m is number => m !== null),
+          });
+        }
       }
       if (pageMcids.length > 0) {
         result.contentStreamMcidsByPage[i] = pageMcids;
@@ -724,6 +745,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     result.imageCount = imageCount;
     result.tableRegions = tableRegions;
     result.nonArtifactImageCount = nonArtifactImageCount;
+    result.nonArtifactImageRuns = nonArtifactImageRuns;
     result.artifactRunCount = artifactRunCount;
     // Left ABSENT (never an empty array) when any visible run's font could not
     // be resolved — an incomplete usage census must not drive exemptions.

@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.166.1] - 2026-10-26
+
+### Fixed
+
+Both found by checking two D grades by hand: the training calendar's D was right, and the course catalog's was not.
+
+- **A figure that paints more than one image counted the extras as untagged.** The alt-text census estimated untagged images as images painted minus `<Figure>` tags, and called the difference "not tagged as `<Figure>` at all — missing from the reading order entirely". A real course catalog exported from Word for Microsoft 365 drew its logo as two images inside the one run its described figure owns: the picture, and its soft drop shadow (a flat-black image with a logo-shaped mask). The shadow became a phantom untagged image.
+  - Alt-text coverage fell from 1 of 2 (50, Moderate) to 1 of 3 (33, Critical), and the grade from 79/C to 69/D.
+  - A fully repaired copy (decorative divider marked as an artifact, title added) still graded 79/C, and its report said both "All 1 tagged image(s) have alternative text" and "1 further content image(s) … not tagged".
+  - An image inside a `<Formula>` was counted a second time the same way.
+
+  Each image is now judged by the run it is painted in: it is untagged exactly when none of the marked-content runs enclosing it is reachable from the live tag tree. The catalog grades 79/C for its two real problems, an undescribed decorative divider and a missing title, and the repaired copy 100/A. The conformance gate's 1.1.1 claim shares the census and is corrected with it. Trap 223.
+- **Untagged images hidden behind the figure count.** The same subtraction clamped at zero, so a document with more figure tags than images hid images no tag reached (figures drawn as vector art paint no image). An agency report in the test set graded 100/A while its front and back covers were full-page images on pages with no tags: its title, both organisations' logos, and their contact details. Such images are now counted. Trap 224.
+
+### Notes
+
+- **Images tagged inside a text element** (a `<Sect>`, a `<P>`) are in the reading order and are left alone, as the finding's wording requires. Before, they were counted only when images outnumbered figure tags. Whether to judge them is an **open user decision**. Examples in the test set: a back cover's state seal and social-media icons, a "DataNet" logo inside a section, and chart tiles 12×7 pixels wide.
+- **Corpus movement**, every row traced to the image that moved it, and the doubtful pages rendered:
+  - Phantoms gone: Budget impasse article, alt 60 → 68 (26 images inside 23 figures).
+  - Images tagged inside text elements, no longer counted: Lewd Sexual Display 2024 (original and remediated), alt 11 → 16.
+  - Images no tag reaches, now counted:
+    - DVFR Biennial Report 2024: 100/A → 79/C (alt 100 → 60; the front and back covers);
+    - Clinton, Cook and Douglas county profiles: alt 100 → 84 / 81 / 81, grade unchanged (the cover's county map and sidebar art, in a run the tag tree never claims);
+    - SEED brief (fixed): alt 26 → 20, grade unchanged (23 images on pages with no tags).
+  - Two new controls, the two files behind this fix: the November 2026 training calendar, 69/D (its only image, the agency logo carrying the agency's full name, is undescribed: correct); the Q4 2026 course offerings, 79/C.
+- **Tests:** 4,125 (API 2,144 · Web 1,931 · CLI 50) across 228 files. New: `figureImageCensus` (7, full pipeline on hand-built PDFs). Five were RED on the released code for the predicted reasons. The orphan-run guard was proven by breaking reachability (it alone fails). The text-element case was RED against a first, figure-only cut, withdrawn as broader than the rule the user approved.
+- **Traps:** 224. New: 223 and 224 (PDF), both FOUND A REAL BUG. The released v1.166.0 analyzer fails both with their stated symptoms: 223 at 79/C (alt 50), 224 at 100/A.
+- **Ledger:** 357 rows. All gates green.
+- **`pnpm audit --prod`: 28** (was 6), from advisories published since v1.166.0 against dependencies already deployed; this release changes no dependency.
+  - In the runtime path: `multer` and `body-parser` (high, the API's request handling), `zod` (high, under `puppeteer`), `undici` (high) and `nuxt` / `@nuxt/nitro-server` (moderate) on the web server.
+  - The rest are development and build tooling (`@nuxt/devtools`' `simple-git`, both criticals; `launch-editor`, `vite`, `node-forge`, `serialize-javascript`) and `markdown-it` under `@nuxt/ui`'s editor.
+  - A dependency release follows.
+- **Follow-up:** pdf.js's 50-pixel tiny-image skip reads an image's size only once pdf.js has decoded it, which in large or compressed files it often has not. Both real files here counted every image whatever its size. pdf.js passes each image's width and height in the operator's own arguments, which would make the skip deterministic; that changes image counts across the corpus on its own, so it is left for its own review.
+- Write-up: `docs/figure-image-census.md`.
+
 ## [1.166.0] - 2026-10-06
 
 ### Changed

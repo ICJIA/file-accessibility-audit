@@ -77,6 +77,9 @@ const RULES = (x0: number, x1: number, ys: number[]): string =>
 // newline before endstream is spec-conforming stream framing.
 const GRAY_IMG = (_n: number) =>
   `<< /Type /XObject /Subtype /Image /Width 64 /Height 64 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 4096 >>\nstream\n${"x".repeat(4096)}\nendstream`;
+/** A second, different 64x64 image: the soft drop shadow a real Word for
+ *  Microsoft 365 export drew under its logo as an image of its own. */
+const SHADOW_IMG = `<< /Type /XObject /Subtype /Image /Width 64 /Height 64 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 4096 >>\nstream\n${"y".repeat(4096)}\nendstream`;
 const LONG = (seed: string) =>
   `${seed} is a sentence long enough to be body text rather than a label and it keeps going with plain words so the extractor sees a real paragraph of ordinary running prose here.`;
 
@@ -4552,6 +4555,81 @@ const SAMPLES: Sample[] = [
       return namesCriterion(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
     },
   },
+  // ---- v1.166.1: images judged by the run they are painted in (2026-10-26) ----
+  {
+    file: "synthetic-223-logo-picture-and-shadow.pdf",
+    truth:
+      'A logo drawn the way a real Word for Microsoft 365 export in the test set drew one: a single described <Figure> whose one marked-content run paints two images — the picture and, beneath it, its soft drop shadow. The census counted images painted minus figure tags and reported the shadow as an image "not tagged as <Figure> at all"; that real course catalog fell from C to D on it, and a fully repaired copy could not rise above C (found 2026-10-26). An image is untagged only when no tag reaches the run it is painted in: one described figure is one described image — alt_text 100, and no untagged image reported.',
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Body text")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 120 0 0 60 74 598 cm /Im2 Do Q\nq 120 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> /XObject << /Im1 10 0 R /Im2 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [12 0 R 7 0 R] >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (Logo of the Learning and Development Division.) >>",
+          "<< /Nums [0 [12 0 R 7 0 R]] >>",
+          FONT,
+          GRAY_IMG(10),
+          SHADOW_IMG,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Course Offerings) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score !== 100)
+        return `alt_text ${c?.score}, not 100 — the shadow was counted as a second image`;
+      const said = c.findings.join("\n");
+      if (/further content image/.test(said)) return "the shadow was reported as an untagged image";
+      return /All 1 tagged image\(s\) have alternative text/.test(said)
+        ? null
+        : "the census does not report one described image";
+    },
+  },
+  {
+    file: "synthetic-224-untagged-photo-beside-drawn-figures.pdf",
+    truth:
+      "Two described <Figure>s that draw only vector art, and one photograph painted outside every tag. The census subtracted figure tags (2) from images painted (1), clamped the difference at zero, and the photograph vanished: alt text read 100. A real agency report in the test set graded 100/A that way while its front and back covers — title, logos and contact details — were full-page images no tag reached (found 2026-10-26). Each image is now judged by the run it is painted in: the photograph is counted as missing from the reading order — alt_text 66 (2 of 3), 1.1.1 named.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Body text")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\n0 0 1 rg 72 500 40 40 re f\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\n1 0 0 rg 140 500 40 40 re f\nEMC\n` +
+        `q 120 0 0 120 300 560 cm /Im1 Do Q\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> /XObject << /Im1 11 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [12 0 R 7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (Blue square marking the first program.) >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (Red square marking the second program.) >>",
+          "<< /Nums [0 [12 0 R 7 0 R 8 0 R]] >>",
+          FONT,
+          GRAY_IMG(11),
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Biennial Report) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score !== 66)
+        return `alt_text ${c?.score}, not 66 — the untagged photograph was hidden by the figure count`;
+      if (!/^1 further content image\(s\) are painted/m.test(c.findings.join("\n")))
+        return "the untagged photograph was not reported";
+      return namesCriterion(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
+    },
+  },
   // ---- v1.161.0: visual headings tagged as ordinary text (2026-10-06) ----
   {
     file: "synthetic-179-untagged-section-headings.pdf",
@@ -4703,6 +4781,14 @@ const SAMPLES: Sample[] = [
 // ---------------------------------------------------------------------------
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-223-logo-picture-and-shadow.pdf": {
+    label: "A described logo drawn as two images — the picture and its drop shadow",
+    chip: "bug",
+  },
+  "synthetic-224-untagged-photo-beside-drawn-figures.pdf": {
+    label: "A photograph outside every tag, beside two figures drawn as vector art",
+    chip: "bug",
+  },
   "synthetic-217-remediation-page-label-alt.pdf": {
     label:
       "Figures labelled \u201cTable (page 1)\u201d and \u201cIllustration on page 1\u201d \u2014 page labels, not descriptions",
