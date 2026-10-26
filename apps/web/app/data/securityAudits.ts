@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.166.2",
+    meta: "Reviewed <strong>2026-10-26</strong> &middot; scope: the third-party software the service is built on, updated to close the warnings the previous review recorded.",
+    body: [
+      {
+        kind: "p",
+        html: "The previous review found 28 published warnings about software this service uses. This update closes 27 of them. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "P1",
+            html: "<strong>One specially built request could make the checking service stop.</strong> The service accepts compressed requests, and a compressed request with extra data on the end made it shut down after answering, until it restarted itself. No login was needed. This was reachable on the live site, and it is fixed. A new self-check sends that exact request and fails if the service does not survive it; it failed on the old software and passes on the new.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The other warnings are closed too.</strong> They concerned the program that receives uploads, the browser used for web-page checks, the framework the website is built with, and tools used only while building or developing the site. For each, either the conditions it needs do not exist here or the code involved never runs on the live site. All were updated anyway.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One warning stays open, with no fix yet published.</strong> It concerns a tool used only on developers&rsquo; own computers, to run a private copy of the site; it is not part of the live site, which was checked to confirm it. It will be closed when its makers publish a fix.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every self-check and every scoring gate passed. The part of the software that grades documents did not change, so no grade can move. A full copy of the site was run and its pages, uploads and security settings checked before release.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.166.1",
     meta: "Reviewed <strong>2026-10-26</strong> &middot; scope: how pictures are counted when a PDF is checked for picture descriptions.",
     body: [

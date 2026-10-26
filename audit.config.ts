@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "dependency-security-update-2026-10-26",
+    badge: "Security",
+    text: "The software this site is built on has been updated to close newly published security flaws. One of them was reachable on the live site: a single specially built request could make the checking service stop until it restarted itself. That is fixed, and a new self-check now sends that exact request before every release. The flaws were in third-party code the service depends on rather than in the accessibility checks themselves, so nothing about how your documents are checked, stored, or deleted has changed. The full technical account is in the security log, and the plain-language version is in section 10 of the data-retention policy.",
+    linkText: "Read the security review log",
+    linkTo: "/data-retention#security-audits",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "October 26, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "image-census-2026-10-26",
     badge: "Scoring",
     text: "Pictures in a PDF are now checked one by one. A picture saved with a drop shadow can arrive as a picture plus a separate shadow image inside one described figure, and the shadow was wrongly reported as an untagged picture, enough to lower a grade by a letter. Each picture is now judged by where it actually sits in the document’s structure. That works in both directions: pictures a screen reader can never reach, such as a cover page saved as one big image with no tags, are no longer hidden in documents that have more tagged figures than pictures, so a few documents now score lower, correctly.",

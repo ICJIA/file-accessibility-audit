@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.166.2] - 2026-10-26
+
+### Security
+
+The dependency release v1.166.1 called for: `pnpm audit --prod` **28 → 1**. One advisory was reachable on the live site.
+
+- **A compressed request body could end the API process** (`body-parser` < 1.20.9, GHSA-27r3-jxmh-p828, high). The API parses JSON and `text/plain` bodies with body-parser's defaults, which accept gzip. A gzip body followed by trailing bytes was answered normally; the late bytes then reached the decoder body-parser had finished with, which threw "incorrect header check" outside Express. One anonymous request, parsed before any route or rate limit, ended the process (PM2 restarts it). Reproduced against the API's own parsers before the fix. `body-parser` 1.20.6 → 1.20.9 via the override floor, and `index.ts` now mounts the parsers from `middleware/bodyParsers.ts` (options unchanged), so the new test drives the production instances.
+- **`multer` 2.4.0 → 2.5.0** (GHSA-q7qp-rjg7-q26m, high). The crash needs an asynchronous `fileFilter`, and both of the API's are synchronous, so it was not reachable here. 2.5.0 also accepts a field of exactly `limits.fieldSize` bytes; the `FIELD_ARRAY_INDEX_LIMIT` hardening from v1.156.4 is untouched.
+- **`puppeteer` 25.9.0 → 25.16.0**, which moves `chromium-bidi` 17 → 157 and its `zod` 3.25.76 → 4.6.7 (GHSA-mrhx-c7xc-m3w5, high). The page auditor ran a real audit on the new browser (Chrome 156): `/trust`, 100/A. **The deploy's `pnpm install` downloads Chrome 156 (~180 MB).**
+- **`nuxt` 4.5.2 → 4.6.2**, with `@nuxt/nitro-server` 4.6.2, `@nuxt/cli` 4.0.1 and `undici` 8.12.3:
+  - GHSA-vjh5-4x84-xrqp, moderate: route rules were skipped for case-variant paths. Here only `/publist`'s `noindex` header could be skipped (the security headers use `/**`, and the CSP is built per request). `/Publist` now carries it.
+  - GHSA-xfq5-w38q-pc2x, moderate: server islands. Not used here.
+  - GHSA-jjm6-p2m9-9w4x, low: `NuxtLink` with `pages` disabled. Not applicable.
+  - `undici` GHSA-xjj6 (high), -4qv8 and -f72v (moderate).
+
+  `h3` stays on 1.15.11, with no 2.x release candidate (the trap from August). Typecheck, build and tests are clean. A local run of the production build served every page with the security headers and CSP nonce, proxied an upload through `/api/**`, and rendered the landing and trust pages.
+- **Development and build tooling**, never shipped in the production bundle: `@nuxt/devtools` 3.4.4 drops `simple-git` and `@simple-git/argv-parser` (both criticals and two highs); also `launch-editor` 2.14.2, `vite` 8.3.5, `serialize-javascript` 7.1.4 and `markdown-it` 14.3.3.
+
+### Notes
+
+- **`pnpm audit --prod`: 1** (was 28). `node-forge` 1.4.0 (GHSA-86w9-cpqp-85rv, high) has **no patched version published**. It reaches the tree only through `nitropack`'s development server (`listhen`'s self-signed HTTPS certificates), and the production server bundle (`.output/server`) contains neither `listhen` nor `node-forge` (checked). Accepted until upstream publishes a fix.
+- **The analyzer's dependencies did not move** (`pdfjs-dist` 4.10.38, `fast-xml-parser` 5.10.1, `jszip` 3.10.1), so no score can change: ledger 357 unchanged, all gates green.
+- **Tests:** 4,127 (API 2,146 · Web 1,931 · CLI 50) across 229 files. New: `compressedBodyTrailingBytes` (2), RED on body-parser 1.20.6 (an uncaught "incorrect header check" after a normal 200) and GREEN on 1.20.9.
+- Pre-existing and unchanged: unmet-peer warnings for `@tiptap/pm` (3.20.1 against 3.31.3) and for `vite` 7 against 8.
+
 ## [1.166.1] - 2026-10-26
 
 ### Fixed

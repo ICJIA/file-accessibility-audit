@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,125 tests** across 228 test files (API 2,144 · Web 1,931 · CLI 50) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,127 tests** across 229 test files (API 2,146 · Web 1,931 · CLI 50) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -912,13 +912,14 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (2,144 tests)
+### API Tests (2,146 tests)
 
 <details>
-<summary><strong>Per-file coverage</strong> — 114 of the 120 test files — click to expand</summary>
+<summary><strong>Per-file coverage</strong> — 115 of the 121 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
+| `compressedBodyTrailingBytes.test.ts` | 2 | **A compressed body must not end the API process** (GHSA-27r3-jxmh-p828, 2026-10-26). Drives the API's own JSON and `text/plain` parsers (`middleware/bodyParsers.ts`) over a real socket with upstream's payload — a gzip body, one stray byte, then 100 KiB that arrives after the decoder has finished — and asserts a normal 200 with nothing thrown outside Express. RED on body-parser 1.20.6, which answered and then crashed on the late bytes. |
 | `figureImageCensus.test.ts` | 7 | **Images judged by the run they are painted in** (2026-10-26). Full pipeline on hand-built PDFs: a described figure that paints a picture and its drop shadow is ONE described image (the phantom that took a real course catalog from C to D); an image painted outside every tag beside it is still counted; an image in a run the tag tree never claims is counted (proven by breaking reachability); an image in a figure's child element or in a `<Formula>` is covered; an image tagged inside a text element is left alone; vector-only figures no longer hide an untagged image. |
 | `severityGradeCap.test.ts` | 33 | The rule that a document's **score** may never outrank its worst unresolved finding, and that the letter is then derived from that score through the one published scale. Leads with **THE INVARIANT** — an exhaustive sweep over all 101 scores × 4 severities asserting `gradeForScore(capped)` matches 90/80/70/60 — because v1.58.0 capped the letter independently and shipped "D" above "80/100"; this makes that unshippable. Then each rung's ceiling (Critical 69, Moderate 79, Minor 89), that those ceilings are *derived* from `GRADE_THRESHOLDS` rather than hardcoded, that the cap **only lowers**, that the worst severity wins, that a never-assessed category cannot cap anything ("no images were found" is not a finding), idempotency, and pass-through on a null score or a non-array. `scoreCapReason` works from the **already-capped** score — all any consumer has — reporting the ceiling when the score sits at it. Plus `regradeStoredReport`: the stored score lowered *and* the letter re-derived from it, each profile capped against its **own** categories, the summary regenerated rather than patched (a stale one would reintroduce the "D above 80/100" mismatch verbatim), idempotency, and — because this runs on public share links — no throw on a malformed, truncated or ancient row. Closes with the four real documents that caused the change, now permanent fixtures in `controls/` |
 | `tableHeaderParity.test.ts` | 29 | **One defect, one severity, in every format** (2026-10-05). A data table whose header row is not marked fails WCAG 1.3.1 identically in a PDF, a Word document, a PowerPoint deck and an Excel workbook, so all four must score it the same: the PDF rubric — the reference — lands a lone TH-less table at 45 (Moderate), each Office format must score exactly that, every otherwise-clean document carrying one caps at 79/C, two unheadered tables score what one does (Excel used to subtract 30 per table), a non-data table beside it does not dilute it (Word and PowerPoint used to average layout grids in as passing 100s), one headed plus one unheadered table lands in the same band everywhere, and the verdict names 1.3.1 in all four. Until then the same table capped a Word or PowerPoint file at 69/D, a PDF at 79/C and an Excel workbook at 89/B. Since v1.160.0 it also pins the layout-grid rule in Word and PowerPoint: a table with no style, border, fill or header row is never scored or gated |
@@ -1422,6 +1423,31 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.166.2 — 2026-10-26 · Dependency release: a compressed request body could end the API process; 28 advisories to 1 (SECURITY RELEASE)
+
+The dependency release v1.166.1 recorded as **P1 · Open**. No application behaviour changed. The one code change moves the API's two body parsers, with unchanged options, into `middleware/bodyParsers.ts`, so a test can drive the exact instances production mounts.
+
+**Fixed:**
+1. **P1 · Fixed: `body-parser` 1.20.6 → 1.20.9** ([GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828), high). **Reachable on the live site.** `express.json()` and `express.text()` run with the default `inflate: true`, before routing and rate limiting. A gzip body followed by trailing bytes was answered 200, then the late bytes hit the finished decoder and threw `Z_DATA_ERROR` outside Express, ending the process (PM2 restarts it). One anonymous request was enough. Reproduced on the production parser configuration before the fix; `compressedBodyTrailingBytes.test.ts` is RED on 1.20.6 and GREEN on 1.20.9.
+2. **P3 · Fixed: `multer` 2.4.0 → 2.5.0** ([GHSA-q7qp-rjg7-q26m](https://github.com/advisories/GHSA-q7qp-rjg7-q26m), high). It needs an asynchronous `fileFilter`; both of the API's are synchronous, so it was not reachable. The v1.156.4 field-name limit is untouched; the existing per-route upload tests pass.
+3. **P3 · Fixed: `puppeteer` 25.9.0 → 25.16.0**, so `chromium-bidi`'s `zod` 3.25.76 → 4.6.7 ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), high, input is the browser's own protocol traffic). A real page audit on Chrome 156 graded `/trust` 100/A.
+4. **P3 · Fixed: `nuxt` 4.5.2 → 4.6.2**, with `@nuxt/nitro-server` 4.6.2 and `undici` 8.12.3:
+   - GHSA-vjh5-4x84-xrqp: here only `/publist`'s `noindex` header was skippable; headers use `/**`, and the CSP is per-request. `/Publist` now carries it.
+   - GHSA-xfq5-w38q-pc2x: no server islands. GHSA-jjm6-p2m9-9w4x: pages enabled. Neither applied.
+   - `undici` GHSA-xjj6-f33q-929c, -4qv8-2p9j-2685, -f72v-6w45-q472.
+
+   `h3` stayed on 1.15.11 (August's 2.x release-candidate trap did not recur).
+5. **P3 · Fixed, development tooling only:** `@nuxt/devtools` 3.4.4 no longer depends on `simple-git` (two criticals and two highs, including its argv-parser); also `launch-editor` 2.14.2, `vite` 8.3.5, `serialize-javascript` 7.1.4, `markdown-it` 14.3.3.
+
+**Accepted:** **P3 · Accepted: `node-forge` 1.4.0** ([GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv), high), with **no patched version published**. Its only path is `nitropack` → `listhen`, the development server's self-signed-certificate helper. The production server bundle (`apps/web/.output/server`) contains neither package (checked).
+
+**Verified rather than assumed.**
+- Typecheck, lint, build and tests: 4,127 green.
+- Analyzer dependencies unmoved (`pdfjs-dist`, `fast-xml-parser`, `jszip`), so the ledger (357) and every gate are unchanged and green.
+- A local run of the production build: every page 200; security headers and the CSP nonce present; an upload proxied through `/api/**` graded 100/A; landing and trust pages render.
+- `pnpm audit --prod`: **1** (was 28), the `node-forge` acceptance above.
+- **Deploy note:** `pnpm install` on the server downloads Chrome 156 for puppeteer (~180 MB).
 
 ### v1.166.1 — 2026-10-26 · Images judged by the run they are painted in (no new attack surface)
 

@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import { globalLimiter, tokenAuditMiddleware } from "./middleware/rateLimiter.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { bodyParsers } from "./middleware/bodyParsers.js";
 import analyzeRoutes from "./routes/analyze.js";
 import analyzeJobRoutes from "./routes/analyzeJob.js";
 import reportsRoutes from "./routes/reports.js";
@@ -49,10 +50,8 @@ app.use(
   }),
 );
 
-// Body parsing
-app.use(express.json({ limit: "1mb" }));
-// text/plain is used by bulk-from-inventory when the caller pipes NDJSON directly
-app.use(express.text({ limit: "5mb", type: "text/plain" }));
+// Body parsing (JSON, and text/plain for bulk-from-inventory's piped NDJSON)
+app.use(bodyParsers);
 
 // Public status document. Mounted BEFORE globalLimiter and carrying its own
 // limiter: the Nitro tier proxies /status over loopback, so every browser hit
