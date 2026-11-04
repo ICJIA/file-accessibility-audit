@@ -1,7 +1,11 @@
 import { Router, Request, Response, type IRouter } from "express";
 import { forLog } from "../services/logSanitize.js";
 import crypto from "node:crypto";
-import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
+import {
+  analyzeLimiter,
+  isPrivilegedRequest,
+  markServedFromStore,
+} from "../middleware/rateLimiter.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { DEPLOY, SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
@@ -109,6 +113,9 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
 
       if (existing) {
         const cached = JSON.parse(existing.report_json) as PageAuditResult;
+        // Answered from the store, no analysis: refunded from the privileged
+        // hourly budget (see markServedFromStore in rateLimiter.ts).
+        markServedFromStore(req, res);
         res.json({
           url: cached.url,
           pageTitle: cached.pageTitle,

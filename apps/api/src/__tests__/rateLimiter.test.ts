@@ -12,6 +12,10 @@ import {
   authOutcome,
   warnIfTokenRejected,
   resetBadTokenWarnThrottle,
+  markServedFromStore,
+  isRefundablePrivilegedHit,
+  resetPrivilegedCacheHits,
+  privilegedWindowStatus,
 } from "../middleware/rateLimiter.js";
 import { RATE_LIMITS } from "#config";
 
@@ -490,5 +494,155 @@ describe("tieredLimiter (integration)", () => {
       expect(all).not.toContain("leaky-token");
       expect(all).not.toContain(TOKEN);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Privileged store-served answers are refunded (2026-11-04). A fleet run whose
+// local cache had expired re-asked for every document; ~5,000 requests, almost
+// all answered from stored reports, exhausted the 5000/hour privileged budget
+// in ten minutes while the server ran 87 actual analyses.
+// ---------------------------------------------------------------------------
+describe("analyze-budget refund for privileged store-served answers", () => {
+  // A response that really emits "finish", so express-rate-limit's
+  // decrement-on-finish path runs.
+  function finishingRes(): any {
+    const listeners: Record<string, Array<() => void>> = {};
+    const res: any = {
+      statusCode: 200,
+      locals: {},
+      headersSent: false,
+      _headers: {} as Record<string, unknown>,
+      status(code: number) {
+        res.statusCode = code;
+        return res;
+      },
+      json() {
+        res.finish();
+        return res;
+      },
+      send() {
+        res.finish();
+        return res;
+      },
+      end() {
+        res.finish();
+        return res;
+      },
+      setHeader(k: string, v: unknown) {
+        res._headers[k] = v;
+        return res;
+      },
+      getHeader(k: string) {
+        return res._headers[k];
+      },
+      removeHeader(k: string) {
+        delete res._headers[k];
+        return res;
+      },
+      on(ev: string, fn: () => void) {
+        (listeners[ev] ??= []).push(fn);
+        return res;
+      },
+      finish() {
+        for (const fn of listeners.finish ?? []) fn();
+      },
+    };
+    return res;
+  }
+
+  // Runs one request: limiter → (if admitted) handler → finish.
+  async function request(limiter: any, req: any, storeHit: boolean): Promise<boolean> {
+    const res = finishingRes();
+    const admitted = await new Promise<boolean>((resolve) => {
+      res.json = () => {
+        res.finish();
+        resolve(false);
+        return res;
+      };
+      limiter(req, res, () => resolve(true));
+    });
+    if (admitted) {
+      if (storeHit) markServedFromStore(req, res);
+      res.statusCode = 200;
+      res.finish();
+    }
+    // let the async decrement settle
+    await new Promise((r) => setTimeout(r, 0));
+    return admitted;
+  }
+
+  function limiter() {
+    return tieredLimiter({
+      name: "test",
+      windowMs: 60_000,
+      anon: 2,
+      privileged: 3,
+      message: { error: "x" },
+      refund: isRefundablePrivilegedHit,
+    });
+  }
+
+  beforeEach(() => resetPrivilegedCacheHits());
+
+  it("does not count a privileged request answered from the store", async () => {
+    process.env.API_PRIVILEGED_TOKEN = TOKEN;
+    const l = limiter();
+    const priv = () => makeReq({ ip: "198.51.100.90", headers: { authorization: `Bearer ${TOKEN}` } });
+    for (let i = 0; i < 10; i++) expect(await request(l, priv(), true)).toBe(true);
+    // The full budget of 3 fresh analyses is still there.
+    for (let i = 0; i < 3; i++) expect(await request(l, priv(), false)).toBe(true);
+    expect(await request(l, priv(), false)).toBe(false);
+  });
+
+  it("still counts an ANONYMOUS store hit (it costs a download + hash)", async () => {
+    const l = limiter();
+    const anon = () => makeReq({ ip: "198.51.100.91" });
+    expect(await request(l, anon(), true)).toBe(true);
+    expect(await request(l, anon(), true)).toBe(true);
+    expect(await request(l, anon(), true)).toBe(false);
+  });
+
+  it("counts privileged store hits since restart, and only privileged ones", async () => {
+    process.env.API_PRIVILEGED_TOKEN = TOKEN;
+    markServedFromStore(makeReq({ headers: { authorization: `Bearer ${TOKEN}` } }), { locals: {} });
+    markServedFromStore(makeReq({}), { locals: {} });
+    const win = await privilegedWindowStatus({ getKey: () => undefined });
+    expect(win.cache_hits_since_restart).toBe(1);
+  });
+
+  it("isRefundablePrivilegedHit needs the store flag, a < 400 status, and the token", () => {
+    process.env.API_PRIVILEGED_TOKEN = TOKEN;
+    const priv = makeReq({ headers: { authorization: `Bearer ${TOKEN}` } });
+    expect(isRefundablePrivilegedHit(priv, { statusCode: 200, locals: { servedFromStore: true } })).toBe(true);
+    expect(isRefundablePrivilegedHit(priv, { statusCode: 200, locals: {} })).toBe(false);
+    expect(isRefundablePrivilegedHit(priv, { statusCode: 500, locals: { servedFromStore: true } })).toBe(false);
+    expect(isRefundablePrivilegedHit(makeReq({}), { statusCode: 200, locals: { servedFromStore: true } })).toBe(false);
+  });
+});
+
+describe("privilegedWindowStatus", () => {
+  const NOW = Date.parse("2026-11-04T15:30:00Z");
+
+  it("reports the open window's hits, limit and reset time", async () => {
+    const win = await privilegedWindowStatus(
+      { getKey: () => ({ totalHits: 4321, resetTime: new Date("2026-11-04T16:13:00.250Z") }) },
+      NOW,
+    );
+    expect(win).toMatchObject({
+      used: 4321,
+      limit: RATE_LIMITS.analyze.privileged,
+      resets_at: "2026-11-04T16:13:00Z",
+    });
+  });
+
+  it("reports zero and no reset time when no window is open", async () => {
+    const none = await privilegedWindowStatus({ getKey: () => undefined }, NOW);
+    expect(none).toMatchObject({ used: 0, resets_at: null });
+    const expired = await privilegedWindowStatus(
+      { getKey: () => ({ totalHits: 99, resetTime: new Date(NOW - 1000) }) },
+      NOW,
+    );
+    expect(expired).toMatchObject({ used: 0, resets_at: null });
   });
 });

@@ -1758,3 +1758,37 @@ describe("machine load — reported, never alarmed about", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// privileged_window (2026-11-04) — the privileged rate-limit bucket, injected.
+// ---------------------------------------------------------------------------
+describe("privileged_window", () => {
+  function svc(privilegedWindow?: () => any) {
+    return createStatusService({
+      now: () => T0,
+      db: freshDb() as unknown as StatusDb,
+      probes: OK_ENGINES,
+      version: "1.38.2",
+      startedAtMs: T0 - HOUR,
+      remediationEnabled: true,
+      backupStatusFile: "/nonexistent/backups/last-backup.json",
+      diskPath: ".",
+      privilegedWindow,
+    });
+  }
+
+  it("publishes the injected bucket state", async () => {
+    const win = { used: 12, limit: 5000, resets_at: "2026-11-04T16:13:00Z", cache_hits_since_restart: 4900 };
+    const payload = await svc(() => win).getStatus();
+    expect(payload.privileged_window).toEqual(win);
+  });
+
+  it("publishes null when the reader is absent or throws — never fails the page", async () => {
+    expect((await svc().getStatus()).privileged_window).toBeNull();
+    const payload = await svc(() => {
+      throw new Error("store unavailable");
+    }).getStatus();
+    expect(payload.privileged_window).toBeNull();
+    expect(payload.status).toBe("ok");
+  });
+});

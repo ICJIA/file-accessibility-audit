@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.167.0",
+    meta: "Reviewed <strong>2026-11-04</strong> &middot; scope: how the trusted-tool hourly limit counts repeat requests, and one new figure on the status page.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Repeat answers no longer use up the trusted tool&rsquo;s hourly limit.</strong> When ICJIA&rsquo;s own fleet tool asks about a document or page that was already checked, the service answers from the report it already has. Those answers took a few milliseconds each, but each one still counted against the hourly limit. On 4 November one fleet run made about 5,000 requests in ten minutes. Only 87 were new checks, but the limit ran out and the run had to wait most of an hour. Repeat answers to the trusted tool no longer count. Public visitors are counted exactly as before.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The status page shows how much of this hour&rsquo;s limit is used.</strong> The trusted-tool section now shows how many requests have counted this hour, the limit, when it resets, and how many repeat answers were served since the last restart. These are counts only. They say nothing about who made a request, and they are held in memory, not saved.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every self-check passed. New self-checks confirm that repeat answers to the trusted tool are not counted, that repeat answers to public visitors still are, and that the status page never fails if the figure cannot be read.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.166.2",
     meta: "Reviewed <strong>2026-10-26</strong> &middot; scope: the third-party software the service is built on, updated to close the warnings the previous review recorded.",
     body: [

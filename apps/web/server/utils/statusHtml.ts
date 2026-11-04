@@ -600,6 +600,44 @@ export function renderDocumentProgress(body: Record<string, unknown>): string {
  * that the token is being used only by the fleet. It is aggregate counts of a
  * token property, never identity.
  */
+/**
+ * One line on the privileged tier's CURRENT hourly budget, or "" when the
+ * payload has no privileged_window (an older API build, or the limiter could
+ * not be read). Added 2026-11-04: a fleet run was throttled while the audit
+ * counts above showed 87 audits, because answers served from stored reports
+ * were counted against the budget but shown nowhere. Since then those answers
+ * are not counted, and this line shows both figures.
+ */
+export function renderPrivilegedWindow(body: Record<string, unknown>): string {
+  const win = asRecord(body.privileged_window);
+  if (!win) return "";
+  const used = asCount(win.used);
+  const limit = asCount(win.limit);
+  const hits = asCount(win.cache_hits_since_restart);
+  const resetsAt = typeof win.resets_at === "string" ? Date.parse(win.resets_at) : NaN;
+  let resets = "";
+  if (Number.isFinite(resetsAt)) {
+    try {
+      resets =
+        ", resets at " +
+        new Date(resetsAt).toLocaleTimeString("en-US", {
+          timeZone: "America/Chicago",
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short",
+        });
+    } catch {
+      resets = "";
+    }
+  }
+  return (
+    `<p>This hour: <strong>${used.toLocaleString("en-US")}</strong> of ` +
+    `${limit.toLocaleString("en-US")} requests used${escapeHtml(resets)}. ` +
+    `${hits.toLocaleString("en-US")} request${hits === 1 ? "" : "s"} answered from a ` +
+    `stored report since the last restart, which do not count toward the limit.</p>`
+  );
+}
+
 export function renderPrivilegedAudits(body: Record<string, unknown>): string {
   const priv = asRecord(body.privileged_audits);
   if (!priv) return "";
@@ -615,6 +653,7 @@ export function renderPrivilegedAudits(body: Record<string, unknown>): string {
     title: "Trusted-tool (privileged) audits",
     peek: total > 0 ? `${total.toLocaleString("en-US")} all-time` : "none yet",
     body:
+      renderPrivilegedWindow(body) +
       `<p class="caveat">Audits requested through the internal trusted-tool tier ` +
       `— the automated fleet inventory — separated from public uploads. It counts a ` +
       `property of the shared service token, <strong>not</strong> who made the request. ` +

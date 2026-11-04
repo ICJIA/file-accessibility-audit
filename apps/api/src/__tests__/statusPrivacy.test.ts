@@ -280,6 +280,10 @@ describe("/status never discloses identifying data", () => {
         "load",
         // on/off only — never the token, its length, or a hash of it.
         "privileged_tier",
+        // The privileged rate-limit bucket: used / limit / reset time / store
+        // hits since restart. Numbers and one timestamp; the bucket key is a
+        // constant, never an IP. Deliberate addition (2026-11-04).
+        "privileged_window",
         "remediation",
         "status",
         "uptime",

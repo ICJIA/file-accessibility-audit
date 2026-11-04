@@ -65,6 +65,7 @@ function mockCommon(privileged: boolean) {
     reportsLimiter: (_req: any, _res: any, next: () => void) => next(),
     bulkLimiter: (_req: any, _res: any, next: () => void) => next(),
     isPrivilegedRequest: () => privileged,
+    markServedFromStore: () => {},
   }));
   return { recordAuditFailure };
 }

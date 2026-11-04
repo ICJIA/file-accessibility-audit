@@ -2086,6 +2086,10 @@ export const RATE_LIMITS = {
     windowMs: 60 * 60 * 1000, // 1 hour
     anon: 500, // 500 / hour / IP  (no token)
     privileged: 5000, // 5000 / hour      (with token)
+    // v1.167.0: a PRIVILEGED request answered from a stored report (the
+    // /audit-url and /audit-url-page dedup branches) is refunded, so only
+    // real analyses draw on the 5000. See markServedFromStore in
+    // apps/api/src/middleware/rateLimiter.ts.
   },
 
   /** POST /api/reports — keyed by IP (anonymous mode).

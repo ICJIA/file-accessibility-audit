@@ -217,6 +217,10 @@ export interface TierConfig {
   message: Record<string, string>;
   /** Requests matching this are neither limited nor counted. */
   skip?: (req: any) => boolean;
+  /** Evaluated when the response finishes: a request for which this returns
+   *  true is refunded (its hit is taken back out of the bucket). Unlike
+   *  `skip`, the request was still subject to the limit on the way in. */
+  refund?: (req: any, res: any) => boolean;
 }
 
 export function tieredLimiter(cfg: TierConfig) {
@@ -225,6 +229,12 @@ export function tieredLimiter(cfg: TierConfig) {
     limit: (req) => tierLimit(req, cfg),
     keyGenerator: (req) => tierKey(req),
     skip: cfg.skip,
+    // express-rate-limit's "successful request" hook is its only refund
+    // mechanism: with skipSuccessfulRequests on, a request for which
+    // requestWasSuccessful returns true is decremented on "finish". Here
+    // "successful" means "refundable" — it is not the library's default
+    // status < 400 test.
+    ...(cfg.refund ? { skipSuccessfulRequests: true, requestWasSuccessful: cfg.refund } : {}),
     message: cfg.message,
     // Keep standardHeaders on: express-rate-limit sets Retry-After from it
     // BEFORE delegating to a custom handler, and the fleet client honors that
@@ -236,6 +246,47 @@ export function tieredLimiter(cfg: TierConfig) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Privileged cache hits are free (2026-11-04)
+// ---------------------------------------------------------------------------
+// /api/audit-url and /api/audit-url-page answer a repeat request from the
+// stored report (content-hash / URL-hash dedup) without running an analysis.
+// Those answers used to cost a full hit of the hourly `analyze` budget, so a
+// fleet run whose local cache had expired — every document re-asked, almost
+// all answered from this server's store in milliseconds — exhausted the
+// privileged 5000/hour bucket in about ten minutes (2026-11-04: ~5,000
+// requests, 87 actual analyses) and then sat in 15-minute Retry-After waits.
+//
+// Now a PRIVILEGED request answered from the store is refunded once its
+// response finishes. Deliberately privileged-only: for an anonymous caller a
+// /audit-url cache hit still costs a full outbound download + hash, so the
+// strict tier keeps counting it. globalLimiter (1000/min privileged) still
+// counts every request, so the refund cannot turn into an unbounded flood.
+
+let privilegedCacheHits = 0;
+
+/** Route handlers call this on their dedup (served-from-store) branch, before
+ *  responding. Flags the response for the refund and counts it. */
+export function markServedFromStore(req: any, res: any): void {
+  if (res?.locals) res.locals.servedFromStore = true;
+  if (isPrivilegedRequest(req)) privilegedCacheHits++;
+}
+
+/** The analyze limiter's refund predicate. */
+export function isRefundablePrivilegedHit(req: any, res: any): boolean {
+  return (
+    res?.locals?.servedFromStore === true &&
+    typeof res.statusCode === "number" &&
+    res.statusCode < 400 &&
+    isPrivilegedRequest(req)
+  );
+}
+
+/** Test seam — zeroes the since-restart cache-hit counter. */
+export function resetPrivilegedCacheHits(): void {
+  privilegedCacheHits = 0;
+}
+
 // Two-tier: anonymous (per-IP) vs privileged (API_PRIVILEGED_TOKEN).
 export const analyzeLimiter = tieredLimiter({
   name: "analyze",
@@ -243,7 +294,41 @@ export const analyzeLimiter = tieredLimiter({
   anon: RATE_LIMITS.analyze.anon,
   privileged: RATE_LIMITS.analyze.privileged,
   message: { error: "Upload limit reached. Please try again later." },
+  refund: isRefundablePrivilegedHit,
 });
+
+/** Shape published on /api/status as `privileged_window`. Counts only — the
+ *  bucket key is the constant "privileged", never an IP. */
+export interface PrivilegedWindow {
+  /** Requests counted against the privileged `analyze` budget in the current
+   *  window (refunded cache hits excluded). */
+  used: number;
+  limit: number;
+  /** ISO time the current window ends, or null when no window is open. */
+  resets_at: string | null;
+  /** Privileged requests answered from the stored report since the API
+   *  process started (not counted against the budget). */
+  cache_hits_since_restart: number;
+}
+
+/** Current state of the privileged `analyze` bucket — the figure that would
+ *  have explained the 2026-11-04 throttle in one glance. */
+export async function privilegedWindowStatus(
+  limiter: { getKey: (key: string) => unknown } = analyzeLimiter,
+  nowMs: number = Date.now(),
+): Promise<PrivilegedWindow> {
+  const info = (await limiter.getKey("privileged")) as
+    | { totalHits?: number; resetTime?: Date }
+    | undefined;
+  const reset = info?.resetTime instanceof Date ? info.resetTime.getTime() : null;
+  const open = reset !== null && reset > nowMs;
+  return {
+    used: open ? Math.max(0, Number(info?.totalHits) || 0) : 0,
+    limit: RATE_LIMITS.analyze.privileged,
+    resets_at: open ? new Date(reset).toISOString().replace(/\.\d{3}Z$/, "Z") : null,
+    cache_hits_since_restart: privilegedCacheHits,
+  };
+}
 
 const REPORTS_MESSAGE = { error: "Share limit reached. Please try again later." };
 export const reportsLimiter = rateLimit({

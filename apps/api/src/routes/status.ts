@@ -5,7 +5,7 @@
 // rules) live in services/status.ts — this file is only wiring.
 
 import express from "express";
-import { statusLimiter } from "../middleware/rateLimiter.js";
+import { statusLimiter, privilegedWindowStatus } from "../middleware/rateLimiter.js";
 import db from "../db/sqlite.js";
 import { REMEDIATION } from "#config";
 import {
@@ -39,6 +39,7 @@ export const service = createStatusService({
   // and the SQLite database lives. Measuring the volume that actually matters
   // to this service, rather than the process cwd, which can differ under PM2.
   diskPath: defaultDataDir(),
+  privilegedWindow: () => privilegedWindowStatus(),
 });
 
 router.get("/status", statusLimiter, async (_req, res) => {

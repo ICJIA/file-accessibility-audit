@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.167.0] - 2026-11-04
+
+### Fixed
+
+- **Answers served from a stored report no longer use up the trusted-tool (privileged) hourly budget.** `/api/audit-url` and `/api/audit-url-page` answer a repeat request from the stored report (content-hash / URL-hash dedup) without running an analysis, but each answer still cost one hit of the 5,000/hour `analyze` budget. On 2026-11-04 a fleet-audit run whose local cache had expired re-asked for every document and page: about 5,000 requests in ten minutes, almost all answered from the store, while the server ran 87 actual analyses. The privileged bucket ran out (`[rate-limit] 429 limiter=analyze tier=privileged auth=valid`), and the run sat in 15-minute `Retry-After` waits for most of an hour. Nothing on `/status` could show why: `documents_audited` counts analyses, and store-served answers appear nowhere.
+  - Route handlers now call `markServedFromStore(req, res)` on the dedup branch. `analyzeLimiter` refunds the hit when the response finishes, through express-rate-limit's `skipSuccessfulRequests` + `requestWasSuccessful` (`isRefundablePrivilegedHit`: store flag set, status < 400, valid token).
+  - **Privileged only.** For an anonymous caller a `/audit-url` store hit still costs a full outbound download and hash, so the strict tier keeps counting it. `globalLimiter` (1,000/min privileged) still counts every request, so the refund cannot become an unbounded flood.
+  - `tieredLimiter` takes an optional `refund(req, res)` predicate; only `analyzeLimiter` uses it.
+
+### Added
+
+- **`/status` publishes `privileged_window`**: `used` (requests counted in the current privileged hourly window), `limit`, `resets_at`, and `cache_hits_since_restart` (privileged requests answered from the store since the API process started, not counted). It is read from the limiter's in-memory store (`analyzeLimiter.getKey("privileged")`). The bucket key is the constant `"privileged"`, never an IP, and nothing new is written to disk. It is `null` when the limiter cannot be read. A deliberate addition to the `statusPrivacy.test.ts` top-level allow-list.
+- The status page's **Trusted-tool (privileged) audits** section opens with one line: *"This hour: N of 5,000 requests used, resets at 10:13 AM CST. M requests answered from a stored report since the last restart, which do not count toward the limit."*
+
+### Notes
+
+- No limit, window or tier changed. No new route, parameter, dependency or stored field.
+- **Tests:** 4,138 (API 2,155 · Web 1,933 · CLI 50). New: refund behaviour on a limiter whose response really emits `finish` (privileged store hits free, anonymous store hits counted, predicate conditions), `privilegedWindowStatus` (open window, no window, expired window), the dedup branch of both routes flagging the response (RED with the route change reverted), `privileged_window` in the payload (injected, absent, throwing), and the status-page line.
+- Companion client change in the separate `icjia-fleet-audit` repo: the pipeline stops auditing roster-excluded sites, shows rate-limit waits in the main transcript, and caps total waiting per site.
+
 ## [1.166.2] - 2026-10-26
 
 ### Security

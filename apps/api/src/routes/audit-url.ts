@@ -2,7 +2,11 @@ import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
 import { regradeStoredReport } from "@file-audit/analyzer";
 import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
-import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
+import {
+  analyzeLimiter,
+  isPrivilegedRequest,
+  markServedFromStore,
+} from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { DEPLOY, SHARED_REPORTS } from "#config";
@@ -138,6 +142,9 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
         // the reportUrl in the SAME response leads to a page showing the
         // regraded one; the fleet inventory published those stale pairs.
         const cached = regradeStoredReport(JSON.parse(existing.report_json));
+        // Answered from the store, no analysis: refunded from the privileged
+        // hourly budget (see markServedFromStore in rateLimiter.ts).
+        markServedFromStore(req, res);
         res.json({
           filename: existing.filename,
           pageCount: cached.pageCount ?? null,

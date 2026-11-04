@@ -567,11 +567,14 @@ describe("audit-url: dedup hit regrades the stored report before extracting scor
         body: { url: "https://icjia.illinois.gov/files/2006%20Annual%20Report.pdf" },
       });
       const res = makeRes();
+      res.locals = {};
 
       await handler(req, res);
 
       expect(res._json?.cached).toBe(true);
       expect(res._json?.reportId).toBe(dedupRow.id);
+      // 2026-11-04: flagged for the privileged analyze-budget refund.
+      expect(res.locals.servedFromStore).toBe(true);
       // The pinned regraded pair — what /report/:id serves for this same row.
       // Serving the stored 30 here is the bug.
       expect(res._json?.strict).toEqual({ score: 47, grade: "F" });

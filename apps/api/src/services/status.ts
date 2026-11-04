@@ -246,6 +246,21 @@ export interface StatusPayload {
    *  API_PRIVILEGED_TOKEN is set on the running process. NEVER the token, its
    *  length, or any hash of it; only on/off. See privilegedTierStatus. */
   privileged_tier: PrivilegedTierStatus;
+  /** The privileged `analyze` bucket right now: requests counted in the
+   *  current hourly window, the limit, when the window resets, and how many
+   *  privileged requests were answered from the stored report (and so NOT
+   *  counted) since the API started. Null when the limiter cannot be read.
+   *  Counts only — the bucket key is the constant "privileged", never an IP.
+   *  Added 2026-11-04: a fleet run was throttled while documents_audited
+   *  showed 87 audits, because store-served answers appear nowhere else. */
+  privileged_window: PrivilegedWindowStatus | null;
+}
+
+export interface PrivilegedWindowStatus {
+  used: number;
+  limit: number;
+  resets_at: string | null;
+  cache_hits_since_restart: number;
 }
 
 /** "on"  — a token is configured; fleet clients can reach the generous tier.
@@ -373,6 +388,11 @@ export interface StatusDeps {
    *  service") cannot be exercised on a real idle test runner, and a guard
    *  that has only ever seen an idle machine proves nothing. */
   loadProbe?: LoadProbe;
+  /** Reads the privileged rate-limit bucket. Injected (production passes
+   *  privilegedWindowStatus from rateLimiter.ts) so this module stays free of
+   *  middleware imports and tests can supply fixed values. Optional: absent,
+   *  or throwing, publishes privileged_window: null. */
+  privilegedWindow?: () => Promise<PrivilegedWindowStatus> | PrivilegedWindowStatus;
 }
 
 // ---------------------------------------------------------------------------
@@ -1163,6 +1183,14 @@ export function createStatusService(deps: StatusDeps) {
     const load = readLoadStatus(deps.loadProbe);
 
     const privilegedTier = privilegedTierStatus();
+    let privilegedWindow: PrivilegedWindowStatus | null = null;
+    if (deps.privilegedWindow) {
+      try {
+        privilegedWindow = await deps.privilegedWindow();
+      } catch {
+        privilegedWindow = null;
+      }
+    }
     const degraded = degradedList(eng, agg.database, backup.status, disk.status, privilegedTier);
     const uptimeSeconds = Math.max(0, Math.floor((nowMs - deps.startedAtMs) / 1000));
 
@@ -1193,6 +1221,7 @@ export function createStatusService(deps: StatusDeps) {
       },
       backup,
       privileged_tier: privilegedTier,
+      privileged_window: privilegedWindow,
     };
     // Omitted rather than empty on the happy path, so a reader scanning the
     // JSON sees no failure vocabulary at all when nothing is wrong.

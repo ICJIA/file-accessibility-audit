@@ -1270,3 +1270,30 @@ describe("renderLoad — how hard the machine is working", () => {
     expect(html).toContain("Server load");
   });
 });
+
+describe("privileged_window — the current hourly budget line (2026-11-04)", () => {
+  const WITH_WINDOW = {
+    ...PAYLOAD,
+    privileged_audits: { last_24h: 87, last_30d: 87, total: 379 },
+    privileged_window: {
+      used: 87,
+      limit: 5000,
+      resets_at: "2026-11-04T16:13:00Z",
+      cache_hits_since_restart: 4956,
+    },
+  };
+
+  it("shows used / limit, the reset time in Chicago time, and store-served answers", () => {
+    const html = renderStatusHtml(WITH_WINDOW);
+    expect(html).toContain("<strong>87</strong> of 5,000 requests used");
+    expect(html).toMatch(/resets at 10:13\s?AM CST/);
+    expect(html).toContain("4,956 requests answered from a stored report");
+  });
+
+  it("omits the line when the payload has no privileged_window (older API build) or null", () => {
+    const old = { ...WITH_WINDOW } as Record<string, unknown>;
+    delete old.privileged_window;
+    expect(renderStatusHtml(old)).not.toContain("requests used");
+    expect(renderStatusHtml({ ...WITH_WINDOW, privileged_window: null })).not.toContain("requests used");
+  });
+});

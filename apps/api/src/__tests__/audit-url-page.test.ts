@@ -346,3 +346,54 @@ describe("audit-url-page: failed page audits are recorded, and expected failures
     expect(dbRun).not.toHaveBeenCalled();
   });
 });
+
+describe("audit-url-page: a dedup hit is flagged for the privileged budget refund (2026-11-04)", () => {
+  it("marks res.locals.servedFromStore on the stored-report branch, and not on a fresh audit", async () => {
+    vi.resetModules();
+    const stored = {
+      url: "https://icjia.illinois.gov/",
+      pageTitle: "Home",
+      audited: "2026-11-01T00:00:00Z",
+      score: 96,
+      grade: "A",
+      violationCount: 1,
+      bySeverity: {},
+      violations: [],
+    };
+    vi.doMock("../db/sqlite.js", () => ({
+      default: {
+        prepare: vi.fn(() => ({
+          get: vi.fn(() => ({
+            id: "b".repeat(32),
+            report_json: JSON.stringify(stored),
+            expires_at: "2027-01-01T00:00:00Z",
+          })),
+          run: vi.fn(),
+        })),
+      },
+    }));
+    vi.doMock("../services/urlPolicy.js", () => ({ isAllowedUrl: vi.fn(() => ({ ok: true })) }));
+    vi.doMock("../services/pageAuditor.js", () => ({
+      auditPage: vi.fn().mockRejectedValue(new Error("dedup hit must not audit")),
+    }));
+    const { default: router } = await import("../routes/audit-url-page.js");
+    const handler = extractHandler(router, "/audit-url-page");
+    const res = makeRes();
+    res.locals = {};
+    await handler(makeReq({ body: { url: "https://icjia.illinois.gov/" } }), res);
+    expect(res._json?.cached).toBe(true);
+    expect(res.locals.servedFromStore).toBe(true);
+
+    // Fresh audit path: not flagged.
+    const fresh = await loadRouterWith({
+      auditPageImpl: async () => ({ ...stored, url: "https://icjia.illinois.gov/x" }),
+    });
+    const freshRes = makeRes();
+    freshRes.locals = {};
+    await extractHandler(fresh, "/audit-url-page")(
+      makeReq({ body: { url: "https://icjia.illinois.gov/x" } }),
+      freshRes,
+    );
+    expect(freshRes.locals.servedFromStore).toBeUndefined();
+  });
+});

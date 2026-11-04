@@ -306,7 +306,7 @@ Upload up to **5 files** (PDF, Word, PowerPoint, or Excel) at once. Files are an
 | Max files per batch | 5                | Frontend (`DropZone.vue`)             |
 | Max file size       | 25 MB each       | Frontend + multer + nginx             |
 | Concurrent uploads  | 2                | Frontend semaphore + server semaphore |
-| Rate limit          | 500/hour per IP (5000/hour with a privileged token) | Server (`analyzeLimiter`) |
+| Rate limit          | 500/hour per IP (5000/hour with a privileged token; privileged answers served from a stored report are not counted, since v1.167.0) | Server (`analyzeLimiter`) |
 
 **Note:** the enforced client-side limit is 5 (`MAX_FILES` in `DropZone.vue`, pinned by `dropZoneLimits.test.ts` — the copy has always promised five). `BATCH.MAX_FILES` in `audit.config.ts` (3) is a legacy server-side constant that is not wired to the drop zone.
 
@@ -1423,6 +1423,22 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.167.0 — 2026-11-04 · Privileged store-served answers refunded from the hourly budget; `privileged_window` on /status (no new attack surface)
+
+**The defect.** `/api/audit-url` and `/api/audit-url-page` answer a repeat request from `shared_reports` (content-hash / URL-hash dedup) with no analysis, but `analyzeLimiter` charged each answer a full hit. A fleet run whose local cache had expired sent ~5,000 requests in ten minutes, almost all store-served, against 87 real analyses. The privileged bucket (5,000/hour, one shared key) ran out and the run waited out `Retry-After` for most of an hour. `/status` gave no clue, because store-served answers are recorded nowhere.
+
+**The change.** The dedup branches call `markServedFromStore(req, res)`, which sets `res.locals.servedFromStore` and increments an in-memory counter. `analyzeLimiter` refunds the hit on `finish` via express-rate-limit's `skipSuccessfulRequests` with a custom `requestWasSuccessful` (`isRefundablePrivilegedHit`: flag set, status < 400, `isPrivilegedRequest`).
+
+**Why this is safe.**
+- **Privileged only.** An anonymous `/audit-url` store hit still costs an outbound download and hash, so the strict tier still counts it.
+- The refund is decided by the server's own branch, not by anything the client sends. A client cannot mark its own request as store-served.
+- `globalLimiter` (1,000/min privileged, 100/min anonymous) counts every request regardless, so the refund cannot turn into an unbounded request rate.
+- The 2-slot analysis and page-audit semaphores are untouched.
+
+**`privileged_window` on /status.** It reports `used`, `limit`, `resets_at` and `cache_hits_since_restart`, read from the limiter's in-memory store under the constant key `"privileged"`. It carries no IP, no token, no prefix, no length and no hash. Nothing is persisted, so the data-retention lifecycle is unchanged. Its addition to the top-level key allow-list in `statusPrivacy.test.ts` is deliberate. A reader that throws publishes `null` and never fails the page.
+
+**Verified rather than assumed.** Lint, typecheck, build and tests: 4,138 green. The route tests are RED with the two `markServedFromStore` calls removed.
 
 ### v1.166.2 — 2026-10-26 · Dependency release: a compressed request body could end the API process; 28 advisories to 1 (SECURITY RELEASE)
 
