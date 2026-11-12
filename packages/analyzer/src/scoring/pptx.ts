@@ -5,9 +5,12 @@
  */
 import { PPTX } from "#config";
 import {
+  OVERWHELMED_HEADINGS_SCORE,
   TYPED_LIST_FLOOR,
   UNHEADERED_DATA_TABLE_SCORE,
   VISUAL_HEADINGS_FOR_FAILURE,
+  headingsOverwhelmed,
+  overwhelmedHeadingsFinding,
   shareScore,
 } from "@file-audit/shared";
 import { classifyTitleShape } from "../titleShape.js";
@@ -255,7 +258,12 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     // Beside titled slides, each typed heading is one unmarked section: 15
     // points apiece, capped at 40, as in Word. This capped at 40 in both
     // cases until then, so two typed headings in an untitled deck read Minor.
-    score = 100 - (titledSlides === 0 ? 70 : Math.min(40, fakeHeadings.length * 15));
+    // A few titled slides do not rescue an unmarked outline (2026-11-12) —
+    // OVERWHELMED_HEADINGS_* in packages/shared; PDF and Word agree.
+    score =
+      titledSlides === 0 || headingsOverwhelmed(titledSlides, fakeHeadings.length)
+        ? OVERWHELMED_HEADINGS_SCORE
+        : 100 - Math.min(40, fakeHeadings.length * 15);
   }
   const findings: string[] = [];
 
@@ -271,6 +279,14 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
         fakeHeadings.length > 1 ? "have" : "has"
       } a heading typed into an ordinary text box instead of the slide's title placeholder — it looks like a heading and is not one, so assistive technology cannot announce it as the slide's title or navigate to it. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder (or View → Outline and type it there).`,
     );
+    if (headingsOverwhelmed(titledSlides, fakeHeadings.length)) {
+      findings.push(
+        overwhelmedHeadingsFinding(titledSlides, fakeHeadings.length, {
+          real: "titled slide(s)",
+          lookalike: "heading(s) typed into ordinary text boxes",
+        }),
+      );
+    }
     findings.push(`--- Text Boxes Styled Like Slide Titles ---`);
     for (const f of fakeHeadings.slice(0, 10)) {
       findings.push(`  Slide ${f.slide}: "${f.text.slice(0, 80)}"`);

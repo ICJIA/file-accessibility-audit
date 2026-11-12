@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.169.0",
+    meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: how headings are scored when a document marks only a few of them.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The checker already counted a document&rsquo;s real headings and the lines that only look like headings; this update changes the arithmetic done with those two numbers. Nothing new is read from a document, and nothing about how files are received, checked, stored or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A few real headings no longer hide an unmarked document.</strong> When section titles that are not marked as headings outnumber the real headings ten to one, the headings score is now critical. It applies the same way to PDF, Word and PowerPoint files.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> The rule was measured against every test document before release: it changes the score of two long reports, by a few points and without changing their letter grade, and no others. Four new test documents pin the rule and its limit. Every self-check and every scoring gate passed. The check of third-party software reports one warning, the same one recorded and accepted in the previous review.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.168.2",
     meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: the third-party software the service is built on, updated to close the warnings the previous two reviews recorded as open.",
     body: [

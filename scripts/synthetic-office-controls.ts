@@ -859,6 +859,22 @@ const bestPracticeDebtCheck = (r: AnalysisResult, needles: string[]): string | n
   return null;
 };
 
+/** Twelve section titles for the overwhelmed-outline traps (231/232). */
+const OUTLINE_SECTIONS = [
+  "Mission",
+  "Board Members",
+  "Committees",
+  "Grants Administration",
+  "Research and Analysis",
+  "Information Systems",
+  "Funding Initiatives",
+  "Reentry Services",
+  "Violence Prevention",
+  "Victim Services",
+  "Training Programs",
+  "Financial Summary",
+];
+
 const SAMPLES: Sample[] = [
   {
     file: "synthetic-101-docx-bold-fake-headings.docx",
@@ -3274,6 +3290,52 @@ const SAMPLES: Sample[] = [
       return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
     },
   },
+  // ---- v1.169.0: a few real headings over an unmarked outline (2026-11-12) ----
+  {
+    file: "synthetic-231-docx-one-heading-over-fake-headings.docx",
+    truth:
+      "A Word report with one real Heading 1 — its title — and twelve section titles that are only bold 16-point text. Beside a real heading, fake headings cost at most 40 points, so this scored 60 while the same report with NO Heading style scored 30. Twelve against one is past ten to one: heading_structure must be 30 (Critical), say how lopsided the outline is, and name 1.3.1.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Annual Report"),
+          P(BODY_TEXT),
+          ...OUTLINE_SECTIONS.flatMap((t) => [FAKE_HEADING(t), P(BODY_TEXT)]),
+        ].join(""),
+        { styles: true },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      if (!c || c.score !== 30)
+        return `one Heading 1 over twelve fake headings scored ${c?.score}, not 30`;
+      if (!/Only 1 real heading\(s\) against 12 paragraph/.test(allFindings(r)))
+        return "the finding does not say how lopsided the outline is";
+      return accused(r, "heading_structure") ? null : "points lost with no 1.3.1 failure named";
+    },
+  },
+  {
+    file: "synthetic-232-pptx-one-title-over-typed-headings.pptx",
+    truth:
+      "A thirteen-slide deck in which only the first slide has a real title; the other twelve carry their heading typed into a text box. The same rule as Word and PDF: twelve against one is past ten to one, so slide_titles must be 30 (Critical), say so, and name 1.3.1.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Annual Report") + SLIDE_BODY("An overview of the year."),
+          ...OUTLINE_SECTIONS.map(
+            (t) => SLIDE_FAKE_HEADING(t) + SLIDE_BODY("Details for this section."),
+          ),
+        ],
+        { title: "Annual Report" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score !== 30)
+        return `one titled slide over twelve typed headings scored ${c?.score}, not 30`;
+      if (!/Only 1 titled slide\(s\) against 12 heading/.test(allFindings(r)))
+        return "the finding does not say how lopsided the outline is";
+      return accused(r, "slide_titles") ? null : "points lost with no 1.3.1 failure named";
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
@@ -3430,6 +3492,14 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-227-xlsx-undescribed-drawn-shape.xlsx": {
     label: "Excel: a drawn arrow with no text, no description and no decorative mark",
+    chip: "caught",
+  },
+  "synthetic-231-docx-one-heading-over-fake-headings.docx": {
+    label: "Word: one real heading, twelve section titles that are only bold text",
+    chip: "caught",
+  },
+  "synthetic-232-pptx-one-title-over-typed-headings.pptx": {
+    label: "PowerPoint: one titled slide, twelve headings typed into text boxes",
     chip: "caught",
   },
   "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx": {

@@ -241,6 +241,35 @@ const sectionedReport = (sectionTag: string) =>
     "Annual Program Report",
   );
 
+/** The report behind traps 229/230: an <H1> on the cover, then twelve section
+ *  titles at 16 pt. The first `realHeadings - 1` of them are tagged <H2>; the
+ *  rest are tagged <P> — the defect. */
+const COVER_SECTIONS = [
+  "Mission",
+  "Board Members",
+  "Committees",
+  "Grants Administration",
+  "Research and Analysis",
+  "Information Systems",
+  "Funding Initiatives",
+  "Reentry Services",
+  "Violence Prevention",
+  "Victim Services",
+  "Training Programs",
+  "Financial Summary",
+];
+const coverOverSections = (realHeadings: number) =>
+  blocksDoc(
+    [
+      [{ tag: "H1", size: 18, lines: ["Annual Report"] }, body("The annual report")],
+      ...COVER_SECTIONS.map((title, i) => [
+        { tag: i < realHeadings - 1 ? "H2" : "P", size: 16, lines: [title] },
+        body(title),
+      ]),
+    ],
+    "Annual Report",
+  );
+
 /** One table row: its cells, and optionally the section it sits in. */
 interface TableRowSpec {
   section?: "THead" | "TBody" | "TFoot";
@@ -4768,6 +4797,44 @@ const SAMPLES: Sample[] = [
       return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
     },
   },
+  // ---- v1.169.0: a few heading tags over an unmarked outline (2026-11-12) ----
+  {
+    file: "synthetic-229-cover-heading-over-unmarked-sections.pdf",
+    truth:
+      "A thirteen-page report whose only heading tag is the <H1> on its cover; all twelve section titles are 16 pt lines tagged <P>. Two agency annual reports in the control set are built exactly this way (three heading tags, all on the cover; 75 and 66 unmarked sections). With a real heading present, look-alike lines cost at most 40 points, so this scored 60 — better than a memo with no heading tags at all. Twelve look-alikes against one real heading is past ten to one: heading_structure must be the Critical 30 that Word and PowerPoint give sections that exist only visually, the finding must say how lopsided it is, 1.3.1 must be named, and the report must grade 69/D.",
+    build: () => coverOverSections(1),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score === null) return "heading_structure unscored";
+      if (h.score !== 30)
+        return `one heading tag over twelve unmarked sections scored ${h.score}, not 30`;
+      if (h.severity !== "Critical") return `severity ${h.severity}, not Critical`;
+      const text = h.findings.join("\n");
+      if (!/Only 1 heading tag\(s\) against 12 line/.test(text))
+        return "the finding does not say how lopsided the outline is";
+      if (!namesCriterion(r, "1.3.1", "heading_structure"))
+        return "points lost with no 1.3.1 failure attributed to heading_structure";
+      return r.overallScore === 69
+        ? null
+        : `the report graded ${r.overallScore}/${r.grade}, not 69/D`;
+    },
+  },
+  {
+    file: "synthetic-230-two-headings-over-unmarked-sections.pdf",
+    truth:
+      "The same report with one more real heading: its first section title is tagged <H2>, leaving eleven tagged <P>. Eleven against two is not ten to one, so the ordinary capped deduction must stand — heading_structure 60, Moderate, 79/C. This is the guard on the rule above: it may fire only when the look-alikes overwhelm the real headings, never merely because there are many.",
+    build: () => coverOverSections(2),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 60)
+        return `two heading tags over eleven unmarked sections scored ${h?.score}, not 60`;
+      if (/Only \d+ heading tag/.test(h.findings.join("\n")))
+        return "the overwhelmed-outline finding fired below ten to one";
+      return r.overallScore === 79
+        ? null
+        : `the report graded ${r.overallScore}/${r.grade}, not 79/C`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4816,6 +4883,14 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-192-row-header-table.pdf": {
     label: "A schedule whose headers run down the first column instead of across the top",
+    chip: "held",
+  },
+  "synthetic-229-cover-heading-over-unmarked-sections.pdf": {
+    label: "One real heading on the cover, twelve section titles tagged as paragraphs",
+    chip: "caught",
+  },
+  "synthetic-230-two-headings-over-unmarked-sections.pdf": {
+    label: "The same report with two real headings — many unmarked titles, but not ten to one",
     chip: "held",
   },
   "synthetic-179-untagged-section-headings.pdf": {
@@ -5270,6 +5345,11 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
 // no single-file test can see. Checked after the per-file pass, same gate.
 // ---------------------------------------------------------------------------
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-229-cover-heading-over-unmarked-sections.pdf",
+    good: "synthetic-230-two-headings-over-unmarked-sections.pdf",
+    category: "heading_structure",
+  },
   {
     bad: "synthetic-179-untagged-section-headings.pdf",
     good: "synthetic-180-section-headings-tagged-twin.pdf",

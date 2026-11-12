@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "unmarked-outline-2026-11-12",
+    badge: "Scoring",
+    text: "A handful of real headings no longer covers for a document whose sections are otherwise unmarked. Until now, once a document had even one real heading, lines that only look like headings (larger or bold text, not marked as headings) could cost a limited number of points, however many there were. Two long reports whose only real headings were on the cover, with about seventy section titles unmarked, scored better on headings than a short memo with no headings at all. When unmarked section titles outnumber the real headings ten to one, and there are at least ten of them, the headings score is now critical, the same as when no heading is marked. This applies to PDF, Word and PowerPoint alike. In our test set it changes the score of those two reports and no others, and neither changes its letter grade.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 12, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "review-fixes-2026-11-12",
     badge: "Fixed",
     text: "A top-to-bottom review of this tool found places where it could mislead you, and they are fixed. A report no longer says a document “passes” or is “ready to publish” when the same report lists a WCAG 2.1 requirement the document does not meet, on screen or in any download. Word, PowerPoint and Excel files are checked more accurately: a data table placed inside a layout table, an embedded object, and a file made only of scanned pages are no longer missed, while highlighted text, hidden slides, linked text boxes and unused page headers no longer lower a grade wrongly. A drawn shape with no words in it, such as an arrow or a circle, now needs a description or the “Mark as decorative” box in all three programs, where before only Word asked for it. Some grades will change, correctly. A PDF that mixes typed pages with scanned ones now names the pages that look like scans. Behind the scenes, a share link can only be made from a result this service produced, so a result left open in a browser tab from before this update needs the audit run again before it can be shared. Automatic-fix jobs now wait in a short line so heavy use cannot slow the service for everyone, the files from a fix job that fails are deleted on the same schedule as a successful one, and the page says before you click that a fixed PDF can be downloaded once.",

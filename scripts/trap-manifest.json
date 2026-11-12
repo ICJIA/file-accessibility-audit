@@ -1,5 +1,5 @@
 {
-  "count": 127,
+  "count": 129,
   "generated": "2026-11-12",
   "items": [
     {
@@ -642,6 +642,16 @@
     {
       "file": "synthetic-183-captions-not-headings.pdf",
       "label": "Figure and table captions set larger than the text — a caption is not a heading",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-229-cover-heading-over-unmarked-sections.pdf",
+      "label": "One real heading on the cover, twelve section titles tagged as paragraphs",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-230-two-headings-over-unmarked-sections.pdf",
+      "label": "The same report with two real headings — many unmarked titles, but not ten to one",
       "chip": "held"
     }
   ]

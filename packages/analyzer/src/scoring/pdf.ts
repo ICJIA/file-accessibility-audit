@@ -5,7 +5,13 @@
  * scoreDocument from here so no other file's imports need to change.
  */
 import { SCORING_WEIGHTS, ANALYSIS, WCAG, SCORING_PROFILES } from "#config";
-import { VISUAL_HEADINGS_FOR_FAILURE, shareScore } from "@file-audit/shared";
+import {
+  OVERWHELMED_HEADINGS_SCORE,
+  VISUAL_HEADINGS_FOR_FAILURE,
+  headingsOverwhelmed,
+  overwhelmedHeadingsFinding,
+  shareScore,
+} from "@file-audit/shared";
 import type { CategoryResult, ScoringMode } from "@file-audit/shared";
 import type { QpdfResult, TableAnalysis } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
@@ -825,9 +831,16 @@ function headingContentVerdict(census: HeadingContentCensus | null): {
 // pages' worth, so one cover page or letterhead cannot trip it. The
 // conformance gate's rule 6c mirrors this expression — change them together.
 const MAX_UNTAGGED_HEADING_LINES = 15;
-function untaggedHeadingDeduction(pdfjs: PdfjsResult): { deduction: number; findings: string[] } {
+function untaggedHeadingDeduction(
+  pdfjs: PdfjsResult,
+  taggedCount: number,
+): { deduction: number; findings: string[] } {
   const n = pdfjs.untaggedVisualHeadingCount ?? 0;
   if (n <= 0) return { deduction: 0, findings: [] };
+  // A few heading tags do not rescue an unmarked outline (2026-11-12) — see
+  // OVERWHELMED_HEADINGS_* in packages/shared. Word and PowerPoint apply the
+  // same test to Heading styles and titled slides.
+  const overwhelmed = headingsOverwhelmed(taggedCount, n);
   const findings = [
     `${n} line(s) are formatted to look like headings (larger or bold text standing over a section) but are tagged as ordinary paragraphs, not headings — screen-reader users cannot find or jump to those sections. Retag each one as a heading at its level in the outline (in Acrobat's Tags panel, change its <P> tag to H2, H3 …), or apply Heading 1–6 styles in the source document and export the PDF again.`,
     "--- Lines Styled Like Headings ---",
@@ -837,6 +850,17 @@ function untaggedHeadingDeduction(pdfjs: PdfjsResult): { deduction: number; find
   ];
   if (n > MAX_UNTAGGED_HEADING_LINES) {
     findings.push(`  ... and ${n - MAX_UNTAGGED_HEADING_LINES} more line(s)`);
+  }
+  if (overwhelmed) {
+    findings.splice(
+      1,
+      0,
+      overwhelmedHeadingsFinding(taggedCount, n, {
+        real: "heading tag(s)",
+        lookalike: "line(s) that look like headings but are tagged as paragraphs",
+      }),
+    );
+    return { deduction: 100 - OVERWHELMED_HEADINGS_SCORE, findings };
   }
   return { deduction: Math.min(40, n * 15), findings };
 }
@@ -977,7 +1001,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     findings.push(
       "How to fix (optional): In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
     );
-    const untaggedGeneric = untaggedHeadingDeduction(pdfjs);
+    const untaggedGeneric = untaggedHeadingDeduction(pdfjs, qpdf.headings.length);
     findings.unshift(...untaggedGeneric.findings.slice(0, 1));
     findings.push(...untaggedGeneric.findings.slice(1));
     const genericScore = 100 - untaggedGeneric.deduction;
@@ -1071,7 +1095,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   }
 
   findings.push(`Found ${levels.length} heading tags with logical hierarchy`);
-  const untagged = untaggedHeadingDeduction(pdfjs);
+  const untagged = untaggedHeadingDeduction(pdfjs, qpdf.headings.length);
   findings.unshift(...untagged.findings.slice(0, 1));
   findings.push(...untagged.findings.slice(1));
   const score = 100 - untagged.deduction;

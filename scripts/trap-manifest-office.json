@@ -1,5 +1,5 @@
 {
-  "count": 101,
+  "count": 103,
   "generated": "2026-11-12",
   "items": [
     {
@@ -508,6 +508,16 @@
       "file": "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx",
       "label": "PowerPoint: the same arrow, marked decorative",
       "chip": "held"
+    },
+    {
+      "file": "synthetic-231-docx-one-heading-over-fake-headings.docx",
+      "label": "Word: one real heading, twelve section titles that are only bold text",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-232-pptx-one-title-over-typed-headings.pptx",
+      "label": "PowerPoint: one titled slide, twelve headings typed into text boxes",
+      "chip": "caught"
     }
   ]
 }

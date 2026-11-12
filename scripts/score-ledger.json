@@ -1172,12 +1172,12 @@
       }
     },
     "SFY_24_ICJIA_Annual_Report_FINAL_2538a182e5_1731f93851.pdf": {
-      "score": 66,
+      "score": 62,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "60|Moderate",
+        "heading_structure": "30|Critical",
         "alt_text": "0|Critical",
         "bookmarks": "100|No scored issues",
         "table_markup": "45|Moderate",
@@ -1575,12 +1575,12 @@
       }
     },
     "not_-accessible_SFY_25_Annual_Report_Final_67436fc6ff_ba00340a2f.pdf": {
-      "score": 67,
+      "score": 62,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "60|Moderate",
+        "heading_structure": "30|Critical",
         "alt_text": "0|Critical",
         "bookmarks": "100|No scored issues",
         "table_markup": "null|none",
@@ -4262,6 +4262,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-229-cover-heading-over-unmarked-sections.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "30|Critical",
+        "alt_text": "null|none",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-23-title-display-off.pdf": {
       "score": 89,
       "grade": "B",
@@ -4275,6 +4291,54 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-230-two-headings-over-unmarked-sections.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "60|Moderate",
+        "alt_text": "null|none",
+        "bookmarks": "100|No scored issues",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-231-docx-one-heading-over-fake-headings.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "30|Critical",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-232-pptx-one-title-over-typed-headings.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "30|Critical",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

@@ -645,6 +645,59 @@ export const UNHEADERED_DATA_TABLE_SCORE = 45;
 export const VISUAL_HEADINGS_FOR_FAILURE = 2;
 
 // ---------------------------------------------------------------------------
+// A FEW REAL HEADINGS DO NOT RESCUE AN UNMARKED OUTLINE (2026-11-12)
+// ---------------------------------------------------------------------------
+// Beside at least one real heading, each line that only LOOKS like a heading
+// costs 15 points, capped at 40 — so the category could not fall below 60
+// (Moderate) however many there were. With NO real heading, two look-alikes
+// are Critical (VISUAL_HEADINGS_FOR_FAILURE above). That left a cliff facing
+// the wrong way. Two agency annual reports in the control set carry exactly
+// three heading tags — the cover's title, its tagline and a web address —
+// and 75 and 66 real section headings tagged as plain paragraphs; they scored
+// 60 for headings, better than a two-page memo with no heading tags at all.
+// A screen-reader user gets nothing from that outline either way.
+//
+// THE RULE (user decision, 2026-11-12). The cap exists because the look-alike
+// census is a heuristic, and stays for the ordinary case. It gives way only
+// when the evidence is overwhelming: at least OVERWHELMED_HEADINGS_MIN
+// look-alikes, outnumbering the real headings OVERWHELMED_HEADINGS_RATIO to
+// one. Measured against every control PDF before it shipped, that describes
+// those two reports and nothing else; the next-closest document is 3 to 1.
+//
+// WHY 30 AND NOT THE SHARE. Scoring the share (3 of 78 = 3) was built first
+// and would have taken both reports from D to F. The user chose Critical
+// without the letter change: 30 is what Word and PowerPoint already give a
+// document whose sections exist only visually, so the same defect reads the
+// same in every format.
+//
+// SAFE TO CHANGE: only in all three scorers at once — headingOverwhelmParity
+// .test.ts fails if PDF, Word and PowerPoint stop agreeing.
+// ---------------------------------------------------------------------------
+export const OVERWHELMED_HEADINGS_MIN = 10;
+export const OVERWHELMED_HEADINGS_RATIO = 10;
+export const OVERWHELMED_HEADINGS_SCORE = 30;
+
+/** True when look-alike headings swamp the real ones. `marked` is the count
+ *  of real headings (tags, Heading styles, titled slides); zero is the other
+ *  rule's case and is never "overwhelmed". */
+export function headingsOverwhelmed(marked: number, unmarked: number): boolean {
+  return (
+    marked > 0 &&
+    unmarked >= OVERWHELMED_HEADINGS_MIN &&
+    unmarked >= OVERWHELMED_HEADINGS_RATIO * marked
+  );
+}
+
+/** The finding that says so, worded once for all three formats. */
+export function overwhelmedHeadingsFinding(
+  marked: number,
+  unmarked: number,
+  nouns: { real: string; lookalike: string },
+): string {
+  return `Only ${marked} ${nouns.real} against ${unmarked} ${nouns.lookalike}: nearly every section is unmarked, so the outline a screen reader offers is almost empty. A handful of real headings does not make the rest navigable, so this category is scored as critical rather than by the usual 15 points a line.`;
+}
+
+// ---------------------------------------------------------------------------
 // A LIST TYPED BY HAND — the Moderate floor (2026-10-05)
 // ---------------------------------------------------------------------------
 // Word and PowerPoint score lists as the share of real list items, so a list

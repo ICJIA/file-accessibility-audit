@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.169.0] - 2026-11-12
+
+### Changed — scoring
+
+- **A few real headings no longer rescue an unmarked outline.** Beside at least one real heading, each line that only looks like a heading (larger or bold text over body text, not marked as a heading) cost 15 points, capped at 40, so the headings category could not fall below 60 (Moderate) however many there were. With no real heading at all, two such lines are Critical. That left a cliff facing the wrong way: two agency annual reports in the control set carry exactly three heading tags (the cover's title, tagline and web address) and 75 and 66 real section headings tagged as plain paragraphs, and they scored 60 for headings, better than a two-page memo with no heading tags.
+- **The rule (user decision):** when look-alike headings number at least 10 and outnumber the real ones 10 to 1, the category scores 30 (Critical). Below that the capped deduction stands. `OVERWHELMED_HEADINGS_MIN`, `_RATIO` and `_SCORE` in `packages/shared`.
+- **The same rule in PDF, Word and PowerPoint** (heading tags, Heading styles, titled slides). 30 is what Word and PowerPoint already give a document whose sections exist only visually.
+- **Why 30 and not the share of headings marked.** Scoring 3 of 78 as 3 was built first and would have taken both reports from D to F. The user chose Critical without the letter change.
+- The conformance verdict is unchanged: it already named 1.3.1 for any look-alike heading.
+
+### Measured before release
+
+- Every control PDF with both real and look-alike headings was counted first. The two annual reports are at 25 to 1 and 22 to 1; the next-closest document is 3 to 1. Their unmarked lines were read: "Mission", "Committees & Task Forces", "Major Funding Initiatives" and so on, all real section headings.
+- **Ledger 351.** Moved: SFY 24 annual report 66/D → 62/D and SFY 25 annual report 67/D → 62/D (headings 60 → 30 in both). No Word, PowerPoint or other PDF control file moved.
+
+### Notes
+
+- **Traps: 232** (129 PDF + 103 Office; was 228).
+  - **229** (PDF): one `<H1>` on the cover, twelve section titles tagged `<P>`. Must score 30, Critical, say how lopsided the outline is, name 1.3.1, and grade 69/D.
+  - **230** (PDF): the same report with two real headings and eleven unmarked. Eleven to two is not ten to one, so it must keep the capped 60 and grade 79/C. This is the guard on the rule.
+  - **231** (Word): one Heading 1, twelve bold section titles. Must score 30.
+  - **232** (PowerPoint): one titled slide, twelve headings typed into text boxes. Must score 30.
+- **Tests:** 4,594 (API 2,485 · Web 2,012 · CLI 97) across 253 files. New: `headingOverwhelmParity` (17), the same cases in all three formats, including that some real headings never score better than none.
+- `pnpm audit --prod`: 1, unchanged (`deepmerge`, accepted in v1.168.2).
+- Still open from the 2026-11-12 review, by decision: the score's clustering stays as it is; PDF colour contrast stays "not assessed".
+
 ## [1.168.2] - 2026-11-12
 
 ### Security

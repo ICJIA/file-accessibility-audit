@@ -5,9 +5,12 @@
  */
 import { DOCX } from "#config";
 import {
+  OVERWHELMED_HEADINGS_SCORE,
   TYPED_LIST_FLOOR,
   UNHEADERED_DATA_TABLE_SCORE,
   VISUAL_HEADINGS_FOR_FAILURE,
+  headingsOverwhelmed,
+  overwhelmedHeadingsFinding,
   shareScore,
 } from "@file-audit/shared";
 import { classifyTitleShape } from "../titleShape.js";
@@ -378,7 +381,19 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       `Advisory — not scored: one paragraph is formatted like a heading ("${loneTitleText}") — with no Heading styles in this document, a single title does not make sections, so it is not scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`,
     );
   } else if (fakes > 0) {
-    score -= total === 0 ? 70 : Math.min(40, fakes * 15);
+    // A few Heading styles do not rescue an unmarked outline (2026-11-12) —
+    // OVERWHELMED_HEADINGS_* in packages/shared; PDF and PowerPoint agree.
+    const overwhelmed = headingsOverwhelmed(total, fakes);
+    score -=
+      total === 0 || overwhelmed ? 100 - OVERWHELMED_HEADINGS_SCORE : Math.min(40, fakes * 15);
+    if (overwhelmed) {
+      findings.push(
+        overwhelmedHeadingsFinding(total, fakes, {
+          real: "real heading(s)",
+          lookalike: "paragraph(s) formatted to look like headings",
+        }),
+      );
+    }
     findings.push(
       `${fakes} paragraph(s) are formatted to look like headings (bold/large text) but are not real Heading styles. Apply Heading 1–6 so assistive technology can navigate them.`,
     );
