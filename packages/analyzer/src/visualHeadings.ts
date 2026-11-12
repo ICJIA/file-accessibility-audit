@@ -68,6 +68,81 @@ interface CandidateLine {
   page: number;
   text: string;
   items: VisualTextItem[];
+  /** The line (the last line of a wrapped heading) sits directly over body
+   *  text, or over a heading-shaped line that does. Bold body-size
+   *  candidates always do; larger ones may not (a title-page line). */
+  overBody: boolean;
+}
+
+/** A candidate line with the geometry the wrap test needs. */
+interface PlacedLine extends CandidateLine {
+  y: number;
+  size: number;
+  bold: boolean;
+  x0: number;
+  x1: number;
+}
+
+/** A continuation sits at most this many font sizes below the line above it.
+ *  Ordinary leading is 1.15–1.3; a new heading after a blank line is 2+. */
+const MAX_WRAP_LEADING = 1.6;
+const WRAP_SIZE_TOLERANCE_PT = 0.5;
+/** A bold body-size heading's paragraph starts within this many font sizes
+ *  beneath it (a blank line after the heading is about 2.5). */
+const MAX_HEADING_TO_BODY_LEADING = 3.5;
+/** How many heading-shaped lines may stack before body text must appear:
+ *  a section heading over a sub-heading over a sub-sub-heading, wrapped. */
+const MAX_STACKED_HEADINGS = 5;
+
+/** Does `next` continue the heading `prev` ends? Same size, same weight, the
+ *  very next line down, and under it rather than beside it. */
+function continuesHeading(prev: PlacedLine, next: PlacedLine): boolean {
+  if (prev.page !== next.page) return false;
+  if (prev.bold !== next.bold) return false;
+  if (Math.abs(prev.size - next.size) > WRAP_SIZE_TOLERANCE_PT) return false;
+  const drop = prev.y - next.y;
+  if (!(drop > 0 && drop <= MAX_WRAP_LEADING * Math.max(prev.size, next.size))) return false;
+  // Horizontal overlap: a heading in the next column is not a continuation.
+  return Math.min(prev.x1, next.x1) > Math.max(prev.x0, next.x0);
+}
+
+/**
+ * A heading that wraps is ONE heading (2026-11-12).
+ *
+ * Candidates were counted per LINE, so "one is a title, two or more are
+ * sections" was decided by where the lines happened to break. A one-page
+ * flyer exported from PowerPoint — a title wrapped over three lines, a bold
+ * call-out sentence over two — was told it had five section headings and
+ * failed 1.3.1 at 0/Critical, in a document with a title and no sections.
+ *
+ * Consecutive candidate lines that continue one another become one candidate
+ * with their text joined. A joined block longer than MAX_HEADING_CHARS is
+ * dropped whole: it is a sentence set large or bold — emphasis — and the
+ * per-line cap only missed it because each of its lines was short.
+ */
+function mergeWrappedLines(placed: PlacedLine[]): CandidateLine[] {
+  const out: CandidateLine[] = [];
+  let block: PlacedLine[] = [];
+  const flush = (): void => {
+    if (block.length === 0) return;
+    const text = block.map((l) => l.text).join(" ");
+    if (block.length === 1 || text.length <= MAX_HEADING_CHARS) {
+      out.push({
+        page: block[0]!.page,
+        text,
+        items: block.flatMap((l) => l.items),
+        overBody: block[block.length - 1]!.overBody,
+      });
+    }
+    block = [];
+  };
+  for (const line of placed) {
+    const prev = block[block.length - 1];
+    if (prev && !continuesHeading(prev, line)) flush();
+    block.push(line);
+  }
+  flush();
+  return out;
 }
 
 export function visualHeadingCensus(items: VisualTextItem[]): VisualHeadingCensus {
@@ -168,23 +243,85 @@ function candidateLines(items: VisualTextItem[]): {
     return true;
   };
 
+  /** The line's own shape, or null when it cannot be a heading: short, not a
+   *  number, uniformly larger than body or uniformly bold at body size, and
+   *  contiguous. */
+  const headingShape = (
+    line: Line,
+  ): { text: string; minSize: number; allBold: boolean; larger: boolean } | null => {
+    const text = lineText(line);
+    if (text.length > MAX_HEADING_CHARS || letterCount(text) < 3) return null;
+    if (/^[\d\s.,:;()/-]+$/.test(text)) return null;
+    // A line that opens with a bullet is a list item, however bold: a board
+    // roster's "• Name" lines sit directly over each member's description.
+    if (/^[\u2022\u00b7\u25aa\u25a0\u25e6\u25cf\u25cb\u2023\u2043\u2013\u2014*-]\s/.test(text))
+      return null;
+    const lettered = line.items.filter((it) => letterCount(it.str) > 0);
+    if (lettered.length === 0) return null;
+    const minSize = Math.min(...lettered.map((it) => it.size));
+    const allBold = lettered.every((it) => it.bold);
+    const larger = minSize >= bodySize + SIZE_STEP_PT;
+    const boldAtBody = allBold && minSize >= bodySize - BODY_TOLERANCE_PT;
+    if (!larger && !boldAtBody) return null;
+    if (!isContiguous(line)) return null;
+    return { text, minSize, allBold, larger };
+  };
+
+  const extentOf = (line: Line): { x0: number; x1: number } => {
+    const xs = line.items.filter((it) => Number.isFinite(it.x));
+    return {
+      x0: Math.min(...xs.map((it) => it.x)),
+      x1: Math.max(...xs.map((it) => it.x + (Number.isFinite(it.width) ? it.width : 0))),
+    };
+  };
+
   const candidates: CandidateLine[] = [];
   for (const pageLines of byPage.values()) {
+    const placed: PlacedLine[] = [];
     // Top of the page first (PDF y grows upward).
     const ordered = [...pageLines].sort((a, b) => b.y - a.y);
+    const shapes = ordered.map((line) => headingShape(line));
+    const extents = ordered.map((line) => extentOf(line));
+    // BOLD AT BODY SIZE NEEDS MORE THAN "SOME BODY TEXT LOWER DOWN" (2026-11-12).
+    // Until bold detection was repaired the same day (pdfjsService
+    // resolveBoldFonts) this branch had never fired, so it had never been
+    // measured. Measured against the control set, bold body-size lines are
+    // real section headings in most reports — and also author names on a
+    // title page, a chart's row labels, a table's column label. What tells
+    // them apart is position: a heading sits DIRECTLY over its paragraph (or
+    // over a sub-heading that does). So for this kind only, the next line
+    // beneath it, in its own column and within a few line-heights, must be
+    // body text, or another heading-shaped line that itself leads to body.
+    const directlyOverBody = (start: number): boolean => {
+      let k = start;
+      for (let hops = 0; hops < MAX_STACKED_HEADINGS; hops++) {
+        const from = extents[k]!;
+        let next = -1;
+        for (let j = k + 1; j < ordered.length; j++) {
+          const e = extents[j]!;
+          if (ordered[j]!.y < ordered[k]!.y && Math.min(from.x1, e.x1) > Math.max(from.x0, e.x0)) {
+            next = j;
+            break;
+          }
+        }
+        if (next === -1) return false;
+        const size = shapes[k]?.minSize ?? bodySize;
+        if (ordered[k]!.y - ordered[next]!.y > MAX_HEADING_TO_BODY_LEADING * size) return false;
+        // Prose, not a table row: cells joined across wide gaps are long enough
+        // to pass for a sentence (a funding chart's group labels sat over rows).
+        if (isBodyLine(ordered[next]!) && isContiguous(ordered[next]!)) return true;
+        if (!shapes[next]) return false;
+        k = next;
+      }
+      return false;
+    };
     for (let i = 0; i < ordered.length; i++) {
       const line = ordered[i]!;
-      const text = lineText(line);
-      if (text.length > MAX_HEADING_CHARS || letterCount(text) < 3) continue;
-      if (/^[\d\s.,:;()/-]+$/.test(text)) continue;
-      const lettered = line.items.filter((it) => letterCount(it.str) > 0);
-      if (lettered.length === 0) continue;
-      const minSize = Math.min(...lettered.map((it) => it.size));
-      const allBold = lettered.every((it) => it.bold);
-      const larger = minSize >= bodySize + SIZE_STEP_PT;
-      const boldAtBody = allBold && minSize >= bodySize - BODY_TOLERANCE_PT;
-      if (!larger && !boldAtBody) continue;
-      if (!isContiguous(line)) continue;
+      const shape = shapes[i];
+      if (!shape) continue;
+      const { text, minSize, allBold } = shape;
+      const overBody = directlyOverBody(i);
+      if (!shape.larger && !overBody) continue;
       let followedByBody = false;
       for (let j = i + 1; j < ordered.length; j++) {
         if (isBodyLine(ordered[j]!)) {
@@ -193,8 +330,18 @@ function candidateLines(items: VisualTextItem[]): {
         }
       }
       if (!followedByBody) continue;
-      candidates.push({ page: line.page, text, items: line.items });
+      placed.push({
+        page: line.page,
+        text,
+        items: line.items,
+        y: line.y,
+        size: minSize,
+        bold: allBold,
+        overBody,
+        ...extents[i]!,
+      });
     }
+    candidates.push(...mergeWrappedLines(placed));
   }
 
   return { lines: candidates, bodySize };
@@ -261,6 +408,12 @@ export function untaggedVisualHeadings(
   const kept: Array<{ text: string; page: number }> = [];
   for (const line of candidateLines(items).lines) {
     if (tags.unreliablePages.has(line.page)) continue;
+    // A heading sits directly over its section (2026-11-12). Each line kept
+    // here costs points, so the looser "some body text further down the
+    // page" that lets the census recognise a title is not enough: a title
+    // page's subtitle passed every other guard below and, once a second
+    // line elsewhere joined it, took a clean 26-page report from A to B.
+    if (!line.overBody) continue;
     if (/[.,;:]$/.test(line.text) || CAPTION_RE.test(line.text)) continue;
     const lettered = line.items.filter((it) => letterCount(it.str) > 0);
     const ids = lettered.map((it) => it.mcid ?? "");

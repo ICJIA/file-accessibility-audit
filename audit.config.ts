@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "wrapped-and-bold-headings-2026-11-12",
+    badge: "Fixed",
+    text: "Two mistakes in how the checker finds headings in a PDF are fixed. First, a title that ran onto two or three lines was counted as two or three separate section headings, so a one-page flyer with a title and no sections was told it had unmarked sections and failed for them. A heading that wraps is now counted once. Second, the checker looks for section headings that are set in bold at the same size as the text around them, which is how Word sets headings in most reports, and it had never actually found any: it was checking which text was bold before the fonts had loaded. That is repaired, so some reports will now show section headings that are marked as ordinary paragraphs, correctly. In our test set seven reports are affected; three lose a few points and none changes its letter grade. Bold names, bulleted lists and table labels are not treated as headings. Separately, when a PDF has pictures without descriptions, the report now tells real pictures apart from drawn shapes such as background boxes, and says that a decorative shape should be marked decorative rather than described.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 12, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "unmarked-outline-2026-11-12",
     badge: "Scoring",
     text: "A handful of real headings no longer covers for a document whose sections are otherwise unmarked. Until now, once a document had even one real heading, lines that only look like headings (larger or bold text, not marked as headings) could cost a limited number of points, however many there were. Two long reports whose only real headings were on the cover, with about seventy section titles unmarked, scored better on headings than a short memo with no headings at all. When unmarked section titles outnumber the real headings ten to one, and there are at least ten of them, the headings score is now critical, the same as when no heading is marked. This applies to PDF, Word and PowerPoint alike. In our test set it changes the score of those two reports and no others, and neither changes its letter grade.",

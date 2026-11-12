@@ -1,5 +1,5 @@
 {
-  "count": 129,
+  "count": 133,
   "generated": "2026-11-12",
   "items": [
     {
@@ -652,6 +652,26 @@
     {
       "file": "synthetic-230-two-headings-over-unmarked-sections.pdf",
       "label": "The same report with two real headings — many unmarked titles, but not ten to one",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-233-wrapped-title-is-one-heading.pdf",
+      "label": "A flyer whose title wraps over three lines — one title, not three sections",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-234-bold-body-size-headings-untagged.pdf",
+      "label": "Section titles that are bold at body size, the way Word sets them, with no heading tags",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-235-bold-headings-tagged-as-paragraphs.pdf",
+      "label": "The same bold section titles tagged as paragraphs beside a real heading",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-236-bold-names-and-labels-not-headings.pdf",
+      "label": "Bold author names, a bulleted roster and bold labels — none of them a heading",
       "chip": "held"
     }
   ]

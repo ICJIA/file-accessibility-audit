@@ -74,7 +74,16 @@ export interface QpdfResult {
      *  word — "image 1" — which is not a description (WCAG F30;
      *  2026-10-06). hasAlt is then false. */
     placeholderAlt?: string;
+    /** /Alt is PRESENT but blank — what PowerPoint writes for a shape nobody
+     *  described. Still missing alt (hasAlt false); the report says "empty"
+     *  rather than "no /Alt attribute", which was untrue (2026-11-12). */
+    altEmpty?: true;
   }>;
+  /** Each <Figure>'s own marked content, by its object ref — lets the alt-text
+   *  findings tell a figure that paints a picture from one that only draws
+   *  (a box, a line, an icon). Report wording only; never read by a score.
+   *  Absent on results that predate it (2026-11-12). */
+  figureContentByRef?: Record<string, Array<{ page: number; mcid: number }>>;
   imageObjectCount: number;
   /**
    * Image XObjects shaped like a LINE OF TEXT rather than a picture — wide,
@@ -1160,6 +1169,9 @@ function parseQpdfJson(json: any): QpdfResult {
             hasAlt,
             altText,
             ...(placeholderAlt ? { placeholderAlt } : {}),
+            ...(typeof rawAlt === "string" && altText === undefined
+              ? { altEmpty: true as const }
+              : {}),
           });
         }
 
@@ -1453,6 +1465,7 @@ function parseQpdfJson(json: any): QpdfResult {
       const collected = collectStructTreeMcidsByPage(objects, pageRefToNum, roleMap);
       result.structTreeMcidsByPage = collected.byPage;
       result.figureMcidsByPage = collected.figureByPage;
+      result.figureContentByRef = collected.figureContentByRef;
     }
   } catch (err) {
     console.error("QPDF JSON parse error:", err);
@@ -1791,15 +1804,21 @@ function collectStructTreeMcidsByPage(
   objects: Record<string, any>,
   pageRefToNum: Map<string, number>,
   roleMap: Record<string, string>,
-): { byPage: Record<number, number[]>; figureByPage: Record<number, number[]> } {
+): {
+  byPage: Record<number, number[]>;
+  figureByPage: Record<number, number[]>;
+  figureContentByRef: Record<string, Array<{ page: number; mcid: number }>>;
+} {
   const out: Record<number, number[]> = {};
   // MCIDs that are DIRECT content of /Figure elements (role-mapped figures
   // included). The fidelity metric excludes these — image paint order is a
   // z-order concern, not reading order (see QpdfResult.figureMcidsByPage).
   const figureOut: Record<number, number[]> = {};
+  // The same direct content, kept per figure (keyed by the element's ref).
+  const figureContentByRef: Record<string, Array<{ page: number; mcid: number }>> = {};
 
   const root = findStructTreeRoot(objects);
-  if (!root) return { byPage: out, figureByPage: figureOut };
+  if (!root) return { byPage: out, figureByPage: figureOut, figureContentByRef };
 
   const pageStack: Array<number | null> = [];
   const visited = new Set<any>();
@@ -1812,14 +1831,22 @@ function collectStructTreeMcidsByPage(
     return false;
   };
 
-  const emit = (pageNum: number | null, mcid: number, isFigureContent: boolean): void => {
+  const emit = (
+    pageNum: number | null,
+    mcid: number,
+    isFigureContent: boolean,
+    figureRef: string | null,
+  ): void => {
     if (pageNum === null) return;
     if (!Number.isInteger(mcid)) return;
     (out[pageNum] ??= []).push(mcid);
-    if (isFigureContent) (figureOut[pageNum] ??= []).push(mcid);
+    if (isFigureContent) {
+      (figureOut[pageNum] ??= []).push(mcid);
+      if (figureRef) (figureContentByRef[figureRef] ??= []).push({ page: pageNum, mcid });
+    }
   };
 
-  const walk = (node: any, depth: number): void => {
+  const walk = (node: any, depth: number, ref: string | null = null): void => {
     if (depth > 200) return; // safety against pathological structure trees
     if (!node || typeof node !== "object") return;
     if (visited.has(node)) return; // cycle guard
@@ -1831,17 +1858,18 @@ function collectStructTreeMcidsByPage(
     // inside a figure (captions) recurse with their own role, so their text
     // stays comparable in the fidelity metric.
     const isFigure = mapToStandardTag(node["/S"], roleMap) === "/Figure";
+    const figureRef = isFigure && ref ? normRef(ref) : null;
 
     const kids = node["/K"];
 
     const processKid = (kid: any): void => {
       if (typeof kid === "number") {
-        emit(currentPage, kid, isFigure);
+        emit(currentPage, kid, isFigure, figureRef);
         return;
       }
       if (typeof kid === "string") {
         const child = resolveRef(kid, objects);
-        if (child) walk(child, depth + 1);
+        if (child) walk(child, depth + 1, kid);
         return;
       }
       if (kid && typeof kid === "object") {
@@ -1851,7 +1879,7 @@ function collectStructTreeMcidsByPage(
           const mcid = kid["/MCID"];
           const pgRef = typeof kid["/Pg"] === "string" ? kid["/Pg"] : null;
           const pgNum = pgRef ? (pageRefToNum.get(pgRef) ?? null) : currentPage;
-          if (typeof mcid === "number") emit(pgNum, mcid, isFigure);
+          if (typeof mcid === "number") emit(pgNum, mcid, isFigure, figureRef);
           return;
         }
         // OBJR: object reference (annotation, form field) — not content.
@@ -1871,5 +1899,5 @@ function collectStructTreeMcidsByPage(
   };
 
   walk(root, 0);
-  return { byPage: out, figureByPage: figureOut };
+  return { byPage: out, figureByPage: figureOut, figureContentByRef };
 }

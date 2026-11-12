@@ -1407,17 +1407,37 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     findings.push(`${figuresWithAlt} of ${figures.length} image(s) have alternative text`);
     findings.push(`--- Images Missing Alt Text ---`);
     let missingCount = 0;
+    // Does this figure paint a picture, or only draw? Known only when both
+    // analyzers reported per-figure evidence; otherwise it is not guessed.
+    const figureContent = qpdf.figureContentByRef;
+    const imageRuns = pdfjs.nonArtifactImageRuns;
+    const figureKind = (ref: string | undefined): "picture" | "drawn" | null => {
+      if (!ref || !figureContent || !Array.isArray(imageRuns) || pdfjs.error) return null;
+      const content = figureContent[ref];
+      if (!content || content.length === 0) return null;
+      return content.some((c) =>
+        imageRuns.some((run) => run.page === c.page && run.mcids.includes(c.mcid)),
+      )
+        ? "picture"
+        : "drawn";
+    };
     for (let fi = 0; fi < figures.length && missingCount < 15; fi++) {
       if (!figures[fi].hasAlt) {
         missingCount++;
         const placeholder = figures[fi].placeholderAlt;
+        const kind = figureKind(figures[fi].ref);
+        // "no /Alt attribute" was written for every one of these, including
+        // the figure whose /Alt is present and blank — what PowerPoint
+        // exports for a shape nobody described (2026-11-12).
+        const what = figures[fi].altEmpty ? "its /Alt is empty" : "no /Alt attribute";
         findings.push(
           placeholder
             ? `  Image ${fi + 1}: <Figure> tag — its alt text is only "${placeholder}", a file name, placeholder word or page label, not a description (WCAG failure F30)`
-            : `  Image ${fi + 1}: <Figure> tag — no /Alt attribute`,
+            : `  Image ${fi + 1}: <Figure> tag — ${what}${kind === "drawn" ? " (a drawn shape, not a picture)" : kind === "picture" ? " (a picture)" : ""}`,
         );
       }
     }
+    const drawnMissing = figures.filter((f) => !f.hasAlt && figureKind(f.ref) === "drawn").length;
     const totalMissing = figures.filter((f) => !f.hasAlt).length;
     if (totalMissing > 15) {
       findings.push(`  ... and ${totalMissing - 15} more image(s) without alt text`);
@@ -1438,6 +1458,14 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     findings.push(
       'How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the "Alternate Text" field.',
     );
+    if (drawnMissing > 0) {
+      // A different fix from a picture's, and the author cannot tell which
+      // is which from "8 images have no alt text": a one-page PowerPoint
+      // flyer listed its QR code and logo beside six background boxes.
+      findings.push(
+        `${drawnMissing} of the image(s) above ${drawnMissing === 1 ? "is a drawn shape" : "are drawn shapes"} — a box, band, line or icon drawn on the page, not a picture. If a shape is only decoration, do not describe it: mark it decorative so a screen reader skips it. In the program that made the file (Word or PowerPoint: right-click the shape → View Alt Text → Mark as decorative), then export the PDF again; or in Acrobat, use Fix reading order to select it and choose Background/Artifact. A shape that carries meaning (an arrow in a diagram) needs a description like any picture.`,
+      );
+    }
     findings.push(
       'Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".',
     );

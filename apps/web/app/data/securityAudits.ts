@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.170.0",
+    meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: how headings are found in a PDF, and how missing picture descriptions are explained.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The checker reads the same information from a document as before and interprets it more accurately. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Two mistakes in finding headings.</strong> A title that ran onto several lines was counted as several section headings, so a simple flyer was wrongly failed. And headings set in bold at ordinary size, the commonest kind in reports, were never being found at all. Both are fixed. The first mistake had been hiding the second.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Clearer advice about pictures.</strong> When pictures in a PDF have no description, the report now says which are real pictures and which are drawn shapes such as background boxes, and explains that a decorative shape should be marked as decoration instead of described. No score changes because of this.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One test document was added to the public record of test files.</strong> It was written by someone outside this agency, so that person&rsquo;s name was removed from the file first. The file was rebuilt, searched to confirm the name is gone, and checked to look exactly the same.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every test document whose score moved was examined line by line. Seven reports now show section headings that were not marked as headings; three lose a few points and none changes its letter grade. Two documents that would have been wrongly marked down were caught during this check and are unaffected. Four new test documents pin the fixes, and three of them fail on the previous version, as they should. Every self-check and every scoring gate passed. The check of third-party software reports one warning, the same one already recorded and accepted.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.169.0",
     meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: how headings are scored when a document marks only a few of them.",
     body: [

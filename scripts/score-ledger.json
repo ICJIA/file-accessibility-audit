@@ -83,12 +83,12 @@
       }
     },
     "2022 SFS Process Evaluation Report-230622T16355531.pdf": {
-      "score": 79,
+      "score": 77,
       "grade": "C",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "50|Moderate",
         "bookmarks": "100|No scored issues",
         "table_markup": "75|Minor",
@@ -331,7 +331,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "heading_structure": "100|No scored issues",
+        "heading_structure": "60|Moderate",
         "alt_text": "68|Moderate",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -379,7 +379,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "heading_structure": "100|No scored issues",
+        "heading_structure": "60|Moderate",
         "alt_text": "64|Moderate",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
@@ -390,12 +390,12 @@
       }
     },
     "COVID arrests PDF to post on web-210305T17262965.pdf": {
-      "score": 69,
+      "score": 63,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -836,12 +836,12 @@
       }
     },
     "Full_DJJ_Recidivism_Report_3-7-2019-191011T20092914.pdf": {
-      "score": 69,
+      "score": 64,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "0|Critical",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "null|none",
@@ -880,6 +880,22 @@
         "list_structure": "45|Moderate",
         "link_quality": "100|No scored issues",
         "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "IL FRO Interview Recruitment Flyer.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "null|none",
+        "alt_text": "33|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No scored issues",
+        "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
     },
@@ -1193,7 +1209,7 @@
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "12|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -1257,7 +1273,7 @@
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "100|No scored issues",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -1273,7 +1289,7 @@
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -1756,7 +1772,7 @@
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "100|No scored issues",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -1772,7 +1788,7 @@
       "categories": {
         "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
-        "heading_structure": "100|No issues found",
+        "heading_structure": "60|Moderate",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "85|Minor",
@@ -4339,6 +4355,70 @@
         "color_contrast": "null|none",
         "list_structure": "null|none",
         "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-233-wrapped-title-is-one-heading.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-234-bold-body-size-headings-untagged.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "0|Critical",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-235-bold-headings-tagged-as-paragraphs.pdf": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "60|Moderate",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-236-bold-names-and-labels-not-headings.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },

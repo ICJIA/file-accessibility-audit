@@ -405,6 +405,12 @@ export async function analyzeWithPdfjs(
     // its rendered size, position, and — when the loaded font's name says so
     // — boldness. Cheap (one entry per item already in hand).
     const visualItems: VisualTextItem[] = [];
+    // The pdf.js font id ("g_d0_f1") of each visual item, by index, and the
+    // ids used on each page — bold is resolved in the SECOND pass, once the
+    // page's fonts exist (see resolveBoldFonts).
+    const visualFontIds: Array<string | null> = [];
+    const fontIdsByPage = new Map<number, Set<string>>();
+    const boldByFontId = new Map<string, boolean>();
     const attribution: StructAttribution = {
       headingIds: new Set(),
       elementById: new Map(),
@@ -421,7 +427,14 @@ export async function analyzeWithPdfjs(
       // keep their exact pre-existing semantics.
       const textContent = await page.getTextContent({ includeMarkedContent: true });
       const textItems = textContent.items.filter((item: any) => typeof item.str === "string");
-      collectVisualItems(page, i, textItems, visualItems, markedContentIdsOf(textContent.items));
+      collectVisualItems(
+        i,
+        textItems,
+        visualItems,
+        visualFontIds,
+        fontIdsByPage,
+        markedContentIdsOf(textContent.items),
+      );
       const pageText = textItems.map((item: any) => item.str || "").join(" ");
       totalText += pageText + " ";
 
@@ -651,6 +664,7 @@ export async function analyzeWithPdfjs(
       throwIfAborted();
       const page = await doc.getPage(i);
       const ops = await page.getOperatorList();
+      resolveBoldFonts(page, fontIdsByPage.get(i), boldByFontId);
       seenPerPage.clear();
       let paintsPageSizedContentImage = false;
       const tablePage = pendingTablePages.get(i);
@@ -794,6 +808,10 @@ export async function analyzeWithPdfjs(
       result.visibleTextFontNames = [...visibleTextFonts].sort();
     }
 
+    visualItems.forEach((item, index) => {
+      const fontId = visualFontIds[index];
+      item.bold = fontId ? (boldByFontId.get(fontId) ?? false) : false;
+    });
     const visual = visualHeadingCensus(visualItems);
     result.visualHeadingCandidateCount = visual.candidateCount;
     result.visualHeadingSamples = visual.samples;
@@ -825,46 +843,76 @@ export async function analyzeWithPdfjs(
 export { classifyTitleShape, isFilenameLikeTitle } from "./titleShape.js";
 export type { TitleShape } from "./titleShape.js";
 
-/** Font-name boldness for the visual-heading census. pdf.js loads a page's
- *  fonts into page.commonObjs during getTextContent; the loaded font's
- *  PostScript name ("Arial-BoldMT", "Calibri,Bold") is the only bold signal a
- *  PDF reliably carries. Unresolvable → not bold; size still counts. */
-function collectVisualItems(
+/**
+ * Font-name boldness for the visual-heading census. The loaded font's
+ * PostScript name ("Arial-BoldMT", "Calibri,Bold") is the only bold signal a
+ * PDF reliably carries. Unresolvable → not bold; size still counts.
+ *
+ * RESOLVED AFTER getOperatorList, NOT AFTER getTextContent (2026-11-12). This
+ * used to look the font up in page.commonObjs straight after getTextContent,
+ * on the belief that text extraction loads a page's fonts there. It does not:
+ * pdf.js publishes font objects to the page only while building the operator
+ * list. Every lookup missed, every line read as "not bold", and the census's
+ * second kind of heading — bold at body size, the way Word sets headings in
+ * most reports — had never once been detected. Only larger text was.
+ *
+ * It went unnoticed because a title that wrapped was being counted line by
+ * line (see mergeWrappedLines in visualHeadings.ts): a research report with
+ * bold 12-point section headings still "failed headings", on the evidence of
+ * its own title. Fixing the wrap removed the accident and exposed this.
+ */
+function resolveBoldFonts(
   page: any,
+  fontIds: Set<string> | undefined,
+  boldByFontId: Map<string, boolean>,
+): void {
+  if (!fontIds) return;
+  for (const fontId of fontIds) {
+    if (boldByFontId.has(fontId)) continue;
+    try {
+      const fontObj = page.commonObjs?.has?.(fontId) ? page.commonObjs.get(fontId) : null;
+      // Not loaded on this page: leave it unresolved — another page that uses
+      // the same font may still resolve it.
+      if (!fontObj) continue;
+      const name = typeof fontObj.name === "string" ? fontObj.name : "";
+      boldByFontId.set(
+        fontId,
+        fontObj.bold === true ||
+          /bold|black|heavy|semibold|demibold|extrabold|ultrabold/i.test(name) ||
+          /[,-]\s*(bd|bld)\b/i.test(name),
+      );
+    } catch {
+      // Unresolvable → not bold (the default when the id is absent).
+    }
+  }
+}
+
+function collectVisualItems(
   pageNumber: number,
   textItems: any[],
   out: VisualTextItem[],
+  fontIds: Array<string | null>,
+  fontIdsByPage: Map<number, Set<string>>,
   mcids: Array<string | null> = [],
 ): void {
-  const boldByFont = new Map<string, boolean>();
-  const isBold = (fontName: unknown): boolean => {
-    if (typeof fontName !== "string") return false;
-    const cached = boldByFont.get(fontName);
-    if (cached !== undefined) return cached;
-    let bold: boolean;
-    try {
-      const fontObj = page.commonObjs?.has?.(fontName) ? page.commonObjs.get(fontName) : null;
-      const name = typeof fontObj?.name === "string" ? fontObj.name : "";
-      bold =
-        fontObj?.bold === true ||
-        /bold|black|heavy|semibold|demibold|extrabold|ultrabold/i.test(name) ||
-        /[,-]\s*(bd|bld)\b/i.test(name);
-    } catch {
-      bold = false;
-    }
-    boldByFont.set(fontName, bold);
-    return bold;
-  };
   textItems.forEach((item, index) => {
     const tr = item?.transform;
     if (!Array.isArray(tr) || tr.length < 6) return;
     const size = Math.hypot(tr[0], tr[1]) || (typeof item.height === "number" ? item.height : 0);
     if (!(size > 0)) return;
+    const fontId = typeof item.fontName === "string" ? item.fontName : null;
+    if (fontId) {
+      const set = fontIdsByPage.get(pageNumber) ?? new Set<string>();
+      set.add(fontId);
+      fontIdsByPage.set(pageNumber, set);
+    }
+    fontIds.push(fontId);
     out.push({
       page: pageNumber,
       str: String(item.str ?? ""),
       size,
-      bold: isBold(item.fontName),
+      // Filled in after the operator-list pass — see resolveBoldFonts.
+      bold: false,
       x: Number(tr[4]),
       y: Number(tr[5]),
       width: typeof item.width === "number" ? item.width : NaN,

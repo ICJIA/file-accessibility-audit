@@ -145,6 +145,136 @@ describe("visualHeadingCensus", () => {
 // control corpus before it was written: cover pages, letterheads, pull quotes
 // and captions all look like headings and none is one.
 // ---------------------------------------------------------------------------
+describe("a heading that wraps is ONE heading (2026-11-12)", () => {
+  // Found on a real one-page flyer exported from PowerPoint: its title ran to
+  // three lines and a bold call-out sentence to two, and the census counted
+  // FIVE headings in a document that has a title and no sections. "One is a
+  // title, two or more are sections" was being decided by where the lines
+  // happened to break.
+  const TITLE = ["Help Improve", "Firearm Restraining Order (FRO)", "Data Systems in Illinois"];
+
+  it("a title wrapped over three lines is one candidate, with its text joined", () => {
+    nextY = 740;
+    const items = [
+      ...TITLE.map((t, i) => line(1, t, 20, { bold: true, y: 700 - i * 24 })),
+      line(1, BODY, 11, { y: 600 }),
+      line(1, BODY, 11, { y: 586 }),
+    ];
+    const c = visualHeadingCensus(items);
+    expect(c.candidateCount).toBe(1);
+    expect(c.samples).toEqual([TITLE.join(" ")]);
+  });
+
+  it("the flyer: a wrapped title and a wrapped bold call-out sentence is ONE heading, not five", () => {
+    nextY = 740;
+    const callout = [
+      "Seeking law enforcement, judges, circuit court clerks, state",
+      "attorneys, & suicide and violence prevention organizations",
+    ];
+    const items = [
+      ...TITLE.map((t, i) => line(1, t, 20, { bold: true, y: 700 - i * 24 })),
+      ...callout.map((t, i) => line(1, t, 13, { bold: true, y: 560 - i * 16 })),
+      line(1, BODY, 11, { y: 500 }),
+      line(1, BODY, 11, { y: 486 }),
+    ];
+    const c = visualHeadingCensus(items);
+    // The call-out joins to well over a heading's length: emphasis, not a heading.
+    expect(c.candidateCount).toBe(1);
+    expect(c.samples).toEqual([TITLE.join(" ")]);
+  });
+
+  it("two headings with their sections between them are still two", () => {
+    nextY = 740;
+    const items = [
+      line(1, "Introduction", 16, { y: 700 }),
+      line(1, BODY, 11, { y: 680 }),
+      line(1, "Methods", 16, { y: 640 }),
+      line(1, BODY, 11, { y: 620 }),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(2);
+  });
+
+  it("same-style lines far apart on the page are separate headings", () => {
+    nextY = 740;
+    const items = [
+      line(1, "Grants Administration", 16, { y: 700 }),
+      // More than a line and a half below: not a continuation.
+      line(1, "Research and Analysis", 16, { y: 650 }),
+      line(1, BODY, 11, { y: 620 }),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(2);
+  });
+
+  it("a title and a smaller subtitle beneath it are not one wrapped line", () => {
+    nextY = 740;
+    const items = [
+      line(1, "Annual Report", 22, { y: 700 }),
+      line(1, "Prepared by the Research Unit", 15, { y: 676 }),
+      line(1, BODY, 11, { y: 640 }),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(2);
+  });
+
+  it("headings side by side in two columns are not one wrapped line", () => {
+    nextY = 740;
+    const items = [
+      line(1, "Eligibility", 16, { y: 700, x: 72, width: 90 }),
+      line(1, "How to Apply", 16, { y: 684, x: 340, width: 100 }),
+      line(1, BODY, 11, { y: 650, x: 72 }),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(2);
+  });
+});
+
+describe("bold at body size: a heading sits directly over its text (2026-11-12)", () => {
+  const b = (page: number, str: string, y: number, x = 72) =>
+    line(page, str, 11, { bold: true, y, x });
+  const body = (page: number, y: number) => line(page, BODY, 11, { y });
+
+  it("a bold line directly over a paragraph is a heading", () => {
+    const items = [b(1, "Introduction", 700), body(1, 684), b(1, "Methods", 640), body(1, 624)];
+    expect(visualHeadingCensus(items).candidateCount).toBe(2);
+  });
+
+  it("a section heading over a sub-heading over text counts both", () => {
+    const items = [b(1, "Findings", 700), b(1, "Coalition Building", 680), body(1, 664)];
+    expect(visualHeadingCensus(items).candidateCount).toBe(2);
+  });
+
+  it("author names on a title page are not headings — nothing reads on beneath them", () => {
+    const items = [
+      b(1, "Ryan Maranville", 700),
+      line(1, "Research Analyst", 11, { y: 686 }),
+      b(1, "Jessica Reichert", 660),
+      line(1, "Research Manager", 11, { y: 646 }),
+      // Body text exists on the page, far below: the old test was satisfied by it.
+      body(1, 300),
+      body(1, 286),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(0);
+  });
+
+  it("a chart's bold row labels are not headings", () => {
+    const items = [
+      b(1, "CVIPI (CFDA # 16.045)", 700),
+      line(1, "$1,200,000", 11, { y: 686 }),
+      b(1, "NCHIP (CFDA # 16.554)", 660),
+      line(1, "$840,000", 11, { y: 646 }),
+      body(1, 200),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(0);
+  });
+
+  it("LARGER text keeps the old, looser test — its results are unchanged", () => {
+    const items = [
+      line(1, "Annual Report", 20, { y: 700 }),
+      line(1, "Illinois", 11, { y: 660 }),
+      body(1, 300),
+    ];
+    expect(visualHeadingCensus(items).candidateCount).toBe(1);
+  });
+});
+
 describe("untaggedVisualHeadings — visual headings tagged as ordinary text", () => {
   const tagged = (item: VisualTextItem, mcid: string | null): VisualTextItem => ({ ...item, mcid });
   /** One block element per heading-like line, by default a <P> holding exactly that line. */

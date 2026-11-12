@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.170.0] - 2026-11-12
+
+Found by checking one D grade by hand: a one-page recruitment flyer exported from PowerPoint, 67/D with three failures. Two were right. The third led to two bugs, one hiding the other.
+
+### Fixed — scoring
+
+- **A heading that wraps was counted once per line.** The visual-heading census decides "one heading-like line is a title, two or more are sections" and counted LINES. The flyer's title ran to three lines and a bold call-out sentence to two, so a document with a title and no sections was told it had five unmarked section headings and failed 1.3.1 at 0/Critical. Consecutive candidate lines of the same size and weight, one under the other, are now one candidate; a joined block longer than a heading (80 characters) is a sentence set bold, and is dropped. The flyer now reports its two real failures (title, image descriptions) and scores 69/D; the letter does not change because image descriptions alone cap it.
+- **Bold headings had never been detected.** The census has always named two kinds of look-alike heading: text larger than the body, and text bold at body size, which is how Word sets section headings in most reports. Bold was looked up in `page.commonObjs` straight after `getTextContent`, on the belief that text extraction loads a page's fonts there. It does not; pdf.js publishes fonts while building the operator list. Every lookup missed and every line read as not bold. Bold is now resolved after the operator-list pass (`resolveBoldFonts`).
+- **The first bug was hiding the second.** Five research reports with bold 12-point section headings and no heading tags still failed headings, but on the evidence of their own wrapped title. Fixing the wrap alone removed that accident and would have passed them; with bold repaired they fail for the right reason, and their scores do not move.
+- **A heading sits directly over its paragraph.** Bold detection, once working, also found author names on a title page, a board roster's bulleted names, a chart's group labels and a table's column label. Measured against the control set, what separates them is position, so a bold body-size line counts only when the next line beneath it, in its own column and within a few line-heights, is prose, or another heading-shaped line that leads to prose. In a tagged document every counted line must pass this, larger text included: a title page's subtitle had passed every other guard and, joined by one real unmarked heading, took a clean 26-page report from A to B. A line opening with a bullet is a list item.
+
+### Changed — report wording (no score moves)
+
+- **Missing image descriptions in a PDF are no longer one undifferentiated list.** Each line says whether the figure is a picture or a drawn shape, and whether its `/Alt` is absent or present and empty (what PowerPoint exports for a shape nobody described; the report used to say "no /Alt attribute" for both). When drawn shapes are among them, a separate line gives their fix: mark the shape decorative in the source program and export again, or make it an artifact in Acrobat. The flyer listed a QR code and a logo beside six background boxes with one remedy for all eight.
+
+### Measured before release
+
+Every moved real document was listed line by line, and the doubtful pages rendered.
+
+- **Heading score 100 → 60 in seven reports**, each for section headings tagged as ordinary paragraphs that were never detected: the SFS process evaluation (37 lines, 79/C → 77/C), the COVID arrests report (3, 69/D → 63/D), the DJJ recidivism report (4, 69/D → 64/D), and, with no change in overall score because another category already caps them, the budget impasse article (13), COVID deaths in custody (7), the drone surveillance report (3) and Women in Policing (30, original and remediated copies). **No letter grade changes.**
+- **Unchanged after the guards:** the federal funding chart (its group labels are table rows, not sections) and the community-based corrections report (100/A).
+- **Ledger 356**: the ten rows above, four traps, and the flyer, added to the control set with the external author's name removed from its properties and metadata.
+
+### Notes
+
+- **Traps: 236** (133 PDF + 103 Office; was 232). Three of the four fail on the previous code; the fourth guards against a false accusation the previous code could not make.
+  - **233** (FOUND A REAL BUG): a flyer whose title wraps over three lines, with a two-line bold call-out. Headings must be unscored, the title quoted as one line, 100/A.
+  - **234** (FOUND A REAL BUG): three section titles bold at body size, no heading tags. Must be 0/Critical, 69/D.
+  - **235**: the same bold titles tagged `<P>` beside a real `<H1>`. Must be 60, 79/C.
+  - **236**: bold author names, a bulleted roster name and bold labels over figures, in a correctly headed report. Must stay 100/A.
+- **Tests:** 4,610 (API 2,501 · Web 2,012 · CLI 97) across 254 files. New: wrapped-heading and directly-over-body cases in `visualHeadings` (11), `pdfFigureKinds` (5).
+- `pnpm audit --prod`: 1, unchanged.
+
 ## [1.169.0] - 2026-11-12
 
 ### Changed — scoring

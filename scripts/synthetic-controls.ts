@@ -4835,6 +4835,142 @@ const SAMPLES: Sample[] = [
         : `the report graded ${r.overallScore}/${r.grade}, not 79/C`;
     },
   },
+  // ---- v1.170.0: wrapped headings and bold body-size headings (2026-11-12) ----
+  {
+    file: "synthetic-233-wrapped-title-is-one-heading.pdf",
+    truth:
+      "A one-page flyer with no heading tags: its title runs to three lines of 20 pt bold, and a bold call-out sentence to two lines. Modeled on a real PowerPoint export that was told it had FIVE section headings and failed 1.3.1 at 0/Critical — the census counted lines, so where the title happened to wrap decided whether it was 'a title' or 'sections'. A wrapped heading is one heading, and a two-line sentence set bold is emphasis: heading_structure must be unscored, the finding must quote the whole title as ONE line, nothing may be asserted against headings, and the flyer must be 100/A.",
+    build: () =>
+      blocksDoc(
+        [
+          [
+            {
+              tag: "P",
+              size: 20,
+              bold: true,
+              lines: ["Help Improve", "Restraining Order Data", "Systems in Illinois"],
+            },
+            {
+              tag: "P",
+              size: 11,
+              bold: true,
+              lines: [
+                "Seeking law enforcement, judges, circuit court clerks, state",
+                "attorneys, and suicide and violence prevention organizations",
+              ],
+            },
+            body("We are seeking participants"),
+          ],
+        ],
+        "Help Improve Restraining Order Data Systems in Illinois",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h) return "heading_structure missing";
+      if (h.score !== null)
+        return `a wrapped title was scored ${h.score} — its lines were counted as sections`;
+      if (
+        !/One line looks like a visual heading \("Help Improve Restraining Order Data Systems in Illinois"\)/.test(
+          h.findings.join("\n"),
+        )
+      )
+        return "the title is not reported as one line";
+      if (r.conformance.failures.some((f) => f.category === "heading_structure"))
+        return "1.3.1 asserted against a document with a title and no sections";
+      return r.overallScore === 100 ? null : `the flyer scored ${r.overallScore}/${r.grade}`;
+    },
+  },
+  {
+    file: "synthetic-234-bold-body-size-headings-untagged.pdf",
+    truth:
+      "A three-page report with no heading tags whose section titles are BOLD AT BODY SIZE — the way Word sets headings in most reports — each directly over its paragraph. The census has always named this kind of heading, and until 2026-11-12 had never once detected it: bold was looked up before pdf.js had loaded the page's fonts, so every line read as not bold and only LARGER text was ever found. Three research reports in the control set 'failed headings' on the evidence of their own wrapped title alone. heading_structure must be 0 (Critical), the finding must name the lines, 1.3.1 must be attributed, and the report must grade 69/D.",
+    build: () =>
+      blocksDoc(
+        ["Introduction", "Methods", "Findings"].map((title) => [
+          { tag: "P", size: 11, bold: true, lines: [title] },
+          body(title),
+        ]),
+        "Program Evaluation",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 0)
+        return `bold body-size section titles scored ${h?.score}, not 0 — bold is not being detected`;
+      const text = h.findings.join("\n");
+      if (!/3 line\(s\) look like section headings/.test(text))
+        return "the three bold titles are not counted";
+      if (!/"Introduction"/.test(text)) return "a bold title is not named";
+      if (!namesCriterion(r, "1.3.1", "heading_structure"))
+        return "points lost with no 1.3.1 failure attributed to heading_structure";
+      return r.overallScore === 69
+        ? null
+        : `the report graded ${r.overallScore}/${r.grade}, not 69/D`;
+    },
+  },
+  {
+    file: "synthetic-235-bold-headings-tagged-as-paragraphs.pdf",
+    truth:
+      "The same three bold body-size section titles, in a report that DOES have a real <H1>: each is tagged <P>. Beside a real heading they are unmarked sections — 15 points apiece, capped at 40 — so heading_structure must be 60, the lines must be named with their pages, 1.3.1 must be attributed, and the report must grade 79/C.",
+    build: () =>
+      blocksDoc(
+        [
+          [{ tag: "H1", size: 18, lines: ["Program Evaluation"] }, body("The evaluation")],
+          ...["Introduction", "Methods", "Findings"].map((title) => [
+            { tag: "P", size: 11, bold: true, lines: [title] },
+            body(title),
+          ]),
+        ],
+        "Program Evaluation",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 60) return `three bold titles tagged <P> scored ${h?.score}, not 60`;
+      if (!/"Methods" \(page 3\)/.test(h.findings.join("\n")))
+        return "a bold title or its page is missing";
+      if (!namesCriterion(r, "1.3.1", "heading_structure"))
+        return "points lost with no 1.3.1 failure attributed to heading_structure";
+      return r.overallScore === 79
+        ? null
+        : `the report graded ${r.overallScore}/${r.grade}, not 79/C`;
+    },
+  },
+  {
+    file: "synthetic-236-bold-names-and-labels-not-headings.pdf",
+    truth:
+      "A correctly headed report full of bold body-size lines that are NOT headings: two authors' names on the title page, each over a job title; a roster line that opens with a bullet; and two bold labels each over a short figure. All of them were counted as unmarked headings the moment bold detection was repaired. A heading sits directly over its paragraph — none of these does — so heading_structure must be a clean 100, nothing may be asserted, and the report must be 100/A.",
+    build: () =>
+      blocksDoc(
+        [
+          [
+            { tag: "H1", size: 18, lines: ["Program Evaluation"] },
+            { tag: "P", size: 11, bold: true, lines: ["Ryan Example"] },
+            { tag: "P", size: 11, lines: ["Research Analyst"] },
+            { tag: "P", size: 11, bold: true, lines: ["Jessica Sample"] },
+            { tag: "P", size: 11, lines: ["Research Manager"] },
+            body("This report"),
+          ],
+          [
+            { tag: "H2", size: 14, lines: ["Board Members"] },
+            { tag: "P", size: 11, bold: true, lines: ["\\225 Candice Example"] },
+            body("Appointed in 2024"),
+            { tag: "P", size: 11, bold: true, lines: ["Total awards"] },
+            { tag: "P", size: 11, lines: ["$4,000,000"] },
+            { tag: "P", size: 11, bold: true, lines: ["Administrative funds"] },
+            { tag: "P", size: 11, lines: ["$227,002"] },
+            body("These figures"),
+          ],
+        ],
+        "Program Evaluation",
+      ),
+    check: (r) => {
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 100)
+        return `bold names and labels cost points: heading_structure ${h?.score}`;
+      if (r.conformance.failures.some((f) => f.category === "heading_structure"))
+        return "1.3.1 asserted against names and labels";
+      return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4883,6 +5019,23 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   },
   "synthetic-192-row-header-table.pdf": {
     label: "A schedule whose headers run down the first column instead of across the top",
+    chip: "held",
+  },
+  "synthetic-233-wrapped-title-is-one-heading.pdf": {
+    label: "A flyer whose title wraps over three lines — one title, not three sections",
+    chip: "bug",
+  },
+  "synthetic-234-bold-body-size-headings-untagged.pdf": {
+    label:
+      "Section titles that are bold at body size, the way Word sets them, with no heading tags",
+    chip: "bug",
+  },
+  "synthetic-235-bold-headings-tagged-as-paragraphs.pdf": {
+    label: "The same bold section titles tagged as paragraphs beside a real heading",
+    chip: "caught",
+  },
+  "synthetic-236-bold-names-and-labels-not-headings.pdf": {
+    label: "Bold author names, a bulleted roster and bold labels — none of them a heading",
     chip: "held",
   },
   "synthetic-229-cover-heading-over-unmarked-sections.pdf": {
