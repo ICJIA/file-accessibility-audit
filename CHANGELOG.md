@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.170.1] - 2026-11-12
+
+### Added
+
+- **A What's New entry for the dependency release (v1.168.2).** That release closed 35 of 36 advisories and shipped without an announcement because none was a reachable way to harm the service. The October dependency release had one, so this adds it for consistency: what was updated, the one advisory that was observable on the live site and did no harm, that every test document was regraded with no change, and the one advisory left open. It sits below today's three scoring entries, so the banner still shows the heading fixes. Links to the security review log.
+
+### Notes
+
+- Copy only. No application or scoring code changed; ledger 356, traps 236 and tests 4,610 are unchanged.
+- `pnpm audit --prod`: 1, unchanged.
+
 ## [1.170.0] - 2026-11-12
 
 Found by checking one D grade by hand: a one-page recruitment flyer exported from PowerPoint, 67/D with three failures. Two were right. The third led to two bugs, one hiding the other.

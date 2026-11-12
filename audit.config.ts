@@ -299,6 +299,18 @@ export const ANNOUNCEMENTS = [
     requiresWcagVersion: null as "2.1" | "2.2" | null,
   },
   {
+    id: "dependency-security-update-2026-11-12",
+    badge: "Security",
+    text: "The software this site is built on has been updated to close newly published security warnings: 35 of the 36 found in this month’s review. None of them was a way to stop the service or to read anything from it. One could be seen on the live site and did no harm: a web address written in an unusual way could be answered without one instruction the site normally sends to search engines, on a single page, while the site’s security settings were sent every time. The program that reads Word, PowerPoint and Excel files was among those updated, so every test document was graded again to confirm that no grade changed. The one warning left open concerns a tool used only while the site is being built, has no fix published yet, and is not part of the live site. Nothing about how your documents are checked, stored, or deleted has changed.",
+    linkText: "Read the security review log",
+    linkTo: "/data-retention#security-audits",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 12, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "dependency-security-update-2026-10-26",
     badge: "Security",
     text: "The software this site is built on has been updated to close newly published security flaws. One of them was reachable on the live site: a single specially built request could make the checking service stop until it restarted itself. That is fixed, and a new self-check now sends that exact request before every release. The flaws were in third-party code the service depends on rather than in the accessibility checks themselves, so nothing about how your documents are checked, stored, or deleted has changed. The full technical account is in the security log, and the plain-language version is in section 10 of the data-retention policy.",

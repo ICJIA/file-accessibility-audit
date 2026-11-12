@@ -1424,6 +1424,10 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.170.1 — 2026-11-12 · What's New entry for the v1.168.2 dependency release (no new attack surface)
+
+No new attack surface. One announcement entry was added to `ANNOUNCEMENTS`; no application code, scoring code, route or dependency changed. `pnpm audit --prod`: **1**, unchanged (the `deepmerge` acceptance in v1.168.2). Typecheck, lint, format, build and tests: 4,610 green.
+
 ### v1.170.0 — 2026-11-12 · Scoring: wrapped headings counted once; bold headings detected for the first time; clearer image findings (no new attack surface)
 
 No new attack surface. The changes are in how already-extracted text positions and font names are interpreted, and in the wording of one finding. One new field is derived from the structure tree the analyzer already walks (each figure's own content ids) and is used for wording only. Nothing new is stored or sent; no route, parameter or dependency was added. One control document was added to the public repository after the external author's name was removed from its document properties and XMP metadata; the file was rewritten whole, the name was searched for in the fully decoded output (none), and the page renders pixel-identical.
