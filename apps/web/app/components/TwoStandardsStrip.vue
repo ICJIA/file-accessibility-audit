@@ -26,14 +26,20 @@
       :class="
         lawFailing
           ? 'border-[var(--status-error-red)]/50 bg-[var(--status-error-red)]/10'
-          : 'border-[var(--status-ok-green)]/50 bg-[var(--status-ok-green)]/10'
+          : lawUndetermined
+            ? 'border-[var(--status-warning-yellow)]/50 bg-yellow-500/10'
+            : 'border-[var(--status-ok-green)]/50 bg-[var(--status-ok-green)]/10'
       "
     >
       <p class="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
         Required by WCAG 2.1 · ADA Title II · Illinois IITAA
       </p>
-      <p class="text-lg sm:text-xl font-bold text-[var(--text-heading)] mt-1 leading-snug">
-        <span aria-hidden="true">{{ lawFailing ? "✕" : "✓" }}</span>
+      <p
+        data-testid="law-verdict"
+        class="text-lg sm:text-xl font-bold text-[var(--text-heading)] mt-1 leading-snug"
+      >
+        <!-- Never a green tick for a check that did not finish. -->
+        <span aria-hidden="true">{{ lawFailing ? "✕" : lawUndetermined ? "⚠" : "✓" }}</span>
         {{ lawVerdict }}
       </p>
       <p class="text-sm text-[var(--text-secondary)] mt-1">
@@ -54,6 +60,9 @@
           <a href="#action-plan" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >Go to the fixes</a
           >.
+        </template>
+        <template v-else-if="lawUndetermined">
+          {{ " " }}A full manual review is needed before publishing.
         </template>
         <template v-else-if="conformance?.notAssessed?.length">
           {{ " " }}{{ conformance.notAssessed.length }} criteria still need a quick manual review —
@@ -83,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import { publicationStatus } from "~/utils/publicationStatus";
 import { LEGAL_ONLY_SCORING_SINCE } from "@file-audit/shared";
 import type { PdfUaVerdict } from "@file-audit/shared";
 import { computed } from "vue";
@@ -129,26 +139,39 @@ const currentEra = computed(() => {
 // Exposed for the era sentence in the template.
 const legalOnlySince = LEGAL_ONLY_SCORING_SINCE;
 
-const lawFailing = computed(() => props.conformance?.status === "fail");
+// Failing / not-determined come from the shared publish decision
+// (utils/publicationStatus.ts), so this strip cannot show a green tick beside
+// a hero that says the document is not ready: a failures list under any
+// status is a failure, and "incomplete" is a check that did not finish.
+const lawStatus = computed(() => publicationStatus([], props.conformance));
+const lawFailing = computed(() => lawStatus.value.wcagFails);
+const lawUndetermined = computed(() => lawStatus.value.wcagUndetermined);
 
 const lawVerdict = computed(() => {
   const c = props.conformance;
   if (!c) return "Checked against the legal standard";
-  if (c.status === "fail") {
+  if (lawUndetermined.value) return "The WCAG 2.1 check could not be completed";
+  if (lawFailing.value) {
+    const failures = (Array.isArray(c.failures) ? c.failures : []).filter(
+      (f) => !!f && typeof f === "object",
+    );
+    // A fail status with nothing listed (forged or truncated stored report)
+    // still fails — without inventing a count.
+    if (!failures.length) return "WCAG 2.1 requirements not met";
     // DISTINCT criteria, not failure entries: 1.3.1 failing in headings AND
     // tables is one criterion twice, and a reader who counts the listed
     // criteria must land on this number (2026-09-01: "4 criteria failing"
     // over a list of three). Entries without an sc (forged/legacy payloads)
     // keep the entry count rather than fabricate a smaller number.
-    const entries = c.failures.length;
-    const scList = c.failures.map((f) => (f as { sc?: string }).sc).filter(Boolean);
+    const entries = failures.length;
+    const scList = failures.map((f) => (f as { sc?: string }).sc).filter(Boolean);
     const n = scList.length === entries ? new Set(scList).size : entries;
     // One category can fail two criteria (a missing title AND a missing
     // language both live in Title & Language), and one criterion can fail in
     // two categories — so the criteria count can differ from the severity
     // tiles a reader just added up. Bridge the two numbers whenever they
     // differ (user report 2026-08-29: "4+1 = 5 … but this says 6").
-    const catList = c.failures.map((f) => f.category).filter(Boolean);
+    const catList = failures.map((f) => f.category).filter(Boolean);
     const cats = new Set(catList).size;
     // Bridge only when every failure carries a category (old stored reports
     // may not) — never let missing data fabricate a smaller-looking number.

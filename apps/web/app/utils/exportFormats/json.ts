@@ -30,17 +30,48 @@ function failingCriteriaStrings(
   return out.length ? out : null;
 }
 import { fileTypeLabel, pageNoun } from "~/utils/reportBanner";
+import { SEVERITY_THRESHOLDS } from "@file-audit/shared";
+import { exportCategoryStatus, failingCategoryIds, gradeLabelFor } from "~/utils/publicationStatus";
 import {
   type ReportResult,
   type BrandingInfo,
   gradeLabel,
   getScoreProfiles,
   timestamp,
+  exportPlan,
 } from "./shared";
+
+/** "70–99" for a severity label, read from the shared thresholds the screen
+ *  uses — this export used to print its own 90/70/40 bands, under which a
+ *  95 (Minor, with a required fix) was a "pass". */
+function bandFor(severity: string): string {
+  const i = SEVERITY_THRESHOLDS.findIndex((t) => t.severity === severity);
+  if (i < 0) return "";
+  const min = SEVERITY_THRESHOLDS[i]!.min;
+  const max = i === 0 ? 100 : SEVERITY_THRESHOLDS[i - 1]!.min - 1;
+  return min === max ? String(min) : `${min}–${max}`;
+}
 
 // Exported for unit tests (Fix 4: llmContext/remediationPlan format-neutral wording).
 export function buildJSON(result: ReportResult, branding: BrandingInfo): string {
-  const failingCategories = result.categories.filter((c) => c.score !== null && c.score < 90);
+  // What needs fixing, in the order the on-screen action plan lists it —
+  // derived from severity and the conformance verdict, the same two sources
+  // every other surface reads (utils/publicationStatus.ts).
+  const plan = exportPlan(result);
+  const pub = plan.status;
+  const requiredIds = failingCategoryIds(result.conformance);
+  const byId = new Map(result.categories.map((c) => [c.id, c]));
+  const planned = plan.steps.map((step) => ({ step, cat: byId.get(step.categoryId) }));
+  // A category the gate holds a confirmed failure against is never left out
+  // of the plan, even if its severity produced no step.
+  const plannedIds = new Set(plan.steps.map((st) => st.categoryId));
+  const extraRequired = result.categories.filter(
+    (c) => requiredIds.has(c.id) && !plannedIds.has(c.id),
+  );
+  const fixCount = planned.length + extraRequired.length;
+  const mustFix = pub.wcagFails
+    ? ` ${pub.requirementSentence} and must be fixed before publishing.`
+    : "";
   const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
 
   const report = {
@@ -49,7 +80,7 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
       generatedAtFormatted: timestamp(),
       tool: branding.appName,
       toolUrl: branding.siteUrl,
-      schemaVersion: "2.1",
+      schemaVersion: "2.2",
     },
     file: {
       name: result.filename,
@@ -59,7 +90,13 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
     score: {
       overall: result.overallScore,
       grade: result.grade,
-      gradeLabel: gradeLabel(result.grade),
+      // Kept for scripts that read it, but never a bare "Excellent" beside
+      // readyToPublish:false — it carries the same words as the on-screen
+      // grade label. The plain adjective is in gradeAdjective.
+      gradeLabel: plan.hasCategories
+        ? gradeLabelFor(gradeLabel(result.grade), pub)
+        : gradeLabel(result.grade),
+      gradeAdjective: gradeLabel(result.grade),
       primaryMode: result.scoringMode || "strict",
     },
     scoreProfiles: Object.fromEntries(
@@ -70,7 +107,9 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
           description: profile.description,
           overall: profile.overallScore,
           grade: profile.grade,
-          gradeLabel: gradeLabel(profile.grade),
+          gradeLabel: plan.hasCategories
+            ? gradeLabelFor(gradeLabel(profile.grade), pub)
+            : gradeLabel(profile.grade),
           executiveSummary: profile.executiveSummary,
         },
       ]),
@@ -78,6 +117,13 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
     executiveSummary: result.executiveSummary,
     warnings: result.warnings || [],
     conformance: result.conformance ?? null,
+    // The publish decision, exactly as the report states it on screen.
+    publication: {
+      state: pub.state,
+      readyToPublish: pub.mayClaimPass,
+      verdict: plan.verdictLabel,
+      wcagFailureCount: pub.failureCount,
+    },
     categories: result.categories.map((cat) => {
       const wcag = WCAG_MAP[cat.id];
       return {
@@ -86,16 +132,10 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
         score: cat.score,
         grade: cat.grade,
         severity: cat.severity,
-        status:
-          cat.score === null
-            ? "not-applicable"
-            : cat.score >= 90
-              ? "pass"
-              : cat.score >= 70
-                ? "minor"
-                : cat.score >= 40
-                  ? "moderate"
-                  : "fail",
+        status: exportCategoryStatus(cat),
+        // A confirmed WCAG 2.1 failure sits in this category — a required
+        // fix whatever the score. null = this payload carries no verdict.
+        requiredByWcag: pub.conformanceKnown ? requiredIds.has(cat.id) : null,
         findings: cat.findings,
         explanation: cat.explanation || null,
         helpLinks: cat.helpLinks || [],
@@ -114,22 +154,41 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
     }),
     remediationPlan: {
       summary:
-        failingCategories.length === 0
-          ? "No remediation needed — all scored categories pass."
-          : `${failingCategories.length} categor${failingCategories.length === 1 ? "y needs" : "ies need"} remediation.`,
-      prioritizedSteps: failingCategories
-        .sort((a, b) => (a.score ?? 100) - (b.score ?? 100))
-        .map((cat, i) => ({
-          priority: i + 1,
+        fixCount === 0
+          ? pub.mayClaimPass
+            ? "No remediation needed — all scored categories pass."
+            : plan.emptySentence
+          : `${fixCount} categor${fixCount === 1 ? "y needs" : "ies need"} remediation.${mustFix}`,
+      prioritizedSteps: [
+        ...planned.map(({ step, cat }) => ({
+          categoryId: step.categoryId,
+          category: cat?.label ?? step.categoryId,
+          title: step.title,
+          currentScore: cat?.score ?? null,
+          severity: step.severity as string | null,
+        })),
+        ...extraRequired.map((cat) => ({
+          categoryId: cat.id,
           category: cat.label,
+          title: `Fix: ${cat.label}`,
           currentScore: cat.score,
           severity: cat.severity,
-          wcagCriteria:
-            failingCriteriaStrings(result.conformance, cat.id) ?? getWcagCriteriaStrings(cat.id),
-          action:
-            WCAG_MAP[cat.id]?.remediation ||
-            "Review findings and remediate in the source application.",
         })),
+      ].map((row, i) => ({
+        priority: i + 1,
+        category: row.category,
+        categoryId: row.categoryId,
+        title: row.title,
+        currentScore: row.currentScore,
+        severity: row.severity,
+        requiredByWcag: pub.conformanceKnown ? requiredIds.has(row.categoryId) : null,
+        wcagCriteria:
+          failingCriteriaStrings(result.conformance, row.categoryId) ??
+          getWcagCriteriaStrings(row.categoryId),
+        action:
+          WCAG_MAP[row.categoryId]?.remediation ||
+          "Review findings and remediate in the source application.",
+      })),
     },
     llmContext: {
       description:
@@ -137,9 +196,17 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
       prompt:
         `You are reviewing a ${fileTypeLabel(result.fileType)} accessibility audit for "${result.filename}" (${result.pageCount} ${pageNoun(result.fileType)}${result.pageCount === 1 ? "" : "s"}). ` +
         `It scored ${result.overallScore}/100 (Grade ${result.grade}). ` +
-        (failingCategories.length > 0
-          ? `The following categories need remediation: ${failingCategories.map((c) => `${c.label} (${c.score}/100)`).join(", ")}. `
-          : "All scored categories pass. ") +
+        `Publication verdict: ${plan.verdictLabel}. ` +
+        (fixCount > 0
+          ? `The following categories need remediation, in priority order: ${[
+              ...planned.map(({ step, cat }) => cat ?? { label: step.categoryId, score: null }),
+              ...extraRequired,
+            ]
+              .map((c) => `${c.label} (${c.score === null ? "not scored" : `${c.score}/100`})`)
+              .join(", ")}.${mustFix} `
+          : pub.mayClaimPass
+            ? "All scored categories pass. "
+            : `${plan.emptySentence} `) +
         `Use the remediationPlan.prioritizedSteps array for ordered fix instructions. ` +
         `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for the source application.`,
       standards: [
@@ -152,11 +219,12 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
         // listing it for an Office-format report would be a false claim.
         ...(!result.fileType || result.fileType === "pdf" ? ["PDF/UA (ISO 14289-1)"] : []),
       ],
+      // Read from the shared severity thresholds — the bands the screen uses.
       scoringScale: {
-        pass: "90–100",
-        minor: "70–89",
-        moderate: "40–69",
-        fail: "0–39",
+        pass: bandFor("No issues found"),
+        minor: bandFor("Minor"),
+        moderate: bandFor("Moderate"),
+        fail: bandFor("Critical"),
       },
     },
   };

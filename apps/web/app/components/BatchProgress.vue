@@ -1,12 +1,22 @@
 <template>
   <div class="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
-    <div class="relative">
+    <div class="relative" aria-hidden="true">
       <div
         class="w-16 h-16 border-4 border-[var(--border)] border-t-green-500 rounded-full animate-spin"
       />
     </div>
 
-    <div class="text-center space-y-2">
+    <!-- A polite live region: the count changes as each file finishes, and a
+         screen-reader user used to hear none of it. aria-atomic so the whole
+         sentence is read ("Analyzing 4 files, 2 of 4 complete"), not just the
+         digit that changed. -->
+    <div
+      class="text-center space-y-2"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      data-testid="batch-status"
+    >
       <p class="text-lg font-medium text-[var(--text-heading)]">
         Analyzing {{ items.length }} files
       </p>
@@ -19,8 +29,10 @@
         :key="item.id"
         class="flex items-center gap-3 rounded-lg bg-[var(--surface-card)] border border-[var(--border)] px-4 py-2.5"
       >
-        <!-- Status icon -->
-        <div class="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+        <!-- Status icon — decorative; the state is given in words by the
+             label at the end of the row (visible for the states that need
+             attention, screen-reader-only for the rest). -->
+        <div class="flex-shrink-0 w-5 h-5 flex items-center justify-center" aria-hidden="true">
           <div
             v-if="item.status === 'processing'"
             class="w-4 h-4 border-2 border-[var(--border)] border-t-green-500 rounded-full animate-spin"
@@ -92,15 +104,29 @@
             backgroundColor: withAlpha(gradeColor(item.result.grade), 12),
             color: gradeColor(item.result.grade),
           }"
+          ><span class="sr-only">Done, grade{{ " " }}</span
           >{{ item.result.grade }}</span
         >
+        <span v-else-if="item.status === 'done'" class="sr-only">Done</span>
 
-        <!-- Cancelled label -->
+        <!-- State in words. Error and in-progress used to be an icon alone. -->
         <span
           v-if="item.status === 'cancelled'"
           class="flex-shrink-0 text-xs text-[var(--text-muted)]"
           >Cancelled</span
         >
+        <span
+          v-else-if="item.status === 'error'"
+          data-testid="batch-item-failed"
+          class="flex-shrink-0 text-xs font-medium text-[var(--status-error)]"
+          >Could not be analyzed</span
+        >
+        <span
+          v-else-if="item.status === 'processing'"
+          class="flex-shrink-0 text-xs text-[var(--text-muted)]"
+          >Analyzing…</span
+        >
+        <span v-else-if="item.status === 'queued'" class="sr-only">Waiting</span>
       </div>
     </div>
 

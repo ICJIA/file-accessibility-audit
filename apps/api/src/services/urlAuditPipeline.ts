@@ -89,20 +89,37 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
   //   - Timeout
   // SafeFetchError carries a structured code that maps to the right
   // HTTP status via sendSafeFetchError.
+  //   - Overall deadline (URL_FETCH.TOTAL_TIMEOUT_MS) — FETCH_TIMEOUT_MS is
+  //     only the per-hop idle timeout
+  //   - Abort when the client that asked has disconnected
+  const abort = new AbortController();
+  const onClose = (): void => {
+    // 'close' before the response was written = the connection dropped.
+    if (!res.writableEnded) abort.abort();
+  };
+  if (typeof res.on === "function") res.on("close", onClose);
   let fetched;
   try {
     fetched = await safeFetch(url, {
       timeoutMs: FETCH_TIMEOUT_MS,
       maxBytes: MAX_PDF_BYTES,
       validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
+      signal: abort.signal,
     });
   } catch (err) {
+    if (err instanceof SafeFetchError && err.code === "aborted") {
+      // Not a failed audit of the document — the caller left. Record nothing.
+      sendSafeFetchError(res, err);
+      return { ok: false };
+    }
     if (err instanceof SafeFetchError) {
       recordAuditFailure({ eventType, privileged, filename: url, reason: "fetch-failed" });
       sendSafeFetchError(res, err);
       return { ok: false };
     }
     throw err;
+  } finally {
+    if (typeof res.off === "function") res.off("close", onClose);
   }
 
   if (!fetched.ok) {

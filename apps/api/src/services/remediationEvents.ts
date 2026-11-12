@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
+import { promises as fs, existsSync, readdirSync, rmSync, unlinkSync } from "node:fs";
+import path from "node:path";
 import db from "../db/sqlite.js";
+import { REMEDIATION } from "#config";
 
 /**
  * Lifecycle events tracked per remediation job. Append-only. Used to
@@ -177,4 +179,117 @@ export async function deleteAndVerify(
     }
   }
   return verifyAbsent(jobId, filePath);
+}
+
+/**
+ * Delete a job's whole directory — every file under it, scratch included —
+ * and verify it is gone (review 2026-11-12). The successor to "delete the
+ * output file and hope the rest was cleaned up": a worker killed by its
+ * master timeout, by the OOM killer or by a restart never reaches its own
+ * `finally`, so its input / normalized / tagged copies of the document used
+ * to stay on disk until the 7-day orphan scan.
+ *
+ * Recorded exactly the way a completed job's output deletion is: one
+ * `output_deleted` + `verified_absent` (or `verify_failed`) pair PER FILE,
+ * identified by path hash, then one more pair for the directory itself
+ * (`scope: "job_dir"`), so the receipt shows every copy that existed and that
+ * each is gone.
+ *
+ * SYNCHRONOUS on purpose: the worker calls it from its kill timer immediately
+ * before SIGKILLing its own process group, where nothing asynchronous would
+ * ever get to run.
+ *
+ * Refuses any path that is not inside REMEDIATION.OUTPUT_DIR — this function
+ * removes directories recursively and must not be pointable elsewhere.
+ * Returns true only when the directory was verified absent.
+ */
+export function purgeJobDir(
+  jobId: string,
+  dir: string,
+  trigger: "download" | "ttl_expired" | "manual" | "cleanup",
+): boolean {
+  const root = path.resolve(REMEDIATION.OUTPUT_DIR);
+  const target = path.resolve(dir);
+  if (!target.startsWith(root + path.sep)) {
+    recordEvent(jobId, "error", {
+      error_type: "purge_refused",
+      message: "path is outside the remediation output directory",
+    });
+    return false;
+  }
+  if (!existsSync(target)) return true;
+
+  const files: string[] = [];
+  const walk = (d: string): void => {
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else files.push(p);
+    }
+  };
+  walk(target);
+
+  for (const file of files) {
+    const pathHash = hashPath(file);
+    try {
+      unlinkSync(file);
+      recordEvent(jobId, "output_deleted", { path_hash: pathHash, trigger });
+    } catch (e) {
+      const err = e as NodeJS.ErrnoException;
+      if (err.code === "ENOENT") {
+        recordEvent(jobId, "output_deleted", {
+          path_hash: pathHash,
+          trigger,
+          note: "already absent at delete time",
+        });
+      } else {
+        recordEvent(jobId, "error", {
+          error_type: "delete_failed",
+          path_hash: pathHash,
+          message: err.message,
+        });
+      }
+    }
+    if (existsSync(file)) {
+      recordEvent(jobId, "verify_failed", {
+        path_hash: pathHash,
+        reason: "file still present after delete",
+      });
+    } else {
+      recordEvent(jobId, "verified_absent", { path_hash: pathHash });
+    }
+  }
+
+  const dirHash = hashPath(target);
+  try {
+    rmSync(target, { recursive: true, force: true });
+    recordEvent(jobId, "output_deleted", { path_hash: dirHash, trigger, scope: "job_dir" });
+  } catch (e) {
+    recordEvent(jobId, "error", {
+      error_type: "delete_failed",
+      path_hash: dirHash,
+      message: (e as Error).message,
+    });
+  }
+  if (existsSync(target)) {
+    recordEvent(jobId, "verify_failed", {
+      path_hash: dirHash,
+      scope: "job_dir",
+      reason: "directory still present after delete",
+    });
+    return false;
+  }
+  recordEvent(jobId, "verified_absent", { path_hash: dirHash, scope: "job_dir" });
+  return true;
+}
+
+/** The directory that holds everything a job writes: `<OUTPUT_DIR>/<jobId>`. */
+export function jobDirFor(jobId: string): string {
+  return path.join(path.resolve(REMEDIATION.OUTPUT_DIR), jobId);
 }

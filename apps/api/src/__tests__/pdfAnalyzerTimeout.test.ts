@@ -69,6 +69,15 @@ describe("analyzePDF pdfjs timeout", () => {
     });
   });
 
+  it("signals the abandoned pdfjs pass to stop (it shares this process)", async () => {
+    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
+    const { analyzeWithPdfjs } = await import("../services/pdfjsService.js");
+    await expect(analyzePDF(Buffer.from("%PDF-1.7 fake"), "hang.pdf")).rejects.toThrow();
+    const opts = vi.mocked(analyzeWithPdfjs).mock.calls[0]?.[1] as { signal?: AbortSignal };
+    expect(opts?.signal).toBeInstanceOf(AbortSignal);
+    expect(opts.signal!.aborted).toBe(true);
+  });
+
   it("frees the concurrency slot after a timeout (a second call still runs)", async () => {
     const { analyzePDF } = await import("../services/pdfAnalyzer.js");
     await expect(analyzePDF(Buffer.from("%PDF-"), "a.pdf")).rejects.toThrow();

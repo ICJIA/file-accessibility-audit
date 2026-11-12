@@ -36,7 +36,7 @@ mean, and `ACTIVITY_CSV_COLUMNS` in `apps/api/src/services/activityCsv.ts` is th
 | `id` | the `audit_log` row id — a stable reference two people can point at |
 | `timestamp_utc` | `2026-08-19T14:03:22Z` |
 | `timestamp_chicago` | `2026-08-19 09:03:22 CDT` — sortable, 24-hour |
-| `event` | `analyze`, `analyze-url`, `audit-url`, `audit-url-page`, `bulk-from-inventory`, `rejected-upload`, or any of those with `-failed` |
+| `event` | `analyze`, `analyze-url`, `audit-url`, `audit-url-cached`, `audit-url-page`, `bulk-from-inventory`, `rejected-upload`, or any of those with `-failed`. `audit-url-cached` (v1.168.0) is `/api/audit-url` answered from a stored report made by the current engine version: it carries score, grade and content hash, satisfies the remediation audit gate, and is not counted in documents audited. |
 | `filename` | the file's name, or the URL for URL / page audits |
 | `score`, `grade` | empty for refusals and failures |
 | `content_hash` | SHA-256 of the file; empty for refusals and failures |

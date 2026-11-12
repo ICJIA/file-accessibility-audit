@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-10-26",
+  "blessed": "2026-11-12",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -134,7 +134,7 @@
       "score": 89,
       "grade": "B",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
@@ -1082,7 +1082,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
         "slide_titles": "100|No scored issues",
-        "alt_text": "61|Moderate",
+        "alt_text": "59|Moderate",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
         "color_contrast": "100|No issues found",
@@ -1514,7 +1514,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "100|No issues found",
+        "text_extractability": "100|No scored issues",
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "64|Moderate",
@@ -1589,48 +1589,6 @@
         "reading_order": "100|No scored issues",
         "form_accessibility": "null|none"
       }
-    },
-    "pdf_test-cases/._FY_22_ICJIA_Annual_Report_7c7ba4f4f0-remediated.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._FY_22_ICJIA_Annual_Report_7c7ba4f4f0.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update-remediated.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._Full_Report_Statewide_Violence_Prevention_Plan_2025-2029_2025_Update.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._ILHEALSFallWinter2022FINAL-remediated.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._ILHEALSFallWinter2022FINAL.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808-remediated.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._Lewd Sexual Display in Prison 2024 Annual Report 1-26-25-250127T16462808.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._PDF brief-231021T16005363-fixed.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._PDF brief-231021T16005363-original.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._WomenInPolicing2021-210525T15080148-remediated.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._WomenInPolicing2021-210525T15080148.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._somewhat-accessible_2025_Death_in_Custody_FINAL_02f1b7de08-remediated-remediated.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
-    },
-    "pdf_test-cases/._somewhat-accessible_2025_Death_in_Custody_FINAL_02f1b7de08.pdf": {
-      "error": "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)."
     },
     "pdf_test-cases/FY_22_ICJIA_Annual_Report_7c7ba4f4f0-remediated.pdf": {
       "score": 65,
@@ -1907,7 +1865,7 @@
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "slide_titles": "100|No scored issues",
-        "alt_text": "92|Minor",
+        "alt_text": "61|Moderate",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "100|No issues found",
@@ -4239,6 +4197,68 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-225-docx-undescribed-drawn-shape.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "0|Critical",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-226-pptx-undescribed-drawn-shape.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "0|Critical",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-227-xlsx-undescribed-drawn-shape.xlsx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "sheet_names": "100|No issues found",
+        "table_markup": "null|none",
+        "alt_text": "0|Critical",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

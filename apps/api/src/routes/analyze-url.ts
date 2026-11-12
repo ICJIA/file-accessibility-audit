@@ -5,6 +5,8 @@ import { analyzeDocument } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { runUrlAudit } from "../services/urlAuditPipeline.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
+import { setBusyRetryAfter } from "../services/busy.js";
+import { sealReport } from "../services/reportSeal.js";
 
 const router: IRouter = Router();
 
@@ -56,7 +58,9 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
       contentHash,
     });
 
-    res.json(result);
+    // Sealed so the result can be shared via POST /api/reports (the web
+    // app's ?url= prefill path does exactly that) — services/reportSeal.ts.
+    res.json(sealReport(result));
   } catch (err: any) {
     // v1.88.0: record the failed audit. `url` and `privileged` are declared
     // inside the try, so read them from the request again here; the classifier
@@ -73,6 +77,7 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
 
     // Server busy (semaphore timeout)
     if (err?.status === 503) {
+      setBusyRetryAfter(res);
       res.status(503).json({
         error: "The server is busy processing other files.",
         details: "Please wait a moment and try again.",

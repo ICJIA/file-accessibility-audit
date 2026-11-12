@@ -1778,7 +1778,12 @@ describe("privileged_window", () => {
   }
 
   it("publishes the injected bucket state", async () => {
-    const win = { used: 12, limit: 5000, resets_at: "2026-11-04T16:13:00Z", cache_hits_since_restart: 4900 };
+    const win = {
+      used: 12,
+      limit: 5000,
+      resets_at: "2026-11-04T16:13:00Z",
+      cache_hits_since_restart: 4900,
+    };
     const payload = await svc(() => win).getStatus();
     expect(payload.privileged_window).toEqual(win);
   });

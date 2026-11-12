@@ -12,11 +12,14 @@ import { naReason } from "~/utils/modeDivergence";
 import {
   type ReportResult,
   type BrandingInfo,
-  gradeLabel,
   getScoreProfiles,
   standardsBasis,
   conformanceHeading,
   timestamp,
+  exportPlan,
+  criterionUrl,
+  AUTOMATION_LIMIT_HEADING,
+  AUTOMATION_LIMIT_TEXT,
 } from "./shared";
 
 export function buildText(result: ReportResult, branding: BrandingInfo): string {
@@ -30,9 +33,46 @@ export function buildText(result: ReportResult, branding: BrandingInfo): string 
   out.push(RULE);
   out.push(`Date:          ${timestamp()}`);
   out.push(`Overall score: ${result.overallScore}/100`);
-  out.push(`Grade:         ${result.grade} — ${gradeLabel(result.grade)}`);
+  // Never a bare "A — Excellent": the adjective describes the score, and
+  // the reader's question is whether the document can be published.
+  const plan = exportPlan(result);
+  out.push(`Grade:         ${result.grade}`);
+  out.push(`Verdict:       ${plan.verdictLabel}`);
   if (result.isScanned) out.push("Status:        Scanned document detected");
   out.push("");
+
+  out.push(AUTOMATION_LIMIT_HEADING.toUpperCase());
+  out.push(SUB);
+  out.push(AUTOMATION_LIMIT_TEXT);
+  out.push("");
+
+  if (plan.hasCategories) {
+    out.push("ACTION PLAN");
+    out.push(SUB);
+    if (!plan.steps.length) {
+      out.push(plan.emptySentence);
+    } else {
+      out.push("Fix these in order, then re-upload to verify.");
+      for (const step of plan.steps) {
+        const required = plan.required(step);
+        const tag =
+          required === null ? "" : required ? " · REQUIRED BY WCAG 2.1" : " · Recommended";
+        out.push("");
+        out.push(`${step.rank}. ${step.title} [${step.severity}${tag}]`);
+        out.push(`   Why: ${step.why}`);
+        if (step.estimate) out.push(`   Hands-on time: ${step.estimate.label}`);
+        for (const route of step.routes) {
+          out.push(`   ${route.label}:`);
+          route.steps.forEach((s, i) => out.push(`     ${i + 1}. ${s}`));
+        }
+        for (const ref of step.wcagRefs) {
+          const url = criterionUrl(ref.sc, branding);
+          out.push(`   WCAG ${ref.sc} ${ref.name}${url ? ` — ${url}` : ""}`);
+        }
+      }
+    }
+    out.push("");
+  }
 
   if (result.conformance) {
     const cf = result.conformance;

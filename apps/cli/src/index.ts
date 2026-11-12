@@ -20,7 +20,7 @@ ${BOLD}Publist options:${RESET}
   --clear              Clear cache only (use after files have been remediated)
   --from <file>        Use a local JSON publication list instead of API
   --output, -o <path>  CSV output path (default: ./publist-audit.csv)
-  --concurrency, -c    Parallel analyses (default: 3, max: 10)
+  --concurrency, -c    Parallel analyses (default and max: the scoring engine's limit)
 
 ${BOLD}General:${RESET}
   --help, -h        Show this help
@@ -37,6 +37,7 @@ ${BOLD}Quick start:${RESET}
   a11y-audit publist
 
   ${DIM}# Re-run — only audits new publications added since last run${RESET}
+  ${DIM}# (after an upgrade, everything: cached scores belong to one engine version)${RESET}
   a11y-audit publist
 
   ${DIM}# Files were remediated — clear cache and re-audit everything${RESET}

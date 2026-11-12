@@ -117,6 +117,11 @@ export interface PdfjsResult {
   // Absent on stored reports from before v1.166.1.
   nonArtifactImageRuns?: Array<{ page: number; mcids: number[] }>;
   emptyPages: number[];
+  /** Pages with almost no text (an entry of `emptyPages`) that paint a
+   *  page-sized content image — the shape of a scanned page sitting inside an
+   *  otherwise text-based document. Evidence for a finding only; never read
+   *  by a score (2026-11-12). Absent on results that predate it. */
+  imageOnlyPages?: number[];
   // PDF/UA-1 identifier from the XMP metadata (pdfuaid:part). pdfjs parses the
   // XMP stream; `qpdf --json` (no stream-data flag) cannot expose it, so this
   // is the authoritative source for the PDF/UA conformance claim.
@@ -204,7 +209,23 @@ const MAX_TEXT_BEARING_FIGURES = 200;
  *  paint operations. 40 MP covers any legitimate scanned page. */
 const PDFJS_MAX_IMAGE_PIXELS = 40_000_000;
 
-export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
+/** Smallest pixel dimension, on both sides, for an image to count as
+ *  page-sized in `imageOnlyPages`. A scanned letter page at a poor 72 dpi is
+ *  612 x 792; logos, icons and signatures are well under this. */
+const PAGE_SIZED_IMAGE_MIN_PX = 600;
+
+export async function analyzeWithPdfjs(
+  buffer: Buffer,
+  opts: { signal?: AbortSignal } = {},
+): Promise<PdfjsResult> {
+  const { signal } = opts;
+  // The caller's timeout fires this. Checked at every page boundary of both
+  // passes; a single enormous page is cut short by destroying the document
+  // (the abort listener below), which rejects whatever pdf.js call is pending.
+  const throwIfAborted = (): void => {
+    if (signal?.aborted) throw new Error("pdfjs extraction aborted");
+  };
+
   // Dynamic import since pdfjs-dist is ESM-heavy
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
@@ -251,9 +272,17 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
   };
 
   let doc: any = null;
+  let loadingTask: any = null;
+  const onAbort = (): void => {
+    try {
+      void Promise.resolve(loadingTask?.destroy()).catch(() => {});
+    } catch {}
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
   try {
+    throwIfAborted();
     const data = new Uint8Array(buffer);
-    doc = await pdfjsLib.getDocument({
+    loadingTask = pdfjsLib.getDocument({
       data,
       useSystemFonts: true,
       verbosity: 0, // Suppress harmless TrueType font warnings
@@ -263,7 +292,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       // balloon the API's memory (2026-09-02).
       isEvalSupported: false,
       maxImageSize: PDFJS_MAX_IMAGE_PIXELS,
-    }).promise;
+    });
+    doc = await loadingTask.promise;
+    throwIfAborted();
 
     result.pageCount = doc.numPages;
 
@@ -381,6 +412,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     };
     const pendingTablePages = new Map<number, { tree: unknown; boxes: Map<string, number[]> }>();
     for (let i = 1; i <= doc.numPages; i++) {
+      throwIfAborted();
       const page = await doc.getPage(i);
 
       // Text content. includeMarkedContent interleaves begin/endMarkedContent
@@ -613,10 +645,14 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     // A text run painted visible glyphs under a font pdfjs could not resolve:
     // the usage signal is incomplete, so it must not be used for exemptions.
     let fontResolutionFailed = false;
+    const emptyPageSet = new Set(result.emptyPages);
+    const imageOnlyPages: number[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
+      throwIfAborted();
       const page = await doc.getPage(i);
       const ops = await page.getOperatorList();
       seenPerPage.clear();
+      let paintsPageSizedContentImage = false;
       const tablePage = pendingTablePages.get(i);
       if (tablePage && tableRegions.length < MAX_TABLE_REGIONS) {
         try {
@@ -713,6 +749,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         if (typeof imgName !== "string") continue;
         if (seenPerPage.has(imgName)) continue; // same image painted twice on same page
         seenPerPage.add(imgName);
+        let pageSized = false;
         try {
           const imgData = page.objs.has(imgName)
             ? page.objs.get(imgName)
@@ -723,6 +760,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
             const w = (imgData as any).width as number;
             const h = (imgData as any).height as number;
             if (w < MIN_IMAGE_DIM || h < MIN_IMAGE_DIM) continue; // skip tiny images
+            pageSized = w >= PAGE_SIZED_IMAGE_MIN_PX && h >= PAGE_SIZED_IMAGE_MIN_PX;
           }
         } catch {
           // If we can't resolve the image, count it conservatively
@@ -731,6 +769,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         // An image is a content image only if no enclosing marked-content run is
         // an /Artifact. Artifacted images are decorative and need no alt text.
         if (!artifactStack.some((f) => f)) {
+          if (pageSized) paintsPageSizedContentImage = true;
           nonArtifactImageCount++;
           nonArtifactImageRuns.push({
             page: i,
@@ -741,7 +780,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       if (pageMcids.length > 0) {
         result.contentStreamMcidsByPage[i] = pageMcids;
       }
+      if (paintsPageSizedContentImage && emptyPageSet.has(i)) imageOnlyPages.push(i);
     }
+    result.imageOnlyPages = imageOnlyPages;
     result.imageCount = imageCount;
     result.tableRegions = tableRegions;
     result.nonArtifactImageCount = nonArtifactImageCount;
@@ -764,9 +805,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     result.hasText = result.textLength > 50; // Minimum meaningful text
     result.textSample = totalText.trim().slice(0, 4000);
   } catch (err) {
-    console.error("pdfjs-dist error:", err);
+    // An abort is the caller's own timeout, already reported as one.
+    if (!signal?.aborted) console.error("pdfjs-dist error:", err);
     result.error = "pdfjs-dist parsing failed";
   } finally {
+    signal?.removeEventListener("abort", onAbort);
     if (doc) {
       try {
         await doc.destroy();

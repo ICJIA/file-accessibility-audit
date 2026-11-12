@@ -13,6 +13,7 @@ import { isAllowedUrl } from "../services/urlPolicy.js";
 import { auditPage, type PageAuditResult } from "../services/pageAuditor.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
+import { setBusyRetryAfter } from "../services/busy.js";
 
 const router: IRouter = Router();
 
@@ -146,6 +147,7 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
       result = await auditPage(url, privileged ? () => true : (u) => isAllowedUrl(u).ok);
     } catch (err: any) {
       if (err?.status === 503) {
+        setBusyRetryAfter(res);
         res.status(503).json({
           error: "Server busy",
           details: "Too many page audits are in progress. Please retry shortly.",

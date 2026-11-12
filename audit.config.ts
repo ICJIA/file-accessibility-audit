@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "review-fixes-2026-11-12",
+    badge: "Fixed",
+    text: "A top-to-bottom review of this tool found places where it could mislead you, and they are fixed. A report no longer says a document “passes” or is “ready to publish” when the same report lists a WCAG 2.1 requirement the document does not meet, on screen or in any download. Word, PowerPoint and Excel files are checked more accurately: a data table placed inside a layout table, an embedded object, and a file made only of scanned pages are no longer missed, while highlighted text, hidden slides, linked text boxes and unused page headers no longer lower a grade wrongly. A drawn shape with no words in it, such as an arrow or a circle, now needs a description or the “Mark as decorative” box in all three programs, where before only Word asked for it. Some grades will change, correctly. A PDF that mixes typed pages with scanned ones now names the pages that look like scans. Behind the scenes, a share link can only be made from a result this service produced, so a result left open in a browser tab from before this update needs the audit run again before it can be shared. Automatic-fix jobs now wait in a short line so heavy use cannot slow the service for everyone, the files from a fix job that fails are deleted on the same schedule as a successful one, and the page says before you click that a fixed PDF can be downloaded once.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 12, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "dependency-security-update-2026-10-26",
     badge: "Security",
     text: "The software this site is built on has been updated to close newly published security flaws. One of them was reachable on the live site: a single specially built request could make the checking service stop until it restarted itself. That is fixed, and a new self-check now sends that exact request before every release. The flaws were in third-party code the service depends on rather than in the accessibility checks themselves, so nothing about how your documents are checked, stored, or deleted has changed. The full technical account is in the security log, and the plain-language version is in section 10 of the data-retention policy.",
@@ -2001,6 +2013,36 @@ export const ANALYSIS = {
   MAX_CONCURRENT_ANALYSES: 2,
 
   /**
+   * Maximum number of analyses allowed to WAIT for one of the
+   * MAX_CONCURRENT_ANALYSES slots. A request arriving when this many are
+   * already waiting is refused at once (HTTP 503) instead of joining the line.
+   *
+   * Why it exists (2026-11-12): the comment above always promised "503 if the
+   * queue is also full", but no limit existed — only the 60-second wait. Every
+   * waiter is already holding its upload in memory (up to MAX_FILE_SIZE_MB),
+   * so one caller inside the rate limit could park a hundred 25 MB buffers and
+   * push the API past its memory cap, dropping every in-flight audit.
+   *
+   * 10 waiters x 25 MB is 250 MB at the very worst, and with two slots and
+   * typical audits of a few seconds the tenth waiter would be close to the
+   * 60-second limit anyway.
+   *
+   * SAFE TO CHANGE: Yes — raise only together with the process memory cap in
+   * ecosystem.config.cjs.
+   */
+  MAX_QUEUED_ANALYSES: 10,
+
+  /**
+   * The `Retry-After` value, in seconds, sent with every 503 that means "the
+   * analysis line is full" (or a page-audit slot is busy). Without the header
+   * an automated client can only guess; the fleet client honours it in full.
+   *
+   * SAFE TO CHANGE: Yes. A typical analysis takes a few seconds, so a slot
+   * usually frees well inside this.
+   */
+  BUSY_RETRY_AFTER_S: 10,
+
+  /**
    * Minimum page count to require bookmarks/outlines.
    * Documents with fewer pages than this score N/A on the Bookmarks category
    * instead of being penalized for missing bookmarks.
@@ -2139,6 +2181,18 @@ export const RATE_LIMITS = {
    * so a handful of parallel jobs can't reintroduce the v1.32.0 bug.
    */
   remediationStatus: { max: 600, windowMs: 60 * 1000 }, // 600 / min / IP
+
+  /**
+   * GET /api/analyze-job/:id — the audit progress poll. Exempt from `global`
+   * for the same reason as the remediation poll (review 2026-11-12): two
+   * people behind one office NAT polling at the same time drained the shared
+   * 100/min budget, 429'd each other and lost healthy audits. The endpoint is
+   * an in-memory Map lookup gated by the job's own bearer token, so this
+   * guard only has to stop floods.
+   *
+   * SAFE TO CHANGE: Yes. Keep max ≥ 300 (asserted in rateLimiter.test.ts).
+   */
+  analyzeJobStatus: { max: 600, windowMs: 60 * 1000 }, // 600 / min / IP
 
   /**
    * GET /api/status — the public service-status document, exempt from
@@ -2609,6 +2663,25 @@ export const SCHEDULED_CHECKS = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// URL FETCH (server-side document download for the URL audit endpoints)
+// ---------------------------------------------------------------------------
+
+export const URL_FETCH = {
+  /**
+   * Overall wall-clock deadline for one server-side document fetch
+   * (services/safeFetch.ts), in milliseconds — DNS + connect + every redirect
+   * hop + the whole body. The per-request 30 s timeout is an IDLE timeout: it
+   * restarts on every byte, so a host trickling one byte every 29 s could
+   * hold a fetch (and its memory) open indefinitely (review 2026-11-12).
+   * This is the bound that cannot be reset.
+   *
+   * SAFE TO CHANGE: Yes. 60 s downloads the 25 MB cap at ~3.3 Mbit/s; raise
+   * it if legitimate slow hosts time out, lower it for a tighter bound.
+   */
+  TOTAL_TIMEOUT_MS: 60_000,
+} as const;
+
+// ---------------------------------------------------------------------------
 // FILENAME SANITIZATION
 // ---------------------------------------------------------------------------
 
@@ -2717,6 +2790,30 @@ export const ANALYZE_JOB = {
    * long. This is the backstop, not the expected duration.
    */
   HARD_TIMEOUT_MS: 5 * 60 * 1000,
+
+  /**
+   * Maximum jobs that may be IN PROGRESS at once — uploads being received
+   * plus audits not yet finished. Each of those holds its file in memory (up
+   * to ANALYSIS.MAX_FILE_SIZE_MB), so this, not the 100-job store size, is
+   * what bounds memory: finished-but-uncollected jobs hold only their result.
+   * A request over the limit is refused (503 + Retry-After) BEFORE its body
+   * is read; the place is reserved at that moment, so a burst of simultaneous
+   * uploads cannot all slip past the check (review 2026-11-12).
+   *
+   * SAFE TO CHANGE: Yes — worst-case memory is this × MAX_FILE_SIZE_MB.
+   */
+  MAX_UNFINISHED_JOBS: 16,
+
+  /**
+   * How long a JOB keeps retrying when the analysis line is full
+   * (ANALYSIS.MAX_QUEUED_ANALYSES), in milliseconds, before it gives up with
+   * the "server busy" error. The synchronous endpoints answer 503 at once so
+   * the caller can retry; a job's caller is only polling, so the job retries
+   * for it, with backoff. Keep well under HARD_TIMEOUT_MS.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  BUSY_RETRY_TOTAL_MS: 2 * 60 * 1000,
 } as const;
 
 export const REMEDIATION = {
@@ -2893,6 +2990,52 @@ export const REMEDIATION = {
    * lower if abuse surfaces.
    */
   MAX_JOBS_PER_DAY_PER_CALLER: 100,
+
+  /**
+   * Maximum remediation workers running at once, across ALL callers
+   * (review 2026-11-12). Each worker is a detached node process plus an
+   * OpenDataLoader JVM (-Xmx JVM_HEAP_MB) and then a veraPDF JVM; before this
+   * cap one caller could start dozens at once on a 4 GB box. Jobs over the
+   * cap wait in a queue (below) and are started as slots free up. The count
+   * is derived from the remediation_jobs rows, not process memory, so it
+   * stays right across an API restart (workers are detached and survive one).
+   *
+   * SAFE TO CHANGE: Yes — raise only with the RAM to back it
+   * (≈ JVM_HEAP_MB + ~300 MB per worker).
+   */
+  MAX_CONCURRENT_JOBS: 2,
+
+  /**
+   * Maximum jobs WAITING for a worker slot. Past this, POST /api/remediate
+   * answers 503 with Retry-After instead of queueing. Each queued job holds
+   * its uploaded PDF on disk (≤ MAX_FILE_SIZE_MB) until it runs.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_QUEUED_JOBS: 10,
+
+  /**
+   * How long a job may wait in the queue before the sweep fails it and
+   * deletes its uploaded file, in milliseconds. Keep
+   * MAX_QUEUE_WAIT_MS + the 10-minute stuck-worker window + CLEANUP_INTERVAL_MS
+   * under OUTPUT_TTL_MS: no document bytes may outlive that published bound.
+   *
+   * SAFE TO CHANGE: Yes, within the constraint above.
+   */
+  MAX_QUEUE_WAIT_MS: 10 * 60_000,
+
+  /**
+   * Maximum remediation jobs ONE caller may have queued or running at the
+   * same time. Without it a single caller with a dozen slow PDFs takes both
+   * worker slots and the whole queue, and everyone else gets 503. Over the
+   * limit the caller gets 429 and is told to wait for one to finish. Counted
+   * in process memory by the same per-caller key the rate limiters use (IPv6
+   * by /64) — never written to the database — and released when a job
+   * reaches a terminal state.
+   *
+   * SAFE TO CHANGE: Yes. Keep ≤ MAX_CONCURRENT_JOBS + MAX_QUEUED_JOBS.
+   */
+  MAX_ACTIVE_JOBS_PER_CALLER: 2,
 
   /**
    * The "you must audit this PDF before remediating it" window, in

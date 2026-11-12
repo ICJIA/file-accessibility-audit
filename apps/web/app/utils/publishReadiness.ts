@@ -79,7 +79,10 @@ export function publishVerdictFor(outputAudit: unknown): { text: string; tone: s
   if (categories.length === 0) {
     return { text: "Not ready to publish — this file could not be re-checked", tone: "critical" };
   }
-  return publicationVerdict(categories);
+  // The re-audit's own conformance verdict travels with it: a remediated file
+  // that still carries a confirmed WCAG 2.1 failure is not "ready to publish"
+  // however small the remaining issue is.
+  return publicationVerdict(categories, (outputAudit as { conformance?: unknown }).conformance);
 }
 
 /** Kept for the one place that needs a boolean (which banner style to use).

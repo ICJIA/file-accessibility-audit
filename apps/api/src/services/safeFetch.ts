@@ -45,6 +45,7 @@ import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
 import { URL } from "node:url";
+import { URL_FETCH } from "#config";
 
 const MAX_REDIRECTS = 3;
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -76,11 +77,30 @@ export type SafeFetchErrorCode =
   | "too_many_redirects"
   | "timeout"
   | "network_error"
-  | "oversized";
+  | "oversized"
+  // The caller's AbortSignal fired (the client that asked for this fetch has
+  // disconnected) — nobody is left to receive the result.
+  | "aborted";
 
 export interface SafeFetchOptions {
-  /** Total network operation timeout in ms (covers DNS + connect + transfer). */
+  /**
+   * IDLE timeout in ms for each hop: the socket may go this long without
+   * activity. It restarts on every byte, so on its own it does NOT bound the
+   * fetch — a peer trickling one byte every (timeoutMs − 1) ms would hold it
+   * open forever. `totalTimeoutMs` is the bound that cannot be reset.
+   */
   timeoutMs?: number;
+  /**
+   * Overall wall-clock deadline in ms for the WHOLE fetch: every DNS lookup,
+   * connect, redirect hop and the body. Default URL_FETCH.TOTAL_TIMEOUT_MS.
+   */
+  totalTimeoutMs?: number;
+  /**
+   * Abort the fetch (SafeFetchError "aborted") when this fires — pass a
+   * signal tied to the client request closing so a fetch nobody is waiting
+   * for stops holding a socket and a buffer.
+   */
+  signal?: AbortSignal;
   /** Hard cap on response body length; reject before exhausting memory. */
   maxBytes: number;
   /**
@@ -218,6 +238,7 @@ async function singleHop(
   resolvedIp: string,
   timeoutMs: number,
   maxBytes: number,
+  budget: FetchBudget,
 ): Promise<{
   status: number;
   statusText: string;
@@ -244,7 +265,34 @@ async function singleHop(
     servername: url.hostname,
   };
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolvePromise, rejectPromise) => {
+    // The overall deadline and the caller's abort signal, enforced on the
+    // socket itself: destroying the request tears down connect, headers and
+    // body alike, whichever phase the hop is in.
+    const deadlineTimer = setTimeout(() => {
+      req.destroy(budget.deadlineError());
+    }, budget.remainingMs());
+    const onAbort = (): void => {
+      req.destroy(budget.abortError());
+    };
+    const settle = (): void => {
+      clearTimeout(deadlineTimer);
+      budget.signal?.removeEventListener("abort", onAbort);
+    };
+    const resolve = (v: {
+      status: number;
+      statusText: string;
+      headers: http.IncomingHttpHeaders;
+      body: Buffer;
+    }): void => {
+      settle();
+      resolvePromise(v);
+    };
+    const reject = (e: unknown): void => {
+      settle();
+      rejectPromise(e);
+    };
+
     const reqFn = isHttps ? https.request : http.request;
     const req = reqFn(options, (res) => {
       const chunks: Buffer[] = [];
@@ -270,17 +318,83 @@ async function singleHop(
           body: Buffer.concat(chunks),
         });
       });
-      res.on("error", (err) => reject(new SafeFetchError("network_error", err.message)));
+      res.on("error", (err) =>
+        reject(
+          err instanceof SafeFetchError ? err : new SafeFetchError("network_error", err.message),
+        ),
+      );
     });
     req.on("timeout", () => {
       req.destroy(new SafeFetchError("timeout", `Request exceeded ${timeoutMs}ms`));
     });
+    budget.signal?.addEventListener("abort", onAbort, { once: true });
+    if (budget.signal?.aborted) onAbort();
     req.on("error", (err: any) => {
       if (err instanceof SafeFetchError) reject(err);
       else reject(new SafeFetchError("network_error", err?.message ?? String(err)));
     });
     req.end();
   });
+}
+
+/**
+ * The fetch-wide budget shared by every hop: one deadline computed once at
+ * the start (never extended by a redirect or by bytes arriving) and the
+ * caller's optional abort signal.
+ */
+interface FetchBudget {
+  signal?: AbortSignal;
+  remainingMs(): number;
+  deadlineError(): SafeFetchError;
+  abortError(): SafeFetchError;
+  /** Throw if the deadline has passed or the caller aborted. */
+  check(): void;
+  /** Race a non-cancellable step (DNS) against the deadline and the signal. */
+  race<T>(p: Promise<T>): Promise<T>;
+}
+
+function createBudget(totalTimeoutMs: number, signal?: AbortSignal): FetchBudget {
+  const deadline = Date.now() + totalTimeoutMs;
+  const budget: FetchBudget = {
+    signal,
+    remainingMs: () => Math.max(0, deadline - Date.now()),
+    deadlineError: () =>
+      new SafeFetchError("timeout", `Fetch exceeded the ${totalTimeoutMs}ms overall deadline`),
+    abortError: () => new SafeFetchError("aborted", "Fetch aborted: the client disconnected"),
+    check() {
+      if (signal?.aborted) throw budget.abortError();
+      if (budget.remainingMs() <= 0) throw budget.deadlineError();
+    },
+    race<T>(p: Promise<T>): Promise<T> {
+      budget.check();
+      return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(budget.deadlineError());
+        }, budget.remainingMs());
+        const onAbort = (): void => {
+          cleanup();
+          reject(budget.abortError());
+        };
+        const cleanup = (): void => {
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", onAbort);
+        };
+        signal?.addEventListener("abort", onAbort, { once: true });
+        p.then(
+          (v) => {
+            cleanup();
+            resolve(v);
+          },
+          (e) => {
+            cleanup();
+            reject(e);
+          },
+        );
+      });
+    },
+  };
+  return budget;
 }
 
 /**
@@ -297,6 +411,9 @@ export async function safeFetch(
   opts: SafeFetchOptions,
 ): Promise<SafeFetchResult> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // ONE budget for the whole fetch. `timeoutMs` above is only the per-hop
+  // idle timeout; this is the total the caller is actually promised.
+  const budget = createBudget(opts.totalTimeoutMs ?? URL_FETCH.TOTAL_TIMEOUT_MS, opts.signal);
   const visited = new Set<string>();
   let currentUrl: URL;
   try {
@@ -323,10 +440,11 @@ export async function safeFetch(
     opts.validateUrl(currentUrl);
 
     // (2) Per-hop DNS lookup with private-IP rejection.
-    const resolvedIp = await resolvePublicIp(currentUrl.hostname);
+    const resolvedIp = await budget.race(resolvePublicIp(currentUrl.hostname));
 
     // (3) Single HTTP hop to the resolved IP.
-    const resp = await singleHop(currentUrl, resolvedIp, timeoutMs, opts.maxBytes);
+    budget.check();
+    const resp = await singleHop(currentUrl, resolvedIp, timeoutMs, opts.maxBytes, budget);
 
     // (4) Redirect handling. Manual, with full re-validation next loop.
     if (resp.status >= 300 && resp.status < 400 && resp.headers.location) {

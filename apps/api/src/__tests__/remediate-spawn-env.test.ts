@@ -31,7 +31,8 @@ vi.mock("node:child_process", async (importActual) => {
     ...actual,
     spawn: (...args: unknown[]) => {
       spawnCalls.push(args);
-      return { unref: vi.fn() } as unknown as ReturnType<typeof actual.spawn>;
+      // `on`: spawnWorker now attaches 'error' / 'exit' listeners.
+      return { unref: vi.fn(), on: vi.fn() } as unknown as ReturnType<typeof actual.spawn>;
     },
   };
 });

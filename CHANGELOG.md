@@ -4,6 +4,76 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.168.0] - 2026-11-12
+
+A review of the whole application, the fixes for what it found, and a second independent pass over those fixes.
+
+### Fixed — what the report says
+
+- **A report could say "passes" while its own verdict listed a WCAG 2.1 failure.** The banner, hero, score card, action plan, printable plan and every export decided from category severity alone. A Word file with 19 of 20 images described is Minor, so it read "Optional fixes — this document passes Illinois accessibility" and "ready to publish" beside a confirmed 1.1.1 failure. One helper (`utils/publicationStatus.ts`) now decides for every surface: a confirmed failure reads "Not ready to publish — N WCAG 2.1 requirement(s) not met", and an incomplete verdict is never shown as a pass.
+- **The JSON export re-derived pass/fail from `score < 90`.** Status now comes from severity and the verdict, with a `publication` block and steps in action-plan order. `schemaVersion` 2.1 → 2.2.
+- **Text and Markdown exports** now carry the verdict, the action plan and the automation-limits disclosure. Markdown escapes document-derived strings.
+
+### Fixed — Word, PowerPoint and Excel scoring
+
+No longer missed:
+
+- A data table nested inside a layout table in Word (was 100/A; the same table at top level is 45, 79/C).
+- An embedded OLE object in Word, which was not counted as an image.
+- A file with no text at all, only images: Word and PowerPoint text extractability was a fixed 100 with "fully extractable, selectable text". It is now not assessed, as Excel already was.
+- A main body that cannot be read (rejected or cut-short XML, or every slide or sheet unreadable) is refused with "could not be read" rather than graded 100/A. Partly unreadable decks and workbooks keep their measured failures and withhold the rest.
+
+No longer wrongly failed:
+
+- Word text on a highlight or style-set background was compared with white (white on a black highlight read 1:1, Critical).
+- A PowerPoint text box or group linked at the shape level was an unnamed link (69/D); its own text is now its name.
+- Hidden PowerPoint slides fed alt text, tables, links and contrast. They are excluded and disclosed, as hidden Excel sheets are. A deck with every slide hidden is still checked.
+- Word header and footer parts were chosen by file name, so an unused first-page or even-page header tripled a missing-logo count. They are chosen by section reference.
+
+One rule for shapes and groups in all three formats (user decision, 2026-11-12): a picture, a picture-filled shape, **and a plain drawn shape with no text** (a rectangle, circle, arrow or line) each need a description or the decorative mark; a group's description covers its members. Word already counted plain shapes; PowerPoint and Excel did not, so the same arrow failed in one program and passed in the other two. The finding names both fixes: describe it, or right-click → View Alt Text → Mark as decorative. Two real decks lose alt-text points for undescribed accent circles, lines and a flowchart circle (`sample-2.pptx` 92 → 61, the domestic-violence deck 61 → 59; both stay 79/C). Traps 151, 219 and 222 carried incidental banners and backdrops; those are now marked decorative in the generators, as a careful author would, and their truths are unchanged.
+
+Explicit-colour text inside an Excel table with a named style is now not assessed rather than judged against white.
+
+### Fixed — PDF
+
+- **Scanned pages inside a text PDF are named.** A page with no text that paints a page-sized content image is listed under Text Extractability with the OCR route. Unscored there; untagged page images are already counted under Alt Text.
+- **The analysis wait line is bounded** and **the pdf.js timeout stops the work**; see the security log.
+
+### Fixed — service
+
+- **Share links are sealed**, **remediation jobs are queued**, **killed jobs are deleted and their processes ended**, **IPv6 limits key on the /64**, **URL fetches have a total deadline**, **`/api/audit-url`'s cache is keyed on engine version**, and **one bad bulk entry no longer aborts a batch**. Detail in README § Security.
+- Migrations 16 (`remediation_jobs.started_at`), 17 (`shared_reports.engine_version`) and 18 (`remediation_jobs.worker_pid`).
+- New tunables: `ANALYSIS.MAX_QUEUED_ANALYSES`, `ANALYSIS.BUSY_RETRY_AFTER_S`, `ANALYZE_JOB.MAX_UNFINISHED_JOBS`, `ANALYZE_JOB.BUSY_RETRY_TOTAL_MS`, `RATE_LIMITS.analyzeJobStatus`, `URL_FETCH.TOTAL_TIMEOUT_MS`, `REMEDIATION.MAX_CONCURRENT_JOBS`, `MAX_QUEUED_JOBS`, `MAX_QUEUE_WAIT_MS`, `MAX_ACTIVE_JOBS_PER_CALLER`.
+- New activity event `audit-url-cached`.
+
+### Fixed — web app
+
+- Resetting during a batch or a single audit no longer lets the old run write into the new one.
+- One failed status poll no longer discards a healthy audit; transient errors retry with backoff, and every error shows a message and a next step.
+- The remediated PDF's one-time download is stated before the click, saved in-page, and the results stay visible afterwards.
+- The AI-analysis panel appears for a minor issue that is a confirmed WCAG failure.
+- A share link is bound to the report it was made for; the email subject names the right file type.
+- The app's own accessibility: batch progress and completion are announced and focus moves to the results; batch states have text; upload and share errors are alerts; the share field is labelled.
+
+### Fixed — CLI, gates, deploy
+
+- `rebuild.sh`: database snapshot before restart, a health check that fails the deploy, accurate failure messages, and the previous web build put back after a failed or interrupted build.
+- `backup-db.mjs`: write, verify, then rename; rotation counts verified snapshots only.
+- Both encoding-invariance gates passed when every encoding threw the same error. A throw now fails them and each baseline is pinned.
+- The score ledger pinned 14 macOS `._*` sidecar files (357 → 343 rows, then 347 with the four new traps); dotfiles are skipped and a run comparing fewer than 200 files fails.
+- `publist`: the cache is keyed on engine version, `--concurrency` is clamped to the engine limit, and unresolved failures exit non-zero.
+- `apps/cli` is typechecked by `pnpm typecheck`; `runAudit` has tests.
+
+### Notes
+
+- **Decided 2026-11-12:** a confirmed WCAG failure reads "Not ready to publish" in the critical tone even on an A or B document.
+- **Not changed, by decision pending:** the score's clustering on 100/89/79/69, PDF colour contrast (still not assessed), and the PDF heading cliff (no heading tags plus two visual headings is 0; one tag plus many untagged is at least 60).
+- **`pnpm audit --prod`: 36** (was 1). No dependency changed in this release; the advisories are new and untriaged. A dependency release follows.
+- **Tests:** 4,572 (API 2,463 · Web 2,012 · CLI 97) across 251 files.
+- **Traps: 228** (127 PDF + 101 Office; was 224). New: **225** (Word), **226** (PowerPoint) and **227** (Excel) each hold one undescribed drawn arrow and must fail alt text with a 1.1.1 failure that says "drawn shape" and names both fixes; **228** is 226 with the arrow marked decorative and must score 100.
+- **Ledger 347.** Moved: the two decks above, and two PDF rows that changed label only (`text_extractability` "No issues found" → "No scored issues", the new scanned-page finding on a report cover and an infographic page, both rendered and confirmed).
+- Not exercised: the web interface in a real browser; `rebuild.sh` on the server.
+
 ## [1.167.0] - 2026-11-04
 
 ### Fixed

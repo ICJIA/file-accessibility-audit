@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import { publicationStatus } from "~/utils/publicationStatus";
 import { computed } from "vue";
 import { safeHttpUrl } from "@file-audit/shared";
 import { manualChecks, withVeraContrast } from "~/utils/manualReview";
@@ -143,6 +144,15 @@ const hasFindings = computed(() =>
 // afterthought appended to a pass.
 const intro = computed(() => {
   const clean = props.categories.every((c) => c && (c.score === 100 || c.score == null));
+  // Clean categories are not a clean document when the WCAG gate failed
+  // something or reached no verdict (utils/publicationStatus.ts).
+  const pub = publicationStatus(props.categories, props.conformance);
+  if (pub.wcagFails) {
+    return `Separate from the WCAG 2.1 ${pub.failureCount === 1 ? "requirement that is" : "requirements that are"} not met: the checks listed here passed, and passing only means the structure is there. A person still has to confirm it is correct.`;
+  }
+  if (pub.wcagUndetermined) {
+    return "The WCAG 2.1 check could not be completed for this file, so nothing here is confirmed as passing. These are the judgments a person has to make before publishing.";
+  }
   return clean
     ? "Every automated check passed — but these checks can only confirm that accessibility structure is present, not that it is right. Nothing below is a failure. These are the judgments a person still has to make before publishing."
     : "Separate from the fixes above: the checks listed here passed, and passing only means the structure is there. A person still has to confirm it is correct.";

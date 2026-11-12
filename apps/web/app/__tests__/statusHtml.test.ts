@@ -1294,6 +1294,8 @@ describe("privileged_window — the current hourly budget line (2026-11-04)", ()
     const old = { ...WITH_WINDOW } as Record<string, unknown>;
     delete old.privileged_window;
     expect(renderStatusHtml(old)).not.toContain("requests used");
-    expect(renderStatusHtml({ ...WITH_WINDOW, privileged_window: null })).not.toContain("requests used");
+    expect(renderStatusHtml({ ...WITH_WINDOW, privileged_window: null })).not.toContain(
+      "requests used",
+    );
   });
 });

@@ -73,11 +73,16 @@ import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 const { gradeColor, severityColor, withAlpha } = useTokenColors();
 import { gradeLabel } from "~/utils/exportFormats/shared";
 import { publicationVerdict } from "~/utils/actionPlan";
+import { allChecksPassedCaveat, publicationStatus } from "~/utils/publicationStatus";
 
 const props = defineProps<{
   grade: string;
   overallScore: number;
   categories: Array<{ severity?: string | null; score?: number | null; notAssessed?: boolean }>;
+  /** The report's conformance verdict — a confirmed WCAG 2.1 failure blocks
+   *  "ready to publish" whatever the severities say. Raw stored JSON on the
+   *  shared page; absent on reports older than the gate. */
+  conformance?: unknown;
   /** Count of WCAG criteria the audit never machine-checked, for the
    *  automation-limit band. null/absent = unknown, the band omits the claim. */
   notAssessedCount?: number | null;
@@ -92,7 +97,7 @@ const hasCategories = computed(
 // No categories (URL page-audit reports stored in the same table) → the grade
 // adjective alone; a publication clause would claim document-level knowledge
 // we don't have for those.
-const verdict = computed(() => publicationVerdict(props.categories));
+const verdict = computed(() => publicationVerdict(props.categories, props.conformance));
 
 // The emotional headline for non-technical readers. When something blocks
 // publication the blocker leads on its own ("Not ready to publish — 2 critical
@@ -140,9 +145,15 @@ const progressNote = computed(() => {
   if (!reason) {
     // "Fix the steps below" is wrong on a document with no steps — which is
     // exactly the report an author is most likely to read closely.
-    return checksPassed.value === checksTotal.value && checksTotal.value > 0
-      ? "Every automated check passed. See what still needs a human below."
-      : "Fix the steps below and re-upload to watch this rise.";
+    if (checksPassed.value === checksTotal.value && checksTotal.value > 0) {
+      // Every category at 100 is not "every check passed" when the WCAG gate
+      // failed something or reached no verdict.
+      return (
+        allChecksPassedCaveat(publicationStatus(props.categories, props.conformance)) ??
+        "Every automated check passed. See what still needs a human below."
+      );
+    }
+    return "Fix the steps below and re-upload to watch this rise.";
   }
   const n = checksTotal.value - checksPassed.value;
   return (

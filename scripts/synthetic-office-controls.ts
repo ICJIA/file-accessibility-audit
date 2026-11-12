@@ -470,10 +470,17 @@ const SLIDE_BIG_BODY = (text: string, sz = 3600) =>
   `<p:sp><p:nvSpPr><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:rPr sz="${sz}" b="1"/><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 const SLIDE_PIC = (id: number, descr?: string) =>
   `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"${descr === undefined ? "" : ` descr="${descr}"`}/><p:nvPr/></p:nvPicPr></p:pic>`;
+/** The "Mark as decorative" extension, as Office writes it inside a shape's
+ *  cNvPr / docPr. A plain drawn shape with no text needs a description or
+ *  this mark in every format (owner decision, 2026-11-12), so the incidental
+ *  banners and backdrops of traps built to test something else carry it —
+ *  what a careful author does. */
+const DECORATIVE =
+  '<a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{C183D7F6-B498-43B3-948B-1728B52AA6E4}"><adec:decorative xmlns:adec="http://schemas.microsoft.com/office/drawing/2017/decorative" val="1"/></a:ext></a:extLst>';
 /** A text-free solid rectangle with explicit bounds — the banner/card real
- *  decks paint beneath a white title. Bounds in EMU. */
+ *  decks paint beneath a white title, marked decorative. Bounds in EMU. */
 const SLIDE_BANNER = (fillHex: string, x: number, y: number, cx: number, cy: number) =>
-  `<p:sp><p:nvSpPr><p:cNvPr id="30" name="Banner"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:solidFill><a:srgbClr val="${fillHex}"/></a:solidFill><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:p/></p:txBody></p:sp>`;
+  `<p:sp><p:nvSpPr><p:cNvPr id="30" name="Banner">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:solidFill><a:srgbClr val="${fillHex}"/></a:solidFill><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:p/></p:txBody></p:sp>`;
 /** A title placeholder at explicit bounds whose run carries an explicit
  *  color and size — everything the contrast walk needs resolved. */
 const SLIDE_COLORED_TITLE = (
@@ -539,6 +546,9 @@ function xlsx(
      *  openpyxl writes them (2026-10-06): a default-namespace wsDr whose
      *  every picture carries descr="Picture" unless the author changes it. */
     pictures?: string[];
+    /** Raw anchors appended to the sheet's drawing part (2026-11-12) — drawn
+     *  shapes, written in the part's default namespace. */
+    shapes?: string;
   }[],
   opts: {
     title?: string | null;
@@ -605,24 +615,25 @@ ${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       .join("");
     const links = s.links ?? [];
     const pictures = s.pictures ?? [];
+    const hasDrawing = pictures.length > 0 || !!s.shapes;
     // xlsxService finds tables by walking the SHEET's rels for a /table
     // relationship, so the rels part is what makes the table real; <tableParts>
     // is emitted too because that is what Excel writes.
     files[`xl/worksheets/sheet${i + 1}.xml`] = `${XMLDECL}
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${links.length ? `<hyperlinks>${links.map((l, k) => `<hyperlink ref="${l.ref}" r:id="rIdL${k + 1}"/>`).join("")}</hyperlinks>` : ""}${pictures.length ? '<drawing r:id="rIdD1"/>' : ""}${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
-    if (pictures.length) {
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData>${rows}</sheetData>${links.length ? `<hyperlinks>${links.map((l, k) => `<hyperlink ref="${l.ref}" r:id="rIdL${k + 1}"/>`).join("")}</hyperlinks>` : ""}${hasDrawing ? '<drawing r:id="rIdD1"/>' : ""}${s.table ? `<tableParts count="1"><tablePart r:id="rIdT1"/></tableParts>` : ""}</worksheet>`;
+    if (hasDrawing) {
       files[`xl/drawings/drawing${i + 1}.xml`] = `${XMLDECL}
 <wsDr xmlns="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">${pictures
         .map(
           (descr, k) =>
             `<oneCellAnchor><from><col>${4 + k * 3}</col><colOff>0</colOff><row>1</row><rowOff>0</rowOff></from><ext cx="1905000" cy="1143000"/><pic><nvPicPr><cNvPr id="${k + 1}" name="Image ${k + 1}" descr="${descr}"/><cNvPicPr/></nvPicPr><blipFill/><spPr><a:prstGeom xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" prst="rect"/></spPr></pic><clientData/></oneCellAnchor>`,
         )
-        .join("")}</wsDr>`;
+        .join("")}${s.shapes ?? ""}</wsDr>`;
     }
-    if (s.table || links.length || pictures.length) {
+    if (s.table || links.length || hasDrawing) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-${s.table ? `<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>` : ""}${links.map((l, k) => `<Relationship Id="rIdL${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${l.url}" TargetMode="External"/>`).join("")}${pictures.length ? `<Relationship Id="rIdD1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="/xl/drawings/drawing${i + 1}.xml"/>` : ""}
+${s.table ? `<Relationship Id="rIdT1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${i + 1}.xml"/>` : ""}${links.map((l, k) => `<Relationship Id="rIdL${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${l.url}" TargetMode="External"/>`).join("")}${hasDrawing ? `<Relationship Id="rIdD1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="/xl/drawings/drawing${i + 1}.xml"/>` : ""}
 </Relationships>`;
     }
     if (s.table) {
@@ -752,6 +763,12 @@ interface Sample {
 }
 
 const cat = (id: string) => (r: AnalysisResult) => r.categories.find((c) => c.id === id);
+/** A drawn arrow with no text (2026-11-12). `props` is the inner XML of its
+ *  non-visual properties — empty, or DECORATIVE. */
+const SLIDE_DRAWN_SHAPE = (props: string) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="40" name="Arrow: Right 3">${props}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(4000000, 4200000, 1800000, 700000)}<a:prstGeom prst="rightArrow"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="1F3864"/></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+const DOCX_DRAWN_SHAPE = (id: number, name: string) =>
+  `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="457200" cy="685800"/><wp:docPr id="${id}" name="${name}"/><a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="457200" cy="685800"/></a:xfrm><a:prstGeom prst="downArrow"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="1F3864"/></a:solidFill></wps:spPr><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 /** Does the verdict name `sc` against `category`? */
 const names = (r: AnalysisResult, sc: string, category: string): boolean =>
   !!(
@@ -765,6 +782,16 @@ const accused = (r: AnalysisResult, category: string): boolean =>
     r as unknown as { conformance?: { failures?: Array<Record<string, unknown>> } }
   ).conformance?.failures?.some((f) => String(f.category ?? "") === category);
 const allFindings = (r: AnalysisResult) => r.categories.flatMap((c) => c.findings).join("\n");
+/** The check the three undescribed-drawn-shape traps share (2026-11-12). */
+const drawnShapeFails = (r: AnalysisResult, route: RegExp): string | null => {
+  const c = cat("alt_text")(r);
+  if (!c || c.score !== 0) return `alt_text ${c?.score}, not 0 — the drawn shape was not counted`;
+  const f = c.findings.join(" ");
+  if (!/drawn shape with no text/.test(f)) return "the finding does not say it is a drawn shape";
+  if (!/Mark as decorative/.test(f) || !route.test(f))
+    return "the finding does not name both fixes and where to find them";
+  return names(r, "1.1.1", "alt_text") ? null : "1.1.1 was not named";
+};
 const noAccusation = (r: AnalysisResult): string | null => {
   const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
   return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
@@ -2990,7 +3017,7 @@ const SAMPLES: Sample[] = [
     truth:
       "White titles on a band PowerPoint shades 25% darker than the theme's blue (accent 5, #5B9BD5 → about #2F75B5) — a real survey-results deck in the test set has six of them. The check read the shading off the band and judged the titles against the plain, lighter blue: 2.96:1, six failures that were not there (the shaded band gives about 4.85:1). A shaded colour is not one stated colour, so by the backgrounds' strict rule the band is not guessed at: the titles are not assessed, the black text beside them is, and nothing is asserted — color_contrast 100.",
     build: () => {
-      const band = `<p:sp><p:nvSpPr><p:cNvPr id="16" name="Rectangle 15"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(832385, 0, 3218914, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="accent5"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>`;
+      const band = `<p:sp><p:nvSpPr><p:cNvPr id="16" name="Rectangle 15">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(832385, 0, 3218914, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="accent5"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>`;
       const title = `<p:sp><p:nvSpPr><p:cNvPr id="2" name="Title 1"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr>${XFRM(992206, 1608667, 2823275, 4501127)}</p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr lang="en-US" sz="4000" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr><a:t>Overview</a:t></a:r></a:p></p:txBody></p:sp>`;
       return pptx(
         [
@@ -3092,7 +3119,7 @@ const SAMPLES: Sample[] = [
     truth:
       "A full-slide rectangle of the kind PowerPoint's Designer lays under a slide's content: marked useBgFill — show the slide's background — while its theme style still names the accent fill an inserted shape would otherwise take (#4472C4). Five real decks in the test set carry 67 of them; LibreOffice draws them in the slide's white (verified). Small black text on it must be judged against that white (21:1), never against the style's blue (4.45:1, a failure that is not there): nothing asserted, color_contrast 100.",
     build: () => {
-      const backdrop = `<p:sp useBgFill="1"><p:nvSpPr><p:cNvPr id="10" name="Rectangle 9"/><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1" noMove="1" noResize="1" noEditPoints="1" noAdjustHandles="1" noChangeArrowheads="1" noChangeShapeType="1" noTextEdit="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(0, 0, 12192000, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln><a:noFill/></a:ln></p:spPr>${INSERTED_SHAPE_STYLE}<p:txBody><a:bodyPr rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+      const backdrop = `<p:sp useBgFill="1"><p:nvSpPr><p:cNvPr id="10" name="Rectangle 9">${DECORATIVE}</p:cNvPr><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1" noMove="1" noResize="1" noEditPoints="1" noAdjustHandles="1" noChangeArrowheads="1" noChangeShapeType="1" noTextEdit="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(0, 0, 12192000, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln><a:noFill/></a:ln></p:spPr>${INSERTED_SHAPE_STYLE}<p:txBody><a:bodyPr rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
       return pptx(
         [
           backdrop +
@@ -3170,10 +3197,92 @@ const SAMPLES: Sample[] = [
         : `the deck graded ${r.overallScore}/${r.grade}, not 79/C`;
     },
   },
+  // ------------------------------------------------------------------
+  // A plain drawn shape with no text needs a description or the decorative
+  // mark — in Word, PowerPoint AND Excel (owner decision, 2026-11-12). Word
+  // alone counted one until then; PowerPoint and Excel never looked.
+  // ------------------------------------------------------------------
+  {
+    file: "synthetic-225-docx-undescribed-drawn-shape.docx",
+    truth:
+      "A Word procedure with one drawn arrow (Insert → Shapes) between two steps, carrying no text, no alt text and no decorative mark. A drawn shape is non-text content: a screen reader announces nothing for it, and whether it is a step in a diagram or a flourish only its author can say — so it needs a description or the decorative mark. alt_text must score 0, the finding must say it is a drawn shape and name both fixes, and WCAG 1.1.1 must be named against alt_text.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Intake procedure"),
+          P("Staff log the application the day it arrives."),
+          DOCX_DRAWN_SHAPE(5, "Arrow: Down 4"),
+          P("A reviewer is assigned within two business days."),
+        ].join(""),
+      ),
+    check: (r) => drawnShapeFails(r, /In Word: right-click the shape/),
+  },
+  {
+    file: "synthetic-226-pptx-undescribed-drawn-shape.pptx",
+    truth:
+      "A slide with a title, a sentence, and one drawn arrow with no text, no alt text and no decorative mark. PowerPoint never looked at drawn shapes (until 2026-11-12), so the same arrow that failed a Word file passed here. alt_text must score 0, the finding must say it is a drawn shape and name both fixes, and WCAG 1.1.1 must be named against alt_text.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Intake procedure") +
+            SLIDE_BODY("Applications are logged, then assigned to a reviewer.") +
+            SLIDE_DRAWN_SHAPE(""),
+        ],
+        { title: "Intake procedure" },
+      ),
+    check: (r) => drawnShapeFails(r, /In PowerPoint: right-click the shape/),
+  },
+  {
+    file: "synthetic-227-xlsx-undescribed-drawn-shape.xlsx",
+    truth:
+      "A worksheet with a small data range and one drawn arrow floating beside it — no text, no alt text, no decorative mark. Excel never looked at drawn shapes (until 2026-11-12). alt_text must score 0, the finding must say it is a drawn shape and name both fixes, and WCAG 1.1.1 must be named against alt_text.",
+    build: () =>
+      xlsx(
+        [
+          {
+            name: "FY26 Awards",
+            rows: [
+              ["Program", "Award"],
+              ["Job Training", "412,000"],
+              ["Housing Support", "268,000"],
+            ],
+            shapes: `<oneCellAnchor><from><col>4</col><colOff>0</colOff><row>1</row><rowOff>0</rowOff></from><ext cx="914400" cy="457200"/><sp><nvSpPr><cNvPr id="2" name="Arrow: Right 1"/><cNvSpPr/></nvSpPr><spPr><a:prstGeom xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" prst="rightArrow"/></spPr></sp><clientData/></oneCellAnchor>`,
+          },
+        ],
+        { title: "FY26 Awards" },
+      ),
+    check: (r) => drawnShapeFails(r, /In Excel: right-click the shape/),
+  },
+  {
+    file: "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx",
+    truth:
+      "The same slide as synthetic-226 with one change: the arrow is marked decorative (View Alt Text → Mark as decorative). That is the author saying it carries nothing, and it is the second of the two fixes the finding offers — so it must clear it completely: alt_text has nothing to assess, no 1.1.1 is asserted, and the deck scores 100.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_TITLE("Intake procedure") +
+            SLIDE_BODY("Applications are logged, then assigned to a reviewer.") +
+            SLIDE_DRAWN_SHAPE(DECORATIVE),
+        ],
+        { title: "Intake procedure" },
+      ),
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c) return "alt_text category missing";
+      if (c.score !== null) return `alt_text scored ${c.score} — a decorative shape was counted`;
+      if (accused(r, "alt_text")) return "1.1.1 asserted against a shape marked decorative";
+      return r.overallScore === 100 ? null : `the deck scored ${r.overallScore}/${r.grade}`;
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-226-pptx-undescribed-drawn-shape.pptx",
+    good: "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx",
+    category: "alt_text",
+  },
   {
     bad: "synthetic-188-docx-cell-borders-no-header.docx",
     good: "synthetic-189-docx-cell-borders-header-twin.docx",
@@ -3311,6 +3420,22 @@ const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
  *  docs/brief/checker-brief.template.html (build-brief fails otherwise). */
 type TrapChip = "caught" | "held" | "bug";
 const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-225-docx-undescribed-drawn-shape.docx": {
+    label: "Word: a drawn arrow with no text, no description and no decorative mark",
+    chip: "caught",
+  },
+  "synthetic-226-pptx-undescribed-drawn-shape.pptx": {
+    label: "PowerPoint: a drawn arrow with no text, no description and no decorative mark",
+    chip: "caught",
+  },
+  "synthetic-227-xlsx-undescribed-drawn-shape.xlsx": {
+    label: "Excel: a drawn arrow with no text, no description and no decorative mark",
+    chip: "caught",
+  },
+  "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx": {
+    label: "PowerPoint: the same arrow, marked decorative",
+    chip: "held",
+  },
   "synthetic-218-pptx-grey-body-text-from-the-master.pptx": {
     label: "PowerPoint: grey body text set by the master\u2019s text style, not by the text",
     chip: "caught",

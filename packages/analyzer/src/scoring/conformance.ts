@@ -981,6 +981,27 @@ function finalizeVerdict(
 }
 
 /**
+ * A deck or workbook with a slide or sheet that could not be read
+ * (2026-11-12). Failures measured in the content that WAS read stand — the
+ * verdict stays "fail". With none, "no automated failures" would be a clean
+ * bill over content nobody analyzed, so the verdict is "incomplete", the
+ * state the Word gate returns for an unparseable body and the PDF gate for a
+ * failed analyzer. `unread` names the parts: 'Slide 2', 'The sheet "Detail"'.
+ */
+function withUnreadParts(
+  verdict: ConformanceVerdict,
+  unread: string | null,
+  noun: "presentation" | "workbook",
+): ConformanceVerdict {
+  if (!unread || verdict.status !== "no-automated-failures") return verdict;
+  return {
+    ...verdict,
+    status: "incomplete",
+    headline: `${unread} could not be read, so part of this ${noun} was never analyzed and no WCAG conformance verdict could be determined. A full manual review is required.`,
+  };
+}
+
+/**
  * DOCX conformance gate. A self-contained analogue of `evaluateConformance`
  * (the PDF gate is left untouched). Same discipline: fires only on confirmed,
  * machine-checkable violations, mapped to the same WCAG success criteria and
@@ -1458,7 +1479,14 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
     });
   }
 
-  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
+  const unparsedSlides = analysis.unparsedSlides ?? [];
+  return withUnreadParts(
+    finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0),
+    unparsedSlides.length > 0
+      ? `Slide${unparsedSlides.length > 1 ? "s" : ""} ${unparsedSlides.join(", ")}`
+      : null,
+    "presentation",
+  );
 }
 
 /**
@@ -1625,5 +1653,15 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
     });
   }
 
-  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
+  const unparsedSheets = analysis.unparsedSheets ?? [];
+  return withUnreadParts(
+    finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0),
+    unparsedSheets.length > 0
+      ? `The sheet${unparsedSheets.length > 1 ? "s" : ""} ${unparsedSheets
+          .slice(0, 5)
+          .map((n) => `"${n}"`)
+          .join(", ")}${unparsedSheets.length > 5 ? ` and ${unparsedSheets.length - 5} more` : ""}`
+      : null,
+    "workbook",
+  );
 }

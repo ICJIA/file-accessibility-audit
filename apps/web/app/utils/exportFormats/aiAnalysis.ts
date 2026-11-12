@@ -7,6 +7,7 @@ import { getWcagCriteriaStrings } from "~/utils/wcag";
 import { partitionCardFindings } from "~/utils/findings";
 import { evaluateBestPractices } from "~/utils/bestPractices";
 import { fileTypeLabel, pageNoun } from "~/utils/reportBanner";
+import { publicationStatus } from "~/utils/publicationStatus";
 import { type ReportResult, type BrandingInfo, getScoreProfiles } from "./shared";
 
 /** "- Pages: 12" / "- Slides: 9" / "- Sheets: 4" for the AI-analysis export. */
@@ -78,6 +79,25 @@ function appendExtraCredit(lines: string[], result: ReportResult): void {
   }
 }
 
+/**
+ * Whether the AI hand-off has anything to ask for help with — the SAME test
+ * buildAiAnalysis uses to choose its "failing categories" form over its
+ * "nothing failing" form. The page used to gate the panel on Critical or
+ * Moderate severity alone, which hid it in exactly the case the text below
+ * was written for: a Minor category carrying a confirmed WCAG 2.1 failure.
+ */
+export function aiAnalysisHasFixes(
+  result: Pick<ReportResult, "categories" | "conformance"> | null | undefined,
+): boolean {
+  if (!result) return false;
+  const categories = Array.isArray(result.categories) ? result.categories : [];
+  // The shared decision: a fail status OR a non-empty failures list.
+  if (publicationStatus(categories, result.conformance).wcagFails) return true;
+  return categories.some(
+    (c) => c.score !== null && (c.severity === "Moderate" || c.severity === "Critical"),
+  );
+}
+
 export function buildAiAnalysis(
   result: ReportResult,
   branding?: Pick<BrandingInfo, "wcagVersion">,
@@ -94,9 +114,21 @@ export function buildAiAnalysis(
   const conformanceFailures = Array.isArray(result.conformance?.failures)
     ? result.conformance.failures
     : [];
-  const conformanceFails = result.conformance?.status === "fail" && conformanceFailures.length > 0;
-  const isAccessible = (result.grade === "A" || result.grade === "B") && !conformanceFails;
-  const verdict = isAccessible ? "Accessible" : "Not accessible";
+  // Same test as every other surface (utils/publicationStatus.ts): a fail
+  // status OR a non-empty failures list. Requiring both let a "fail" with an
+  // empty list through as "Verdict: Accessible".
+  const pub = publicationStatus(result.categories, result.conformance);
+  const conformanceFails = pub.wcagFails;
+  // A gate that reached no verdict ("incomplete") is not a pass either — the
+  // shared publish decision says so for every surface (publicationStatus.ts).
+  const undetermined = pub.wcagUndetermined;
+  const isAccessible =
+    (result.grade === "A" || result.grade === "B") && !conformanceFails && !undetermined;
+  const verdict = undetermined
+    ? "Not determined — the WCAG 2.1 check could not be completed"
+    : isAccessible
+      ? "Accessible"
+      : "Not accessible";
 
   const scored = result.categories.filter((c) => c.score !== null);
   const failingCategoryIds = new Set(
@@ -116,8 +148,16 @@ export function buildAiAnalysis(
   lines.push("");
 
   if (!conformanceFails && failing.length === 0) {
+    if (undetermined) {
+      lines.push(
+        `An automated ${fileTypeLabel(result.fileType)} accessibility audit ran, but its WCAG 2.1 check could not be completed for this file, so no pass can be confirmed. Treat every statement below as partial and recommend a full manual review.`,
+      );
+      lines.push("");
+    }
     lines.push(
-      `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check; the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require (the audit's checklist basis is WCAG ${wcagVersion} Level AA). No WCAG 2.1 remediation is needed.`,
+      undetermined
+        ? `The categories that could be scored are listed below; the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require (the audit's checklist basis is WCAG ${wcagVersion} Level AA).`
+        : `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check; the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require (the audit's checklist basis is WCAG ${wcagVersion} Level AA). No WCAG 2.1 remediation is needed.`,
     );
     lines.push("");
     lines.push(`## File`);
@@ -203,6 +243,12 @@ export function buildAiAnalysis(
 
   lines.push(`## Failing categories (${failing.length} to fix)`);
   lines.push("");
+  if (conformanceFails && failing.length === 0) {
+    lines.push(
+      "The audit's WCAG 2.1 verdict is a failure, but this report does not say which category it belongs to. Treat the document as not meeting WCAG 2.1 and run the audit again for the detail.",
+    );
+    lines.push("");
+  }
   for (const c of failing) {
     lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`);
     if (c.explanation) {

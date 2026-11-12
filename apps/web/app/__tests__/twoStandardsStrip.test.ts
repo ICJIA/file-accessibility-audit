@@ -15,7 +15,15 @@ import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import TwoStandardsStrip from "../components/TwoStandardsStrip.vue";
 
-const clean = { status: "pass", failures: [], notAssessed: [], headline: "" } as never;
+// The analyzer's real clean status. This fixture used to say "pass", a value
+// the conformance gate never emits; since 2026-11-12 an unrecognised status is
+// treated as "no verdict" (utils/publicationStatus.ts), never as a clean one.
+const clean = {
+  status: "no-automated-failures",
+  failures: [],
+  notAssessed: [],
+  headline: "",
+} as never;
 const failing = {
   status: "fail",
   failures: [{ sc: "1.3.1" }, { sc: "1.1.1" }],
@@ -263,7 +271,7 @@ describe("the clean line admits what veraPDF's WCAG pass saw (2026-09-02)", () =
   });
   it("keeps the plain line when veraPDF's WCAG pass ran clean or did not run", () => {
     expect(strip({ conformance: clean, fileType: "pdf" }).html()).toMatch(
-      /No automated failures found</,
+      /No automated failures found\s*</,
     );
     expect(
       strip({
@@ -271,6 +279,6 @@ describe("the clean line admits what veraPDF's WCAG pass saw (2026-09-02)", () =
         fileType: "pdf",
         wcagVerdict: { ...flagged, passed: true, failures: [], totalFailureCount: 0 },
       }).html(),
-    ).toMatch(/No automated failures found</);
+    ).toMatch(/No automated failures found\s*</);
   });
 });

@@ -28,6 +28,7 @@ import {
   type ScoringResult,
   placeholderAltFinding,
 } from "./common.js";
+import { drawnShapeFinding } from "../ooxml.js";
 import { evaluateDocxConformance } from "./conformance.js";
 
 // ===========================================================================
@@ -92,7 +93,76 @@ function docxCategory(
   };
 }
 
+/**
+ * A BODY THAT COULD NOT BE READ IS NEVER GRADED AS CLEAN (2026-11-12) — the
+ * rule scoring/pdf.ts scoreDocument has applied to a failed analyzer since
+ * v1.22, for the three Office formats. When a main part is unparseable (a
+ * Word document.xml, a slide, a worksheet) every signal read from it is a
+ * DEFAULT, not an observation: "no images", "no tables", "no links". Those
+ * defaults scored 100 or not-applicable, so a Word file whose body was never
+ * read graded 100/A beside an "incomplete" verdict.
+ *
+ * Each affected category that found nothing wrong becomes NOT ASSESSED, with
+ * the reason. A category that DID measure a failure in the content that was
+ * read keeps it — that evidence is real — and says what it could not see.
+ * `unread` names the part(s) in a sentence: "the document's body", "slide 2".
+ */
+export function withholdUnreadCategories(
+  categories: CategoryResult[],
+  affected: ReadonlySet<string>,
+  unread: string,
+): void {
+  for (let i = 0; i < categories.length; i++) {
+    const c = categories[i];
+    if (!affected.has(c.id)) continue;
+    if (c.score !== null && c.score < 100) {
+      c.findings.push(
+        `This result covers only the content that was read — ${unread} could not be read, so a manual review is required for the rest.`,
+      );
+      continue;
+    }
+    categories[i] = {
+      ...c,
+      score: null,
+      grade: null,
+      severity: null,
+      notAssessed: true,
+      findings: [
+        `This check could not run — ${unread} could not be read, so its inputs are unavailable. The results below reflect only the checks that succeeded; a manual review is required for this category.`,
+      ],
+    };
+  }
+}
+
+/** The warning scoreDocument (PDF) raises when an analyzer failed — the same
+ *  words, so every format's report says it the same way. */
+export const UNREAD_BODY_WARNING =
+  "Some accessibility checks could not be completed. The results below reflect only the checks that succeeded.";
+
 function scoreDocxText(a: DocxAnalysis): CategoryResult {
+  // EVIDENCE-BASED, as Excel's has been since v1.95.0 (2026-11-12). This was
+  // an unconditional 100, so a .docx of ten page-scan pictures and not one
+  // word claimed "fully extractable, selectable text". With no text anywhere
+  // and at least one image, the claim is not made and the category is not
+  // assessed — the alt-text category owns the pictures. A document with any
+  // text, or with nothing in it at all, is unchanged. (textCharCount is
+  // absent on older payloads, which keep the old reading.)
+  if (a.textCharCount === 0 && a.images.length > 0) {
+    return docxCategory(
+      "text_extractability",
+      "Text Extractability",
+      DOCX.SCORING_WEIGHTS.text_extractability,
+      null,
+      [
+        "No text was found in this document, so the usual Word guarantee — extractable, selectable text — does not apply here.",
+        `${a.images.length} image(s) make up its content. If they are scanned pages or pictures of text, a screen reader gets nothing from them — type the text into the document, or give each image alt text that carries what it says.`,
+        "Text extractability was not assessed for this document.",
+      ],
+      "Word normally stores real text screen readers can always read; this document has no text at all, so that guarantee could not be confirmed.",
+      [DOCX_HELP.overview, DOCX_HELP.webaim],
+      true,
+    );
+  }
   const findings = [
     "Word documents contain fully extractable, selectable text — unlike a scanned PDF, the content is always available to assistive technology.",
   ];
@@ -366,6 +436,11 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
     );
     const placeholders = placeholderAltFinding(nonDecorative);
     if (placeholders) findings.push(placeholders);
+    const drawnShapes = drawnShapeFinding(
+      nonDecorative.filter((i) => !(i.altText && i.altText.trim().length > 0)),
+      "Word",
+    );
+    if (drawnShapes) findings.push(drawnShapes);
     const titleOnly = nonDecorative.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {
       findings.push(
@@ -707,6 +782,18 @@ function buildDocxCategories(a: DocxAnalysis): CategoryResult[] {
  */
 export function scoreDocx(analysis: DocxAnalysis): ScoringResult {
   const categories = buildDocxCategories(analysis);
+  const warnings: string[] = [];
+  // analysis.parse is absent on hand-built and older payloads — read as ok.
+  if (analysis.parse && !analysis.parse.documentOk) {
+    warnings.push(UNREAD_BODY_WARNING);
+    withholdUnreadCategories(
+      categories,
+      // Everything read from document.xml. Title & Language comes from the
+      // properties and styles parts, which have their own parse guards.
+      new Set(categories.map((c) => c.id).filter((id) => id !== "title_language")),
+      "the document's body (word/document.xml)",
+    );
+  }
   const conformance = evaluateDocxConformance(analysis);
   const aggregate = aggregateScore(categories, false, "strict", conformance, "Word document");
   return {
@@ -715,7 +802,7 @@ export function scoreDocx(analysis: DocxAnalysis): ScoringResult {
     isScanned: false,
     executiveSummary: aggregate.executiveSummary,
     categories,
-    warnings: [],
+    warnings,
     scoringMode: "strict",
     scoreProfiles: {
       strict: aggregate.profile,

@@ -54,6 +54,53 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.168.0",
+    meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: the whole service &mdash; how documents are checked, how reports are shared, the automatic-fix feature, and the scripts used to update and back up the server.",
+    body: [
+      {
+        kind: "p",
+        html: "A review of the whole service, followed by a second, separate check that each fix worked. The second check found gaps in some of the first fixes, and those were fixed as well. Nothing new is collected about the people who use the service. Two things about stored data changed and are described below: a signing key is now kept on the server, and an automatic-fix job now records the number the server uses to identify the program doing the work.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "P1",
+            html: "<strong>Anyone could publish a made-up report under this site&rsquo;s address.</strong> The service stored whatever report it was sent, so a share link could show a perfect grade for a document that was never checked. Every result the service produces is now signed with a key only the server holds, and a share link is made only when that signature matches the whole result. Changing anything in a result, however small, is refused. The key is a random value kept in a file on the server; it identifies no one and is never sent anywhere.",
+          },
+          {
+            badge: "P1",
+            html: "<strong>The automatic-fix feature had no overall limit.</strong> One person could start many fix jobs at once, enough to stop the server. Jobs now wait in a short line: two run at a time, and one person can have two in progress.",
+          },
+          {
+            badge: "P1",
+            html: "<strong>A document could stay on the server for about a week after a fix job was stopped part-way.</strong> The published promise is deletion within 30 minutes. Files were removed on schedule only when a job finished normally. Now every job, however it ends, has its files deleted and the deletion checked, and the programs working on it are stopped first so that none can write the file back. To stop them reliably the service records, with each job, the number the server gave the program doing the work. That number identifies a program on the server, not a person.",
+          },
+          {
+            badge: "P2",
+            html: "<strong>Several limits could be worked around or were missing.</strong> The line of documents waiting to be checked had no maximum length. A check that ran past its time limit kept running in the background. Per-address limits could be sidestepped by some internet connections that can change address freely. Fetching a document from a web address had no overall time limit. All four are fixed.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Smaller repairs.</strong> A stored result from an older version of the checker is no longer reused. One bad line in a batch request no longer cancels the whole batch. Two people behind the same office connection can no longer interrupt each other&rsquo;s checks. The browser used for web-page checks blocks more kinds of background connection.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Updating and backing up the server is safer.</strong> The update script now takes a copy of the database before restarting, checks that the service came back, and reports a failure when it did not. Backups are checked before they replace older ones.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Still open.</strong> A check of the third-party software this service uses reports 36 published warnings, where the last review reported 1. None of that software changed in this update, so the warnings are new, and they have not yet been examined one by one. A separate update will deal with them. A memory limit on the server is not working as intended and needs a one-time change on the server itself. One narrow gap in web-page checks remains and is written down in the code; using it requires a private access key or control of a page on an approved site.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Each original problem was rebuilt and run against the corrected service by a separate reviewer. A real result was shared successfully, and three altered copies of it were refused. Every self-check and every scoring gate passed. Not tested: the website in a real browser, and the update script on the live server.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.167.0",
     meta: "Reviewed <strong>2026-11-04</strong> &middot; scope: how the trusted-tool hourly limit counts repeat requests, and one new figure on the status page.",
     body: [

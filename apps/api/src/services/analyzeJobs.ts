@@ -70,10 +70,59 @@ function sweep(now = Date.now()): void {
   }
 }
 
+// Uploads that passed the capacity check and are being received, but have no
+// job yet. Counted in every capacity test: without it, N simultaneous uploads
+// all passed the check before any of them had registered a job, and all N
+// bodies were buffered (review 2026-11-12, second pass).
+let reservedUploads = 0;
+
+/** Jobs still holding their uploaded buffer (the audit has not settled). */
+function unfinishedJobs(): number {
+  let n = 0;
+  for (const job of jobs.values()) if (!job.status.done) n++;
+  return n;
+}
+
+function hasRoom(): boolean {
+  return (
+    jobs.size + reservedUploads < MAX_JOBS &&
+    unfinishedJobs() + reservedUploads < ANALYZE_JOB.MAX_UNFINISHED_JOBS
+  );
+}
+
+/** Whether a new job would be admitted right now. */
+export function hasAnalyzeJobCapacity(): boolean {
+  sweep();
+  return hasRoom();
+}
+
+/**
+ * Check capacity AND take a place in one step — for the pre-upload check in
+ * routes/analyzeJob.ts, which runs before the body is read. Returns a release
+ * function (idempotent), or null when there is no room. The caller releases
+ * the place when its job is registered, or when the request ends without one.
+ */
+export function reserveAnalyzeJobSlot(): (() => void) | null {
+  sweep();
+  if (!hasRoom()) return null;
+  reservedUploads++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    reservedUploads--;
+  };
+}
+
+/** Test hook: places currently reserved by in-flight uploads. */
+export function _reservedUploads(): number {
+  return reservedUploads;
+}
+
 /** Create a job; null when the store is at its cap (caller answers 503). */
 export function createAnalyzeJob(isPdf: boolean): { id: string; token: string } | null {
   sweep();
-  if (jobs.size >= MAX_JOBS) return null;
+  if (!hasRoom()) return null;
   const id = randomUUID();
   const token = randomBytes(32).toString("base64url");
   const skippedVera: JobStepState = isPdf ? "pending" : "skipped";
@@ -152,6 +201,7 @@ export function pollAnalyzeJob(id: string, token: string): AnalyzeJobStatus | nu
 
 /** Test hook: reset the store completely. */
 export function _resetAnalyzeJobs(): void {
+  reservedUploads = 0;
   jobs.clear();
 }
 

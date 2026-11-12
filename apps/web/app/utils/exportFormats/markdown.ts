@@ -14,7 +14,48 @@ import {
   conformanceHeading,
   timestamp,
   profileLabel,
+  exportPlan,
+  criterionUrl,
+  AUTOMATION_LIMIT_HEADING,
+  AUTOMATION_LIMIT_TEXT,
 } from "./shared";
+
+/**
+ * Escape a document-derived string for Markdown (2026-11-12).
+ *
+ * Findings quote the document: alt text, link labels, heading samples, the
+ * filename itself. Interpolated raw, a filename of `a|b.pdf` broke the table
+ * it sat in, `[click](javascript:…)` in a finding became a live link in the
+ * downloaded report, and a newline ended the list item it belonged to.
+ *
+ * Backslash-escapes the characters that carry meaning mid-line (emphasis,
+ * code, links, HTML, table pipes, strikethrough) plus a block marker at the
+ * very start of the value, and folds line breaks to a space — every call
+ * site places the value inside one line (a heading, a table cell, a list
+ * item). Hyphens, full stops and parentheses inside a sentence are left
+ * alone so the file still reads cleanly as plain text.
+ */
+export function escapeMarkdown(value: unknown, opts: { inline?: boolean } = {}): string {
+  const escaped = String(value ?? "")
+    .replace(/\r\n|\r|\n/g, " ")
+    .replace(/[\\`*_[\]<>|~]/g, (ch) => `\\${ch}`);
+  // Inside a link label nothing can start a block, so "1.4.3 Contrast" keeps
+  // its plain number there.
+  if (opts.inline) return escaped;
+  return escaped.replace(/^(\s*)([#+=-]|\d+[.)])/, (_m, lead: string, marker: string) =>
+    /^\d/.test(marker)
+      ? `${lead}${marker.slice(0, -1)}\\${marker.slice(-1)}`
+      : `${lead}\\${marker}`,
+  );
+}
+const md = escapeMarkdown;
+
+/** A number from the payload, as a number. A stored report is caller-
+ *  controlled JSON: a string in a numeric field is escaped text at best,
+ *  never raw Markdown. */
+function num(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value) ? String(value) : md(value);
+}
 
 function severityEmoji(severity: string | null): string {
   if (!severity) return "";
@@ -39,7 +80,8 @@ function severityEmoji(severity: string | null): string {
  */
 function mdLink(label: string, url: string): string {
   const safe = safeHttpUrl(url);
-  return safe ? `[${label}](${safe})` : label;
+  const text = escapeMarkdown(label, { inline: true });
+  return safe ? `[${text}](${safe})` : text;
 }
 
 export function buildMarkdown(result: ReportResult, branding: BrandingInfo): string {
@@ -49,15 +91,58 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
   // The filename leads as the H1 so the document a Markdown reader opens is
   // unmistakably tied to the audited file; the generic report label drops to a
   // subtitle alongside the page/type line.
-  lines.push(`# ${result.filename}`);
+  lines.push(`# ${md(result.filename)}`);
   lines.push("");
-  lines.push(`**Accessibility Report** · ${bannerMetaLine(result.pageCount, result.fileType)}`);
+  lines.push(`**Accessibility Report** · ${md(bannerMetaLine(result.pageCount, result.fileType))}`);
   lines.push("");
   lines.push(`**Date:** ${timestamp()}`);
-  lines.push(`**Overall Score:** ${result.overallScore}/100`);
-  lines.push(`**Grade:** ${result.grade} — ${gradeLabel(result.grade)}`);
+  lines.push(`**Overall Score:** ${num(result.overallScore)}/100`);
+  // Never a bare "A — Excellent": the adjective describes the score, and the
+  // reader's question is whether the document can be published.
+  const plan = exportPlan(result);
+  lines.push(`**Grade:** ${md(result.grade)}`);
+  lines.push(`**Verdict:** ${md(plan.verdictLabel)}`);
   if (result.isScanned) lines.push(`**Status:** ⚠️ Scanned document detected`);
   lines.push("");
+  lines.push(`> **⚠ ${AUTOMATION_LIMIT_HEADING}**`);
+  lines.push(">");
+  lines.push(`> ${AUTOMATION_LIMIT_TEXT}`);
+  lines.push("");
+
+  if (plan.hasCategories) {
+    lines.push("## Action Plan");
+    lines.push("");
+    if (!plan.steps.length) {
+      lines.push(plan.emptySentence);
+      lines.push("");
+    } else {
+      lines.push("Fix these in order, then re-upload to verify.");
+      lines.push("");
+      for (const step of plan.steps) {
+        const required = plan.required(step);
+        const tag =
+          required === null ? "" : required ? " · **Required by WCAG 2.1**" : " · Recommended";
+        lines.push(`${step.rank}. **${md(step.title)}** — ${md(step.severity)}${tag}`);
+        lines.push(`   - Why: ${md(step.why)}`);
+        if (step.estimate) lines.push(`   - Hands-on time: ${md(step.estimate.label)}`);
+        for (const route of step.routes) {
+          lines.push(`   - ${md(route.label)}:`);
+          route.steps.forEach((s, i) => lines.push(`     ${i + 1}. ${md(s)}`));
+        }
+        if (step.wcagRefs.length) {
+          const refs = step.wcagRefs
+            .map((ref) => {
+              const url = criterionUrl(ref.sc, branding);
+              const label = `WCAG ${ref.sc} ${ref.name}`;
+              return url ? mdLink(label, url) : md(label);
+            })
+            .join(", ");
+          lines.push(`   - ${refs}`);
+        }
+      }
+      lines.push("");
+    }
+  }
 
   if (result.conformance) {
     const c = result.conformance;
@@ -65,13 +150,13 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
     lines.push("");
     lines.push(`**${conformanceHeading(c, branding.wcagVersion)}**`);
     lines.push("");
-    lines.push(c.headline);
+    lines.push(md(c.headline));
     lines.push("");
     if (c.failures.length) {
       lines.push("| Success criterion | Level | Confirmed issue |");
       lines.push("|---|---|---|");
       for (const f of c.failures) {
-        lines.push(`| ${mdLink(`${f.sc} ${f.name}`, f.url)} | ${f.level} | ${f.issue} |`);
+        lines.push(`| ${mdLink(`${f.sc} ${f.name}`, f.url)} | ${md(f.level)} | ${md(f.issue)} |`);
       }
       lines.push("");
     }
@@ -93,7 +178,7 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
     lines.push("|---------|-------|-------|-------|");
     for (const profile of scoreProfiles) {
       lines.push(
-        `| ${profile.label} | ${profile.overallScore}/100 | ${profile.grade} — ${gradeLabel(profile.grade)} | ${profile.description} |`,
+        `| ${md(profile.label)} | ${num(profile.overallScore)}/100 | ${md(profile.grade)} — ${md(gradeLabel(profile.grade))} | ${md(profile.description)} |`,
       );
     }
     lines.push("");
@@ -103,13 +188,13 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
   lines.push("");
   lines.push("## Executive Summary");
   lines.push("");
-  lines.push(result.executiveSummary);
+  lines.push(md(result.executiveSummary));
   lines.push("");
 
   if (result.warnings?.length) {
     lines.push("> **Warnings:**");
     for (const w of result.warnings) {
-      lines.push(`> - ${w}`);
+      lines.push(`> - ${md(w)}`);
     }
     lines.push("");
   }
@@ -126,8 +211,8 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
   lines.push("| Category | Score | Severity |");
   lines.push("|----------|-------|----------|");
   for (const cat of mdScored) {
-    const sev = cat.severity ? `${severityEmoji(cat.severity)} ${cat.severity}` : "N/A";
-    lines.push(`| ${cat.label} | ${cat.score}/100 | ${sev} |`);
+    const sev = cat.severity ? `${severityEmoji(cat.severity)} ${md(cat.severity)}` : "N/A";
+    lines.push(`| ${md(cat.label)} | ${num(cat.score)}/100 | ${sev} |`);
   }
   lines.push("");
   if (mdNa.length) {
@@ -135,7 +220,7 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
     lines.push("");
     for (const cat of mdNa) {
       const naLabel = cat.notAssessed ? "Not assessed" : "Not applicable";
-      lines.push(`- **${cat.label}** — ${naLabel}: ${naReason(cat.id, cat.notAssessed)}`);
+      lines.push(`- **${md(cat.label)}** — ${naLabel}: ${naReason(cat.id, cat.notAssessed)}`);
     }
     lines.push("");
   }
@@ -146,24 +231,24 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
   lines.push("");
 
   for (const cat of mdScored) {
-    const scoreStr = `${cat.score}/100`;
-    lines.push(`### ${cat.label} — ${scoreStr}`);
+    const scoreStr = `${num(cat.score)}/100`;
+    lines.push(`### ${md(cat.label)} — ${scoreStr}`);
     lines.push("");
 
     if (cat.severity) {
-      lines.push(`**Severity:** ${severityEmoji(cat.severity)} ${cat.severity}`);
+      lines.push(`**Severity:** ${severityEmoji(cat.severity)} ${md(cat.severity)}`);
       lines.push("");
     }
 
     if (cat.explanation) {
-      lines.push(`> ${cat.explanation}`);
+      lines.push(`> ${md(cat.explanation)}`);
       lines.push("");
     }
 
     lines.push("**Findings:**");
     lines.push("");
     for (const f of cat.findings) {
-      lines.push(`- ${f}`);
+      lines.push(`- ${md(f)}`);
     }
     lines.push("");
 

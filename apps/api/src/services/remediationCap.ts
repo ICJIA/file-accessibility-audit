@@ -15,16 +15,19 @@
  * Refused attempts do not consume slots. Empty keys are pruned on touch so
  * the map cannot grow monotonically across the retention window.
  */
+import { clientKeyFromIp } from "./clientKey.js";
 
 const reservations = new Map<string, number[]>();
 
 /**
- * Normalize a request IP into a stable in-memory cap key. Strips IPv6
- * brackets and zone identifiers (the same normalization the old
- * gateIdentity applied). The result never leaves process memory.
+ * Normalize a request IP into a stable in-memory cap key — the SAME key every
+ * rate limiter uses (services/clientKey.ts): IPv4 as-is, IPv4-mapped IPv6 as
+ * its IPv4 address, any other IPv6 by its /64, so a caller cannot rotate
+ * addresses inside their own /64 past the daily cap (review 2026-11-12). The
+ * result never leaves process memory.
  */
 export function capKeyFromIp(ip: string | null | undefined): string {
-  return (ip ?? "unknown").replace(/^\[|\]$/g, "").split("%")[0];
+  return clientKeyFromIp(ip);
 }
 
 /**
@@ -65,4 +68,38 @@ function prune(key: string, windowMs: number, now: number): number[] {
 /** Test hook: clear all reservations. */
 export function _resetRemediationCap(): void {
   reservations.clear();
+  activeJobsByCaller.clear();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Per-caller share of the remediation queue                               */
+/* ---------------------------------------------------------------------- */
+// The global cap (REMEDIATION.MAX_CONCURRENT_JOBS + MAX_QUEUED_JOBS) bounds
+// the box; this bounds one caller's share of it, so a single caller cannot
+// occupy every slot and the whole queue (review 2026-11-12). Which caller
+// started which job is held HERE, in process memory, and nowhere else — the
+// job row carries no caller (v1.68.0). A restart forgets it, which only
+// means the share resets; the global cap does not depend on it.
+
+const activeJobsByCaller = new Map<string, Set<string>>();
+
+/**
+ * How many of this caller's jobs are still queued or running. `isActive`
+ * answers for one job id (the route passes a row lookup); ids that are no
+ * longer active are dropped as a side effect, which is how a slot is
+ * released when a job reaches a terminal state.
+ */
+export function callerActiveJobs(key: string, isActive: (jobId: string) => boolean): number {
+  const ids = activeJobsByCaller.get(key);
+  if (!ids) return 0;
+  for (const id of ids) if (!isActive(id)) ids.delete(id);
+  if (ids.size === 0) activeJobsByCaller.delete(key);
+  return ids.size;
+}
+
+/** Note that `key` started `jobId`. */
+export function trackCallerJob(key: string, jobId: string): void {
+  let ids = activeJobsByCaller.get(key);
+  if (!ids) activeJobsByCaller.set(key, (ids = new Set()));
+  ids.add(jobId);
 }

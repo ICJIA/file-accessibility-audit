@@ -142,8 +142,24 @@ describe("docx images", () => {
     expect(r.images).toEqual([]);
   });
 
+  // One rule in every format since 2026-11-12 (ooxml.ts
+  // TEXTLESS_SHAPE_NEEDS_ALT, on by owner decision): a plain shape with no
+  // text needs alt text or the decorative mark, as it always has in Word.
   it("still counts a shape with no text content as an image needing alt", async () => {
     const buf = await buildDocx({ body: emptyShape() });
+    const r = await analyzeDocx(buf);
+    expect(r.images).toEqual([
+      { altText: null, decorative: false, titleOnly: false, drawnShape: true },
+    ]);
+  });
+
+  it("counts a textless shape filled with a picture as an image needing alt", async () => {
+    const buf = await buildDocx({
+      body: emptyShape().replace(
+        "<wps:spPr/>",
+        '<wps:spPr><a:blipFill><a:blip r:embed="rId9"/></a:blipFill></wps:spPr>',
+      ),
+    });
     const r = await analyzeDocx(buf);
     expect(r.images).toEqual([{ altText: null, decorative: false, titleOnly: false }]);
   });
@@ -528,10 +544,23 @@ describe("docx legacy VML images", () => {
   });
 });
 
+// Header and footer parts are audited when a section references them
+// (2026-11-12) — wired the way Word writes them: a relationship plus a
+// w:headerReference / w:footerReference in the section properties.
+const STORY_RELS =
+  `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+  `<Relationship Id="rIdH1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>` +
+  `<Relationship Id="rIdF1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>` +
+  `</Relationships>`;
+const STORY_SECT =
+  '<w:sectPr><w:headerReference w:type="default" r:id="rIdH1"/>' +
+  '<w:footerReference w:type="default" r:id="rIdF1"/></w:sectPr>';
+
 describe("docx headers/footers/footnotes coverage", () => {
   it("audits images in header parts", async () => {
     const buf = await buildDocx({
-      body: paragraph("Body text"),
+      body: paragraph("Body text") + STORY_SECT,
+      documentRels: STORY_RELS,
       extra: {
         "word/header1.xml": `<?xml version="1.0"?><w:hdr ${DOCX_NS}>${inlineImage({})}</w:hdr>`,
       },
@@ -567,7 +596,9 @@ describe("docx headers/footers/footnotes coverage", () => {
 describe("docx header and footer images are located and explained", () => {
   const withParts = (header: string, footer = "") =>
     buildDocx({
-      body: paragraph("Body text") + inlineImage({ descr: "Chart of arrests by year" }),
+      body:
+        paragraph("Body text") + inlineImage({ descr: "Chart of arrests by year" }) + STORY_SECT,
+      documentRels: STORY_RELS,
       extra: {
         "word/header1.xml": `<?xml version="1.0"?><w:hdr ${DOCX_NS}>${header}</w:hdr>`,
         ...(footer
@@ -593,7 +624,8 @@ describe("docx header and footer images are located and explained", () => {
 
   it("says nothing about headers when the undescribed image is in the body", async () => {
     const buf = await buildDocx({
-      body: paragraph("Body text") + inlineImage({}),
+      body: paragraph("Body text") + inlineImage({}) + STORY_SECT,
+      documentRels: STORY_RELS,
       extra: {
         "word/header1.xml": `<?xml version="1.0"?><w:hdr ${DOCX_NS}>${inlineImage({ descr: "Agency seal" })}</w:hdr>`,
       },
@@ -617,13 +649,13 @@ describe("docx per-part parse state", () => {
     expect(r.parse.documentOk).toBe(true);
   });
 
-  it("reports an unparseable document body", async () => {
+  // Refused, not graded, since 2026-11-12: a body nobody read has no score.
+  it("refuses an unparseable document body", async () => {
     const buf = await buildDocx({
       body: paragraph("x"),
       extra: { "word/document.xml": "this is not xml at all <" },
     });
-    const r = await analyzeDocx(buf);
-    expect(r.parse.documentOk).toBe(false);
+    await expect(analyzeDocx(buf)).rejects.toMatchObject({ code: "DOCX_PARSE_FAILED" });
   });
 
   it("distinguishes an absent core part from an unparseable one", async () => {
@@ -661,13 +693,16 @@ describe("docx tables", () => {
     expect(r.tables[0].hasHeaderRow).toBe(false);
   });
 
-  it("counts nested tables once (top-level only) and flags nesting", async () => {
+  // Nested tables are judged in their own right since 2026-11-12 (see
+  // officeReview.test.ts): each table once, on its own rows and cells.
+  it("lists a nested table after its host, each counted once, and flags the nesting", async () => {
     const buf = await buildDocx({
       body: table({ rows: 2, cols: 2, nested: true }),
     });
     const r = await analyzeDocx(buf);
-    expect(r.tables).toHaveLength(1);
-    expect(r.tables[0].hasNestedTable).toBe(true);
+    expect(r.tables).toHaveLength(2);
+    expect(r.tables[0]).toMatchObject({ hasNestedTable: true, rowCount: 2, colCount: 2 });
+    expect(r.tables[1]).toMatchObject({ hasNestedTable: false, rowCount: 1, colCount: 2 });
   });
 });
 
@@ -988,13 +1023,13 @@ describe("docx entity + DOCTYPE hardening (C2, full analyze path)", () => {
       `<!DOCTYPE w:document [<!ENTITY xxe "INJECTED-VALUE">]>` +
       `<w:document ${DOCX_NS}><w:body><w:p><w:r><w:t>&xxe;</w:t></w:r></w:p></w:body></w:document>`;
     const buf = await buildDocx({ documentXml });
-    const a = await analyzeDocx(buf);
     // The whole part fails to parse (parseXml's DOCTYPE guard), so nothing
-    // is extracted from it — critically, the injected entity value never
-    // surfaces anywhere in the analysis.
-    expect(a.paragraphCount).toBe(0);
-    expect(a.headings).toEqual([]);
-    expect(JSON.stringify(a)).not.toContain("INJECTED-VALUE");
+    // is extracted from it and — since 2026-11-12 — the document is refused
+    // rather than graded on a body nobody read. Critically, the injected
+    // entity value never surfaces, not even in the refusal.
+    const err: unknown = await analyzeDocx(buf).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: "DOCX_PARSE_FAILED" });
+    expect(String((err as Error).message)).not.toContain("INJECTED-VALUE");
   });
 
   it("a DOCTYPE elsewhere (e.g. styles.xml) is neutralized without crashing the whole analysis", async () => {

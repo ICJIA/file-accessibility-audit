@@ -6,9 +6,21 @@
  * Does eight things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
- *      record verified_absent for the auditor).
- *   2. Mark stuck running jobs failed (created_at older than 10 min).
- *   3. Delete orphan directories (no matching DB row).
+ *      record verified_absent for the auditor), then delete-and-verify the
+ *      rest of the job's directory.
+ *   2. Mark stuck jobs failed — a worker dispatched more than 10 min ago that
+ *      never finished, or a job that waited in the queue longer than
+ *      REMEDIATION.MAX_QUEUE_WAIT_MS — and delete-and-verify the job's whole
+ *      directory (scratch copies of the document included). Then start any
+ *      queued jobs the freed slots allow.
+ *   3. Walk the output directory: delete-and-verify the directory of every
+ *      job in a terminal state (failed / expired), the leftover scratch of a
+ *      complete one, and any directory with no matching DB row (orphans).
+ *      (Review 2026-11-12: this step used to skip every directory whose job
+ *      row was under 7 days old, and step 2 deleted nothing — so a worker
+ *      killed by its master timeout left the document on disk for about a
+ *      week against a published 30-minute bound. No document bytes may
+ *      outlive REMEDIATION.OUTPUT_TTL_MS in any terminal state.)
  *   4. Purge job rows past JOB_ROW_RETENTION_DAYS (terminal states only).
  *   5. Purge event rows past EVENT_LOG_RETENTION_DAYS.
  *   6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS.
@@ -35,10 +47,20 @@ import { ACTIVITY_EXPORT, DEPLOY, REMEDIATION, SHARED_REPORTS } from "#config";
 import { runActivityExport } from "./activityExport.js";
 import { activityLogDir } from "./dataDir.js";
 import { pruneErrorLogs } from "./errorLog.js";
-import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
-import { setExpired, setFailed } from "./remediationJobs.js";
+import { deleteAndVerify, purgeJobDir, recordEvent } from "./remediationEvents.js";
+import { getJob, setExpired, setFailed } from "./remediationJobs.js";
+import { dispatchQueuedJobs, endJobFromOutside, reconcileWorkers } from "./remediationQueue.js";
+import { killWorkerGroup } from "./workerGroup.js";
 
 const STUCK_RUNNING_MS = 10 * 60_000;
+
+/**
+ * A directory with no job row younger than this is left alone for one more
+ * sweep: POST /api/remediate writes the upload into the job's directory a
+ * moment BEFORE it inserts the row, and that window must not look like an
+ * orphan.
+ */
+const ORPHAN_GRACE_MS = 2 * 60_000;
 
 interface ExpiringRow {
   id: string;
@@ -50,12 +72,20 @@ const selectExpiring = db.prepare(
    WHERE status = 'complete' AND expires_at < ?`,
 );
 
+// A job that HOLDS A WORKER SLOT and has for too long: running (measured from
+// dispatch; from creation on rows that predate started_at), or dispatched but
+// never picked up by its worker. Queued jobs (pending, started_at NULL) are
+// not "stuck" — they have their own, separate limit below.
 const selectStuckRunning = db.prepare(
   `SELECT id FROM remediation_jobs
-   WHERE status IN ('pending','running') AND created_at < ?`,
+   WHERE (status = 'running' AND COALESCE(started_at, created_at) < ?)
+      OR (status = 'pending' AND started_at IS NOT NULL AND started_at < ?)`,
 );
 
-const selectAllRecentIds = db.prepare(`SELECT id FROM remediation_jobs WHERE created_at > ?`);
+const selectQueueExpired = db.prepare(
+  `SELECT id FROM remediation_jobs
+   WHERE status = 'pending' AND started_at IS NULL AND created_at < ?`,
+);
 
 const purgeOldJobs = db.prepare(
   `DELETE FROM remediation_jobs
@@ -82,6 +112,11 @@ const purgeExpiredSharedReports = db.prepare(`DELETE FROM shared_reports WHERE e
 export interface CleanupResult {
   expiredOutputs: number;
   stuckJobs: number;
+  /** Jobs failed because they waited in the queue past MAX_QUEUE_WAIT_MS. */
+  queueExpiredJobs: number;
+  /** Directories of failed / expired jobs (and leftover scratch of complete
+   *  ones) deleted-and-verified by step 3. */
+  jobDirsPurged: number;
   orphanDirs: number;
   purgedJobs: number;
   purgedEvents: number;
@@ -102,6 +137,8 @@ export async function runCleanup(): Promise<CleanupResult> {
   const result: CleanupResult = {
     expiredOutputs: 0,
     stuckJobs: 0,
+    queueExpiredJobs: 0,
+    jobDirsPurged: 0,
     orphanDirs: 0,
     purgedJobs: 0,
     purgedEvents: 0,
@@ -124,13 +161,9 @@ export async function runCleanup(): Promise<CleanupResult> {
         }
         setExpired(row.id);
         recordEvent(row.id, "expired", { reason: "ttl" });
-        // Also remove the job's empty parent directory if it's now empty
-        const jobDir = join(outputRoot, row.id);
-        try {
-          if (existsSync(jobDir) && readdirSync(jobDir).length === 0) {
-            rmSync(jobDir, { recursive: true, force: true });
-          }
-        } catch {}
+        // Then the rest of the job's directory — whatever is in it. (It used
+        // to be removed only when already empty.)
+        purgeJobDir(row.id, join(outputRoot, row.id), "ttl_expired");
         result.expiredOutputs++;
       } catch (e) {
         result.errors.push({
@@ -143,19 +176,38 @@ export async function runCleanup(): Promise<CleanupResult> {
     result.errors.push({ step: "expire_query", message: (e as Error).message });
   }
 
+  /* 2a. Rows whose worker process no longer exists (a restart tree-killed
+   *     it, the OOM killer took it): end them now rather than after the
+   *     10-minute stuck window. Also run synchronously at boot (index.ts). */
+  try {
+    result.stuckJobs += reconcileWorkers(now);
+  } catch (e) {
+    result.errors.push({ step: "reconcile", message: (e as Error).message });
+  }
+
   /* 2. Mark stuck running jobs failed */
   try {
-    const stuck = selectStuckRunning.all(now - STUCK_RUNNING_MS) as {
+    const stuckCutoff = now - STUCK_RUNNING_MS;
+    const stuck = selectStuckRunning.all(stuckCutoff, stuckCutoff) as {
       id: string;
     }[];
     for (const row of stuck) {
       try {
-        setFailed(row.id, "worker timeout (stuck > 10 min)");
-        recordEvent(row.id, "error", {
-          error_type: "stuck_running",
-          message: "marked failed by cleanup sweep",
-        });
-        result.stuckJobs++;
+        // Kill the worker's process group and wait for it to be gone, THEN
+        // fail the row (freeing its slot), THEN delete and verify the job
+        // directory — its input / normalized / tagged copies — with the same
+        // events a completed job's deletion records. If the group will not
+        // die the row is left active and the next sweep tries again.
+        if (
+          endJobFromOutside(
+            row.id,
+            "stuck_running",
+            "worker timeout (stuck > 10 min)",
+            "marked failed by cleanup sweep",
+          )
+        ) {
+          result.stuckJobs++;
+        }
       } catch (e) {
         result.errors.push({
           step: "stuck",
@@ -170,23 +222,80 @@ export async function runCleanup(): Promise<CleanupResult> {
     });
   }
 
-  /* 3. Orphan directories — anything in OUTPUT_DIR with no DB row */
+  /* 2b. Jobs that waited in the queue too long: fail them and delete the
+   *     upload they were holding. */
+  try {
+    const expired = selectQueueExpired.all(now - REMEDIATION.MAX_QUEUE_WAIT_MS) as {
+      id: string;
+    }[];
+    for (const row of expired) {
+      try {
+        setFailed(row.id, "waited too long for a free remediation slot");
+        recordEvent(row.id, "error", {
+          error_type: "queue_timeout",
+          message: "failed by cleanup sweep after waiting in the queue",
+        });
+        purgeJobDir(row.id, join(outputRoot, row.id), "cleanup");
+        result.queueExpiredJobs++;
+      } catch (e) {
+        result.errors.push({
+          step: "queue_expired",
+          message: `${row.id}: ${(e as Error).message}`,
+        });
+      }
+    }
+  } catch (e) {
+    result.errors.push({ step: "queue_expired_query", message: (e as Error).message });
+  }
+
+  /* 2c. Slots freed above (or by workers this process never saw exit) go to
+   *     the queue. Only while the feature is on: a queue left over from
+   *     before it was switched off must not start work. */
+  if (REMEDIATION.ENABLED) {
+    try {
+      dispatchQueuedJobs();
+    } catch (e) {
+      result.errors.push({ step: "dispatch", message: (e as Error).message });
+    }
+  }
+
+  /* 3. Walk OUTPUT_DIR. Each directory is named for its job id, and what
+   *    happens to it is decided by that job's CURRENT row — any age:
+   *      no row            → orphan: delete (after a short grace)
+   *      failed / expired  → nothing of it belongs on disk: delete + verify
+   *      complete          → only its output file does: delete leftover scratch
+   *      pending / running → in use: leave it alone */
   try {
     if (existsSync(outputRoot)) {
-      // 7 days ago covers anything realistic; jobs older than this are
-      // either purged or aren't ours.
-      const recentCutoff = now - 7 * 86_400_000;
-      const knownIds = new Set(
-        (selectAllRecentIds.all(recentCutoff) as { id: string }[]).map((r) => r.id),
-      );
       for (const entry of readdirSync(outputRoot)) {
         const entryPath = join(outputRoot, entry);
         try {
           const s = statSync(entryPath);
           if (!s.isDirectory()) continue;
-          if (!knownIds.has(entry)) {
+          const job = getJob(entry);
+          if (!job) {
+            if (now - s.mtimeMs < ORPHAN_GRACE_MS) continue;
             rmSync(entryPath, { recursive: true, force: true });
             result.orphanDirs++;
+          } else if (job.status === "failed" || job.status === "expired") {
+            // Never delete under a process that could write it back: if any
+            // of this job's worker group is somehow still alive, kill it and
+            // leave the directory for the next sweep unless it is confirmed
+            // gone.
+            const dead = killWorkerGroup({
+              jobId: job.id,
+              pid: job.workerPid,
+              startedAt: job.startedAt,
+            });
+            if (!dead) continue;
+            purgeJobDir(job.id, entryPath, "cleanup");
+            result.jobDirsPurged++;
+          } else if (job.status === "complete") {
+            const scratch = join(entryPath, "work");
+            if (existsSync(scratch)) {
+              purgeJobDir(job.id, scratch, "cleanup");
+              result.jobDirsPurged++;
+            }
           }
         } catch (e) {
           result.errors.push({
@@ -310,6 +419,7 @@ export function summarizeCleanup(r: CleanupResult): string {
     ` · audit_log rows purged: ${r.purgedAuditLog}` +
     ` · shared reports purged: ${r.purgedSharedReports}` +
     ` · remediation: ${r.expiredOutputs} expired, ${r.stuckJobs} stuck, ${r.orphanDirs} orphans,` +
+    ` ${r.queueExpiredJobs} queue-expired, ${r.jobDirsPurged} job dirs purged,` +
     ` ${r.purgedJobs} jobs purged, ${r.purgedEvents} events purged` +
     ` · errors: ${errors}`
   );
@@ -319,6 +429,8 @@ function didSomething(r: CleanupResult): boolean {
   return (
     r.expiredOutputs +
       r.stuckJobs +
+      r.queueExpiredJobs +
+      r.jobDirsPurged +
       r.orphanDirs +
       r.purgedJobs +
       r.purgedEvents +

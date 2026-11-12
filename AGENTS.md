@@ -251,7 +251,7 @@ releases (write a short "no new findings; release covered X" entry).
 
 ---
 
-## API surface (current as of v1.68.0)
+## API surface (current as of v1.168.0)
 
 Every endpoint under `/api` is public — no auth of any kind, rate-limited
 per IP (the optional `API_PRIVILEGED_TOKEN` bearer token selects the
@@ -263,8 +263,8 @@ generous rate tier and the URL-allowlist bypass):
 | `/api/analyze-url` | POST | Audit a document (PDF/DOCX/PPTX/XLSX) by URL — returns the full AnalysisResult, not persisted |
 | `/api/audit-url` | POST | Audit by URL **and** persist a shareable report — returns trimmed CSV-friendly shape with reportUrl. Hash-dedups by content (hash alone since v1.68.0). For fleet inventory automation. |
 | `/api/bulk-from-inventory` | POST | Batch variant taking a filecap NDJSON inventory |
-| `/api/reports` | POST/GET | Save / retrieve shareable reports (UUID id) |
-| `/api/remediate` | POST | Start a remediation job (gated on `REMEDIATION_ENABLED`; audit-gate binds to content hash; daily cap is in-memory per IP, resets on restart) |
+| `/api/reports` | POST/GET | Save / retrieve shareable reports (UUID id). POST accepts only a result carrying a valid server `seal` (HMAC over the whole result, v1.168.0) — post it back exactly as received |
+| `/api/remediate` | POST | Start a remediation job (gated on `REMEDIATION_ENABLED`; audit-gate binds to content hash; daily cap is in-memory per IP, resets on restart; jobs are QUEUED since v1.168.0 — 2 running, 10 waiting, 2 active per caller, 503/429 beyond) |
 | `/api/remediate/:id/status` | GET | Job status polling (authorized by the job's download token) |
 | `/api/remediate/:id/download` | GET | Download remediated PDF (single-use token) |
 | `/api/remediate/:id/receipt` | GET | Lifecycle audit trail JSON (authorized by the job's download token) |

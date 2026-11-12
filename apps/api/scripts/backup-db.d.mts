@@ -17,6 +17,9 @@ export interface BackupResult {
   auditLogRows: number;
   /** Basenames of older snapshots deleted by count-based rotation. */
   rotated: string[];
+  /** Basenames of files named like a snapshot that no longer decompress.
+   *  They are not counted among the kept snapshots. */
+  unverified: string[];
 }
 
 export function runBackup(options: {

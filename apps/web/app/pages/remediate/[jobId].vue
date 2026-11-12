@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRemediationJob, type CategoryResult } from "~/composables/useRemediationJob";
 import type { PdfUaVerdict } from "@file-audit/shared";
@@ -17,6 +17,13 @@ import { buildActionPlan } from "~/utils/actionPlan";
 import { useWcag } from "~/composables/useWcag";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { veraPdfBadge } from "~/utils/remediationVeraBadge";
+import { downloadBlob } from "~/utils/download";
+import {
+  downloadAvailability,
+  fetchRemediatedPdf,
+  rememberDownloaded,
+  wasDownloadedInThisTab,
+} from "~/utils/remediationDownload";
 
 const wcagVersion = useWcag().version;
 
@@ -388,8 +395,35 @@ const isPublishReady = computed(() => isPublishReadyFor(receipt.value?.outputAud
 // the progress bar when a fast server response races ahead of the
 // animator. UX intent: progress indicator finishes its arc → results
 // appear in one visual beat.
-const isVisuallyComplete = computed(
-  () => status.value?.status === "complete" && !isVisuallyRunning.value,
+//
+// `expired` counts too, when the receipt still carries the audits: the API
+// marks a job expired the moment its file is downloaded, so "complete only"
+// made every before/after section vanish on a reload after downloading —
+// the results outlive the file and stay readable.
+const isVisuallyComplete = computed(() => {
+  if (status.value?.status === "complete") return !isVisuallyRunning.value;
+  return status.value?.status === "expired" && !!receipt.value?.outputAudit;
+});
+
+// ------------------------------------------------------------------
+// The single-use download
+// ------------------------------------------------------------------
+// The server deletes the remediated PDF as soon as a download begins. The
+// page says so before the click, fetches the file itself (so a failure is a
+// sentence here, not a tab full of JSON), and afterwards swaps the button for
+// an accurate "already downloaded" state while the results stay put.
+const downloadedHere = ref(false);
+const downloading = ref(false);
+const downloadError = ref<string | null>(null);
+const downloadedFilename = ref<string | null>(null);
+const downloadDoneRef = ref<HTMLElement | null>(null);
+
+const downloadState = computed(() =>
+  downloadAvailability({
+    status: status.value?.status,
+    events: receipt.value?.events,
+    downloadedHere: downloadedHere.value || wasDownloadedInThisTab(jobId),
+  }),
 );
 
 // ------------------------------------------------------------------
@@ -455,11 +489,39 @@ const resolvedDownloadHref = computed(() => {
  */
 const renameConfirming = ref(false);
 
-function handleDownloadClick(event: MouseEvent) {
-  if (filenameChoice.value === "rename" && !renameConfirming.value) {
-    event.preventDefault();
-    renameConfirming.value = true;
+/** The name to save under when the server's Content-Disposition is not
+ *  readable — the same choice the visitor made in the options above. */
+const chosenFilename = computed(() => {
+  if (filenameChoice.value === "suffix") return suffixFilenamePreview.value;
+  if (filenameChoice.value === "rename" && customFilename.value) {
+    return `${customFilename.value.replace(/\.pdf$/i, "")}.pdf`;
   }
+  return originalFilenameDisplay.value || "remediated.pdf";
+});
+
+async function handleDownloadClick() {
+  if (filenameChoice.value === "rename" && !renameConfirming.value) {
+    renameConfirming.value = true;
+    return;
+  }
+  const url = resolvedDownloadHref.value;
+  if (!url || downloading.value) return;
+  downloading.value = true;
+  downloadError.value = null;
+  const outcome = await fetchRemediatedPdf(url, chosenFilename.value);
+  downloading.value = false;
+  if (!outcome.ok) {
+    downloadError.value = outcome.message;
+    return;
+  }
+  downloadBlob(outcome.blob, outcome.filename);
+  downloadedFilename.value = outcome.filename;
+  downloadedHere.value = true;
+  rememberDownloaded(jobId);
+  // The button that had keyboard focus is gone; hand focus to the message
+  // that replaced it, which also announces it.
+  await nextTick();
+  downloadDoneRef.value?.focus();
 }
 
 // Reset the confirm gate when the user changes their mind back.
@@ -919,7 +981,51 @@ function labelForEvent(name: string): string {
             <h3 class="text-base font-semibold text-emerald-100 text-center mb-4">
               Download remediated PDF
             </h3>
-            <div v-if="downloadHref" class="space-y-4">
+            <!-- Already downloaded: the server copy is gone, and this says so —
+                 instead of a button whose second click led to an error. -->
+            <div
+              v-if="downloadState === 'downloaded'"
+              ref="downloadDoneRef"
+              tabindex="-1"
+              role="status"
+              data-testid="download-done"
+              class="rounded-lg border border-emerald-700/40 bg-emerald-950/30 p-4 text-sm text-emerald-200 leading-relaxed"
+            >
+              <strong class="text-emerald-100"
+                >✓ Already downloaded — the file has been deleted from the server.</strong
+              >
+              {{ " " }}
+              <template v-if="downloadedFilename"
+                >Look for <span class="font-mono break-all">{{ downloadedFilename }}</span> in your
+                browser's Downloads folder.</template
+              >
+              <template v-else>Look for it in your browser's Downloads folder.</template>
+              {{ " " }}The results on this page are still here for reference. To get another copy,
+              audit your PDF again and rerun the remediation.
+            </div>
+
+            <!-- Never downloaded, and the server's copy has timed out. -->
+            <p
+              v-else-if="downloadState === 'expired'"
+              data-testid="download-expired"
+              class="text-sm text-amber-300 text-center leading-relaxed"
+            >
+              The remediated PDF is no longer on the server — files are deleted after a short time.
+              The results on this page are still here for reference. To get the file, audit your PDF
+              again and rerun the remediation.
+            </p>
+
+            <div v-else-if="downloadHref" class="space-y-4">
+              <!-- Said BEFORE the click: this is a one-time download. -->
+              <p
+                data-testid="download-once-notice"
+                class="rounded-lg border border-amber-600/50 bg-amber-950/30 p-3 text-xs text-amber-200 leading-relaxed"
+              >
+                <strong class="text-amber-100">This file can be downloaded once.</strong>
+                {{ " " }}As soon as the download starts, the copy on our server is deleted — so save
+                it somewhere you can find it again. If you need another copy later, rerun the
+                remediation.
+              </p>
               <!-- Why-keep-the-name explainer (always visible). -->
               <p class="text-xs text-emerald-200/85 leading-relaxed">
                 <strong class="text-emerald-100">Recommended:</strong> download under the exact same
@@ -1018,20 +1124,32 @@ function labelForEvent(name: string): string {
               </div>
 
               <div class="text-center">
+                <!-- A button that fetches the file, not a link to it: a failed
+                     download is then a message on this page (below), where a
+                     link sent the whole tab to the server's raw error. -->
                 <UButton
-                  :to="resolvedDownloadHref ?? undefined"
-                  external
                   size="lg"
                   color="primary"
-                  :disabled="filenameChoice === 'rename' && !customFilename"
+                  data-testid="download-button"
+                  :loading="downloading"
+                  :disabled="downloading || (filenameChoice === 'rename' && !customFilename)"
                   @click="handleDownloadClick"
                 >
-                  <template v-if="filenameChoice === 'rename' && renameConfirming">
+                  <template v-if="downloading"> Downloading… </template>
+                  <template v-else-if="filenameChoice === 'rename' && renameConfirming">
                     ⬇ Confirm download with new name
                   </template>
-                  <template v-else> ⬇ Download </template>
+                  <template v-else> ⬇ Download (one time only) </template>
                 </UButton>
               </div>
+              <p
+                v-if="downloadError"
+                role="alert"
+                data-testid="download-error"
+                class="rounded-lg border border-red-700/50 bg-red-950/20 p-3 text-sm text-red-200 leading-relaxed"
+              >
+                {{ downloadError }}
+              </p>
             </div>
 
             <p v-else class="text-sm text-amber-400 text-center">
@@ -1486,11 +1604,24 @@ function labelForEvent(name: string): string {
       v-if="status && status.status === 'expired'"
       class="border border-[var(--border)] rounded-lg p-6 mb-6"
     >
-      <h2 class="text-lg font-medium mb-3">This job has expired</h2>
-      <p class="text-sm text-[var(--text-muted)]">
-        The remediated PDF was deleted after the retention window. Audit your PDF again and rerun
-        remediation if you still need it.
-      </p>
+      <!-- Two different endings share the `expired` status. The receipt's
+           event log tells them apart, so the explanation can be the true one:
+           "you already downloaded it" is not "it timed out". -->
+      <template v-if="downloadState === 'downloaded'">
+        <h2 class="text-lg font-medium mb-3">This file has already been downloaded</h2>
+        <p data-testid="expired-downloaded" class="text-sm text-[var(--text-muted)]">
+          The remediated PDF can be downloaded once, and it was. The copy on our server was deleted
+          when that download started — look for it in the Downloads folder of the browser that
+          fetched it. To get another copy, audit your PDF again and rerun the remediation.
+        </p>
+      </template>
+      <template v-else>
+        <h2 class="text-lg font-medium mb-3">This job has expired</h2>
+        <p data-testid="expired-retention" class="text-sm text-[var(--text-muted)]">
+          The remediated PDF was not downloaded in time and was deleted after the retention window.
+          Audit your PDF again and rerun remediation if you still need it.
+        </p>
+      </template>
     </section>
 
     <!-- Error from the polling itself -->

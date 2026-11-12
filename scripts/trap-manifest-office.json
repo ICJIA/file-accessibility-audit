@@ -1,6 +1,6 @@
 {
-  "count": 97,
-  "generated": "2026-10-26",
+  "count": 101,
+  "generated": "2026-11-12",
   "items": [
     {
       "file": "synthetic-101-docx-bold-fake-headings.docx",
@@ -488,6 +488,26 @@
       "file": "synthetic-185-pptx-one-stray-language.pptx",
       "label": "PowerPoint: one French greeting is the deck's only language mark",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-225-docx-undescribed-drawn-shape.docx",
+      "label": "Word: a drawn arrow with no text, no description and no decorative mark",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-226-pptx-undescribed-drawn-shape.pptx",
+      "label": "PowerPoint: a drawn arrow with no text, no description and no decorative mark",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-227-xlsx-undescribed-drawn-shape.xlsx",
+      "label": "Excel: a drawn arrow with no text, no description and no decorative mark",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx",
+      "label": "PowerPoint: the same arrow, marked decorative",
+      "chip": "held"
     }
   ]
 }

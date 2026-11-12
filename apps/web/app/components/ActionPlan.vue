@@ -235,6 +235,19 @@
       </ol>
     </template>
 
+    <!-- No steps, but the conformance gate does not allow a pass: a confirmed
+         failure in a category that produced no step, or a file the gate could
+         not judge. Never the green card (2026-11-12). -->
+    <div
+      v-else-if="!pubStatus.mayClaimPass"
+      data-testid="plan-no-pass-card"
+      class="rounded-lg border border-[var(--status-warning-yellow)]/40 bg-yellow-500/5 px-4 py-3 mt-2"
+    >
+      <p class="text-sm font-semibold text-[var(--status-warning-yellow)]">
+        <span aria-hidden="true">⚠</span> {{ emptyPlanSentence(pubStatus) }}
+      </p>
+    </div>
+
     <div
       v-else
       data-testid="plan-pass-card"
@@ -455,6 +468,7 @@ import { planTimeTotal } from "~/utils/fixTime";
 import BestPracticesSection from "~/components/BestPracticesSection.vue";
 import { evaluateBestPractices } from "~/utils/bestPractices";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
+import { emptyPlanSentence, publicationStatus } from "~/utils/publicationStatus";
 
 const props = defineProps<{
   steps: PlanStep[];
@@ -563,6 +577,10 @@ function isRequiredStep(s: { categoryId: string }): boolean {
 }
 const requiredCount = computed(() => props.steps.filter((s) => isRequiredStep(s)).length);
 
+/** The shared publish decision — the steps already carry their severities,
+ *  so the plan needs no second copy of the categories to ask it. */
+const pubStatus = computed(() => publicationStatus(props.steps, props.conformance));
+
 /** Plan-wide hands-on time — only when EVERY step carries a summable
  *  estimate; a partial sum shown as the total would overclaim (fixTime.ts). */
 const timeTotal = computed(() => planTimeTotal(props.steps));
@@ -604,6 +622,12 @@ const subtitle = computed(() => {
         }.`
       : "";
   if (rec === 0) return `${start}${criteriaBridge}`;
+  // "No WCAG 2.1 criterion is failing" is a claim about the whole document:
+  // only make it when the gate itself says so — not when it failed something
+  // outside these steps, and not when it reached no verdict at all.
+  if (req === 0 && (critCount > 0 || props.conformance.status !== "no-automated-failures")) {
+    return start;
+  }
   if (req === 0) {
     return `${start} No WCAG 2.1 criterion is failing — ${n === 1 ? "this fix is" : "these fixes are"} recommended: ${n === 1 ? "it raises" : "they raise"} your score and ${n === 1 ? "helps" : "help"} real readers.`;
   }

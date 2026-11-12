@@ -9,6 +9,9 @@ import { ANALYSIS } from "#config";
 
 // Simple semaphore for concurrency limiting with timeout
 const SEMAPHORE_TIMEOUT_MS = 60_000; // 60 seconds max wait
+/** How long a timed-out pdfjs pass is given to notice its abort signal and
+ *  tear down before its concurrency slot is released regardless. */
+const PDFJS_ABORT_GRACE_MS = 2_000;
 let activeAnalyses = 0;
 const waitQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> = [];
 
@@ -19,6 +22,16 @@ export async function acquireSemaphore(): Promise<void> {
   if (activeAnalyses < ANALYSIS.MAX_CONCURRENT_ANALYSES) {
     activeAnalyses++;
     return;
+  }
+  // The line itself is bounded (2026-11-12). Every waiter already holds its
+  // upload in memory, so an unbounded line was an unbounded memory commitment;
+  // refusing at once is also kinder than a 60-second wait that ends in the
+  // same 503.
+  if (waitQueue.length >= ANALYSIS.MAX_QUEUED_ANALYSES) {
+    throw Object.assign(
+      new Error("Server busy — too many analyses queued. Please try again shortly."),
+      { status: 503 },
+    );
   }
   return new Promise((resolve, reject) => {
     const entry = { resolve, reject };
@@ -117,11 +130,32 @@ export async function analyzePDF(buffer: Buffer, filename: string): Promise<Anal
     // page count) would otherwise pin this concurrency slot indefinitely. On
     // timeout we reject with a killed-style error so the route maps it to a
     // 504, and the `finally` below releases the semaphore slot.
-    const pdfjsResult = await withTimeout(
-      analyzeWithPdfjs(buffer),
-      ANALYSIS.PDFJS_TIMEOUT_MS,
-      "pdfjs extraction timed out",
-    );
+    //
+    // The timeout also has to STOP the work (2026-11-12). pdfjs shares this
+    // process's event loop; merely ceasing to await it left a pathological
+    // file parsing on for as long as it liked, with its slot already handed to
+    // the next request — so the two-slot limit did not bound anything for
+    // exactly the files it exists for. The signal makes the extraction quit at
+    // its next page boundary and tear the document down, and the slot is held
+    // for a short grace period so it is not released while that is happening.
+    const pdfjsAbort = new AbortController();
+    const pdfjsWork = analyzeWithPdfjs(buffer, { signal: pdfjsAbort.signal });
+    let pdfjsResult: Awaited<typeof pdfjsWork>;
+    try {
+      pdfjsResult = await withTimeout(
+        pdfjsWork,
+        ANALYSIS.PDFJS_TIMEOUT_MS,
+        "pdfjs extraction timed out",
+      );
+    } catch (err) {
+      pdfjsAbort.abort();
+      const grace = Math.min(PDFJS_ABORT_GRACE_MS, ANALYSIS.PDFJS_TIMEOUT_MS);
+      await Promise.race([
+        pdfjsWork.catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, grace)),
+      ]);
+      throw err;
+    }
 
     if (qpdfResult.error && pdfjsResult.error) {
       const error = new Error("PDF parsing failed") as Error & {

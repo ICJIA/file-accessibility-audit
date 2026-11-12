@@ -74,9 +74,12 @@ async function collect(): Promise<{
   const files: string[] = [];
   for (const root of ROOTS) {
     for (const entry of fs.readdirSync(root)) {
+      // Dotfiles are never documents (macOS AppleDouble `._*` stubs, .DS_Store).
+      if (entry.startsWith(".")) continue;
       const p = path.join(root, entry);
       if (fs.statSync(p).isDirectory()) {
         for (const sub of fs.readdirSync(p)) {
+          if (sub.startsWith(".")) continue;
           if (EXTS.has(path.extname(sub).toLowerCase())) files.push(path.join(p, sub));
         }
       } else if (EXTS.has(path.extname(entry).toLowerCase())) {

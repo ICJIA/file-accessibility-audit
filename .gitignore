@@ -21,6 +21,8 @@ apps/api/data/*.db-shm
 apps/api/data/*.sqlite
 apps/api/data/*.sqlite-wal
 apps/api/data/*.sqlite-shm
+# Report-seal signing secret (generated on first run; never commit)
+apps/api/data/*.key
 
 # OS files
 .DS_Store

@@ -15,6 +15,8 @@ import { isAllowedUrl } from "../services/urlPolicy.js";
 import { runUrlAudit } from "../services/urlAuditPipeline.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
+import { setBusyRetryAfter } from "../services/busy.js";
+import { engineVersion } from "../services/engineVersion.js";
 
 const router: IRouter = Router();
 
@@ -123,17 +125,29 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
     // fleet inventory keeps a stable URL. Content-hash only (v1.68.0):
     // with sign-in gone every caller shared one identity anyway, so this
     // preserves the exact behavior production already had.
+    //
+    // Engine-version aware (review 2026-11-12): a hit must have been computed
+    // by the engine version that is running NOW. regradeStoredReport below
+    // only re-derives the GRADE from stored category scores — it cannot
+    // re-run detection — so without this a fleet caller that never sends
+    // `force` kept receiving pre-change findings for up to a year after a
+    // detection fix shipped. A row from another version, or with no recorded
+    // version (NULL — every row written before migration 17), is a cache
+    // miss: the document is re-audited and a new report stored. The older
+    // report's link keeps working until it expires.
+    const version = engineVersion();
     if (!force) {
       const existing = db
-        .prepare<[string, string]>(
+        .prepare<[string, string, string]>(
           `SELECT id, report_json, filename, expires_at
                FROM shared_reports
               WHERE content_hash = ?
                 AND expires_at > ?
+                AND engine_version = ?
               ORDER BY created_at DESC
               LIMIT 1`,
         )
-        .get(contentHash, new Date().toISOString()) as DedupRow | undefined;
+        .get(contentHash, new Date().toISOString(), version) as DedupRow | undefined;
 
       if (existing) {
         // Regrade to the current scoring model before extracting scores —
@@ -145,6 +159,25 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
         // Answered from the store, no analysis: refunded from the privileged
         // hourly budget (see markServedFromStore in rateLimiter.ts).
         markServedFromStore(req, res);
+
+        // A cache hit counts for the remediation audit-gate exactly as a
+        // fresh audit does (review 2026-11-12): these exact bytes were just
+        // fetched and hashed, and a current-engine audit of them is on
+        // record. Without a row here, remediating right after a cached
+        // audit-url answered 403 "Audit required" while that very message
+        // says audit-url counts. Recorded under its OWN event type so it is
+        // outside every counting allow-list in services/status.ts — a cache
+        // hit must not inflate documents_audited or the grade distribution.
+        const cachedScore = extractProfileScore(cached);
+        recordAudit({
+          privileged,
+          eventType: "audit-url-cached",
+          filename,
+          score: cachedScore.score,
+          grade: cachedScore.grade,
+          contentHash,
+        });
+
         res.json({
           filename: existing.filename,
           pageCount: cached.pageCount ?? null,
@@ -193,9 +226,10 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
     const reportToStore = sanitized.ok ? sanitized.report : persistPayload;
 
     db.prepare(
-      `INSERT INTO shared_reports (id, filename, report_json, content_hash, expires_at)
-           VALUES (?, ?, ?, ?, ?)`,
-    ).run(id, filename, JSON.stringify(reportToStore), contentHash, reportExpiresAt);
+      `INSERT INTO shared_reports
+             (id, filename, report_json, content_hash, expires_at, engine_version)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(id, filename, JSON.stringify(reportToStore), contentHash, reportExpiresAt, version);
 
     // Canonical audit-log write so audit-url-audited content also
     // counts for the remediation gate (v1.20.1+). The fleet flow
@@ -240,6 +274,7 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
 
     // Server busy (concurrency semaphore full/timeout)
     if (err?.status === 503) {
+      setBusyRetryAfter(res);
       res.status(503).json({
         error: "The server is busy processing other files.",
         details: "Please wait a moment and try again.",

@@ -6,8 +6,11 @@
       role="alert"
       class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6"
     >
+      <!-- Never an empty red box: describeAnalysisError() always supplies a
+           message and a next step, and the fallback here covers an error
+           object from any other source. -->
       <h3 class="font-semibold text-[var(--status-error)] mb-2">
-        {{ analysisError.error }}
+        {{ analysisError.error || "The audit could not be completed." }}
       </h3>
       <p v-if="analysisError.details" class="text-sm text-[var(--text-muted)]">
         {{ analysisError.details }}
@@ -19,6 +22,20 @@
 
     <!-- Results state (show only after all batch items finish, or single result) -->
     <div v-else-if="hasAnyResult && !batchProcessing">
+      <!-- Batch completion: the focus target and announcement for a finished
+           batch, as the results heading below is for a single file. Focus
+           used to stay on the progress screen's now-removed Cancel button,
+           so a screen-reader user was told nothing when the batch ended. -->
+      <h2
+        v-if="isBatchMode"
+        ref="batchDoneHeadingRef"
+        tabindex="-1"
+        class="sr-only"
+        data-testid="batch-done-heading"
+      >
+        {{ batchDoneSummary }}
+      </h2>
+
       <!-- Batch file switcher — the scoreboard of per-file report cards.
            Owns the tablist semantics AND the completion message (there is no
            separate banner: the element that announces "N reports" is the one
@@ -30,10 +47,15 @@
         @switch="switchTab"
       />
 
-      <!-- Active tab error -->
+      <!-- Active tab error. An alert when the reader switches to this tab —
+           but NOT at the moment a batch finishes on it: focus has just moved
+           to the batch heading above, which already says how many files
+           could not be analyzed, and two announcements at once talk over
+           each other. -->
       <div
         v-if="activeItem?.status === 'error'"
-        role="alert"
+        :role="batchJustFinished ? undefined : 'alert'"
+        data-testid="batch-tab-error"
         class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6"
       >
         <h3 class="font-semibold text-[var(--status-error)] mb-2">
@@ -223,6 +245,7 @@
             <ReportActionBanner
               v-if="result?.categories"
               :categories="result.categories"
+              :conformance="result.conformance"
               :file-type="result?.fileType"
               class="mb-4"
             />
@@ -341,7 +364,7 @@
           <p class="text-sm font-medium text-[var(--text-muted)] mb-3 text-center">Share Report</p>
 
           <div v-if="!shareUrl">
-            <div class="flex flex-wrap gap-2 justify-center">
+            <div ref="shareCreateRef" class="flex flex-wrap gap-2 justify-center">
               <UButton
                 variant="soft"
                 color="neutral"
@@ -370,7 +393,15 @@
             <p class="text-xs text-[var(--text-muted)] mt-2 text-center">
               Creates a public link anyone can view. Expires in 365 days.
             </p>
-            <p v-if="shareError" class="text-xs text-[var(--status-error)] mt-1">
+            <!-- role="alert": the message appears without a page change, so
+                 it has to announce itself. Focus stays on the button, which
+                 is still here to try again. -->
+            <p
+              v-if="shareError"
+              role="alert"
+              data-testid="share-error"
+              class="text-xs text-[var(--status-error)] mt-2 text-center"
+            >
               {{ shareError }}
             </p>
           </div>
@@ -378,8 +409,14 @@
           <!-- Share URL display -->
           <div v-else class="space-y-3">
             <div class="flex gap-2">
+              <!-- The Create button is removed the moment the link exists,
+                   taking keyboard focus with it — handleShare() moves focus
+                   here, and the label says what the field holds. -->
               <input
+                ref="shareUrlInputRef"
                 type="text"
+                aria-label="Shareable report link"
+                data-testid="share-url"
                 :value="shareUrl"
                 readonly
                 class="flex-1 bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] font-mono select-all"
@@ -408,16 +445,19 @@
                 </template>
                 Email Link
               </UButton>
-              <UButton variant="ghost" color="neutral" size="xs" @click="clearShare">
+              <UButton variant="ghost" color="neutral" size="xs" @click="dismissShare">
                 Dismiss
               </UButton>
             </div>
           </div>
         </div>
 
-        <!-- AI-Ready Analysis (only shown when there's something to remediate) -->
+        <!-- AI-Ready Analysis — shown whenever the hand-off has something to
+             fix: a Critical or Moderate category, or a confirmed WCAG 2.1
+             failure in a category that is only Minor in extent. -->
         <div
           v-if="hasRemediationItems"
+          data-testid="ai-analysis-panel"
           class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6"
         >
           <div class="flex items-start gap-3 mb-4">
@@ -794,9 +834,14 @@ import { uploadNoun } from "~/utils/uploadFormats";
 import {
   analyzeWithProgress,
   resumeWithProgress,
+  describeAnalysisError,
+  POLL_LOST_CONTACT_MESSAGE_NO_RESUME,
   type AnalyzeJobStatus,
   type AnalyzeJobStepKey,
 } from "~/utils/analyzeJob";
+import { runBatch } from "~/utils/batchRun";
+import { aiAnalysisHasFixes } from "~/utils/exportFormats/aiAnalysis";
+import { fileTypeLabel } from "~/utils/reportBanner";
 import {
   clearAuditSession,
   readAuditSession,
@@ -838,14 +883,29 @@ interface BatchItem {
   error: PrefillError | null;
 }
 
-// Abort controller for batch cancellation
-let batchAbortController: AbortController | null = null;
+// The batch run currently OWNING the page, if any. Each run gets its own
+// AbortController and its own items array, both captured in its closure — a
+// run that is no longer `batchRun` is stale and must never write to page
+// state (see utils/batchRun.ts for what went wrong when one did).
+let batchRun: { controller: AbortController } | null = null;
+// The same for a single-file audit (an upload, or one rejoined after a page
+// load). Reset aborts it, and a run that is no longer `singleRun` writes
+// nothing — its poll used to keep going and drop a finished report, or an
+// error, onto the page the visitor had just cleared.
+let singleRun: { controller: AbortController } | null = null;
+function beginSingleRun() {
+  singleRun?.controller.abort();
+  const run = { controller: new AbortController() };
+  singleRun = run;
+  return run;
+}
 
 const resetSignal = inject<Ref<number>>("resetSignal");
 const {
   shareReport,
   shareUrl,
   shareError,
+  sharedReport,
   sharing,
   clearShare,
   copyAiAnalysis,
@@ -866,10 +926,10 @@ const aiAnalysisPreview = computed(() => {
   if (!result.value) return "";
   return buildAiAnalysisText(result.value);
 });
-const hasRemediationItems = computed(() => {
-  const cats = result.value?.categories || [];
-  return cats.some((c) => c.severity === "Critical" || c.severity === "Moderate");
-});
+// The same test the AI text itself uses to decide it has fixes to ask about
+// (exportFormats/aiAnalysis.ts) — so the panel is never hidden for a report
+// whose text says there is work to do.
+const hasRemediationItems = computed(() => aiAnalysisHasFixes(result.value));
 
 // --- Single file state (preserved for single-file UX) ---
 const processing = ref(false);
@@ -975,6 +1035,13 @@ watchEffect(() => {
 // the flag is still true, and a stuck flag would prompt on every later click.
 onBeforeUnmount(() => {
   auditInProgress.value = false;
+  // A batch still running has no page left to report to.
+  batchRun?.controller.abort();
+  batchRun = null;
+  // A single-file poll likewise — but its server job and its session are
+  // left alone, so the audit can still be rejoined after a navigation.
+  singleRun?.controller.abort();
+  singleRun = null;
 });
 
 // --- Rejoining an audit after a page load (v1.147.0) ---
@@ -1021,13 +1088,16 @@ onMounted(async () => {
   processingStage.value = "";
   analysisError.value = null;
 
+  const run = beginSingleRun();
   try {
     const response = await resumeWithProgress(
       session.jobId,
       session.token,
       $fetch as never,
       mapJobSteps,
+      { signal: run.controller.signal },
     );
+    if (singleRun !== run) return;
     singleResult.value = response;
     saveFinishedAudit({
       result: response,
@@ -1037,23 +1107,31 @@ onMounted(async () => {
     });
     focusResultsHeading();
   } catch (err: unknown) {
-    clearAuditSession();
+    if (singleRun !== run) return; // reset — the page has moved on
+    // Lost contact is not a terminal answer: the job may still be running,
+    // so the session that lets a reload rejoin it is kept.
+    if (!(err as { lostContact?: boolean })?.lostContact) clearAuditSession();
     // A job that is simply gone is not an error the visitor made or needs
     // explaining in red: it expired, another tab collected it, or the API
     // restarted. Return the page to its ordinary state and let them upload.
     if ((err as { jobGone?: boolean })?.jobGone) return;
-    analysisError.value = (err as { data?: PrefillError })?.data ?? {
-      error: "Analysis failed. Please try again.",
-    };
+    analysisError.value = describeAnalysisError(err);
   } finally {
-    processing.value = false;
-    singleAuditResumable.value = false;
-    processingRotate.value = false;
-    processingFileType.value = null;
-    processingFilename.value = null;
-    processingSteps.value = null;
+    if (singleRun === run) endSingleRun();
   }
 });
+
+/** Put the single-file processing state back to idle. Only ever called by
+ *  the run that still owns the page, or by a reset. */
+function endSingleRun() {
+  singleRun = null;
+  processing.value = false;
+  singleAuditResumable.value = false;
+  processingRotate.value = false;
+  processingFileType.value = null;
+  processingFilename.value = null;
+  processingSteps.value = null;
+}
 
 const showDropHint = ref(false);
 let dropHintTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1093,7 +1171,9 @@ usePrefill({
     focusResultsHeading();
   },
   onError(err) {
-    analysisError.value = err;
+    // Normalised like every other failure, so a non-JSON error body can
+    // never leave the alert without a message.
+    analysisError.value = describeAnalysisError({ data: err });
   },
   onDone() {
     processing.value = false;
@@ -1108,6 +1188,8 @@ async function analyzeFile(file: File) {
   singleFile.value = file;
   batchItems.value = [];
 
+  const run = beginSingleRun();
+  const { signal } = run.controller;
   try {
     processingRotate.value = true;
     processingFileType.value = fileTypeFromName(file.name);
@@ -1134,9 +1216,11 @@ async function analyzeFile(file: File) {
             appVersion: String(runtimeConfig.public.appVersion ?? ""),
           });
         },
+        signal,
       });
     } catch (jobErr: any) {
       if (!jobErr?.jobUnsupported) throw jobErr;
+      if (singleRun !== run) return;
       // No job endpoints on this deployment: nothing to rejoin, so leaving
       // really would discard this audit and the warning must come back.
       singleAuditResumable.value = false;
@@ -1148,9 +1232,12 @@ async function analyzeFile(file: File) {
         method: "POST",
         body: formData,
         credentials: "include",
+        signal,
       });
     }
 
+    // Reset while this audit was in flight: its answer belongs to no one.
+    if (singleRun !== run) return;
     singleResult.value = response;
     // The server deletes a finished job the moment a page collects it, so
     // from here on this browser is the only place the report exists. Keeping
@@ -1163,30 +1250,44 @@ async function analyzeFile(file: File) {
       appVersion: String(runtimeConfig.public.appVersion ?? ""),
     });
     focusResultsHeading();
-  } catch (err: any) {
-    clearAuditSession();
-    analysisError.value = err.data || {
-      error: "Analysis failed. Please try again.",
-    };
+  } catch (err: unknown) {
+    if (singleRun !== run) return; // reset — the page has moved on
+    // Always a message and a next step — an nginx 502 page has no JSON body,
+    // and the alert used to render as an empty red box.
+    const lostContact = (err as { lostContact?: boolean })?.lostContact === true;
+    if (lostContact && singleAuditResumable.value) {
+      // Not a terminal answer: the job may still be running on the server.
+      // Keep the session so a reload can rejoin it — the message says so.
+      analysisError.value = describeAnalysisError(err);
+    } else {
+      clearAuditSession();
+      analysisError.value = lostContact
+        ? { ...POLL_LOST_CONTACT_MESSAGE_NO_RESUME }
+        : describeAnalysisError(err);
+    }
   } finally {
-    processing.value = false;
-    singleAuditResumable.value = false;
-    processingRotate.value = false;
-    processingFileType.value = null;
-    processingFilename.value = null;
-    processingSteps.value = null;
+    if (singleRun === run) endSingleRun();
   }
 }
 
 // --- Batch analysis ---
 async function analyzeBatch(files: File[]) {
+  // A batch already running is superseded, not joined.
+  batchRun?.controller.abort();
+  const run = { controller: new AbortController() };
+  batchRun = run;
+  // …and so is a single-file audit still in flight.
+  if (singleRun) {
+    singleRun.controller.abort();
+    endSingleRun();
+  }
+  batchJustFinished.value = false;
+
   singleResult.value = null;
   analysisError.value = null;
   batchProcessing.value = true;
   activeTabIndex.value = 0;
-
-  batchAbortController = new AbortController();
-  const { signal } = batchAbortController;
+  clearShare();
 
   batchItems.value = files.map((file, i) => ({
     id: `batch-${i}-${Date.now()}`,
@@ -1196,81 +1297,72 @@ async function analyzeBatch(files: File[]) {
     result: null,
     error: null,
   }));
+  // THIS run's items: the reactive array just assigned. A reset or a newer
+  // batch replaces `batchItems.value` with a different array, so whatever
+  // this run does after that lands on a list the page no longer shows.
+  const items = batchItems.value;
 
-  // Process with concurrency limit of 2 (matching MAX_CONCURRENT_ANALYSES)
-  const concurrency = 2;
-  let nextIndex = 0;
+  await runBatch<AnalysisResult, PrefillError>({
+    items,
+    signal: run.controller.signal,
+    // Matches MAX_CONCURRENT_ANALYSES on the API.
+    concurrency: 2,
+    analyze: (file, signal) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return $fetch<AnalysisResult>("/api/analyze", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+        signal,
+      });
+    },
+    describeError: describeAnalysisError,
+  });
 
-  async function processNext(): Promise<void> {
-    while (nextIndex < batchItems.value.length) {
-      if (signal.aborted) return;
-
-      const idx = nextIndex++;
-      // Non-null: idx was captured from nextIndex while it was still less
-      // than batchItems.value.length (the while condition above), and
-      // batchItems.value is only ever appended to elsewhere, never spliced
-      // shorter during this loop, so the slot at idx is always present.
-      const item = batchItems.value[idx]!;
-      item.status = "processing";
-
-      try {
-        const formData = new FormData();
-        // Non-null: this item just transitioned queued -> processing above,
-        // and file is only ever nulled out AFTER a terminal state is reached
-        // (below, and in the cancelled-sweep after this loop) — so the very
-        // first read here always sees the real File.
-        formData.append("file", item.file!);
-
-        const response = await $fetch<AnalysisResult>("/api/analyze", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-          signal,
-        });
-
-        item.result = response;
-        item.status = "done";
-        item.file = null; // Free browser memory
-      } catch (err: any) {
-        if (signal.aborted) {
-          item.status = "cancelled";
-          item.file = null;
-          return;
-        }
-        item.error = err.data || { error: "Analysis failed." };
-        item.status = "error";
-        item.file = null; // Free browser memory
-      }
-    }
-  }
-
-  // Launch concurrent workers
-  const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => processNext());
-  await Promise.all(workers);
-
-  // Mark remaining queued items as cancelled
-  for (const item of batchItems.value) {
-    if (item.status === "queued") {
-      item.status = "cancelled";
-      item.file = null;
-    }
-  }
-
+  // Reset, or replaced by a newer batch, while this one was still running:
+  // the page belongs to someone else now. Touch nothing.
+  if (batchRun !== run) return;
+  batchRun = null;
   batchProcessing.value = false;
-  batchAbortController = null;
 
   // Auto-select first successful result
-  const firstDone = batchItems.value.findIndex((i) => i.status === "done");
+  const firstDone = items.findIndex((i) => i.status === "done");
   if (firstDone >= 0) activeTabIndex.value = firstDone;
+
+  batchJustFinished.value = true;
+  focusBatchDoneHeading();
 }
 
 function cancelBatch() {
-  if (batchAbortController) {
-    batchAbortController.abort();
-  }
+  batchRun?.controller.abort();
+}
+
+// Batch completion, in words — read out when focus lands on its heading.
+const batchDoneHeadingRef = ref<HTMLElement | null>(null);
+// True from the moment a batch finishes until the reader picks a tab: the
+// focused heading is the one announcement for that moment.
+const batchJustFinished = ref(false);
+const batchDoneSummary = computed(() => {
+  const total = batchItems.value.length;
+  const count = (status: BatchItem["status"]) =>
+    batchItems.value.filter((i) => i.status === status).length;
+  const done = count("done");
+  const failed = count("error");
+  const cancelled = count("cancelled");
+  const parts = [`Batch finished: ${done} of ${total} ${total === 1 ? "file" : "files"} analyzed`];
+  if (failed) parts.push(`${failed} could not be analyzed`);
+  if (cancelled) parts.push(`${cancelled} cancelled`);
+  return `${parts.join(", ")}.`;
+});
+function focusBatchDoneHeading() {
+  nextTick(() => {
+    batchDoneHeadingRef.value?.focus();
+  });
 }
 
 function switchTab(idx: number) {
+  batchJustFinished.value = false;
   activeTabIndex.value = idx;
   clearShare(); // Reset share state on tab switch
 }
@@ -1280,6 +1372,17 @@ function scrollToExport() {
 }
 
 function clearResults() {
+  // Stop a batch that is still running. Without this its loop carried on and
+  // later wrote over whatever the page was doing next.
+  batchRun?.controller.abort();
+  batchRun = null;
+  // And a single-file audit: abort its upload/poll and return the page to
+  // idle now, rather than when a stale run eventually comes back.
+  if (singleRun) {
+    singleRun.controller.abort();
+    endSingleRun();
+  }
+  batchJustFinished.value = false;
   clearAuditSession();
   singleResult.value = null;
   analysisError.value = null;
@@ -1291,9 +1394,36 @@ function clearResults() {
 
 const copied = ref(false);
 
+// Focus management for the share row: the Create button is removed once a
+// link exists, and the link field is removed on Dismiss — in both cases the
+// control that had keyboard focus disappears, so focus is handed on.
+const shareUrlInputRef = ref<HTMLInputElement | null>(null);
+const shareCreateRef = ref<HTMLElement | null>(null);
+
 async function handleShare() {
   if (!result.value) return;
-  await shareReport(result.value);
+  // Posted exactly as received from the API (seal included) — see
+  // useReportExport.shareReport.
+  const startedFrom = document.activeElement;
+  const url = await shareReport(result.value);
+  if (!url) return; // the error is announced by its role="alert"
+  // Is focus still where the request left it? Read BEFORE the button is
+  // removed. If the reader has since moved on to something else, it stays
+  // there — a link arriving must not pull focus away from what they are doing.
+  const before = document.activeElement;
+  const stillOnShare =
+    !before ||
+    before === document.body ||
+    before === startedFrom ||
+    !!shareCreateRef.value?.contains(before);
+  await nextTick();
+  if (stillOnShare) shareUrlInputRef.value?.focus();
+}
+
+async function dismissShare() {
+  clearShare();
+  await nextTick();
+  shareCreateRef.value?.querySelector<HTMLElement>("button")?.focus();
 }
 
 async function copyShareUrl() {
@@ -1318,11 +1448,18 @@ async function copyShareUrl() {
 }
 
 function emailShareUrl() {
-  if (!shareUrl.value || !result.value) return;
-  const subject = encodeURIComponent(`PDF Accessibility Report: ${result.value.filename}`);
+  // The name and score come from the report the link was MADE for, never
+  // from whichever report is on screen — the two were once free to differ.
+  const shared = sharedReport.value;
+  if (!shareUrl.value || !shared) return;
+  // "Word Accessibility Report" for a Word file — it used to say "PDF" for
+  // every format.
+  const subject = encodeURIComponent(
+    `${fileTypeLabel(shared.fileType)} Accessibility Report: ${shared.filename}`,
+  );
   const body = encodeURIComponent(
-    `Here is the accessibility report for "${result.value.filename}":\n\n` +
-      `Score: ${result.value.overallScore}/100 (Grade ${result.value.grade})\n` +
+    `Here is the accessibility report for "${shared.filename}":\n\n` +
+      `Score: ${shared.overallScore}/100 (Grade ${shared.grade})\n` +
       // For most recipients this email IS the report. Deliberately
       // unconditional — humans stay in the loop at every grade, and a test
       // asserts no grade gate creeps back in here.

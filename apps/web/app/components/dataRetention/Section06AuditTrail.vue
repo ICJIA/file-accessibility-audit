@@ -47,7 +47,9 @@
   verapdf_summary_json <span class="text-purple-300">TEXT</span>,
   created_at           <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>,
   completed_at         <span class="text-purple-300">INTEGER</span>,
-  expires_at           <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>
+  expires_at           <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>,
+  started_at           <span class="text-purple-300">INTEGER</span>,            <span class="text-[var(--text-muted)]">-- when the job left the waiting line (v1.168.0)</span>
+  worker_pid           <span class="text-purple-300">INTEGER</span>             <span class="text-[var(--text-muted)]">-- server process number of the worker, so it can be stopped (v1.168.0)</span>
 );</pre>
     <p class="text-sm text-[var(--text-secondary)] mt-4 mb-3 leading-relaxed">
       <strong>The closed set of event types</strong> emitted per job is:

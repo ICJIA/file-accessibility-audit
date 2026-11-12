@@ -26,6 +26,7 @@ import { XLSX, OOXML } from "#config";
 import {
   type PONode,
   parseXml,
+  parseMainXml,
   tagOf,
   childrenOf,
   attrOf,
@@ -48,6 +49,9 @@ import {
   EXCEL_THEME_INDEX_ORDER,
   EXCEL_INDEXED_PALETTE,
   onOffEnabled,
+  xsdBoolean,
+  TEXTLESS_SHAPE_NEEDS_ALT,
+  hasPictureFill,
 } from "./ooxml.js";
 
 export interface XlsxMetadata {
@@ -94,6 +98,9 @@ export interface XlsxAnalysis {
     titleOnly: boolean;
     /** Only a file name or placeholder word (WCAG F30) — see drawingAltText. */
     placeholderAlt?: string;
+    /** A plain drawn shape with no text and no picture fill (2026-11-12) —
+     *  see TEXTLESS_SHAPE_NEEDS_ALT in ooxml.ts. Absent on pictures. */
+    drawnShape?: boolean;
   }>;
   /**
    * text = the linked cell's visible text (shared/inline/cached string),
@@ -123,6 +130,11 @@ export interface XlsxAnalysis {
   /** Legacy form controls / OLE controls on visible sheets (v1.95.0) —
    *  detected and disclosed; their accessibility is not machine-assessed. */
   formControlCount?: number;
+  /** Names of VISIBLE worksheets/chartsheets whose part is missing or could
+   *  not be parsed (2026-11-12). They were skipped without a word, so a
+   *  workbook with an unread sheet could be graded as clean. Absent/empty =
+   *  every visible sheet was read. */
+  unparsedSheets?: string[];
 }
 
 export class XlsxParseError extends Error {
@@ -364,6 +376,11 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   // Background): a no-fill cell there shows the picture, not the white grid,
   // so its contrast cannot be judged (2026-10-05).
   const pictureSheetStyleIndices = new Set<number>();
+  // Where each applied style's cells sit (2026-11-12): inside a defined table
+  // that names a table style — which paints header rows and bands behind
+  // cells with no fill of their own — or on the open grid. See
+  // collectSheetContent.
+  const tablePlacement: TablePlacement = { inStyledTable: new Set(), onGrid: new Set() };
   // Cross-sheet accumulators for the defined-table, drawing-REL, drawing-
   // object, and hyperlink caps (FIX C, + D1 pre-merge re-audit). Kept local
   // (not on XlsxAnalysis) so the analysis OUTPUT shape is unchanged for
@@ -385,13 +402,20 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     const rel = workbookRels.find((r) => r.id === rid);
     const sheetPath = rel ? resolveXlTarget(rel.target, "xl") : null;
     const sheetXml = sheetPath ? await read(sheetPath) : null;
-    const parsed = parseXml(sheetXml);
+    // parseMainXml: a sheet cut short is unparseable, not a shorter sheet.
+    const parsed = parseMainXml(sheetXml, ["worksheet", "chartsheet"]);
     // Chartsheets (<chartsheet> root, xl/chartsheets/…) hold their chart in a
     // drawing rel like worksheets do — previously their root failed the
     // "worksheet" match and the whole sheet (chart alt text included)
     // silently vanished from the audit.
     const sheetRoot = rootElement(parsed, "worksheet") ?? rootElement(parsed, "chartsheet");
     const hidden = state === "hidden" || state === "veryHidden";
+    // A visible worksheet or chartsheet that could not be read is recorded,
+    // never skipped silently (2026-11-12). Other sheet kinds (Excel 4 macro
+    // sheets, dialog sheets) have their own roots and are not audited.
+    if (!hidden && !sheetRoot && (!rel || /\/(worksheet|chartsheet)$/.test(rel.type))) {
+      (analysis.unparsedSheets ??= []).push(name);
+    }
 
     // usedRangeCellCount: the LARGER of the self-declared <dimension ref>
     // and the actually-parsed cell count — streaming writers omit or stub
@@ -445,6 +469,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
         sharedStrings,
         sheetDir,
         refs,
+        tablePlacement,
       );
     }
 
@@ -461,6 +486,17 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     });
   }
 
+  // NOT ONE VISIBLE SHEET COULD BE READ (2026-11-12) — PDF's rule that both
+  // analyzers failing never reaches scoring. A partly unread workbook is
+  // still scored on what was read, with its unread sheets withheld
+  // (scoring/xlsx.ts).
+  const unreadCount = analysis.unparsedSheets?.length ?? 0;
+  if (unreadCount > 0 && unreadCount === analysis.sheets.filter((sh) => !sh.hidden).length) {
+    throw new XlsxParseError(
+      "None of this workbook's visible sheets could be read — the sheet parts are missing, damaged, incomplete, or not valid XML.",
+    );
+  }
+
   // v1.95.0: the theme part powers theme= color resolution; the legacy
   // indexed palette (with any workbook override) powers indexed=.
   const schemeMap = buildSchemeColorMap(
@@ -473,6 +509,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     appliedStyleIndices,
     pictureSheetStyleIndices,
     schemeMap,
+    tablePlacement,
   );
   return analysis;
 }
@@ -525,6 +562,7 @@ async function collectSheetContent(
   sharedStrings: string[],
   sheetDir: string,
   refs: Map<PONode, string>,
+  tablePlacement: TablePlacement,
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
@@ -541,6 +579,8 @@ async function collectSheetContent(
       `This workbook has too many defined tables (${counts.tables.toLocaleString()}+) to analyze.`,
     );
   }
+  const styledTableRanges: Array<NonNullable<ReturnType<typeof rangeOfRef>>> = [];
+  let styledTableAnywhere = false;
   for (const rel of tableRels) {
     const tableXml = await readAuxPart(resolveXlTarget(rel.target, sheetDir), read, counts);
     const tableRoot = rootElement(parseXml(tableXml), "table");
@@ -558,6 +598,48 @@ async function collectSheetContent(
       columnCount: columnSpanOfRef(attrOf(tableRoot, "ref")),
       ...defaultNamesOf(headerNames),
     });
+    // A TABLE STYLE PAINTS BEHIND NO-FILL CELLS (2026-11-12). A no-fill cell
+    // was always judged against the white grid — but inside a defined table
+    // whose tableStyleInfo names a style, the style shades the header row,
+    // the bands, or everything (the Dark styles), and those fills live in
+    // Excel's built-in definitions, not in this file. White header text in a
+    // dark-styled table is the format's canonical accessible pattern and was
+    // a confirmed 1:1 failure. Such cells are unresolved — Word's rule for
+    // the cells of a styled table. A table with no style name paints
+    // nothing, so the white grid still applies; a cell's OWN solid fill
+    // always wins over the style and is still judged.
+    const styleInfo = firstChild(tableRoot, "tableStyleInfo");
+    const styleName = styleInfo ? (attrOf(styleInfo, "name") ?? "").trim() : "";
+    if (styleName) {
+      const range = rangeOfRef(attrOf(tableRoot, "ref"));
+      // A styled table whose range cannot be read could be anywhere.
+      if (range) styledTableRanges.push(range);
+      else styledTableAnywhere = true;
+    }
+  }
+  // One pass over the sheet's cells, however many styled tables it has (past
+  // a small number of them, every cell is treated as possibly inside one —
+  // unknown, never a failure — rather than testing each cell against each).
+  if (sheetRoot) {
+    const everywhere = styledTableAnywhere || styledTableRanges.length > 64;
+    const none = !everywhere && styledTableRanges.length === 0;
+    for (const cell of descendants(sheetRoot, "c")) {
+      if (!cellHasValue(cell)) continue;
+      const st = attrOf(cell, "s");
+      const styleIndex = st !== undefined ? Number(st) : 0;
+      if (none) {
+        tablePlacement.onGrid.add(styleIndex);
+        continue;
+      }
+      const at = everywhere ? null : rangeOfRef(refs.get(cell) ?? attrOf(cell, "r"));
+      const inside =
+        everywhere ||
+        !at ||
+        styledTableRanges.some(
+          (r) => at.col1 >= r.col1 && at.col1 <= r.col2 && at.row1 >= r.row1 && at.row1 <= r.row2,
+        );
+      (inside ? tablePlacement.inStyledTable : tablePlacement.onGrid).add(styleIndex);
+    }
   }
 
   // Drawings: each direct child of wsDr is an anchor (oneCellAnchor,
@@ -603,18 +685,64 @@ async function collectSheetContent(
     // cNvPr-gated push below — fine for a security cap, over-counting only
     // rejects sooner. `counts` accumulates across parts AND sheets.
     counts.drawingObjects +=
-      descendants(drawingRoot, "pic").length + descendants(drawingRoot, "graphicFrame").length;
+      descendants(drawingRoot, "pic").length +
+      descendants(drawingRoot, "graphicFrame").length +
+      descendants(drawingRoot, "sp").length +
+      descendants(drawingRoot, "cxnSp").length;
     if (counts.drawingObjects > XLSX.MAX_DRAWING_OBJECTS) {
       throw new XlsxParseError(
         `This workbook has too many drawing objects (${counts.drawingObjects.toLocaleString()}+) to analyze.`,
       );
     }
-    for (const anchor of childrenOf(drawingRoot)) {
-      for (const obj of [...descendants(anchor, "pic"), ...descendants(anchor, "graphicFrame")]) {
-        const cNvPr = descendants(obj, "cNvPr")[0];
-        if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
+    // The one drawn-shape rule (ooxml.ts, 2026-11-12), as PowerPoint applies
+    // it: a group's own alt text or decorative mark covers its members —
+    // Excel ignored group alt text and counted every member alone — and a
+    // shape with no text is an image when it is filled with a picture, or
+    // plain under TEXTLESS_SHAPE_NEEDS_ALT. A shape with text is a text box.
+    const walkDrawing = (node: PONode): void => {
+      for (const obj of childrenOf(node)) {
+        const tag = tagOf(obj);
+        if (tag === "pic" || tag === "graphicFrame") {
+          const cNvPr = descendants(obj, "cNvPr")[0];
+          if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
+        } else if (tag === "grpSp") {
+          const nv = firstChild(obj, "nvGrpSpPr");
+          const groupPr = nv ? firstChild(nv, "cNvPr") : undefined;
+          const own = groupPr ? drawingAltText(groupPr) : null;
+          if (own && (own.altText || own.decorative)) {
+            // …unless every member is a text box: a group of text boxes is
+            // text, in every format — nothing to count.
+            if (!groupIsOnlyText(obj)) analysis.images.push(own);
+          } else walkDrawing(obj);
+        } else if (tag === "sp") {
+          const nv = firstChild(obj, "nvSpPr");
+          const cNvPr = nv ? firstChild(nv, "cNvPr") : undefined;
+          const cNvSpPr = nv ? firstChild(nv, "cNvSpPr") : undefined;
+          if (!cNvPr) continue;
+          // Not drawn at all: a hidden object (the stand-in Excel writes for
+          // a form control) or an empty text box.
+          if (xsdBoolean(attrOf(cNvPr, "hidden")) === true) continue;
+          if (cNvSpPr && xsdBoolean(attrOf(cNvSpPr, "txBox")) === true) continue;
+          if (textOf(obj).trim().length > 0) continue;
+          const plain = !hasPictureFill(firstChild(obj, "spPr"));
+          if (plain && !TEXTLESS_SHAPE_NEEDS_ALT) continue;
+          analysis.images.push({
+            ...drawingAltText(cNvPr),
+            ...(plain ? { drawnShape: true } : {}),
+          });
+        } else if (tag === "cxnSp") {
+          // A connector or line is a drawn shape like any other.
+          const nv = firstChild(obj, "nvCxnSpPr");
+          const cNvPr = nv ? firstChild(nv, "cNvPr") : undefined;
+          if (!cNvPr || !TEXTLESS_SHAPE_NEEDS_ALT) continue;
+          if (xsdBoolean(attrOf(cNvPr, "hidden")) === true) continue;
+          analysis.images.push({ ...drawingAltText(cNvPr), drawnShape: true });
+        } else {
+          walkDrawing(obj); // anchors
+        }
       }
-    }
+    };
+    walkDrawing(drawingRoot);
   }
 
   // Hyperlinks. Real Excel writes <hyperlink ref="B16" r:id="…"/> with NO
@@ -677,6 +805,55 @@ async function collectSheetContent(
   }
 }
 
+/** Whether every member of an xdr:grpSp (nested groups included) is a shape
+ *  that carries text. A picture, frame, connector or textless shape makes it
+ *  a drawing; an empty group is not text either. */
+function groupIsOnlyText(group: PONode): boolean {
+  let members = 0;
+  const allText = (g: PONode): boolean => {
+    for (const member of childrenOf(g)) {
+      const tag = tagOf(member);
+      if (tag === "grpSp") {
+        if (!allText(member)) return false;
+      } else if (tag === "sp") {
+        members++;
+        if (textOf(member).trim().length === 0) return false;
+      } else if (tag === "pic" || tag === "graphicFrame" || tag === "cxnSp") {
+        return false;
+      }
+    }
+    return true;
+  };
+  return allText(group) && members > 0;
+}
+
+/** cellXfs indices by where their non-empty cells sit on visible sheets: in
+ *  the range of a defined table that names a table style, or on the open
+ *  grid. A style can be in both. */
+interface TablePlacement {
+  inStyledTable: Set<number>;
+  onGrid: Set<number>;
+}
+
+/** A cell or range ref as 1-based bounds: "B2:D9" → cols 2–4, rows 2–9;
+ *  "B2" → that one cell; malformed → null. */
+function rangeOfRef(
+  ref: string | undefined,
+): { col1: number; row1: number; col2: number; row2: number } | null {
+  const m = /^\$?([A-Z]+)\$?(\d+)(?::\$?([A-Z]+)\$?(\d+))?$/.exec((ref ?? "").trim().toUpperCase());
+  if (!m) return null;
+  const c1 = colToNumber(m[1]!);
+  const r1 = Number(m[2]);
+  const c2 = m[3] ? colToNumber(m[3]) : c1;
+  const r2 = m[4] ? Number(m[4]) : r1;
+  return {
+    col1: Math.min(c1, c2),
+    row1: Math.min(r1, r2),
+    col2: Math.max(c1, c2),
+    row2: Math.max(r1, r2),
+  };
+}
+
 /** The header names that are still Excel's own defaults ("Column1" …) or
  *  blank, as an optional field — absent when every header is a real name. */
 function defaultNamesOf(names: string[]): { defaultHeaderNames?: string[] } {
@@ -700,6 +877,7 @@ async function collectStylesContrast(
   appliedStyleIndices: Set<number>,
   pictureSheetStyleIndices: Set<number>,
   schemeMap: Map<string, string>,
+  tablePlacement: TablePlacement,
 ): Promise<void> {
   const stylesRoot = rootElement(parseXml(await read("xl/styles.xml")), "styleSheet");
   if (!stylesRoot) return;
@@ -783,6 +961,13 @@ async function collectStylesContrast(
     // then a no-fill cell was unresolved, so light-grey text typed straight
     // onto the grid was never caught in a workbook. A sheet background
     // picture replaces the white, so those styles stay unresolved.
+    //
+    // Nor is a no-fill cell inside a STYLED TABLE on the white grid
+    // (2026-11-12): see collectSheetContent. A style applied only there is
+    // unresolved; one that is also applied on the open grid is judged there,
+    // against white, and its table cells are counted as the unresolved rest.
+    const inStyledTable = tablePlacement.inStyledTable.has(idx);
+    const onlyInStyledTable = inStyledTable && !tablePlacement.onGrid.has(idx);
     const noFill =
       childrenOf(fill).length === 0 ||
       (!!pattern &&
@@ -793,7 +978,7 @@ async function collectStylesContrast(
         ? fgColorEl
           ? resolveColorEl(fgColorEl)
           : null
-        : noFill && !pictureSheetStyleIndices.has(idx)
+        : noFill && !pictureSheetStyleIndices.has(idx) && !onlyInStyledTable
           ? "FFFFFF"
           : null;
     if (!fg || !bg) {
@@ -803,6 +988,7 @@ async function collectStylesContrast(
       analysis.contrast.unresolvedRuns++;
       return;
     }
+    if (noFill && inStyledTable) analysis.contrast.unresolvedRuns++; // its cells in the table
     analysis.contrast.checkedRuns++;
     const szEl = firstChild(font, "sz");
     const sz = szEl ? Number(attrOf(szEl, "val")) : NaN;

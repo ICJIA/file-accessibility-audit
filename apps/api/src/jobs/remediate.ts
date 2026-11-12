@@ -12,8 +12,12 @@
  *   comparing  → re-audit, require score ≥ input
  *
  * Any failure (validation or comparison) marks the job failed and
- * removes the partial output. Scratch directories are always cleaned
- * up in the finally block.
+ * removes the partial output. On EVERY exit that is not a success the job's
+ * whole directory is deleted and verified (review 2026-11-12) — in the
+ * finally block, and synchronously in the master kill timer, which SIGKILLs
+ * the process group so `finally` never runs. A success keeps only the output
+ * file. A worker killed from OUTSIDE (OOM killer, reboot) is covered by the
+ * API's exit listener and the retention sweep.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -22,7 +26,7 @@ import { dirname, join, resolve } from "node:path";
 import { convert } from "@opendataloader/pdf";
 import { REMEDIATION } from "#config";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
-import { recordEvent, deleteAndVerify } from "../services/remediationEvents.js";
+import { recordEvent, deleteAndVerify, purgeJobDir } from "../services/remediationEvents.js";
 import {
   getJob,
   getJobAuditPair,
@@ -37,6 +41,7 @@ import {
 import { qpdfNormalize } from "../services/qpdfNormalize.js";
 import { runVeraPdf } from "../services/veraPdf.js";
 import { veraPdfOutcome } from "./remediateVeraPdf.js";
+import { killWorkerGroup } from "../services/workerGroup.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -136,6 +141,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       error_type: "input_missing",
       message: "expected input file not present in scratch dir",
     });
+    purgeJobDir(jobId, paths.jobDir, "cleanup");
     return;
   }
 
@@ -147,18 +153,53 @@ export async function runRemediationJob(jobId: string): Promise<void> {
   // PID takes down the worker AND every descendant (the JVM, any qpdf child)
   // in one shot. We record the failure to the DB (synchronous better-sqlite3
   // write) before the kill so the UI shows a clean "timed out" outcome.
+  //
+  // ORDER (review 2026-11-12, second pass). This used to mark the job failed,
+  // then SIGKILL the group including itself. Two things went wrong with that:
+  // the row turned terminal — freeing its slot — while the JVM was still
+  // alive, and nothing could be deleted reliably, because a JVM that outlives
+  // a purge writes the document straight back. Now:
+  //   1. SIGKILL every OTHER member of the group and wait until none is left;
+  //   2. delete and verify the job directory (nothing can re-create it now);
+  //   3. mark the job failed — the transition that releases the slot;
+  //   4. exit.
+  // If the children cannot be confirmed dead, steps 2–3 are skipped: the row
+  // stays `running`, the group is SIGKILLed wholesale as before, and the API's
+  // exit handler / reconcile / sweep finish the job once the group is gone.
   const killTimer = setTimeout(() => {
     try {
       recordEvent(jobId, "error", {
         error_type: "worker_timeout",
         message: `pipeline exceeded ${REMEDIATION.WORKER_TIMEOUT_MS}ms budget`,
       });
-      setFailed(jobId, "auto-remediation timed out");
     } catch {
-      // best effort — proceed to the kill regardless
+      // best effort
+    }
+    let childrenGone: boolean;
+    try {
+      childrenGone = killWorkerGroup(
+        { jobId, pid: process.pid, startedAt: job.startedAt },
+        { exceptPid: process.pid },
+      );
+    } catch {
+      childrenGone = false;
+    }
+    if (childrenGone) {
+      try {
+        purgeJobDir(jobId, paths.jobDir, "cleanup");
+      } catch {
+        // best effort — the sweep deletes a failed job's directory too
+      }
+      try {
+        setFailed(jobId, "auto-remediation timed out");
+      } catch {
+        // the stuck-job sweep will fail it
+      }
+      process.exit(1);
+      return;
     }
     try {
-      // Kill the whole process group (worker + JVM + qpdf children).
+      // Last resort: take the whole group down, this process included.
       process.kill(-process.pid, "SIGKILL");
     } catch {
       process.exit(1);
@@ -385,9 +426,25 @@ export async function runRemediationJob(jobId: string): Promise<void> {
   } finally {
     // Pipeline finished within budget — disarm the master kill timer.
     clearTimeout(killTimer);
-    // Always remove the scratch dir; the final output (if any) is at
-    // paths.finalOutputPath, outside workDir.
-    await cleanScratch(paths.workDir);
+    // A completed job keeps exactly one thing on disk — its output, at
+    // paths.finalOutputPath, outside workDir — so only the scratch dir goes.
+    // Any other outcome keeps nothing: delete and verify the whole job
+    // directory now, not at the next sweep.
+    let completed = false;
+    try {
+      completed = getJob(jobId)?.status === "complete";
+    } catch {
+      // treat as not completed
+    }
+    if (completed) {
+      await cleanScratch(paths.workDir);
+    } else {
+      try {
+        purgeJobDir(jobId, paths.jobDir, "cleanup");
+      } catch {
+        await cleanScratch(paths.workDir);
+      }
+    }
   }
 }
 

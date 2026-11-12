@@ -6,10 +6,16 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { tallySeverity } from "~/utils/severityTally";
+import { publicationBanner, publicationStatus } from "~/utils/publicationStatus";
 
 const props = defineProps<{
   categories: Array<{ severity?: string | null }>;
+  /** The report's conformance verdict. Severity alone measures extent — a
+   *  Minor category can still carry a confirmed WCAG 2.1 failure, and this
+   *  banner used to call exactly those documents a pass (2026-11-12). Absent
+   *  on reports stored before the gate existed; raw stored JSON on the shared
+   *  page, so `unknown` and narrowed by the helper. */
+  conformance?: unknown;
   /** Analyzed file type. The copy below is deliberately format-agnostic
    * ("this document"), so this isn't interpolated into the text — it's
    * accepted so callers can pass it consistently with sibling components
@@ -17,42 +23,15 @@ const props = defineProps<{
   fileType?: "pdf" | "docx" | "pptx" | "xlsx";
 }>();
 
-const tally = computed(() => tallySeverity(props.categories));
-
 const wcag = useWcag();
 
-const copy = computed<string | null>(() => {
-  const t = tally.value;
-  if (t.total === 0) return null;
-
-  if (t.critical > 0) {
-    if (t.moderate > 0) {
-      return `${t.critical} critical and ${t.moderate} moderate issues must be fixed before publishing.`;
-    }
-    const noun = t.critical === 1 ? "issue" : "issues";
-    return `${t.critical} critical ${noun} must be fixed before publishing.`;
-  }
-
-  if (t.moderate > 0) {
-    const noun = t.moderate === 1 ? "issue" : "issues";
-    return `${t.moderate} moderate ${noun} found. Recommended to fix before publishing.`;
-  }
-
-  if (t.minor > 0) {
-    const noun = t.minor === 1 ? "issue" : "issues";
-    return `${t.minor} minor ${noun} found. Optional fixes — this document passes Illinois accessibility.`;
-  }
-
-  return `This document passes Illinois IITAA 2.1 + WCAG ${wcag.version} AA accessibility checks.`;
-});
-
-const severityClass = computed(() => {
-  const t = tally.value;
-  if (t.critical > 0) return "critical";
-  if (t.moderate > 0) return "moderate";
-  if (t.minor > 0) return "minor";
-  return "pass";
-});
+// Text and colour come from the one shared decision (utils/publicationStatus)
+// so this banner cannot disagree with the hero, the plan, or the exports.
+const banner = computed(() =>
+  publicationBanner(publicationStatus(props.categories, props.conformance), wcag.version),
+);
+const copy = computed<string | null>(() => banner.value?.text ?? null);
+const severityClass = computed(() => banner.value?.class ?? "pass");
 </script>
 
 <style scoped>

@@ -14,6 +14,7 @@ import auditUrlPageRoutes from "./routes/audit-url-page.js";
 import remediateRoutes from "./routes/remediate.js";
 import statusRoutes, { service as statusService } from "./routes/status.js";
 import { runScheduledSweep, startCleanupInterval } from "./services/remediationCleanup.js";
+import { reconcileWorkers } from "./services/remediationQueue.js";
 import { formatUptime } from "./services/status.js";
 
 // Import db to trigger table creation on startup
@@ -128,6 +129,14 @@ const onListen = () => {
   // files and must not hold up readiness.
   // Always logs one "[sweep] …" summary line (v1.88.1), so `pm2 logs` answers
   // "did the sweep run, and what did it write?" after every restart.
+  //
+  // First, synchronously: reconcile remediation job rows with the worker
+  // processes that actually exist. A restart that tree-killed the workers
+  // would otherwise leave their rows holding every slot for 10–15 minutes.
+  const reconciled = reconcileWorkers();
+  if (reconciled > 0) {
+    console.log(`[API] Ended ${reconciled} remediation job(s) whose worker was no longer running`);
+  }
   void runScheduledSweep({ always: true });
   startCleanupInterval();
 };

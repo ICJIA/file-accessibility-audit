@@ -84,6 +84,7 @@ function baseRow(overrides: Partial<CachedRow> = {}): CachedRow {
     status: "complete",
     error_message: null,
     audited_at: "2024-01-02T00:00:00.000Z",
+    engine_version: null,
     ...overrides,
   };
 }

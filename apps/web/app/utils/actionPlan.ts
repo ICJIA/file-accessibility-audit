@@ -10,7 +10,7 @@
 import { WCAG_CATEGORY_MAP } from "@file-audit/shared";
 import { firstActionableFinding, partitionCardFindings } from "~/utils/findings";
 import { estimateFixTime, type FixTimeEstimate } from "~/utils/fixTime";
-import { tallySeverity } from "~/utils/severityTally";
+import { publicationStatus, type VerdictTone } from "~/utils/publicationStatus";
 
 export type PlanSeverity = "Critical" | "Moderate" | "Minor";
 export type PlanFileType = "pdf" | "docx" | "pptx" | "xlsx";
@@ -913,8 +913,6 @@ function normalizeFileType(fileType?: string | null): PlanFileType {
   return fileType === "docx" || fileType === "pptx" || fileType === "xlsx" ? fileType : "pdf";
 }
 
-export type VerdictTone = "critical" | "moderate" | "ok";
-
 /**
  * The hero's publication verdict — text AND the tone that must colour it.
  *
@@ -929,20 +927,19 @@ export type VerdictTone = "critical" | "moderate" | "ok";
  * adjective is dropped entirely; the grade letter still tells the truth in the
  * circle above. Moderate and clean states keep the familiar
  * "<adjective> — <clause>" shape.
+ *
+ * Since 2026-11-12 the verdict also consults the conformance gate: severity
+ * measures extent, and a Minor category can still carry a confirmed WCAG 2.1
+ * failure. The decision itself lives in utils/publicationStatus.ts so every
+ * surface gives the same answer; pass the report's `conformance` whenever the
+ * payload has one.
  */
 export function publicationVerdict(
   categories: Array<{ severity?: string | null }> | null | undefined,
+  conformance?: unknown,
 ): { text: string; tone: VerdictTone } {
-  const t = tallySeverity(Array.isArray(categories) ? categories : []);
-  if (t.critical > 0) {
-    const n = t.critical;
-    return {
-      text: `Not ready to publish — ${n} critical issue${n === 1 ? "" : "s"}`,
-      tone: "critical",
-    };
-  }
-  if (t.moderate > 0) return { text: "fix recommended before publishing", tone: "moderate" };
-  return { text: "ready to publish", tone: "ok" };
+  const s = publicationStatus(categories, conformance);
+  return { text: s.verdictText, tone: s.tone };
 }
 
 export function buildActionPlan(

@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import type { AnalysisResult } from "@file-audit/analyzer";
 import type { Publication } from "./graphql.js";
 import { CATEGORY_IDS } from "./categories.js";
+import { VERSION } from "../version.js";
 
 export interface CachedRow {
   file_url: string;
@@ -62,6 +63,8 @@ export interface CachedRow {
   status: string;
   error_message: string | null;
   audited_at: string | null;
+  /** Version of the scoring engine that produced this row (see getCached). */
+  engine_version: string | null;
 }
 
 const SCHEMA = `
@@ -120,7 +123,8 @@ CREATE TABLE IF NOT EXISTS publist_cache (
   tags TEXT,
   status TEXT NOT NULL DEFAULT 'success',
   error_message TEXT,
-  audited_at TEXT DEFAULT (datetime('now'))
+  audited_at TEXT DEFAULT (datetime('now')),
+  engine_version TEXT
 );
 `;
 
@@ -181,20 +185,59 @@ export function initCache(cacheDir?: string): Database.Database {
   try {
     db.exec("ALTER TABLE publist_cache ADD COLUMN sheet_names_severity TEXT");
   } catch {}
+  // engine_version (2026-11-12): which release of the scoring engine wrote
+  // the row. Rows written before this column existed keep NULL, which never
+  // equals a real version — so they are re-audited once, as they should be.
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN engine_version TEXT");
+  } catch {}
   return db;
 }
 
-export function getCached(db: Database.Database, fileURL: string): CachedRow | undefined {
-  // Consider both success and permanent errors (404, etc.) as cached
+/**
+ * A cached row is only an answer for the engine that produced it.
+ *
+ * The cache used to be keyed on the URL alone, so after a scoring release a
+ * plain re-run kept every old score and audited only new publications — one
+ * CSV, two scoring models, nothing on the page to tell them apart. A
+ * successful row now counts as cached only when `engine_version` matches the
+ * running engine (apps/cli/src/version.ts — the six package versions move
+ * together, so the CLI's version IS the engine's).
+ *
+ * Permanent errors (404/410/403) say nothing about scoring — the file is
+ * simply not there — so they stay cached across versions.
+ */
+export function getCached(
+  db: Database.Database,
+  fileURL: string,
+  engineVersion: string = VERSION,
+): CachedRow | undefined {
   return db
-    .prepare("SELECT * FROM publist_cache WHERE file_url = ? AND (status = ? OR status = ?)")
-    .get(fileURL, "success", "permanent_error") as CachedRow | undefined;
+    .prepare(
+      `SELECT * FROM publist_cache
+        WHERE file_url = ?
+          AND ((status = 'success' AND engine_version = ?) OR status = 'permanent_error')`,
+    )
+    .get(fileURL, engineVersion) as CachedRow | undefined;
+}
+
+/** Successful rows scored by a DIFFERENT engine version (or by a build that
+ *  predates version tracking). They are re-audited, never reported. */
+export function getStaleCount(db: Database.Database, engineVersion: string = VERSION): number {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS cnt FROM publist_cache
+        WHERE status = 'success' AND (engine_version IS NULL OR engine_version <> ?)`,
+    )
+    .get(engineVersion) as { cnt: number };
+  return row.cnt;
 }
 
 export function upsertResult(
   db: Database.Database,
   pub: Publication,
   result: AnalysisResult,
+  engineVersion: string = VERSION,
 ): void {
   const catMap: Record<
     string,
@@ -242,6 +285,7 @@ export function upsertResult(
     "status",
     "error_message",
     "audited_at",
+    "engine_version",
   );
   vals.push(
     criticalFindings.length > 0 ? criticalFindings.join("; ") : null,
@@ -251,6 +295,7 @@ export function upsertResult(
     "success",
     null,
     new Date().toISOString(),
+    engineVersion,
   );
 
   const placeholders = cols.map(() => "?").join(", ");
@@ -263,12 +308,13 @@ export function upsertError(
   pub: Publication,
   errorMessage: string,
   permanent = false,
+  engineVersion: string = VERSION,
 ): void {
   const status = permanent ? "permanent_error" : "error";
   db.prepare(
     `
-    INSERT OR REPLACE INTO publist_cache (file_url, title, publication_date, pub_type, summary, tags, status, error_message, audited_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT OR REPLACE INTO publist_cache (file_url, title, publication_date, pub_type, summary, tags, status, error_message, audited_at, engine_version)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
   `,
   ).run(
     pub.fileURL,
@@ -279,13 +325,24 @@ export function upsertError(
     pub.tags ? JSON.stringify(pub.tags) : null,
     status,
     errorMessage,
+    engineVersion,
   );
 }
 
-export function getAllSuccessful(db: Database.Database): CachedRow[] {
+/** Every successful row scored by THIS engine version. Rows from another
+ *  version are left out on purpose: a report must never mix scoring models
+ *  (a stale row whose publication is still listed has already been re-audited
+ *  by the time this is called; one that is no longer listed has no business
+ *  in a current report). */
+export function getAllSuccessful(
+  db: Database.Database,
+  engineVersion: string = VERSION,
+): CachedRow[] {
   return db
-    .prepare("SELECT * FROM publist_cache WHERE status = ? ORDER BY title ASC")
-    .all("success") as CachedRow[];
+    .prepare(
+      "SELECT * FROM publist_cache WHERE status = 'success' AND engine_version = ? ORDER BY title ASC",
+    )
+    .all(engineVersion) as CachedRow[];
 }
 
 export function getErrorCount(db: Database.Database): number {

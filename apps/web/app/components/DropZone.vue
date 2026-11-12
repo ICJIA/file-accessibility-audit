@@ -1,8 +1,12 @@
 <template>
   <div>
     <!-- Validation error (shown even without staged files) -->
+    <!-- role="alert": the message appears in response to a drop or a file
+         choice, with no page change — without it a screen-reader user is
+         told nothing about why the file was not accepted. -->
     <div
       v-if="validationError && stagedFiles.length === 0"
+      role="alert"
       class="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3"
     >
       <p class="text-xs text-[var(--status-error)]">{{ validationError }}</p>
@@ -49,7 +53,7 @@
             </div>
           </li>
         </ul>
-        <div v-if="validationError" class="mt-3 text-xs text-[var(--status-error)]">
+        <div v-if="validationError" role="alert" class="mt-3 text-xs text-[var(--status-error)]">
           {{ validationError }}
         </div>
         <div class="mt-3 flex gap-2 justify-center">

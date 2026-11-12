@@ -26,7 +26,9 @@ import {
   type ScoringResult,
   placeholderAltFinding,
 } from "./common.js";
+import { drawnShapeFinding } from "../ooxml.js";
 import { evaluatePptxConformance } from "./conformance.js";
+import { withholdUnreadCategories, UNREAD_BODY_WARNING } from "./docx.js";
 
 // ===========================================================================
 // PPTX (POWERPOINT) SCORING
@@ -79,7 +81,28 @@ function pptxCategory(
   };
 }
 
-function scorePptxText(): CategoryResult {
+function scorePptxText(a: PptxAnalysis): CategoryResult {
+  // EVIDENCE-BASED, as Excel's has been since v1.95.0 (2026-11-12) — see
+  // scoreDocxText. A deck whose visible slides hold pictures and not one
+  // word of text does not get "fully extractable, selectable text"; a deck
+  // with any text, however image-heavy, is unchanged. (textCharCount is
+  // absent on older payloads, which keep the old reading.)
+  if (a.textCharCount === 0 && a.images.length > 0) {
+    return pptxCategory(
+      "text_extractability",
+      "Text Extractability",
+      PPTX.SCORING_WEIGHTS.text_extractability,
+      null,
+      [
+        "No text was found on this presentation's visible slides, so the usual PowerPoint guarantee — extractable, selectable text — does not apply here.",
+        `${a.images.length} image(s) make up its content. If they are pictures of slides or of text, a screen reader gets nothing from them — type the text onto the slides, or give each image alt text that carries what it says.`,
+        "Text extractability was not assessed for this presentation.",
+      ],
+      "PowerPoint normally stores real text screen readers can always read; this presentation's visible slides have no text at all, so that guarantee could not be confirmed.",
+      [PPTX_HELP.overview],
+      true,
+    );
+  }
   return pptxCategory(
     "text_extractability",
     "Text Extractability",
@@ -184,8 +207,9 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
 
   // Hidden slides are not presented — they neither need titles nor belong in
   // the outline judgment.
-  const visible = a.slides.filter((s) => !s.hidden);
-  const hiddenCount = a.slides.length - visible.length;
+  // A slide that could not be read is neither titled nor untitled.
+  const visible = a.slides.filter((s) => !s.hidden && !s.unparsed);
+  const hiddenCount = a.slides.filter((s) => s.hidden).length;
   const untitled = visible.filter((s) => !s.title);
   const titleGroups = new Map<string, number[]>();
   for (const s of visible) {
@@ -278,9 +302,21 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
 
   if (hiddenCount > 0) {
     findings.push(`${hiddenCount} hidden slide(s) were excluded from title judgment.`);
+    // The whole slide, not only its title (2026-11-12) — Excel's hidden-sheet
+    // disclosure, for slides.
+    findings.push(
+      `Note: ${hiddenCount} hidden slide(s) were excluded from this audit — hidden slides are not presented to any reader, so their images, tables, links, lists, and colors do not drive findings. If a hidden slide will be shown or shared, unhide it and check the presentation again.`,
+    );
   }
   if (untitled.length === 0 && duplicateGroups.length === 0) {
     findings.push(`All ${visible.length} visible slide(s) have a distinct title.`);
+  }
+  if (a.allSlidesHidden) {
+    // Nothing but hidden slides (2026-11-12): they are the whole deck, so
+    // they were checked — see pptxService.
+    findings.push(
+      `All ${a.slides.length} slide(s) in this presentation are hidden. With no visible slide to judge, the hidden slides were checked as they are — unhide the slides that will be presented (right-click the slide → Hide Slide) and check the presentation again.`,
+    );
   }
 
   return pptxCategory(
@@ -335,6 +371,8 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
     );
     const placeholders = placeholderAltFinding(missing);
     if (placeholders) findings.push(placeholders);
+    const drawnShapes = drawnShapeFinding(missing, "PowerPoint");
+    if (drawnShapes) findings.push(drawnShapes);
   }
   return pptxCategory(
     "alt_text",
@@ -348,7 +386,7 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
 }
 
 function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
-  const visible = a.slides.filter((s) => !s.hidden);
+  const visible = a.slides.filter((s) => !s.hidden && !s.unparsed);
   const titled = visible.filter((s) => s.title);
   // The only order signal this check has is "the title reads first" — with
   // no titled visible slides there is nothing to verify, and returning a
@@ -672,7 +710,7 @@ function scorePptxForms(): CategoryResult {
 
 function buildPptxCategories(a: PptxAnalysis): CategoryResult[] {
   const categories = [
-    scorePptxText(),
+    scorePptxText(a),
     scorePptxTitleLanguage(a),
     scorePptxSlideTitles(a),
     scorePptxAltText(a),
@@ -696,6 +734,19 @@ function buildPptxCategories(a: PptxAnalysis): CategoryResult[] {
  */
 export function scorePptx(analysis: PptxAnalysis): ScoringResult {
   const categories = buildPptxCategories(analysis);
+  const warnings: string[] = [];
+  const unparsed = analysis.unparsedSlides ?? [];
+  if (unparsed.length > 0) {
+    // A slide nobody read (2026-11-12) — see withholdUnreadCategories.
+    warnings.push(UNREAD_BODY_WARNING);
+    withholdUnreadCategories(
+      categories,
+      // Everything read from the slides. Title & Language comes from the
+      // properties and presentation parts.
+      new Set(categories.map((c) => c.id).filter((id) => id !== "title_language")),
+      `slide${unparsed.length > 1 ? "s" : ""} ${unparsed.join(", ")}`,
+    );
+  }
   const conformance = evaluatePptxConformance(analysis);
   const aggregate = aggregateScore(
     categories,
@@ -710,7 +761,7 @@ export function scorePptx(analysis: PptxAnalysis): ScoringResult {
     isScanned: false,
     executiveSummary: aggregate.executiveSummary,
     categories,
-    warnings: [],
+    warnings,
     scoringMode: "strict",
     scoreProfiles: { strict: aggregate.profile, remediation: aggregate.profile },
     conformance,

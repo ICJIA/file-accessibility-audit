@@ -11,6 +11,7 @@ import { SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
+import { engineVersion } from "../services/engineVersion.js";
 
 const router: IRouter = Router();
 
@@ -33,6 +34,14 @@ interface InventoryEntry {
   category: string;
   publicUrl?: string;
   sha256?: string;
+}
+
+/** A matching inventory line that cannot be audited as written — reported
+ *  as its own failed result instead of being fetched. */
+interface InvalidEntry {
+  path: string;
+  sha256?: string;
+  error: string;
 }
 
 interface BulkResult {
@@ -96,13 +105,32 @@ function curateSafeFetchMessage(code: string): string {
 // /api/audit-url. DNS resolution + private-IP rejection happens on
 // every hop including redirects.
 
-function parseInventory(
+/**
+ * Parse + SHAPE-VALIDATE the inventory (review 2026-11-12). Every field read
+ * from a line is client JSON, so each is type-checked here, once, up front:
+ *
+ *   - a line that is not a JSON object (`null`, `7`, `"x"`, `[…]`) is skipped
+ *     like an unparseable line — `parsed.kind` on `null` used to throw and
+ *     500 the whole request;
+ *   - `path` / `filename` / `sha256` that are not strings fall back to the
+ *     documented defaults (a non-string `filename` on a FAILING entry used to
+ *     throw inside the failure recorder, escape the per-entry catch, and lose
+ *     every result already computed);
+ *   - a `publicUrl` that is present but not a string is reported as that
+ *     entry's own error (`invalid`) — rejected individually, never fetched.
+ *
+ * Exported for tests.
+ */
+export function parseInventory(
   inventoryText: string,
   filterCategory: string,
-): { entries: InventoryEntry[]; totalLineCount: number } {
+): { entries: InventoryEntry[]; invalid: InvalidEntry[]; totalLineCount: number } {
   const lines = inventoryText.split("\n").filter((l) => l.trim().length > 0);
   const entries: InventoryEntry[] = [];
+  const invalid: InvalidEntry[] = [];
   let publicUrlBase: string | undefined;
+  const str = (v: unknown): string | undefined =>
+    typeof v === "string" && v.length > 0 ? v : undefined;
 
   for (const line of lines) {
     let parsed: any;
@@ -111,10 +139,11 @@ function parseInventory(
     } catch {
       continue;
     }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) continue;
 
     // filecap header record carries publicUrlBase in metadata
     if (typeof parsed.kind === "string" && parsed.kind.endsWith("-header")) {
-      publicUrlBase = parsed.metadata?.publicUrlBase;
+      publicUrlBase = str(parsed.metadata?.publicUrlBase);
       continue;
     }
 
@@ -124,10 +153,27 @@ function parseInventory(
     if (parsed.category !== filterCategory) continue;
 
     // Resolve publicUrl: use entry value first, then construct from header base + path
-    let publicUrl: string | undefined = parsed.publicUrl;
+    const entryPath = str(parsed.path) ?? "";
+    const sha256 = str(parsed.sha256);
+
+    if (
+      parsed.publicUrl !== undefined &&
+      parsed.publicUrl !== null &&
+      typeof parsed.publicUrl !== "string"
+    ) {
+      invalid.push({
+        path: entryPath,
+        sha256,
+        error: "invalid inventory entry: publicUrl must be a string",
+      });
+      if (entries.length + invalid.length >= MAX_FILES_PER_REQUEST) break;
+      continue;
+    }
+
+    let publicUrl: string | undefined = str(parsed.publicUrl);
     if (!publicUrl && publicUrlBase) {
       const cleanBase = publicUrlBase.replace(/\/+$/, "");
-      const cleanPath = (parsed.path ?? "").replace(/^\/+/, "");
+      const cleanPath = entryPath.replace(/^\/+/, "");
       if (cleanPath) {
         publicUrl = `${cleanBase}/${cleanPath}`;
       }
@@ -136,17 +182,17 @@ function parseInventory(
     if (!publicUrl) continue;
 
     entries.push({
-      path: parsed.path ?? "",
-      filename: parsed.filename ?? parsed.path ?? `unnamed.${filterCategory}`,
+      path: entryPath,
+      filename: str(parsed.filename) ?? str(parsed.path) ?? `unnamed.${filterCategory}`,
       category: parsed.category,
       publicUrl,
-      sha256: parsed.sha256,
+      sha256,
     });
 
-    if (entries.length >= MAX_FILES_PER_REQUEST) break;
+    if (entries.length + invalid.length >= MAX_FILES_PER_REQUEST) break;
   }
 
-  return { entries, totalLineCount: lines.length };
+  return { entries, invalid, totalLineCount: lines.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -267,9 +313,9 @@ router.post(
       }
 
       // Parse the NDJSON and filter to the target category
-      const { entries, totalLineCount } = parseInventory(inventoryText, filterCategory);
+      const { entries, invalid, totalLineCount } = parseInventory(inventoryText, filterCategory);
 
-      if (entries.length === 0) {
+      if (entries.length === 0 && invalid.length === 0) {
         res.status(400).json({
           error: `Inventory contains no ${filterCategory} entries with a resolvable public URL.`,
           details:
@@ -279,9 +325,31 @@ router.post(
       }
 
       // Process each entry serially: fetch → validate → analyze → persist
-      const results: BulkResult[] = [];
+      // Entries refused at parse time are reported first, each as its own
+      // failed result — one bad line never costs the rest of the batch.
+      const results: BulkResult[] = invalid.map((bad) => ({
+        sha256: bad.sha256,
+        path: bad.path,
+        error: bad.error,
+      }));
+
+      // Stop when the client has gone (review 2026-11-12). A batch is up to
+      // 100 serial fetch + analyse + INSERT rounds; without this, a caller
+      // that disconnected after the first one left the server fetching and
+      // storing reports nobody would ever receive. `res` 'close' before the
+      // response has been written means the connection dropped (`req` 'close'
+      // is no use here: since Node 16 it also fires once the body is read).
+      const abort = new AbortController();
+      let clientGone = false;
+      const onClose = (): void => {
+        if (res.writableEnded) return;
+        clientGone = true;
+        abort.abort();
+      };
+      if (typeof res.on === "function") res.on("close", onClose);
 
       for (const entry of entries) {
+        if (clientGone) break;
         const result: BulkResult = {
           sha256: entry.sha256,
           path: entry.path,
@@ -298,8 +366,12 @@ router.post(
               timeoutMs: FETCH_TIMEOUT_MS,
               maxBytes: MAX_FILE_BYTES,
               validateUrl: validateUrlForFetch,
+              signal: abort.signal,
             });
           } catch (e) {
+            // Aborted because the client disconnected: not a failed audit of
+            // this entry, and nobody to report it to — just stop.
+            if (e instanceof SafeFetchError && e.code === "aborted") break;
             if (e instanceof SafeFetchError) {
               // RB3-4 [pre-merge re-audit]: never echo the raw e.message —
               // curateSafeFetchMessage keeps the code classification, drops
@@ -339,6 +411,7 @@ router.post(
           }
 
           const buf = fetched.buffer;
+          if (clientGone) break;
 
           // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content
           // (not the inventory's declared category) — same dispatcher
@@ -356,6 +429,8 @@ router.post(
 
           const contentHash = sha256Hex(buf);
           const analysis = await analyzeDocument(buf, entry.filename);
+          // Nobody left to receive it: do not store a report for it either.
+          if (clientGone) break;
 
           result.overallScore = analysis.overallScore;
           result.grade = analysis.grade;
@@ -380,13 +455,17 @@ router.post(
           const reportToStore = sanitized.ok ? sanitized.report : analysis;
 
           db.prepare(
-            "INSERT INTO shared_reports (id, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?)",
+            // engine_version: recorded like /api/audit-url's inserts, whose
+            // version-aware dedup reads this same table by content hash — a
+            // bulk row without it would be a permanent cache miss there.
+            "INSERT INTO shared_reports (id, filename, report_json, content_hash, expires_at, engine_version) VALUES (?, ?, ?, ?, ?, ?)",
           ).run(
             id,
             entry.filename,
             JSON.stringify(reportToStore),
             contentHash,
             expiresAt.toISOString(),
+            engineVersion(),
           );
 
           // Canonical audit-log write so each bulk-audited entry
@@ -440,13 +519,22 @@ router.post(
         results.push(result);
       }
 
+      if (typeof res.off === "function") res.off("close", onClose);
+      if (clientGone) {
+        console.warn(
+          `[bulk-from-inventory] client disconnected — stopped after ${results.length} of ` +
+            `${entries.length + invalid.length} entries`,
+        );
+        return;
+      }
+
       const analyzed = results.filter((r) => r.overallScore !== undefined).length;
       const failed = results.filter((r) => r.error !== undefined).length;
-      const skipped = totalLineCount - entries.length;
+      const skipped = totalLineCount - entries.length - invalid.length;
 
       res.json({
         summary: {
-          total: entries.length,
+          total: entries.length + invalid.length,
           analyzed,
           failed,
           skipped,

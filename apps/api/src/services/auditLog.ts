@@ -74,7 +74,7 @@ function clamp(value: string | null | undefined, max: number): string | null {
  * Only for values known to be filenames. Do NOT apply it to the URL that
  * audit-url-page stores in the same column.
  */
-export function sanitizeStoredFilename(raw: string): string {
+export function sanitizeStoredFilename(raw: unknown): string {
   // Collapse ALL whitespace to a plain space FIRST. FILENAME.ALLOWED_CHARS
   // permits `\s`, which matches \n, \r and \t as well as the ordinary space —
   // so on its own the allow-list lets line breaks through into a stored value
@@ -83,7 +83,15 @@ export function sanitizeStoredFilename(raw: string): string {
   // or exports them as delimited text would inherit the gap. Fixed here rather
   // than by narrowing the shared config regex, which routes/remediate.ts also
   // uses to build on-disk names.
-  const singleLine = raw.replace(/\s/g, " ");
+  //
+  // TOTAL (review 2026-11-12): the parameter is `unknown` on purpose. Callers
+  // pass values parsed from client JSON (an inventory entry's `filename`),
+  // and a number or an object there used to throw `raw.replace is not a
+  // function` — outside every best-effort try/catch, turning one bad entry
+  // into a 500 for the whole request. Anything that is not a string is "no
+  // usable name".
+  const text = typeof raw === "string" ? raw : "";
+  const singleLine = text.replace(/\s/g, " ");
   const base = path.basename(singleLine).slice(0, FILENAME.MAX_LENGTH);
   const cleaned = base.replace(
     new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, "g"),
@@ -192,10 +200,12 @@ export function recordAuditFailure(input: RecordAuditFailureInput): void {
   )
     ? input.reason
     : "internal";
-  const filename = FILE_NAME_EVENTS.has(input.eventType)
-    ? sanitizeStoredFilename(input.filename)
-    : input.filename.replace(/\s/g, " ");
   try {
+    // Inside the try (review 2026-11-12): "best-effort, never changes the HTTP
+    // response" has to cover deriving the name too, not just the INSERT.
+    const filename = FILE_NAME_EVENTS.has(input.eventType)
+      ? sanitizeStoredFilename(input.filename)
+      : String(input.filename ?? "").replace(/\s/g, " ");
     insertStmt.run(
       `${input.eventType}-failed`,
       clamp(filename, MAX_FILENAME_CHARS) ?? "",

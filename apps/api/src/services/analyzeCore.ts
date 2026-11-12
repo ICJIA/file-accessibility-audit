@@ -22,6 +22,7 @@ import {
   sha256Hex,
 } from "./auditLog.js";
 import { classifyAuditFailure } from "./auditFailure.js";
+import { retryWhileBusy } from "./busy.js";
 
 export type AnalyzeStep = "analysis" | "veraPdfUa" | "veraPdfWcag";
 export type AnalyzeStepState = "running" | "done";
@@ -38,6 +39,15 @@ export async function performAudit(
   originalname: string,
   privileged: boolean,
   onStep?: StepHook,
+  opts: {
+    /**
+     * Keep retrying — with backoff, for at most this long — when the
+     * analysis line is full (a 503 from the analyzer's semaphore) instead of
+     * failing. For the JOB path only: its caller is polling and cannot retry.
+     * The synchronous route leaves this unset and answers 503 + Retry-After.
+     */
+    retryBusyMs?: number;
+  } = {},
 ): Promise<AnalysisResult> {
   const filename = sanitizeStoredFilename(originalname);
   const contentHash = sha256Hex(buffer);
@@ -47,7 +57,10 @@ export async function performAudit(
   const detectedType = await detectFileType(buffer).catch(() => null);
   onStep?.("analysis", "running");
   const [result, veraChecks] = await Promise.all([
-    analyzeDocument(buffer, filename).finally(() => onStep?.("analysis", "done")),
+    (opts.retryBusyMs
+      ? retryWhileBusy(() => analyzeDocument(buffer, filename), { totalMs: opts.retryBusyMs })
+      : analyzeDocument(buffer, filename)
+    ).finally(() => onStep?.("analysis", "done")),
     detectedType === "pdf"
       ? runVeraPdfChecksOnBuffer(buffer, {
           wcag: REMEDIATION.VERAPDF_WCAG_ENABLED,

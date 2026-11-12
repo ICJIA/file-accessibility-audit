@@ -47,6 +47,8 @@ import { buildPrintablePlan, openPrintablePlan } from "~/utils/printablePlan";
 import { manualChecks, withVeraContrast } from "~/utils/manualReview";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { useWcag } from "~/composables/useWcag";
+import { fileTypeLabel } from "~/utils/reportBanner";
+import { emptyPlanSentence, publicationStatus } from "~/utils/publicationStatus";
 import { evaluateBestPractices, bestPracticeBacklog } from "~/utils/bestPractices";
 
 const wcag = useWcag();
@@ -87,6 +89,8 @@ const props = withDefaults(
         findings?: string[];
       }>;
       conformance?: {
+        /** Read by the publish verdict: "fail" / "incomplete" block a pass. */
+        status?: string;
         notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
         /** Failing criteria — a plan step cites the ones for its own
          *  category instead of the category map's full related list. */
@@ -126,6 +130,9 @@ const steps = computed(() =>
     props.result?.conformance,
   ),
 );
+// The shared publish decision: with no steps, the printout may only say the
+// document passed when this agrees.
+const pubStatus = computed(() => publicationStatus(categories.value, props.result?.conformance));
 const checks = computed(() => manualChecks(categories.value, props.result?.fileType));
 // veraPDF's contrast rule can see what the 1.4.3 "not assessed" row cannot;
 // the printout says so exactly as the on-screen card does (2026-09-02).
@@ -166,9 +173,18 @@ const blurb = computed(() => {
       : "";
   if (n === 0)
     return `Opens in a new tab: the checks a person still needs to make.${bpBit} Print or save as PDF.`;
+  // Only a PDF has two routes (the source document, or Acrobat). A Word,
+  // PowerPoint or Excel file IS the source document — its plan has no Acrobat
+  // steps, so promising them sent people looking for a section that is not
+  // there (2026-11-12).
+  const ft = props.result?.fileType;
+  const where =
+    ft === "docx" || ft === "pptx" || ft === "xlsx"
+      ? `for ${fileTypeLabel(ft)}`
+      : "for both the source document and Acrobat";
   return (
-    `Opens in a new tab: ${n} fix${n === 1 ? "" : "es"} with step-by-step instructions for both the ` +
-    `source document and Acrobat, plus the checks only a person can make.${bpBit} Print or save as PDF.`
+    `Opens in a new tab: ${n} fix${n === 1 ? "" : "es"} with step-by-step instructions ${where}, ` +
+    `plus the checks only a person can make.${bpBit} Print or save as PDF.`
   );
 });
 
@@ -178,8 +194,11 @@ function openPlan(): void {
       filename: props.result?.filename || "document",
       grade: props.result?.grade ?? null,
       score: props.result?.overallScore ?? null,
-      verdict: categories.value.length ? publicationVerdict(categories.value).text : null,
+      verdict: categories.value.length
+        ? publicationVerdict(categories.value, props.result?.conformance).text
+        : null,
       steps: steps.value,
+      emptyPlanText: pubStatus.value.mayClaimPass ? null : emptyPlanSentence(pubStatus.value),
       bestPractices: bestPractices.value,
       bestPracticeBacklog:
         props.includeBestPractices === false

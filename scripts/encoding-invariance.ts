@@ -28,7 +28,9 @@
  * not either. It would have caught all three bugs above before any file
  * arrived.
  *
- * Exit code is non-zero if any encoding disagrees with the baseline.
+ * Exit code is non-zero if any encoding disagrees with the baseline, if any
+ * encoding cannot be analysed at all, or if the baseline itself is not the
+ * verdict pinned in EXPECTED_BASELINE (see there for why).
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -407,23 +409,53 @@ function verdict(r: AnalysisResult): string {
   return `${r.overallScore}/${r.grade} ${cats}`;
 }
 
+/**
+ * The verdict the BASELINE encoding must return — pinned (2026-11-12).
+ *
+ * This gate used to compare every encoding with whatever the baseline
+ * happened to return, and to record a thrown analysis as the string
+ * `THREW <message>`. So when every encoding failed the same way — qpdf
+ * missing, the pipeline unable to start — every "verdict" matched and the
+ * gate printed success: with qpdf off the PATH it reported thirteen
+ * identical verdicts of a document it had not read (every structural
+ * category unassessed). Agreement proves nothing unless the thing agreed on
+ * is the right answer.
+ *
+ * The document is built to be fully accessible: 100/A with headings, alt
+ * text, reading order and table markup all ASSESSED and clean. If a scoring
+ * change deliberately moves this, update the string in the same commit —
+ * exactly as a moved row is re-blessed in scripts/score-ledger.json.
+ */
+const EXPECTED_BASELINE =
+  "100/A alt_text=100|No issues found bookmarks=null|none color_contrast=null|none form_accessibility=null|none heading_structure=100|No issues found link_quality=null|none reading_order=100|No issues found table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found";
+
 async function main() {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "encoding-"));
-  const results: Array<{ name: string; why: string; verdict: string }> = [];
+  const results: Array<{ name: string; why: string; verdict: string; threw: boolean }> = [];
 
   for (const e of ENCODINGS) {
     const buf = e.build();
     fs.writeFileSync(path.join(outDir, `${e.name}.pdf`), buf);
     try {
       const r = await analyzeDocument(buf, `${e.name}.pdf`);
-      results.push({ name: e.name, why: e.why, verdict: verdict(r) });
+      results.push({ name: e.name, why: e.why, verdict: verdict(r), threw: false });
     } catch (err: any) {
-      results.push({ name: e.name, why: e.why, verdict: `THREW ${err?.message ?? err}` });
+      results.push({
+        name: e.name,
+        why: e.why,
+        verdict: `THREW ${err?.message ?? err}`,
+        threw: true,
+      });
     }
   }
 
   const baseline = results[0]!;
   const divergent = results.slice(1).filter((r) => r.verdict !== baseline.verdict);
+  // No encoding here is expected to be refused: every one is a legal PDF. A
+  // thrown analysis is therefore a failure in its own right — never a
+  // "verdict" that can match another throw.
+  const threw = results.filter((r) => r.threw);
+  const baselineWrong = baseline.verdict !== EXPECTED_BASELINE;
 
   console.log(
     `\nEncoding invariance — one document, ${ENCODINGS.length} legal encodings of the same meaning\n`,
@@ -431,18 +463,32 @@ async function main() {
   console.log(`baseline (${baseline.name}):\n  ${baseline.verdict}\n`);
   for (const r of results.slice(1)) {
     const same = r.verdict === baseline.verdict;
-    console.log(`${same ? "SAME     " : "DIVERGED "} ${r.name}`);
+    console.log(`${r.threw ? "THREW    " : same ? "SAME     " : "DIVERGED "} ${r.name}`);
     console.log(`          ${r.why}`);
-    if (!same) console.log(`          got: ${r.verdict}`);
+    if (!same || r.threw) console.log(`          got: ${r.verdict}`);
   }
 
   fs.rmSync(outDir, { recursive: true, force: true });
+  let failed = false;
+  if (threw.length) {
+    failed = true;
+    console.error(
+      `\n${threw.length} ENCODING(S) COULD NOT BE ANALYSED AT ALL (${threw.map((r) => r.name).join(", ")}) — every encoding here is a legal PDF, so a thrown analysis is a broken checker or a broken environment (is qpdf installed?), never a matching verdict.`,
+    );
+  }
+  if (baselineWrong) {
+    failed = true;
+    console.error(
+      `\nTHE BASELINE IS NOT THE DOCUMENT THIS GATE WAS BUILT AROUND.\n  expected: ${EXPECTED_BASELINE}\n  got:      ${baseline.verdict}\nIf every encoding agrees on the wrong answer, their agreement proves nothing. If a scoring change moved this on purpose, update EXPECTED_BASELINE in scripts/encoding-invariance.ts in the same commit.`,
+    );
+  }
   if (divergent.length) {
+    failed = true;
     console.error(
       `\n${divergent.length} ENCODING(S) CHANGED THE VERDICT — the checker is reading the encoding, not the document.`,
     );
-    process.exit(1);
   }
+  if (failed) process.exit(1);
   console.log("\nEVERY LEGAL ENCODING PRODUCED THE IDENTICAL VERDICT");
 }
 main();

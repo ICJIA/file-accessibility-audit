@@ -121,6 +121,35 @@ export function parseXml(xml: string | null): PONode[] {
   }
 }
 
+/**
+ * parseXml for a MAIN-BODY part — a Word document.xml, a slide, a worksheet —
+ * with a well-formedness guard (2026-11-12). fast-xml-parser is lenient: a
+ * part cut short at an element boundary (an interrupted save or download)
+ * parses as a SHORTER document, so everything after the cut was silently
+ * never seen and the rest graded as the whole. A complete part ends with its
+ * root element's closing tag, whatever prefix the root uses (only white
+ * space, comments and processing instructions may follow it) — or is nothing
+ * but one self-closed root. Anything else is treated exactly like any other
+ * unparseable part: [].
+ */
+export function parseMainXml(xml: string | null, rootTags: readonly string[]): PONode[] {
+  if (!xml) return [];
+  let tail = xml.trimEnd();
+  for (let i = 0; i < 16; i++) {
+    const m = /(<!--[^]*?-->|<\?[^?]*\?>)$/.exec(tail.slice(-4096));
+    if (!m) break;
+    tail = tail.slice(0, tail.length - m[0].length).trimEnd();
+  }
+  const names = rootTags.join("|");
+  const closed = new RegExp(`</(?:[\\w.-]+:)?(?:${names})\\s*>$`).test(tail.slice(-256));
+  const selfClosed =
+    !closed &&
+    new RegExp(`^(?:\\s|<\\?[^?]*\\?>|<!--[^]*?-->)*<(?:[\\w.-]+:)?(?:${names})\\b[^<>]*/>$`).test(
+      tail.length <= 65536 ? tail : "",
+    );
+  return closed || selfClosed ? parseXml(xml) : [];
+}
+
 export function tagOf(node: PONode): string | null {
   for (const k of Object.keys(node)) {
     if (k === ":@" || k === "#text") continue;
@@ -420,6 +449,58 @@ export function drawingAltText(propsNode: PONode): {
     titleOnly: !descr && !!title,
     ...(placeholderAlt ? { placeholderAlt } : {}),
   };
+}
+
+/**
+ * ONE RULE FOR DRAWN SHAPES, IN EVERY FORMAT (2026-11-12). Word, PowerPoint
+ * and Excel each judged drawn objects their own way: a textless autoshape
+ * needed alt text in Word and was never looked at in the other two; a
+ * picture-filled shape was a picture only in Word; a group's alt text covered
+ * its members in PowerPoint, was ignored in Excel, and in Word was the ONLY
+ * alt text read, so a group of described pictures failed. The rule now:
+ *
+ *   - a picture — a picture-filled shape with no text included — needs alt
+ *     text or the decorative mark;
+ *   - a group's own alt text (or decorative mark) covers its members; with
+ *     none, each member is judged on its own, so members' alt text satisfies
+ *     the group;
+ *   - a shape that carries text is text, never an image;
+ *   - a plain shape with no text and no picture fill follows this switch.
+ *
+ * THE SWITCH IS ON — owner decision, 2026-11-12: a plain drawn shape with
+ * no text (a rectangle, arrow, line, connector) needs a description or the
+ * decorative mark in Word, PowerPoint AND Excel, the rule Word's path
+ * documented from the start ("a meaningful graphic needs alt or the
+ * decorative mark, matching Word's own checker") and the one all three
+ * programs' Accessibility Checkers apply. The cost was measured first and
+ * accepted: the shapes it finds in real decks include banner rectangles and
+ * design backdrops, which an author clears by marking them decorative — the
+ * finding says so (drawnShapeFinding). Connectors and lines follow the same
+ * rule: nothing documented a different one, and in Word a line has always
+ * been a shape. Each such entry carries `drawnShape` so the report can tell
+ * the author which of the two fixes applies. Setting the switch to false
+ * stops counting plain textless shapes in every format at once; it never
+ * affects pictures, picture fills or groups.
+ */
+export const TEXTLESS_SHAPE_NEEDS_ALT = true;
+
+/** The finding line that follows "N image(s) are missing alt text" when some
+ *  of them are plain drawn shapes: the two ways to clear it, with the menu
+ *  route in the program named. Null when none is. Shared by the three Office
+ *  scorers so the wording cannot drift between formats. */
+export function drawnShapeFinding(
+  missing: ReadonlyArray<{ drawnShape?: boolean }>,
+  program: "Word" | "PowerPoint" | "Excel",
+): string | null {
+  const n = missing.filter((i) => i.drawnShape).length;
+  if (n === 0) return null;
+  return `${n} of them ${n === 1 ? "is a drawn shape" : "are drawn shapes"} with no text — a rectangle, line, arrow or other shape from Insert → Shapes. If it carries meaning (an arrow in a diagram, a callout pointing at something), describe what it shows; if it is only decoration (a banner or bar behind other content, a divider, a design accent), mark it decorative and it stops counting here. In ${program}: right-click the shape → View Alt Text (some versions call it Edit Alt Text), then type a description or check Mark as decorative.`;
+}
+
+/** Whether a DrawingML shape's properties (a:spPr / p:spPr / xdr:spPr /
+ *  wps:spPr) fill it with a picture. */
+export function hasPictureFill(spPr: PONode | undefined): boolean {
+  return !!spPr && !!firstChild(spPr, "blipFill");
 }
 
 // ---------------------------------------------------------------------------

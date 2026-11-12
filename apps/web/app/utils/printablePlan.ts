@@ -40,6 +40,10 @@ export interface PrintablePlanOptions {
   /** The publish verdict, in the same words the report shows. */
   verdict?: string | null;
   steps: PlanStep[];
+  /** What to print under "What to fix" when there are no steps AND a pass may
+   *  not be claimed (a confirmed failure with no step, or a WCAG check that
+   *  did not finish). Absent = the document passed, and the plan says so. */
+  emptyPlanText?: string | null;
   /** Best practices, already evaluated. Printed FULLY EXPANDED — there is no
    *  show/hide on paper, and the holder of the printout may not be the
    *  person who chose which fix route to take. */
@@ -311,7 +315,9 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
     ? `<h2>What to fix${o.steps.length > 1 ? ` — ${o.steps.length} items, in order` : ""}</h2>` +
       `<p class="sub">${escapeHtml(FIX_STEPS_VERSION_NOTE)}</p>` +
       `<ol class="steps">${o.steps.map((s) => renderStep(s, criterionHref)).join("")}</ol>`
-    : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
+    : o.emptyPlanText
+      ? `<h2>What to fix</h2><p class="none">${escapeHtml(o.emptyPlanText)}</p>`
+      : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
 
   // Between "What to fix" and the human checks: best practices are
   // reported-but-never-scored, so they sit in their own group rather than

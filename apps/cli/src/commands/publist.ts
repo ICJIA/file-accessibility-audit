@@ -9,7 +9,7 @@ import {
   upsertResult,
   upsertError,
   getAllSuccessful,
-  getErrorCount,
+  getStaleCount,
   clearCache,
   backfillMetadata,
 } from "../lib/cache.js";
@@ -28,9 +28,64 @@ import {
   checkQpdf,
 } from "../lib/colors.js";
 import type { Publication } from "../lib/graphql.js";
+import { VERSION } from "../version.js";
 
 const MAX_FILE_SIZE = (ANALYSIS?.MAX_FILE_SIZE_MB ?? 50) * 1024 * 1024;
 const DOWNLOAD_TIMEOUT = 60_000;
+
+/**
+ * The engine admits ANALYSIS.MAX_CONCURRENT_ANALYSES analyses at a time
+ * (packages/analyzer pdfAnalyzer.ts — one process-wide semaphore shared by
+ * every format). Asking for more does not make a run faster: the extra
+ * workers download their files, then stand in the engine's line holding them
+ * in memory, and anything still waiting after 60 seconds is rejected with
+ * "Server busy". `--concurrency` used to accept up to 10; a long run at 10
+ * lost documents that way, left them out of the CSV, and exited 0.
+ */
+export const ENGINE_CONCURRENCY_LIMIT = Math.max(1, ANALYSIS?.MAX_CONCURRENT_ANALYSES ?? 2);
+const DEFAULT_CONCURRENCY = Math.min(3, ENGINE_CONCURRENCY_LIMIT);
+
+/** Clamp a requested worker count to what the engine will actually admit. */
+export function clampConcurrency(requested: number): number {
+  return Math.min(Math.max(1, Math.floor(requested)), ENGINE_CONCURRENCY_LIMIT);
+}
+
+/** Waits between attempts when the engine reports it is busy. */
+const BUSY_RETRY_DELAYS_MS = [2_000, 10_000, 30_000];
+
+/** The engine's own "all slots taken" refusal (HTTP-style 503) — the one
+ *  analysis error that says nothing about the document. */
+export function isBusyError(err: unknown): boolean {
+  const e = err as { status?: unknown; message?: unknown } | null;
+  return e?.status === 503 || /server busy/i.test(String(e?.message ?? ""));
+}
+
+/**
+ * Run `fn`, trying again after each delay while it fails with a busy error.
+ * Any other error — and a busy error that outlasts every delay — propagates.
+ */
+export async function withBusyRetry<T>(
+  fn: () => Promise<T>,
+  delaysMs: readonly number[] = BUSY_RETRY_DELAYS_MS,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isBusyError(err) || attempt >= delaysMs.length) throw err;
+      await sleep(delaysMs[attempt]);
+    }
+  }
+}
+
+/** Seams for the test suite; a real run passes nothing. */
+export interface PublistRuntime {
+  /** Directory holding cache.db (default: ~/.a11y-audit). */
+  cacheDir?: string;
+  /** Waits between busy retries (default: BUSY_RETRY_DELAYS_MS). */
+  busyRetryDelaysMs?: readonly number[];
+}
 
 interface PublistArgs {
   from?: string;
@@ -45,7 +100,7 @@ function parsePublistArgs(argv: string[]): PublistArgs {
   const result: PublistArgs = {
     output: "./publist-audit.csv",
     force: false,
-    concurrency: 3,
+    concurrency: DEFAULT_CONCURRENCY,
     clear: false,
     help: false,
   };
@@ -64,11 +119,20 @@ function parsePublistArgs(argv: string[]): PublistArgs {
     } else if (arg === "--concurrency" || arg === "-c") {
       i++;
       const val = parseInt(argv[i], 10);
-      if (isNaN(val) || val < 1 || val > 10) {
-        console.error(`${RED}Error: --concurrency must be 1-10${RESET}`);
+      if (isNaN(val) || val < 1) {
+        console.error(
+          `${RED}Error: --concurrency must be a whole number from 1 to ${ENGINE_CONCURRENCY_LIMIT}${RESET}`,
+        );
         process.exit(2);
       }
-      result.concurrency = val;
+      // Above the engine's limit is not an error — an existing `-c 5` in a
+      // script keeps working — but it is not honoured either, and says so.
+      result.concurrency = clampConcurrency(val);
+      if (result.concurrency !== val) {
+        console.error(
+          `${YELLOW}Note: --concurrency ${val} lowered to ${result.concurrency} — the scoring engine runs at most ${ENGINE_CONCURRENCY_LIMIT} analyses at once.${RESET}`,
+        );
+      }
     } else if (arg === "--clear") {
       result.clear = true;
     } else if (arg === "--help" || arg === "-h") {
@@ -100,7 +164,8 @@ ${BOLD}Options:${RESET}
   --output, -o <path>  CSV output path (default: ./publist-audit.csv)
   --force              Clear cache and re-audit all publications from scratch
   --clear              Clear cache only (no scan). Use when files have been remediated
-  --concurrency, -c    Number of concurrent analyses (default: 3, max: 10)
+  --concurrency, -c    Number of concurrent analyses (default: ${DEFAULT_CONCURRENCY}, max: ${ENGINE_CONCURRENCY_LIMIT} —
+                       the scoring engine's own limit; higher values are lowered to it)
   --help, -h           Show this help
 
 ${BOLD}How it works:${RESET}
@@ -111,9 +176,23 @@ ${BOLD}How it works:${RESET}
   5. Writes a detailed CSV with grades, scores, and category breakdowns
   6. Saves a dated copy in ./reports/ for audit trail
 
+${BOLD}Cache and versions:${RESET}
+  A cached result belongs to the version of the scoring engine that produced
+  it (this is v${VERSION}). After an upgrade, a plain re-run audits every
+  publication again, so one report never mixes scores from two versions.
+  A file that could not be found (HTTP 403/404/410) stays cached until
+  --clear or --force.
+
+${BOLD}Exit codes:${RESET}
+  0  every listed publication was audited (or was already cached)
+  1  one or more publications could not be audited — they are listed at the
+     end of the run, are NOT in the CSV, and are retried on the next run
+  2  usage error
+
 ${BOLD}Examples:${RESET}
   a11y-audit publist                         # First run: audits everything
   a11y-audit publist                         # Re-run: only audits new additions
+                                             # (everything again after an upgrade)
   a11y-audit publist --force                 # Full re-scan of all files
   a11y-audit publist --clear                 # Wipe cache (e.g. after remediation)
   a11y-audit publist -o ~/Desktop/audit.csv  # Custom output location
@@ -190,7 +269,7 @@ async function pool<T>(
   await Promise.all(workers);
 }
 
-export async function runPublist(argv: string[]): Promise<void> {
+export async function runPublist(argv: string[], runtime: PublistRuntime = {}): Promise<void> {
   const args = parsePublistArgs(argv);
 
   if (args.help) {
@@ -238,7 +317,7 @@ export async function runPublist(argv: string[]): Promise<void> {
   console.log(`  Found ${BOLD}${publications.length}${RESET} publications`);
 
   // Step 2: Open cache
-  const db = initCache();
+  const db = initCache(runtime.cacheDir);
 
   if (args.clear) {
     clearCache(db);
@@ -257,6 +336,19 @@ export async function runPublist(argv: string[]): Promise<void> {
   if (backfilled > 0) {
     console.log(`  ${DIM}Backfilled metadata for ${backfilled} cached entries${RESET}`);
   }
+
+  const stale = getStaleCount(db);
+  if (stale > 0) {
+    console.log(
+      `  ${DIM}${stale} cached result(s) were scored by a different engine version (this is v${VERSION}) — re-auditing them${RESET}`,
+    );
+  }
+
+  // Publications this run could not audit. Transient ones (a timeout, a
+  // busy engine, a network error) fail the run; permanent ones (the file is
+  // gone) are reported but are not a failure of the run.
+  const failed: Array<{ url: string; filename: string; message: string }> = [];
+  const gone: Array<{ url: string; filename: string; message: string }> = [];
 
   // Step 3: Partition into cached vs pending
   const pending: Publication[] = [];
@@ -298,8 +390,12 @@ export async function runPublist(argv: string[]): Promise<void> {
         // Download
         const buffer = await downloadFile(pub.fileURL!);
 
-        // Analyze using existing pipeline (dispatches by content type)
-        const result = await analyzeDocument(buffer, filename);
+        // Analyze using existing pipeline (dispatches by content type). A
+        // busy engine is not a verdict on the document: wait and ask again.
+        const result = await withBusyRetry(
+          () => analyzeDocument(buffer, filename),
+          runtime.busyRetryDelaysMs,
+        );
 
         // Cache result
         upsertResult(db, pub, result);
@@ -308,6 +404,11 @@ export async function runPublist(argv: string[]): Promise<void> {
         // Mark 404s and gone responses as permanent (won't retry)
         const isPermanent = /HTTP (404|410|403)/.test(err.message);
         upsertError(db, pub, err.message, isPermanent);
+        (isPermanent ? gone : failed).push({
+          url: pub.fileURL!,
+          filename,
+          message: String(err.message),
+        });
         clearProgress();
         console.error(`  ${RED}✗${RESET} ${DIM}${filename}:${RESET} ${RED}${err.message}${RESET}`);
       }
@@ -319,19 +420,40 @@ export async function runPublist(argv: string[]): Promise<void> {
     console.log("");
     console.log(`  ${GREEN}✓${RESET} Analyzed ${BOLD}${completed - errors}${RESET} successfully`);
     if (errors > 0) {
-      console.log(`  ${RED}✗${RESET} ${errors} errors (will retry on next run)`);
+      console.log(`  ${RED}✗${RESET} ${errors} could not be audited (listed below)`);
     }
   }
 
+  // Said once, at the end, where it cannot scroll away — and reflected in the
+  // exit code. A run that lost documents used to end with a CSV, a grade
+  // chart and exit 0.
+  const reportUnresolved = (): void => {
+    if (gone.length > 0) {
+      console.log("");
+      console.log(
+        `${YELLOW}${gone.length} publication(s) could not be downloaded (HTTP 403/404/410) and are not in the report:${RESET}`,
+      );
+      for (const g of gone) console.log(`  ${DIM}${g.url}${RESET} — ${g.message}`);
+    }
+    if (failed.length > 0) {
+      console.error("");
+      console.error(
+        `${RED}${BOLD}INCOMPLETE:${RESET} ${RED}${failed.length} publication(s) could not be audited and are NOT in the report:${RESET}`,
+      );
+      for (const f of failed) console.error(`  ${RED}✗${RESET} ${f.url} — ${f.message}`);
+      console.error(`  Run again to retry them; this run exits with status 1.`);
+    }
+  };
+
   // Step 5: Generate CSV from all cached results
   const allResults = getAllSuccessful(db);
-  const totalErrors = getErrorCount(db);
   const outputPath = resolve(args.output);
 
   if (allResults.length === 0) {
     console.log(`${YELLOW}No successful results to write.${RESET}`);
+    reportUnresolved();
     db.close();
-    process.exit(0);
+    process.exit(failed.length > 0 ? 1 : 0);
   }
 
   const now = new Date();
@@ -375,9 +497,6 @@ export async function runPublist(argv: string[]): Promise<void> {
   console.log(`  ${DIM}${baseName}.csv${RESET}`);
   console.log(`  ${DIM}${baseName}.html${RESET}`);
   console.log(`  ${allResults.length} publications`);
-  if (totalErrors > 0) {
-    console.log(`  ${YELLOW}${totalErrors} errors cached (will retry on next run)${RESET}`);
-  }
 
   // Print grade distribution
   const dist: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
@@ -393,5 +512,7 @@ export async function runPublist(argv: string[]): Promise<void> {
   }
   console.log("");
 
+  reportUnresolved();
   db.close();
+  if (failed.length > 0) process.exit(1);
 }

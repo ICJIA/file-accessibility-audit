@@ -11,6 +11,7 @@ import { BANNER_EYEBROW, bannerMetaLine, fileTypeLabel } from "~/utils/reportBan
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { tallySeverity } from "~/utils/severityTally";
+import { emptyPlanSentence, publicationStatus } from "~/utils/publicationStatus";
 import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
 import {
   type ReportResult,
@@ -208,7 +209,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
     if (!planCats.length) {
       return { label: gradeLabel(result.grade), color: gc(result.grade) };
     }
-    const v = publicationVerdict(planCats);
+    const v = publicationVerdict(planCats, result.conformance);
     return v.tone === "critical"
       ? { label: v.text, color: sc("Critical") }
       : { label: `${gradeLabel(result.grade)} — ${v.text}`, color: gc(result.grade) };
@@ -234,6 +235,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
     result.pdfMetadata?.creator,
     result.conformance,
   );
+  const pubStatus = publicationStatus(planCats, result.conformance);
   const planHtml = !planCats.length
     ? "" // page-audit shape: no plan section at all, never a false pass card
     : plan.length
@@ -258,8 +260,14 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
          })
          .join("\n")}
        </ol>`
-      : `<div style="background:#22c55e10;border:1px solid #22c55e30;border-radius:12px;padding:14px;margin-bottom:30px">
+      : pubStatus.mayClaimPass
+        ? `<div style="background:#22c55e10;border:1px solid #22c55e30;border-radius:12px;padding:14px;margin-bottom:30px">
         <p style="color:#86efac;font-size:14px;font-weight:600;margin:0">✓ Nothing to fix — this document passes all automated checks.</p>
+      </div>`
+        : // No scored step, yet the gate does not allow a pass (a confirmed
+          // failure in a category with no step, or no verdict at all).
+          `<div style="background:#eab30810;border:1px solid #eab30840;border-radius:12px;padding:14px;margin-bottom:30px">
+        <p style="color:#fde047;font-size:14px;font-weight:600;margin:0">${escapeHtml(emptyPlanSentence(pubStatus))}</p>
       </div>`;
 
   return `<!DOCTYPE html>

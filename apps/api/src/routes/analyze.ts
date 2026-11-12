@@ -2,6 +2,8 @@ import { Router, Request, Response, type IRouter } from "express";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { performAudit, mapAnalyzeError } from "../services/analyzeCore.js";
+import { sealReport } from "../services/reportSeal.js";
+import { setBusyRetryAfter } from "../services/busy.js";
 
 const router: IRouter = Router();
 
@@ -28,10 +30,15 @@ router.post(
       // progress endpoints (routes/analyzeJob.ts) can never drift. No hooks
       // here — this path behaves exactly as before.
       const result = await performAudit(file.buffer, file.originalname, privileged);
-      res.json(result);
+      // Sealed so POST /api/reports can tell this server's verdict from a
+      // hand-written one (services/reportSeal.ts). Last step: the seal covers
+      // the veraPDF verdicts performAudit attached.
+      res.json(sealReport(result));
     } catch (err: any) {
       console.error("Analysis error:", err);
       const mapped = mapAnalyzeError(err, req.file, privileged);
+      // Busy (the analysis line is full): tell the caller when to come back.
+      if (mapped.status === 503) setBusyRetryAfter(res);
       res.status(mapped.status).json(mapped.body);
     }
   },

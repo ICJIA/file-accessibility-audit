@@ -15,6 +15,7 @@ import { DOCX, OOXML } from "#config";
 import {
   type PONode,
   parseXml,
+  parseMainXml,
   tagOf,
   childrenOf,
   attrOf,
@@ -40,6 +41,9 @@ import {
   WORD_THEME_COLOR_MAP,
   applyWordTintShade,
   onOffEnabled,
+  resolveRelTarget,
+  TEXTLESS_SHAPE_NEEDS_ALT,
+  hasPictureFill,
 } from "./ooxml.js";
 import { placeholderAltOf } from "./placeholderAlt.js";
 
@@ -71,6 +75,9 @@ export interface DocxAnalysis {
     location?: "header" | "footer" | "note";
     /** Only a file name or placeholder word (WCAG F30) — see drawingAltText. */
     placeholderAlt?: string;
+    /** A plain drawn shape with no text and no picture fill (2026-11-12) —
+     *  see TEXTLESS_SHAPE_NEEDS_ALT in ooxml.ts. Absent on pictures. */
+    drawnShape?: boolean;
   }>;
   tables: Array<{
     hasHeaderRow: boolean;
@@ -139,6 +146,11 @@ export interface DocxAnalysis {
   emptyParagraphRunCount?: number;
   /** Table rows whose every cell is empty (spacing rows). */
   emptyTableRowCount?: number;
+  /** Characters of text in the BODY — headers, footers and notes are not
+   *  counted (2026-11-12) — the evidence behind the text-extractability
+   *  claim, as Excel's totalCellsWithValue is. Absent on older payloads and
+   *  hand-built fixtures, where the claim stays as it was. */
+  textCharCount?: number;
   /** Per-part parse outcomes, so the conformance gate can distinguish "the
    *  part said X" from "the part could not be read" (no false confirmed
    *  claims from unread parts, no false clean verdicts from unparsed ones). */
@@ -465,6 +477,62 @@ function isFakeHeading(
 // Images, tables, links
 // ---------------------------------------------------------------------------
 
+/** The members of a wordprocessingGroup that are images in their own right,
+ *  each with its own alt text (pic:cNvPr / wps:cNvPr): pictures, charts, and
+ *  shapes that carry no text — picture-filled always, plain ones by the
+ *  shared TEXTLESS_SHAPE_NEEDS_ALT rule. A nested group whose own properties
+ *  carry alt text or the decorative mark covers ITS members. Text boxes are
+ *  text; drawings hosted inside a member's text are separate w:drawing
+ *  elements and are judged by extractImages' own loop. */
+function groupMemberImages(group: PONode, out: DocxAnalysis["images"]): void {
+  for (const member of childrenOf(group)) {
+    const tag = tagOf(member);
+    if (tag === "pic" || tag === "graphicFrame") {
+      const cNvPr = descendants(member, "cNvPr")[0];
+      out.push(
+        cNvPr ? drawingAltText(cNvPr) : { altText: null, decorative: false, titleOnly: false },
+      );
+    } else if (tag === "wsp") {
+      if (descendants(member, "txbxContent").some((tb) => textOf(tb).trim() !== "")) continue;
+      const plain = !hasPictureFill(firstChild(member, "spPr"));
+      if (plain && !TEXTLESS_SHAPE_NEEDS_ALT) continue;
+      const cNvPr = firstChild(member, "cNvPr");
+      out.push({
+        ...(cNvPr ? drawingAltText(cNvPr) : { altText: null, decorative: false, titleOnly: false }),
+        ...(plain ? { drawnShape: true } : {}),
+      });
+    } else if (tag === "grpSp") {
+      const cNvPr = firstChild(member, "cNvPr");
+      const own = cNvPr ? drawingAltText(cNvPr) : null;
+      if (own && (own.altText || own.decorative)) out.push(own);
+      else groupMemberImages(member, out);
+    }
+  }
+}
+
+/** Whether every member of a group (nested groups included) is a shape that
+ *  carries text. A picture, chart, connector or textless shape makes it a
+ *  drawing; an empty group is not text either. */
+function groupIsOnlyText(group: PONode): boolean {
+  let members = 0;
+  const allText = (g: PONode): boolean => {
+    for (const member of childrenOf(g)) {
+      const tag = tagOf(member);
+      if (tag === "grpSp") {
+        if (!allText(member)) return false;
+      } else if (tag === "wsp") {
+        members++;
+        if (!descendants(member, "txbxContent").some((tb) => textOf(tb).trim() !== ""))
+          return false;
+      } else if (tag === "pic" || tag === "graphicFrame" || tag === "cxnSp") {
+        return false;
+      }
+    }
+    return true;
+  };
+  return allText(group) && members > 0;
+}
+
 function extractImages(body: PONode): DocxAnalysis["images"] {
   const images: DocxAnalysis["images"] = [];
   for (const drawing of descendants(body, "drawing")) {
@@ -475,16 +543,50 @@ function extractImages(body: PONode): DocxAnalysis["images"] {
     // pull quote, sidebar — is not non-text content: assistive technology
     // reads its words directly, and this analyzer's text walks already cover
     // them. Requiring alt on it (and failing 1.1.1 without it) was a false
-    // positive. Shapes with no text still count as images: a meaningful
-    // graphic needs alt or the decorative mark, matching Word's own checker.
+    // positive. A shape with no text is an image when it is filled with a
+    // picture; a PLAIN textless shape follows TEXTLESS_SHAPE_NEEDS_ALT in
+    // ooxml.ts — the one switch all three formats share since 2026-11-12,
+    // and on (owner decision): it needs alt text or the decorative mark.
     // A missing/unknown URI falls through to "image" (the safe default);
     // anything containing an actual picture stays an image regardless.
     const graphicData = descendants(drawing, "graphicData")[0];
     const uri = graphicData ? (attrOf(graphicData, "uri") ?? "") : "";
-    if (uri.endsWith("/wordprocessingShape") || uri.endsWith("/wordprocessingGroup")) {
+    if (uri.endsWith("/wordprocessingGroup")) {
+      // A GROUP (2026-11-12): its own alt text or decorative mark covers its
+      // members — one announced object. With none, each member is judged on
+      // its own alt text. Only the outer wp:docPr was read until then, so a
+      // group of two described pictures scored "0 of 1 have alt text".
+      const own = drawingAltText(docPr);
+      const wgp = graphicData ? firstChild(graphicData, "wgp") : undefined;
+      if (wgp) {
+        // With its own alt text the group is ONE image unless every member
+        // is a text box — a group of text boxes is text, in every format,
+        // and its alt text is harmless but nothing to count. Without, each
+        // member that is an image is judged on its own.
+        if (own.altText || own.decorative) {
+          if (!groupIsOnlyText(wgp)) images.push(own);
+          continue;
+        }
+        groupMemberImages(wgp, images);
+        continue;
+      }
+      // No readable group payload: the drawing as a whole, as before.
+      const hasText = descendants(drawing, "txbxContent").some((tb) => textOf(tb).trim() !== "");
+      if (hasText && descendants(drawing, "pic").length === 0) continue;
+      images.push(own);
+      continue;
+    }
+    if (uri.endsWith("/wordprocessingShape")) {
       const hasText = descendants(drawing, "txbxContent").some((tb) => textOf(tb).trim() !== "");
       const hasPicture = descendants(drawing, "pic").length > 0;
       if (hasText && !hasPicture) continue;
+      const wsp = graphicData ? firstChild(graphicData, "wsp") : undefined;
+      const plain =
+        !hasText && !hasPicture && !hasPictureFill(wsp ? firstChild(wsp, "spPr") : undefined);
+      if (plain) {
+        if (TEXTLESS_SHAPE_NEEDS_ALT) images.push({ ...drawingAltText(docPr), drawnShape: true });
+        continue;
+      }
     }
     images.push(drawingAltText(docPr));
   }
@@ -492,8 +594,19 @@ function extractImages(body: PONode): DocxAnalysis["images"] {
   // documents store images this way with alt on the v:shape. (AlternateContent
   // fallback picts never reach here — the walker flattens to the Choice
   // branch — so these are genuine standalone legacy images.)
-  for (const pict of descendants(body, "pict")) {
-    for (const shape of descendants(pict, "shape")) {
+  //
+  // Embedded OLE objects too (2026-11-12): an embedded worksheet, equation or
+  // chart is a w:object holding the same v:shape + v:imagedata preview (beside
+  // an o:OLEObject), with its alt text in the same v:shape `alt` attribute. A
+  // document whose only graphic was an embedded Excel chart read "No images
+  // were found".
+  //
+  // NOT a legacy ActiveX control: a check box or command button is a w:object
+  // too, with the same picture stand-in, beside a w:control. It is a form
+  // control (the forms category's business), not an image wanting alt text.
+  for (const host of [...descendants(body, "pict"), ...descendants(body, "object")]) {
+    if (tagOf(host) === "object" && descendants(host, "control").length > 0) continue;
+    for (const shape of descendants(host, "shape")) {
       if (descendants(shape, "imagedata").length === 0) continue;
       const alt = attrOf(shape, "alt")?.trim();
       const placeholderAlt = placeholderAltOf(alt);
@@ -506,6 +619,22 @@ function extractImages(body: PONode): DocxAnalysis["images"] {
     }
   }
   return images;
+}
+
+/** A table's OWN descendants with the given tag — never those of a table
+ *  nested inside one of its cells, which is a table in its own right. */
+function ownDescendants(tbl: PONode, tag: string): PONode[] {
+  const out: PONode[] = [];
+  const visit = (n: PONode): void => {
+    for (const c of childrenOf(n)) {
+      const t = tagOf(c);
+      if (t === "tbl") continue;
+      if (t === tag) out.push(c);
+      visit(c);
+    }
+  };
+  visit(tbl);
+  return out;
 }
 
 /** Top-level tables only — a `<w:tbl>` not contained in another `<w:tbl>`. */
@@ -612,7 +741,14 @@ function extractTables(
   body: PONode,
   tableStyleDraws: (id: string) => boolean,
 ): DocxAnalysis["tables"] {
-  return topLevelTables(body).map((tbl) => {
+  // EVERY table, nested ones included (2026-11-12). Only top-level tables were
+  // judged, so a data table placed inside a layout table — a bare 2×2 grid or
+  // a 1×1 wrapper, both common ways to position one — was never scored: the
+  // same unheadered table read 45 at the top level and 100 inside a wrapper.
+  // Each table is judged on its OWN rows, cells, borders and shading, so the
+  // wrapper is not counted twice and does not inherit the look of the table
+  // it holds (a bare grid around a shaded data table is still a bare grid).
+  return descendants(body, "tbl").map((tbl) => {
     const rows = childrenOf(tbl).filter((c) => tagOf(c) === "tr");
     let cellCols = 0;
     let hasHeaderRow = false;
@@ -680,7 +816,7 @@ function extractTables(
       !(styleId && tableStyleDraws(styleId)) &&
       !drawsBorders(tblPr ? firstChild(tblPr, "tblBorders") : undefined) &&
       !ownCellBorders &&
-      !descendants(tbl, "shd").some(isVisibleShading);
+      !ownDescendants(tbl, "shd").some(isVisibleShading);
     const grid = firstChild(tbl, "tblGrid");
     const gridCols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
     const firstRowCells = rows[0] ? childrenOf(rows[0]).filter((c) => tagOf(c) === "tc") : [];
@@ -878,15 +1014,172 @@ function resolveWordThemeColor(
   return applyWordTintShade(base, attrOf(node, tintAttr), attrOf(node, shadeAttr));
 }
 
-/** Background fill of a run/paragraph properties node: an explicit fill, or
- *  (v1.95.0) a resolvable theme fill. */
-function shdFill(propsNode: PONode | undefined, schemeMap: Map<string, string>): string | null {
-  if (!propsNode) return null;
+/** Background fill of a run/paragraph/cell/table properties node: undefined
+ *  when it carries no w:shd at all, null when its w:shd says "no shading", a
+ *  hex colour when the shading is one colour, "unknown" when it paints
+ *  something that is not one known colour. (undefined and null differ only
+ *  for style inheritance: an explicit "none" stops a style's shading.)
+ *
+ *  Read by PATTERN (2026-11-12). w:val="clear" (and an absent val) shows the
+ *  fill — explicit, or (v1.95.0) a resolvable theme fill; "auto" is none.
+ *  w:val="solid" paints the pattern colour (w:color) over the whole area, so
+ *  the fill is hidden: this read w:fill regardless, and judged white text on
+ *  a solid black pattern against the white fill beneath it. Any other
+ *  pattern (pct10 … pct90, stripes, grids) mixes the two colours. */
+function shdFill(
+  propsNode: PONode | undefined,
+  schemeMap: Map<string, string>,
+): string | "unknown" | null | undefined {
+  if (!propsNode) return undefined;
   const shd = firstChild(propsNode, "shd");
-  if (!shd) return null;
+  if (!shd) return undefined;
+  const val = (attrOf(shd, "val") ?? "clear").trim().toLowerCase();
+  if (val === "nil") return null;
+  if (val === "solid") {
+    return (
+      normalizeHex(attrOf(shd, "color")) ??
+      resolveWordThemeColor(shd, schemeMap, "themeColor", "themeTint", "themeShade") ??
+      "unknown"
+    );
+  }
+  if (val !== "clear") return "unknown";
   const explicit = normalizeHex(attrOf(shd, "fill"));
   if (explicit) return explicit;
-  return resolveWordThemeColor(shd, schemeMap, "themeFill", "themeFillTint", "themeFillShade");
+  const themed = resolveWordThemeColor(
+    shd,
+    schemeMap,
+    "themeFill",
+    "themeFillTint",
+    "themeFillShade",
+  );
+  if (themed) return themed;
+  // A theme fill that cannot be resolved still paints something.
+  return attrOf(shd, "themeFill") !== undefined ? "unknown" : null;
+}
+
+/** Word's text-highlight colours (ST_HighlightColor) — a fixed palette of
+ *  sixteen names, each one colour. */
+const WORD_HIGHLIGHT_COLORS: Record<string, string> = {
+  black: "000000",
+  blue: "0000FF",
+  cyan: "00FFFF",
+  green: "00FF00",
+  magenta: "FF00FF",
+  red: "FF0000",
+  yellow: "FFFF00",
+  white: "FFFFFF",
+  darkBlue: "000080",
+  darkCyan: "008080",
+  darkGreen: "008000",
+  darkMagenta: "800080",
+  darkRed: "800000",
+  darkYellow: "808000",
+  darkGray: "808080",
+  lightGray: "C0C0C0",
+};
+
+/** A run's highlight (Home → Text Highlight Color): the colour drawn behind
+ *  its glyphs, over any shading. undefined = no w:highlight element; null =
+ *  w:val="none"; "unknown" = a value outside the palette. PowerPoint's judgeRun has read
+ *  highlights since v1.166.0; Word's never were (2026-11-12), so white text
+ *  on a black highlight was a confirmed 1:1 failure against the page. */
+function runHighlight(rPr: PONode | undefined): string | "unknown" | null | undefined {
+  const hl = rPr ? firstChild(rPr, "highlight") : undefined;
+  if (!hl) return undefined;
+  const val = (attrOf(hl, "val") ?? "").trim();
+  if (val === "" || val === "none") return null;
+  return WORD_HIGHLIGHT_COLORS[val] ?? "unknown";
+}
+
+type Background = string | "unknown" | null | undefined;
+
+/** The backgrounds a style hands the text it is applied to, resolved through
+ *  w:basedOn: its run properties' highlight and shading (a character style,
+ *  or a paragraph style's w:rPr) and its paragraph shading (w:pPr). */
+interface StyleBackground {
+  highlight: Background;
+  runShd: Background;
+  paraShd: Background;
+}
+const NO_STYLE_BACKGROUND: StyleBackground = {
+  highlight: undefined,
+  runShd: undefined,
+  paraShd: undefined,
+};
+
+interface StyleBackgrounds {
+  of: (styleId: string | undefined) => StyleBackground;
+  /** The paragraph style a paragraph naming none takes (w:default="1"). */
+  defaultParagraphStyleId: string | undefined;
+  /** styles.xml is present but could not be parsed: what a named style
+   *  paints is unknown. */
+  unreadable: boolean;
+}
+
+/**
+ * HIGHLIGHT AND SHADING SET BY A STYLE (2026-11-12). Only a run's and a
+ * paragraph's OWN properties were read, so white text in a character style
+ * that highlights it, or in a banner paragraph style that shades it, was
+ * judged against the page: "#FFFFFF on #FFFFFF", Critical. Each style is
+ * followed through its basedOn chain, the nearest setting winning — the same
+ * walk buildStyleInfo makes for size and weight. A chain that loops or runs
+ * past ten styles cannot be resolved: whatever it had not yet set is
+ * "unknown", never "nothing". A basedOn or style reference naming a style
+ * the part does not define ends the chain, as it does in Word.
+ */
+function buildStyleBackgrounds(
+  stylesRoot: PONode | undefined,
+  schemeMap: Map<string, string>,
+  unreadable: boolean,
+): StyleBackgrounds {
+  const defs = new Map<string, PONode>();
+  let defaultParagraphStyleId: string | undefined;
+  for (const st of stylesRoot ? childrenOf(stylesRoot) : []) {
+    if (tagOf(st) !== "style") continue;
+    const id = attrOf(st, "styleId");
+    if (!id) continue;
+    defs.set(id, st);
+    if (
+      attrOf(st, "type") === "paragraph" &&
+      ["1", "true", "on"].includes(attrOf(st, "default") ?? "")
+    ) {
+      defaultParagraphStyleId = id;
+    }
+  }
+  const memo = new Map<string, StyleBackground>();
+  const of = (styleId: string | undefined): StyleBackground => {
+    if (!styleId) return NO_STYLE_BACKGROUND;
+    const cached = memo.get(styleId);
+    if (cached) return cached;
+    const out: StyleBackground = { ...NO_STYLE_BACKGROUND };
+    const seen = new Set<string>();
+    let id: string | undefined = styleId;
+    let broken = false;
+    for (let hop = 0; id; hop++) {
+      if (hop >= 10 || seen.has(id)) {
+        broken = true;
+        break;
+      }
+      seen.add(id);
+      const st = defs.get(id);
+      if (!st) break;
+      const rPr = firstChild(st, "rPr");
+      const pPr = firstChild(st, "pPr");
+      if (out.highlight === undefined) out.highlight = runHighlight(rPr);
+      if (out.runShd === undefined) out.runShd = shdFill(rPr, schemeMap);
+      if (out.paraShd === undefined) out.paraShd = shdFill(pPr, schemeMap);
+      const basedOn = firstChild(st, "basedOn");
+      id = basedOn ? (attrOf(basedOn, "val") ?? "").trim() || undefined : undefined;
+    }
+    if (broken) {
+      if (out.highlight === undefined) out.highlight = "unknown";
+      if (out.runShd === undefined) out.runShd = "unknown";
+      if (out.paraShd === undefined) out.paraShd = "unknown";
+    }
+    memo.set(styleId, out);
+    return out;
+  };
+  return { of, defaultParagraphStyleId, unreadable };
 }
 
 /** WCAG's large-text exemption (≥18 pt, or ≥14 pt bold) resolved the way
@@ -928,6 +1221,7 @@ function extractContrast(
   documentBg: string | null,
   schemeMap: Map<string, string>,
   styleInfo?: StyleInfo,
+  styleBackgrounds?: StyleBackgrounds,
 ): DocxAnalysis["contrast"] {
   // What a paragraph's style hands its runs (bold, size), for the large-text
   // exemption; docDefaults when the style says nothing.
@@ -977,8 +1271,32 @@ function extractContrast(
     }
     // Run/paragraph shading beats the inherited context; an unresolved
     // context without local shading means the pair cannot be judged.
-    const localBg = shdFill(rPr, schemeMap) ?? shdFill(pPr, schemeMap);
-    const bg = localBg ?? (ctx.unresolved ? null : (ctx.bg ?? documentBg ?? "FFFFFF"));
+    // The highlight is drawn over the run's shading, which is drawn over
+    // the paragraph's. Each is the run's or paragraph's own setting, else
+    // its character style's, else its paragraph style's (the first one that
+    // SAYS anything — an explicit "none" stops the style's); see
+    // buildStyleBackgrounds.
+    const rStyleEl = rPr ? firstChild(rPr, "rStyle") : undefined;
+    const rStyleId = rStyleEl ? attrOf(rStyleEl, "val") : undefined;
+    const pStyleEl = pPr ? firstChild(pPr, "pStyle") : undefined;
+    const pStyleId = pStyleEl ? attrOf(pStyleEl, "val") : undefined;
+    const fromChar = styleBackgrounds?.of(rStyleId) ?? NO_STYLE_BACKGROUND;
+    const fromPara =
+      styleBackgrounds?.of(pStyleId ?? styleBackgrounds.defaultParagraphStyleId) ??
+      NO_STYLE_BACKGROUND;
+    const said = (...values: Background[]): Background => values.find((v) => v !== undefined);
+    const stated =
+      said(runHighlight(rPr), fromChar.highlight, fromPara.highlight) ??
+      said(shdFill(rPr, schemeMap), fromChar.runShd, fromPara.runShd) ??
+      said(shdFill(pPr, schemeMap), fromPara.paraShd);
+    // A named style in a styles part that could not be read may paint
+    // anything behind this run.
+    const localBg =
+      !stated && styleBackgrounds?.unreadable && (rStyleId || pStyleId) ? "unknown" : stated;
+    const bg =
+      localBg === "unknown"
+        ? null
+        : (localBg ?? (ctx.unresolved ? null : (ctx.bg ?? documentBg ?? "FFFFFF")));
     if (!bg) {
       unresolvedRuns++;
       return;
@@ -1028,11 +1346,12 @@ function extractContrast(
       // (lacking their own explicit fill) become unresolved. An explicit
       // table-level shd is resolvable and becomes the cells' default.
       const tblPr = firstChild(node, "tblPr");
-      const tableBg = shdFill(tblPr, schemeMap);
+      const tableShd = shdFill(tblPr, schemeMap);
+      const tableBg = tableShd === "unknown" ? null : tableShd;
       const styled = !!(tblPr && firstChild(tblPr, "tblStyle"));
       const tableCtx: BgContext = {
         bg: tableBg ?? ctx.bg,
-        unresolved: ctx.unresolved || (styled && !tableBg),
+        unresolved: tableShd === "unknown" || ctx.unresolved || (styled && !tableBg),
         styledTable: styled,
       };
       for (const c of childrenOf(node)) visitBlock(c, tableCtx);
@@ -1040,9 +1359,12 @@ function extractContrast(
     }
     if (t === "tc") {
       const cellFill = shdFill(firstChild(node, "tcPr"), schemeMap);
-      const cellCtx: BgContext = cellFill
-        ? { bg: cellFill, unresolved: false, styledTable: ctx.styledTable }
-        : ctx;
+      const cellCtx: BgContext =
+        cellFill === "unknown"
+          ? { bg: null, unresolved: true, styledTable: ctx.styledTable }
+          : cellFill
+            ? { bg: cellFill, unresolved: false, styledTable: ctx.styledTable }
+            : ctx;
       for (const c of childrenOf(node)) visitBlock(c, cellCtx);
       return;
     }
@@ -1121,8 +1443,18 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     rootElement(parseXml(await read("word/theme/theme1.xml")), "theme"),
   );
 
-  const docRoot = rootElement(parseXml(documentXml), "document");
+  const docRoot = rootElement(parseMainXml(documentXml, ["document"]), "document");
   const body = docRoot ? firstChild(docRoot, "body") : undefined;
+  // A BODY THAT CANNOT BE READ IS REFUSED (2026-11-12) — PDF's rule that both
+  // analyzers failing never reaches scoring. Scoring it produced a grade from
+  // the title and language alone (100/A) for a document nobody had read.
+  // parseMainXml also rejects a part cut short, which the lenient parser
+  // would otherwise hand back as a shorter document.
+  if (!body) {
+    throw new DocxParseError(
+      "word/document.xml could not be read — the document body is damaged, incomplete, or not valid XML.",
+    );
+  }
   const stylesRoot = rootElement(parseXml(stylesXml), "styles");
   const coreRoot = rootElement(parseXml(coreXml), "coreProperties");
   const appRoot = rootElement(parseXml(appXml), "Properties");
@@ -1250,18 +1582,59 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
 
   const images = body ? extractImages(body) : [];
   const links = body ? extractLinks(body, relMap) : [];
-  const contrast = extractContrast(body, documentBg, schemeMap, styleInfo);
+  const styleBackgrounds = buildStyleBackgrounds(
+    stylesRoot,
+    schemeMap,
+    stylesXml !== null && !stylesRoot,
+  );
+  const contrast = extractContrast(body, documentBg, schemeMap, styleInfo, styleBackgrounds);
 
   // Auxiliary story parts — headers/footers (letterhead logos are the most
   // common image in agency documents), footnotes, and endnotes. Their
   // images, hyperlinks (each part has its OWN rels), and contrast runs were
   // previously invisible. Text-box content inside them is walked by the same
   // extractors.
+  //
+  // ONLY THE PARTS A SECTION USES (2026-11-12). Parts were picked by file
+  // name, so the first-page and even-page headers Word keeps in the package
+  // after "Different First Page" / "Different Odd & Even Pages" is switched
+  // off — each holding its own copy of the letterhead logo — tripled one
+  // undescribed image. A header or footer is on a page only when a section
+  // references it AND its kind is switched on: the default kind always, the
+  // first-page kind when that section sets w:titlePg, the even-page kind
+  // when settings.xml sets w:evenAndOddHeaders. A section that names none of
+  // a kind continues the previous section's. The same image in two in-use
+  // parts is still counted once per part.
+  const settingsRoot = rootElement(parseXml(await read("word/settings.xml")), "settings");
+  const evenAndOdd = settingsRoot ? firstChild(settingsRoot, "evenAndOddHeaders") : undefined;
+  const evenAndOddHeaders = !!evenAndOdd && onOffEnabled(evenAndOdd);
+  const inUseParts = new Set<string>();
+  {
+    const carried = new Map<string, string>(); // "headerReference:first" → part
+    for (const sectPr of body ? descendants(body, "sectPr") : []) {
+      for (const ref of childrenOf(sectPr)) {
+        const refTag = tagOf(ref);
+        if (refTag !== "headerReference" && refTag !== "footerReference") continue;
+        const target = relMap.get(attrOf(ref, "id") ?? "");
+        const kind = attrOf(ref, "type") ?? "default";
+        if (target) carried.set(`${refTag}:${kind}`, resolveRelTarget("word", target));
+      }
+      const titlePgEl = firstChild(sectPr, "titlePg");
+      const titlePg = !!titlePgEl && onOffEnabled(titlePgEl);
+      for (const [key, part] of carried) {
+        const kind = key.split(":")[1];
+        if (
+          kind === "default" ||
+          (kind === "first" && titlePg) ||
+          (kind === "even" && evenAndOddHeaders)
+        ) {
+          inUseParts.add(part);
+        }
+      }
+    }
+  }
   const auxPartNames = Object.keys(zip.files)
-    .filter(
-      (p) =>
-        /^word\/(header|footer)\d+\.xml$/.test(p) || /^word\/(footnotes|endnotes)\.xml$/.test(p),
-    )
+    .filter((p) => inUseParts.has(p) || /^word\/(footnotes|endnotes)\.xml$/.test(p))
     .sort();
   for (const partName of auxPartNames) {
     const partXml = await read(partName);
@@ -1275,14 +1648,20 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     const partRels = parseRelationships(
       await read(partName.replace(/^word\/([^/]+)$/, "word/_rels/$1.rels")),
     );
-    const location = /\/header\d+\.xml$/.test(partName)
+    const location = rootElement(roots, "hdr")
       ? "header"
-      : /\/footer\d+\.xml$/.test(partName)
+      : rootElement(roots, "ftr")
         ? "footer"
         : "note";
     images.push(...extractImages(partRoot).map((img) => ({ ...img, location }) as const));
     links.push(...extractLinks(partRoot, partRels));
-    const partContrast = extractContrast(partRoot, documentBg, schemeMap, styleInfo);
+    const partContrast = extractContrast(
+      partRoot,
+      documentBg,
+      schemeMap,
+      styleInfo,
+      styleBackgrounds,
+    );
     contrast.checkedRuns += partContrast.checkedRuns;
     contrast.unresolvedRuns += partContrast.unresolvedRuns;
     contrast.failing.push(...partContrast.failing);
@@ -1400,6 +1779,11 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     legacyFieldCount,
     emptyParagraphRunCount,
     emptyTableRowCount,
+    // BODY text only: a footer reading "Page 1" is not the document's
+    // content and must not restore the "fully extractable" claim for a
+    // document of scanned pages — as Excel's count is of cell values, not of
+    // its page headers and footers.
+    textCharCount: textOf(body).trim().length,
     parse: {
       documentOk: !!body,
       stylesState: partState(stylesXml, stylesRoot),

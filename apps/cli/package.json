@@ -1,6 +1,6 @@
 {
   "name": "@icjia/a11y-audit",
-  "version": "1.167.0",
+  "version": "1.168.0",
   "private": true,
   "type": "module",
   "imports": {
@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "publist": "tsx src/index.ts publist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

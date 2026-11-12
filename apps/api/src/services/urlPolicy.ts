@@ -135,6 +135,11 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
     case "timeout":
       res.status(504).json({ error: err.message });
       return;
+    case "aborted":
+      // The client that asked has gone; nothing useful can be sent. Answer
+      // anyway so a non-closed response (tests, proxies) is never left open.
+      res.status(499).json({ error: "Client closed request" });
+      return;
     case "too_many_redirects":
     case "redirect_loop":
       res.status(502).json({ error: err.message });

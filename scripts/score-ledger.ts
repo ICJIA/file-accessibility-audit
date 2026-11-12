@@ -49,6 +49,11 @@ interface Ledger {
   entries: Record<string, LedgerRow>;
 }
 
+/** Floor for how many control files must actually be compared with their
+ *  ledger row. Overridable only so the floor itself can be sabotage-tested
+ *  (SCORE_LEDGER_MIN_COMPARED=100000 must turn the gate red). */
+const MIN_COMPARED = Number(process.env.SCORE_LEDGER_MIN_COMPARED ?? 200);
+
 const SUPPORTED = new Set([".pdf", ".docx", ".pptx", ".xlsx", ".xls"]);
 
 async function summarize(file: string): Promise<LedgerRow> {
@@ -73,9 +78,16 @@ async function main() {
   // subdirectories hold provenance-tagged sets — controls/doit/ is the state
   // IT agency's own reference documents, whose grades are now argued ground
   // truth (2026-08-29) and must never move silently either.
+  //
+  // Dotfiles are never documents (2026-11-12). macOS writes an AppleDouble
+  // stub (`._name.pdf`) beside every file on a non-HFS volume; they carry a
+  // document extension and no document. Fourteen of them were blessed into
+  // the ledger as "not a supported document" rows — pinned noise that only
+  // one developer's disk could ever reproduce.
   const listDir = (dir: string, prefix = ""): string[] =>
     fs
       .readdirSync(dir, { withFileTypes: true })
+      .filter((e) => !e.name.startsWith("."))
       .flatMap((e) =>
         e.isDirectory() && prefix === ""
           ? listDir(path.join(dir, e.name), e.name + "/")
@@ -104,6 +116,7 @@ async function main() {
   const ledger: Ledger = JSON.parse(fs.readFileSync(LEDGER_PATH, "utf8"));
   const problems: string[] = [];
   let verified = 0;
+  let compared = 0;
   let skipped = 0;
 
   for (const f of files) {
@@ -115,6 +128,7 @@ async function main() {
       continue;
     }
     const got = await summarize(f);
+    compared++;
     const d = diffRow(f, want, got);
     if (d.length) problems.push(...d);
     else verified++;
@@ -127,6 +141,18 @@ async function main() {
   console.log(
     `\n\nscore ledger (blessed ${ledger.blessed}): ${verified} verified, ${skipped} not present here (skipped)`,
   );
+  // A FLOOR, not a formality (2026-11-12; the same rule legal-basis.ts has
+  // carried since 2026-08-31). With controls/ empty or unbuilt the loop above
+  // walks zero files, finds zero differences, and "NO SCORE MOVED" would be
+  // printed about nothing. The trap batteries alone regenerate more rows
+  // than this anywhere the gate legitimately runs. Checked BEFORE the drift
+  // report, and independently of it, so neither failure can hide the other.
+  if (compared < MIN_COMPARED) {
+    console.error(
+      `\nonly ${compared} control(s) could be compared with the ledger, below the floor of ${MIN_COMPARED} — controls/ is missing or unbuilt, so this gate proves nothing\n    (regenerate with: pnpm synthetic-controls && pnpm synthetic-office-controls)`,
+    );
+    process.exitCode = 1;
+  }
   if (problems.length) {
     console.error(
       `\nSCORE DRIFT — ${problems.length} difference(s) from the blessed ledger:\n${problems.join("\n")}`,
@@ -136,6 +162,7 @@ async function main() {
     );
     process.exit(1);
   }
+  if (process.exitCode) return;
   console.log("NO SCORE MOVED");
 }
 main();

@@ -4,6 +4,7 @@
       :grade="displayedGrade"
       :overall-score="displayedScore"
       :categories="displayedCategories"
+      :conformance="result.conformance"
       :not-assessed-count="notAssessedCount"
       class="mb-5"
     />

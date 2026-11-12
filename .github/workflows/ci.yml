@@ -53,6 +53,9 @@ jobs:
       - name: Format
         run: pnpm format:check
 
+      # api (tsc --noEmit) + web (nuxt typecheck) + cli (tsc --noEmit, added
+      # 2026-11-12 — apps/cli runs through tsx everywhere and was never
+      # typechecked by anything) + scripts/.
       - name: Typecheck
         run: pnpm typecheck
 

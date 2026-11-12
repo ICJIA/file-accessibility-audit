@@ -1,12 +1,18 @@
 import rateLimit from "express-rate-limit";
 import crypto from "node:crypto";
 import { RATE_LIMITS } from "#config";
+import { clientKeyFromIp } from "../services/clientKey.js";
 
 // Per-IP rate-limit bucket key. The IP is used TRANSIENTLY, in memory only —
 // the service stores no identity anywhere (v1.68.0); express-rate-limit's
 // default MemoryStore never touches disk and forgets everything on restart.
-function ipKey(req: any): string {
-  return req.ip || "unknown";
+//
+// The key is NOT the bare address: IPv6 callers are bucketed by their /64 and
+// IPv4-mapped IPv6 by the embedded IPv4 address (services/clientKey.ts —
+// shared with the remediation cap), so one /64 cannot rotate addresses past
+// every limit. Exported for the wiring tests.
+export function ipKey(req: any): string {
+  return clientKeyFromIp(req?.ip);
 }
 
 // ---------------------------------------------------------------------------
@@ -196,10 +202,25 @@ export function isStatusRequest(req: any): boolean {
   return req?.method === "GET" && req?.path === "/api/status";
 }
 
-// Single skip predicate for globalLimiter. Kept separate from the two
-// individual predicates so each stays independently testable.
+// GET /api/analyze-job/:id — the audit progress poll (review 2026-11-12).
+// Same failure as the remediation poll above, one NAT wider: two people in one
+// office polling their own audits shared the anon 100/min global budget,
+// 429'd each other and lost healthy audits. Exempt from globalLimiter and
+// governed by analyzeJobStatusLimiter on the route instead. Safe to exempt:
+// the route answers only to the job's own bearer token (404 otherwise) and is
+// an in-memory Map lookup. POST /api/analyze-job is NOT exempt.
+const ANALYZE_JOB_STATUS_PATH = /^\/api\/analyze-job\/[^/]+$/;
+
+export function isAnalyzeJobStatusRequest(req: any): boolean {
+  return (
+    req?.method === "GET" && typeof req?.path === "string" && ANALYZE_JOB_STATUS_PATH.test(req.path)
+  );
+}
+
+// Single skip predicate for globalLimiter. Kept separate from the individual
+// predicates so each stays independently testable.
 export function isGlobalLimitExempt(req: any): boolean {
-  return isRemediationStatusRequest(req) || isStatusRequest(req);
+  return isRemediationStatusRequest(req) || isStatusRequest(req) || isAnalyzeJobStatusRequest(req);
 }
 
 // ---------------------------------------------------------------------------
@@ -318,8 +339,7 @@ export async function privilegedWindowStatus(
   nowMs: number = Date.now(),
 ): Promise<PrivilegedWindow> {
   const info = (await limiter.getKey("privileged")) as
-    | { totalHits?: number; resetTime?: Date }
-    | undefined;
+    { totalHits?: number; resetTime?: Date } | undefined;
   const reset = info?.resetTime instanceof Date ? info.resetTime.getTime() : null;
   const open = reset !== null && reset > nowMs;
   return {
@@ -381,6 +401,19 @@ export const remediationStatusLimiter = rateLimit({
   handler: loggedHandler("remediationStatus", REMEDIATION_STATUS_MESSAGE),
 });
 
+// Flood guard for the audit progress poll (GET /api/analyze-job/:id) — the
+// only cap that applies to it, since globalLimiter skips it.
+const ANALYZE_JOB_STATUS_MESSAGE = { error: "Too many status requests. Please slow down." };
+export const analyzeJobStatusLimiter = rateLimit({
+  windowMs: RATE_LIMITS.analyzeJobStatus.windowMs,
+  max: RATE_LIMITS.analyzeJobStatus.max,
+  keyGenerator: ipKey,
+  message: ANALYZE_JOB_STATUS_MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: loggedHandler("analyzeJobStatus", ANALYZE_JOB_STATUS_MESSAGE),
+});
+
 // Flood guard for the public /api/status document — the only cap that
 // applies to it, since globalLimiter skips it. Keyed by IP rather than
 // ipKey: the endpoint is unauthenticated by design, so there is no
@@ -389,7 +422,7 @@ const STATUS_MESSAGE = { error: "Too many status requests. Please slow down." };
 export const statusLimiter = rateLimit({
   windowMs: RATE_LIMITS.status.windowMs,
   max: RATE_LIMITS.status.max,
-  keyGenerator: (req) => req.ip || "unknown",
+  keyGenerator: ipKey,
   message: STATUS_MESSAGE,
   standardHeaders: true,
   legacyHeaders: false,

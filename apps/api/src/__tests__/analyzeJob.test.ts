@@ -223,8 +223,43 @@ describe("GET /api/analyze-job/:id — the token gate and single delivery", () =
     expect(_jobCount()).toBe(0);
   });
 
+  it("a full analysis line does NOT fail a job: it retries until a place frees up", async () => {
+    detectFileType.mockResolvedValue("docx");
+    const busy = () => Object.assign(new Error("Server busy"), { status: 503 });
+    analyzeDocument
+      .mockRejectedValueOnce(busy())
+      .mockRejectedValueOnce(busy())
+      .mockResolvedValue({ filename: "a.docx", overallScore: 88, grade: "B" });
+    const res = makeRes();
+    await post({ file: { buffer: Buffer.from("PK"), originalname: "a.docx" }, get: vi.fn() }, res);
+    expect(analyzeDocument).toHaveBeenCalledTimes(3);
+    const poll = pollRes(res._json.jobId, res._json.token);
+    expect(poll._json.done).toBe(true);
+    expect(poll._json.error).toBeUndefined();
+    expect(poll._json.result.overallScore).toBe(88);
+    expect(recordAudit).toHaveBeenCalledTimes(1);
+  });
+
+  it("the SYNCHRONOUS route answers a full line at once: 503 with Retry-After, no retry", async () => {
+    const analyzeRouter = (await import("../routes/analyze.js")).default;
+    const layer = (analyzeRouter as any).stack.find((l: any) => l.route?.path === "/analyze");
+    const handle = layer.route.stack[layer.route.stack.length - 1].handle;
+    detectFileType.mockResolvedValue("docx");
+    analyzeDocument.mockRejectedValue(Object.assign(new Error("Server busy"), { status: 503 }));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = makeRes();
+    const headers: Record<string, string> = {};
+    res.setHeader = (k: string, v: string) => (headers[k] = v);
+    await handle({ file: { buffer: Buffer.from("PK"), originalname: "a.docx" }, headers: {} }, res);
+    expect(res._status).toBe(503);
+    expect(headers["Retry-After"]).toBe("10");
+    expect(analyzeDocument).toHaveBeenCalledTimes(1);
+  });
+
   it("the store refuses new jobs at its cap (503 from the route) instead of growing unbounded", () => {
-    for (let i = 0; i < 100; i++) expect(createAnalyzeJob(true)).toBeTruthy();
+    // Unfinished jobs each hold an upload in memory, so they are capped far
+    // below the store size (ANALYZE_JOB.MAX_UNFINISHED_JOBS = 16).
+    for (let i = 0; i < 16; i++) expect(createAnalyzeJob(true)).toBeTruthy();
     expect(createAnalyzeJob(true)).toBeNull();
   });
 });

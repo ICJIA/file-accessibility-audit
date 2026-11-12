@@ -1,7 +1,15 @@
 #!/bin/bash
 set -e
 
-cd "$(dirname "$0")"
+# Absolute path of this script, resolved ONCE, before anything can change the
+# working directory. The self re-exec after `git pull` used to run
+# `bash "$0"`: started as `bash "repo dir/rebuild.sh"` from the parent
+# directory, "$0" was relative to a directory this script had already left,
+# and the re-exec died with "No such file" (exit 127) after the pull had
+# moved HEAD.
+_self_dir="$(cd "$(dirname "$0")" && pwd)"
+_self="$_self_dir/$(basename "$0")"
+cd "$_self_dir"
 
 # ---------------------------------------------------------------------
 # Deploy log.
@@ -38,41 +46,240 @@ fi
 # this EXIT trap spells out what happened: whether PM2 was touched,
 # and (once git pull has moved HEAD) how to put the source tree back.
 #
-# The trap only prints. It never rolls anything back by itself.
+# The trap prints, and does exactly ONE repair: if a web build was under way
+# it puts the parked previous build back in apps/web/.output (see
+# _restore_parked_output). It never touches git, node_modules, the database
+# or PM2.
+#
+# INT and TERM are trapped too. Untrapped, a SIGTERM during the build killed
+# this script with no banner (exit 143), left the build running as an orphan,
+# and left apps/web/.output half-written under the running web process.
+#
+# 2026-11-12: the banner used to say "the previously deployed version is
+# still running" for every failure before the PM2 restart. That is only true
+# of the two PM2 parent processes. This deploy works IN the live checkout
+# (see "RESIDUAL RISK" above the git pull), so once the pull, the install or
+# the build has started, what those processes read from disk is no longer
+# the version they were started from. The banner now says which of the two
+# situations the operator is in, and what to do about it.
 # ---------------------------------------------------------------------
 _stage="preflight"
+# After the self re-exec HEAD has ALREADY moved, so the commit that was
+# deployed before this run can only come from the first half of the run.
+# Seeded here — not after the second `git pull` — so a failure anywhere in
+# between still knows the checkout changed.
 _pre_pull_sha=""
+if [ -n "${REBUILD_REEXECED:-}" ] && [ -n "${REBUILD_PRE_PULL_SHA:-}" ]; then
+  _pre_pull_sha="$REBUILD_PRE_PULL_SHA"
+fi
+# Set once the pre-restart database snapshot has been written; printed by
+# the failure banners so a restore never starts with "which file?".
+_predeploy_snapshot=""
+# Where the previous web build is parked while `nuxt build` rewrites
+# apps/web/.output (see the build step).
+_prev_output_dir="apps/web/node_modules/.cache/rebuild-previous-output"
+# 0 = nothing to say, 1 = previous build put back, 2 = .output was never
+# touched (the parked copy was identical and was simply dropped).
+_output_restored=0
+# pid of the long-running command started by _run, while it is running.
+_child_pid=""
+
+# Put the parked web build back. The parked directory only ever exists as a
+# COMPLETE copy (it is copied under a .tmp name and renamed), and only while
+# a web build is in flight or was interrupted — so whenever it exists it is
+# the last known-good build. If apps/web/.output is still identical to it,
+# nothing was overwritten and the live directory is left exactly as it is.
+_restore_parked_output() {
+  [ -d "$_prev_output_dir" ] || return 0
+  if [ -d apps/web/.output ] && diff -rq "$_prev_output_dir" apps/web/.output > /dev/null 2>&1; then
+    rm -rf "$_prev_output_dir"
+    _output_restored=2
+    return 0
+  fi
+  rm -rf apps/web/.output
+  if mv "$_prev_output_dir" apps/web/.output; then
+    _output_restored=1
+  fi
+}
+
+# Kill a process and everything it started (pnpm → node → workers).
+_kill_tree() {
+  for _kid in $(pgrep -P "$1" 2>/dev/null || true); do
+    _kill_tree "$_kid"
+  done
+  kill -TERM "$1" 2>/dev/null || true
+}
+
+# Run a long command so that a signal can interrupt it. bash does not run a
+# trap while a FOREGROUND command is still going — it would sit through the
+# rest of the build first — but `wait` returns at once.
+_run() {
+  "$@" &
+  _child_pid=$!
+  _run_rc=0
+  wait "$_child_pid" || _run_rc=$?
+  _child_pid=""
+  return "$_run_rc"
+}
+
+# INT / TERM: stop whatever _run started, wait until it is really gone (it
+# must not keep writing into .output after the previous build is put back),
+# then leave through the EXIT trap, which restores and prints the banner.
+_on_signal() {
+  trap '' INT TERM
+  _interrupted_by="$1"
+  if [ -n "$_child_pid" ]; then
+    _kill_tree "$_child_pid"
+    wait "$_child_pid" 2>/dev/null || true
+    _child_pid=""
+  fi
+  exit "$2"
+}
+# How to get the database back. Printed whenever the new version has been
+# started (or may have been) and is not known to be healthy.
+_print_restore_hint() {
+  echo ""
+  if [ -n "$_predeploy_snapshot" ]; then
+    echo "  Database snapshot taken just before this restart:"
+    echo "      $_predeploy_snapshot"
+    echo "  To go back to it (the current database is moved aside, not deleted):"
+    echo "      pm2 stop file-audit-api"
+    echo "      ./scripts/restore-db.sh \"$_predeploy_snapshot\""
+  else
+    echo "  No pre-restart database snapshot was taken on this run (first"
+    echo "  deploy, or REBUILD_SKIP_DB_SNAPSHOT was set). The nightly snapshots,"
+    echo "  if any, are in the backups/ directory beside this checkout; restore"
+    echo "  one with ./scripts/restore-db.sh after  pm2 stop file-audit-api"
+  fi
+  if [ -n "$_pre_pull_sha" ]; then
+    echo "  Then put the previous code back and start it:"
+    echo "      git reset --hard $_pre_pull_sha"
+    echo "      pnpm install --frozen-lockfile && pnpm build"
+    echo "      pm2 restart ecosystem.config.cjs --update-env"
+  fi
+}
+
+# The checkout has been changed but PM2 has not been restarted. $1 = HEAD now.
+_print_skew_notice() {
+  echo "  PM2 was NOT restarted, so the two long-running processes are still"
+  echo "  the previously deployed ones — but the files under them have ALREADY"
+  echo "  CHANGED, and they are not isolated from that:"
+  if [ -n "$_pre_pull_sha" ] && [ -n "$1" ] && [ "$1" != "$_pre_pull_sha" ]; then
+    echo "    - source is now at ${1:0:12} (was ${_pre_pull_sha:0:12}). The API runs"
+  else
+    echo "    - the source tree was re-installed/re-built in place. The API runs"
+  fi
+  echo "      from source: every Word/PowerPoint/Excel audit and every"
+  echo "      remediation job starts a NEW worker that loads the code on disk"
+  echo "      now, and any PM2 auto-restart (crash, memory limit, reboot) boots"
+  echo "      it entirely."
+  case "$_stage" in
+    pnpm-install)
+      echo "    - node_modules may be HALF-INSTALLED (the install is what failed)."
+      ;;
+    build-analyzer|build-api-typecheck)
+      echo "    - the web build had not started: apps/web/.output is untouched."
+      ;;
+    build-web|build)
+      if [ "$_output_restored" -eq 1 ]; then
+        echo "    - the web build did not finish; the PREVIOUS apps/web/.output was"
+        echo "      put back, so the running web process still has a complete build."
+      elif [ "$_output_restored" -eq 2 ]; then
+        echo "    - apps/web/.output had not been changed yet and was left as it was."
+      elif [ -d "$_prev_output_dir" ]; then
+        echo "    - apps/web/.output may be INCOMPLETE and could not be put back"
+        echo "      automatically. The previous build is parked at"
+        echo "      $_prev_output_dir —"
+        echo "      rm -rf apps/web/.output && mv \"$_prev_output_dir\" apps/web/.output"
+      else
+        echo "    - apps/web/.output may be INCOMPLETE (no copy of the previous"
+        echo "      build could be kept)."
+      fi
+      ;;
+  esac
+  echo ""
+  echo "  This is a mixed state. Do one of these now — do not leave it:"
+  echo "    a) fix the cause (see the error above) and re-run ./rebuild.sh, or"
+  if [ -n "$_pre_pull_sha" ]; then
+    echo "    b) put the last deployed version back, then restart onto it:"
+    echo "         git reset --hard $_pre_pull_sha"
+    echo "         pnpm install --frozen-lockfile && pnpm build"
+    echo "         pm2 restart ecosystem.config.cjs --update-env"
+  else
+    echo "    b) check out the last deployed commit, then:"
+    echo "         pnpm install --frozen-lockfile && pnpm build"
+    echo "         pm2 restart ecosystem.config.cjs --update-env"
+  fi
+}
+
 _on_exit() {
   _status=$?
   set +e  # a failure inside the banner must not truncate the banner
   if [ "$_status" -eq 0 ]; then
     exit 0
   fi
+  # Before PM2 is restarted, a parked build means the web build did not
+  # finish: put it back. (After the restart the new build is the live one.)
+  case "$_stage" in
+    pm2-restart|pm2-restarted|unhealthy|healthy) ;;
+    *) _restore_parked_output ;;
+  esac
   echo ""
   echo "======================================================================"
+  if [ -n "${_interrupted_by:-}" ]; then
+    echo "  INTERRUPTED by SIG${_interrupted_by} — the command that was running was stopped."
+  fi
   case "$_stage" in
     pm2-restart)
       echo "  DEPLOY FAILED during PM2 restart (exit $_status)."
       echo "  Process state is uncertain — inspect it with:"
       echo "      pm2 status && pm2 logs --lines 50"
+      _print_restore_hint
+      ;;
+    healthy)
+      echo "  The new version IS live and both processes passed their health"
+      echo "  checks — but a later check in this script failed unexpectedly"
+      echo "  (exit $_status). Read the output above; the site itself is up."
       ;;
     pm2-restarted)
-      echo "  Deploy succeeded, but a post-restart step failed (exit $_status)."
-      echo "  The new version IS live; verify with: pm2 status"
+      echo "  PM2 was restarted, but a later step of this script failed"
+      echo "  (exit $_status) before the new processes were confirmed healthy."
+      echo "  Do not assume the deploy worked — check:"
+      echo "      pm2 status && pm2 logs --lines 50"
+      echo "      curl -i ${API_HEALTH_URL:-http://127.0.0.1:5103/api/health}"
+      _print_restore_hint
+      ;;
+    unhealthy)
+      echo "  DEPLOY FAILED: PM2 restarted the new version, but it is NOT healthy."
+      echo "  ${_unhealthy_summary:-A process did not answer its health check.}"
+      echo ""
+      echo "  The site is running the NEW code, badly or not at all. Look first:"
+      echo "      pm2 status && pm2 logs --lines 80"
+      echo ""
+      echo "  The API applies database migrations when it starts, so a start-up"
+      echo "  failure may have left the database part-migrated."
+      _print_restore_hint
+      ;;
+    preflight|git-pull)
+      _head_now=$(git rev-parse HEAD 2>/dev/null)
+      echo "  DEPLOY ABORTED during: $_stage (exit $_status)"
+      if [ -n "$_pre_pull_sha" ] && [ -n "$_head_now" ] && \
+         [ "$_head_now" != "$_pre_pull_sha" ]; then
+        _print_skew_notice "$_head_now"
+      else
+        echo "  PM2 was NOT restarted and this checkout was not changed — the"
+        echo "  previously deployed version is still running, untouched."
+      fi
       ;;
     *)
       echo "  DEPLOY ABORTED during: $_stage (exit $_status)"
-      echo "  PM2 was NOT restarted — the previously deployed version is still"
-      echo "  running."
-      _head_now=$(git rev-parse HEAD 2>/dev/null)
-      if [ -n "$_pre_pull_sha" ] && [ -n "$_head_now" ] && \
-         [ "$_head_now" != "$_pre_pull_sha" ]; then
+      _print_skew_notice "$(git rev-parse HEAD 2>/dev/null)"
+      if [ "$_stage" = "db-snapshot" ]; then
         echo ""
-        echo "  NOTE: git pull already moved this checkout to ${_head_now:0:12}."
-        echo "  The API runs from source via tsx, so an unrelated PM2 restart"
-        echo "  (crash, memory limit, reboot) would boot that unvalidated code."
-        echo "  To roll the source back to the last deployed commit:"
-        echo "      git reset --hard $_pre_pull_sha && pnpm install --frozen-lockfile"
+        echo "  The pre-restart database snapshot could not be taken, so the"
+        echo "  restart (which runs migrations) was not attempted. Fix the cause"
+        echo "  (disk space? see the error above) and re-run. To deploy without a"
+        echo "  snapshot, knowingly:  REBUILD_SKIP_DB_SNAPSHOT=1 ./rebuild.sh"
       fi
       ;;
   esac
@@ -84,6 +291,24 @@ _on_exit() {
   exit "$_status"
 }
 trap _on_exit EXIT
+trap '_on_signal INT 130' INT
+trap '_on_signal TERM 143' TERM
+
+# A parked build left by an earlier run means that run was killed in the
+# middle of a web build: apps/web/.output is half-written and the parked
+# directory is the last complete one. Put it back NOW, before anything else —
+# the next build step would otherwise park the half-written directory and,
+# on a second failure, "restore" that. (A leftover .tmp is an unfinished
+# copy and is only ever discarded.)
+rm -rf "$_prev_output_dir.tmp"
+if [ -d "$_prev_output_dir" ]; then
+  _restore_parked_output
+  if [ "$_output_restored" -eq 1 ]; then
+    echo "NOTE: an earlier run was interrupted during the web build; the last complete"
+    echo "      build has been put back in apps/web/.output."
+  fi
+  _output_restored=0
+fi
 
 # ---------------------------------------------------------------------
 # Remediation feature flag.
@@ -270,9 +495,45 @@ else
   echo ""
 fi
 
+# ---------------------------------------------------------------------
+# RESIDUAL RISK — this deploy works in the live checkout (2026-11-12).
+#
+# From here until `pm2 restart`, the running site and this script share one
+# directory, for as long as the install and the build take (minutes):
+#
+#   - `git pull` replaces the source the API runs from. The API parent
+#     process keeps its already-loaded code, but every Office audit and
+#     every remediation job spawns a FRESH worker (`node --import tsx …`)
+#     that loads whatever is on disk at that moment — new worker code under
+#     an old parent.
+#   - `pnpm install` relinks node_modules under both running processes.
+#   - `nuxt build` rewrites apps/web/.output under the running web process,
+#     which loads server chunks lazily and serves hashed assets from it.
+#
+# The real cure is building in a separate release directory and switching
+# to it atomically (blue/green). That changes the paths Forge, PM2 and the
+# backup job are configured with, so it is the server owner's change to
+# make, not this script's. Nitro's output directory cannot be redirected
+# from the environment in this configuration (it is a nuxt.config.ts
+# setting), so "build elsewhere, swap in" is not available here either.
+#
+# What this script does instead:
+#   - keeps the window as short as it can (nothing slow happens between the
+#     pull and the restart except the install and the build themselves);
+#   - parks a copy of the previous web build and puts it back if the new
+#     build fails, so a failed deploy does not leave the running web process
+#     over a half-written .output;
+#   - tells the truth in the failure banner: the tree HAS changed, the
+#     processes have NOT been restarted, and how to get out of that state.
+#
+# Deploy at a quiet time. An audit that fails during a deploy window is
+# most likely this, and succeeds on retry.
+# ---------------------------------------------------------------------
 echo "Pulling latest changes..."
 _stage="git-pull"
-_pre_pull_sha=$(git rev-parse HEAD 2>/dev/null || true)
+if [ -z "$_pre_pull_sha" ]; then
+  _pre_pull_sha=$(git rev-parse HEAD 2>/dev/null || true)
+fi
 git checkout -- .
 git pull origin main
 
@@ -297,27 +558,70 @@ if [ -z "${REBUILD_REEXECED:-}" ]; then
     echo "Pull moved HEAD ${_pre_pull_sha:0:12} -> ${_post_pull_sha:0:12}; re-running the updated script..."
     export REBUILD_REEXECED=1
     export REBUILD_PRE_PULL_SHA="$_pre_pull_sha"
-    exec bash "$0" "$@"
+    exec bash "$_self" "$@"
   fi
-fi
-# Preserve the original pre-pull SHA across the re-exec so the failure banner
-# still prints a rollback target that predates this deploy.
-if [ -n "${REBUILD_PRE_PULL_SHA:-}" ]; then
-  _pre_pull_sha="$REBUILD_PRE_PULL_SHA"
 fi
 
 echo "Installing dependencies..."
 _stage="pnpm-install"
-pnpm install --frozen-lockfile
+_run pnpm install --frozen-lockfile
 
 echo "Building..."
-_stage="build"
+# The root `pnpm build` is three steps. They are run one at a time here so
+# that this script knows WHICH one failed, and — the point — whether the web
+# build ever started: only `nuxt build` touches apps/web/.output, so a failed
+# typecheck must leave the live web build alone and must not be reported as
+# a web-build failure. If package.json's "build" ever stops being exactly
+# these three steps, the whole script is run as one (stage "build") rather
+# than silently skipping whatever was added.
+_expected_build='pnpm --filter @file-audit/analyzer build && pnpm --filter api build && pnpm --filter web build'
+_build_split=0
+if grep -qF "\"build\": \"$_expected_build\"" package.json; then
+  _build_split=1
+  _stage="build-analyzer"
+  _run pnpm --filter @file-audit/analyzer build
+  _stage="build-api-typecheck"
+  _run pnpm --filter api build
+  _stage="build-web"
+else
+  echo "NOTE: package.json \"build\" is not the three steps this script knows; running it whole."
+  _stage="build"
+fi
+
 # Nuxt's persistent build cache corrupted on 2026-08-17 (two concurrent
 # builds → ENOENT .cache/nuxt/.nuxt/manifest.json on every later build,
 # 41 PM2 crash-loops). The cache only speeds up incremental rebuilds; a
 # deploy wants a cold, reproducible build. Drop it first, every time.
 rm -rf apps/web/node_modules/.cache/nuxt
-pnpm build
+
+# Park a copy of the web build that is serving traffic right now. `nuxt
+# build` empties and rewrites apps/web/.output in place; if it dies part-way
+# the running web process is left over a half-written build, and so is any
+# PM2 auto-restart of it. The EXIT trap (and the start of the next run, if
+# this one is killed outright) puts the parked copy back.
+# Copied under a .tmp name and renamed, so the parked directory is never a
+# partial copy. Inside node_modules/.cache so git never sees it. A failed
+# copy — a full disk — is not a reason to stop: the build will say so more
+# clearly.
+if [ -d apps/web/.output ]; then
+  mkdir -p "$(dirname "$_prev_output_dir")"
+  rm -rf "$_prev_output_dir.tmp"
+  if cp -a apps/web/.output "$_prev_output_dir.tmp" && mv "$_prev_output_dir.tmp" "$_prev_output_dir"; then
+    :
+  else
+    echo "WARNING: could not park a copy of the current web build; continuing without one."
+    rm -rf "$_prev_output_dir.tmp" "$_prev_output_dir"
+  fi
+fi
+
+# Not piped. A failure ends the script through set -e; the EXIT trap puts
+# the parked build back and says which stage failed.
+if [ "$_build_split" -eq 1 ]; then
+  _run pnpm --filter web build
+else
+  _run pnpm build
+fi
+rm -rf "$_prev_output_dir"
 
 # Load app secrets persisted in /etc/environment so PM2 inherits them even when
 # this script runs in a shell that didn't pick them up at login (/etc/environment
@@ -342,6 +646,72 @@ else
   echo "API_PRIVILEGED_TOKEN: not set — privileged rate-limit tier OFF (everyone strict)"
 fi
 
+# ---------------------------------------------------------------------
+# Database snapshot, immediately before the restart (2026-11-12).
+#
+# The API applies its numbered migrations when it boots (db/sqlite.ts →
+# runMigrations), against the live database, and some of them are not
+# reversible (dropped columns, dropped tables). Until now nothing captured
+# the database first: a migration that went wrong on production data had no
+# way back except the previous night's backup, minus the day's rows.
+#
+# This reuses the nightly backup (scripts/backup-db.sh — SQLite's online
+# backup, integrity-checked, safe while the old API is still writing) with
+# two differences:
+#   - it writes to a `pre-deploy/` directory INSIDE the backups directory,
+#     so the two sets never rotate each other away (each rotation only ever
+#     lists its own directory), and the nightly job's last-backup.json —
+#     what /status reports on — is not touched;
+#   - it keeps the newest 3 (REBUILD_SNAPSHOT_KEEP), not 5.
+#
+# A failed snapshot ABORTS the deploy: restarting without one is exactly
+# the gamble this step removes. First deploy on a new server (no database
+# yet) has nothing to snapshot and says so. REBUILD_SKIP_DB_SNAPSHOT=1
+# skips the step for the operator who has decided to.
+# ---------------------------------------------------------------------
+_stage="db-snapshot"
+case "${DB_PATH:-}" in
+  "")  _db_file="apps/api/data/audit.db" ;;
+  /*)  _db_file="$DB_PATH" ;;
+  *)   _db_file="apps/api/$DB_PATH" ;;
+esac
+if [ "${REBUILD_SKIP_DB_SNAPSHOT:-}" = "1" ]; then
+  echo "Database snapshot: SKIPPED (REBUILD_SKIP_DB_SNAPSHOT=1) — restarting with no way back."
+elif [ ! -f "$_db_file" ]; then
+  echo "Database snapshot: nothing to snapshot yet ($_db_file does not exist — first deploy)."
+else
+  _snapshot_dir="${BACKUP_DIR:-$(dirname "$(pwd)")/backups}/pre-deploy"
+  echo "Snapshotting the database before the restart -> $_snapshot_dir"
+  # The snapshot's path is taken from what the backup itself reports (the
+  # JSON line backup-db.mjs prints on success) — never from "the newest name
+  # in the directory", which is a different file whenever two runs share a
+  # second or the clock has stepped backwards.
+  _snap_out=$(BACKUP_DIR="$_snapshot_dir" BACKUP_KEEP_COUNT="${REBUILD_SNAPSHOT_KEEP:-3}" \
+    bash scripts/backup-db.sh)
+  printf '%s\n' "$_snap_out"
+  _predeploy_snapshot=$(printf '%s\n' "$_snap_out" | node -e '
+    let text = "";
+    process.stdin.on("data", (d) => (text += d));
+    process.stdin.on("end", () => {
+      for (const line of text.split("\n")) {
+        if (!line.startsWith("{")) continue;
+        try {
+          const j = JSON.parse(line);
+          if (j.action === "backup" && typeof j.snapshotPath === "string") {
+            process.stdout.write(j.snapshotPath);
+            return;
+          }
+        } catch {}
+      }
+    });
+  ')
+  if [ -z "$_predeploy_snapshot" ] || [ ! -s "$_predeploy_snapshot" ]; then
+    echo "ERROR: the backup did not report a snapshot that exists (got: '${_predeploy_snapshot}')"
+    exit 1
+  fi
+  echo "✓ Pre-restart snapshot: $_predeploy_snapshot"
+fi
+
 echo "Restarting PM2..."
 # --update-env so rotated secrets (e.g. API_PRIVILEGED_TOKEN) actually refresh;
 # a plain `pm2 restart` reuses the env snapshot from the original `pm2 start`.
@@ -349,15 +719,142 @@ _stage="pm2-restart"
 pm2 restart ecosystem.config.cjs --update-env
 _stage="pm2-restarted"
 
-echo "Done. Checking status..."
+echo "PM2 restart issued. Process list:"
 pm2 status
+
+# ---------------------------------------------------------------------
+# Is the new version actually up? (2026-11-12)
+#
+# `pm2 restart` returns as soon as the processes are SPAWNED. Until now
+# this script then probed the public URL, treated every failure as a
+# warning, and ended with "The deploy itself succeeded" and exit 0 — also
+# when the API was dead or crash-looping on a failed migration. Forge
+# showed a green deploy over a site that was down.
+#
+# Each process is now asked directly, on loopback (no nginx, no DNS, no
+# TLS in the way), with a bounded wait. If either does not answer 200 the
+# deploy FAILS: non-zero exit, a banner that says so, and the snapshot to
+# restore from. Everything further down (public URL, nginx-intercepted
+# static files, veraPDF) stays a warning, as before — those are about
+# routing and optional engines, not about whether the app is running.
+#
+# /api/health is static liveness, but the API only starts listening after
+# db/sqlite.ts has opened the database and run every pending migration, so
+# a 200 here means the migrations completed.
+# ---------------------------------------------------------------------
+API_HEALTH_URL="${API_HEALTH_URL:-http://127.0.0.1:5103/api/health}"
+WEB_HEALTH_URL="${WEB_HEALTH_URL:-http://127.0.0.1:5102/healthz}"
+HEALTH_WAIT_SECONDS="${HEALTH_WAIT_SECONDS:-90}"
+
+# HTTP status of one local URL, or 000. curl when present; otherwise node,
+# which this script has already required.
+_local_code() {
+  _lc=""
+  if command -v curl > /dev/null 2>&1; then
+    _lc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$1" 2>/dev/null || true)
+  else
+    _lc=$(node -e 'fetch(process.argv[1], { signal: AbortSignal.timeout(5000) }).then((r) => console.log(r.status), () => console.log("000"))' "$1" 2>/dev/null || true)
+  fi
+  [ -n "$_lc" ] || _lc="000"
+  printf '%s' "$_lc"
+}
+
+# Wait until $2 answers 200, for at most HEALTH_WAIT_SECONDS. $1 = label.
+_wait_healthy() {
+  _waited=0
+  printf "Waiting for %s (%s)" "$1" "$2"
+  while :; do
+    _hc=$(_local_code "$2")
+    if [ "$_hc" = "200" ]; then
+      echo " healthy after ~${_waited}s."
+      return 0
+    fi
+    if [ "$_waited" -ge "$HEALTH_WAIT_SECONDS" ]; then
+      echo ""
+      echo "  ✗ $1 did not answer 200 within ${HEALTH_WAIT_SECONDS}s (last status: $_hc)"
+      return 1
+    fi
+    printf "."
+    sleep 2
+    _waited=$((_waited + 2))
+  done
+}
+
+echo ""
+_api_ok=1
+_web_ok=1
+_wait_healthy "the API" "$API_HEALTH_URL" || _api_ok=0
+_wait_healthy "the web app" "$WEB_HEALTH_URL" || _web_ok=0
+if [ "$_api_ok" -eq 0 ] || [ "$_web_ok" -eq 0 ]; then
+  if [ "$_api_ok" -eq 0 ] && [ "$_web_ok" -eq 0 ]; then
+    _unhealthy_summary="Neither the API nor the web app answered its local health check."
+  elif [ "$_api_ok" -eq 0 ]; then
+    _unhealthy_summary="The API did not answer $API_HEALTH_URL (the web app did answer)."
+  else
+    _unhealthy_summary="The web app did not answer $WEB_HEALTH_URL (the API did answer)."
+  fi
+  pm2 status || true
+  _stage="unhealthy"
+  exit 1
+fi
+_stage="healthy"
+
+# ---------------------------------------------------------------------
+# Is PM2 watching the right process? (2026-11-12) — warning only.
+#
+# ecosystem.config.cjs starts each app as `pnpm start`, so the process PM2
+# spawned — the one whose memory it measures for max_memory_restart — is
+# the pnpm wrapper, and the server is its child. PM2 samples only the pid
+# it spawned (it does not add up children), so the 512M cap may never fire
+# for the real server. This compares the pid PM2 reports with the pid that
+# is actually listening on the port, and says so when they differ. See the
+# note above `restartPolicy` in ecosystem.config.cjs for the fix and why it
+# is not applied automatically.
+# ---------------------------------------------------------------------
+_listener_pid() {
+  # $1 = TCP port. Prints the listening pid, or nothing if it cannot tell.
+  if command -v ss > /dev/null 2>&1; then
+    ss -ltnpH "sport = :$1" 2>/dev/null | grep -oE 'pid=[0-9]+' | head -n 1 | cut -d= -f2
+  elif command -v lsof > /dev/null 2>&1; then
+    lsof -nP -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -n 1
+  fi
+}
+_rss_mb() {
+  # $1 = pid. Resident memory in MB, or "?".
+  _kb=$(ps -o rss= -p "$1" 2>/dev/null | tr -d ' ' || true)
+  if [ -n "$_kb" ]; then echo $((_kb / 1024)); else echo "?"; fi
+}
+_check_supervised_pid() {
+  # $1 = PM2 app name, $2 = port
+  _pm2_pid=$(pm2 pid "$1" 2>/dev/null | tr -d '[:space:]' || true)
+  _real_pid=$(_listener_pid "$2" || true)
+  if [ -z "$_pm2_pid" ] || [ "$_pm2_pid" = "0" ] || [ -z "$_real_pid" ]; then
+    echo "  - $1: could not compare PM2's pid with the listener on :$2 (skipped)"
+    return 0
+  fi
+  if [ "$_pm2_pid" = "$_real_pid" ]; then
+    echo "  ✓ $1: PM2 supervises the listening process itself (pid $_pm2_pid)"
+    return 0
+  fi
+  echo "  ! $1: PM2 watches pid $_pm2_pid ($(_rss_mb "$_pm2_pid") MB), but the process listening"
+  echo "    on :$2 is pid $_real_pid ($(_rss_mb "$_real_pid") MB). max_memory_restart is measured on"
+  echo "    the first one — the pnpm wrapper — so the memory cap does not protect"
+  echo "    the server. Confirm with \`pm2 monit\`; fix: see ecosystem.config.cjs."
+  return 1
+}
+echo ""
+echo "PM2 supervision check (warning only):"
+_supervision_warn=0
+_check_supervised_pid file-audit-api 5103 || _supervision_warn=1
+_check_supervised_pid file-audit-web 5102 || _supervision_warn=1
 
 # ---------------------------------------------------------------------
 # Post-deploy smoke checks.
 #
-# Non-fatal by design: PM2 has already restarted successfully by this
-# point, so a failed probe here is information, not a reason to abort a
-# deploy that otherwise worked.
+# Non-fatal by design: both processes have already answered their local
+# health checks above, so a failed probe here is about what sits in FRONT
+# of them (nginx, DNS, TLS) or beside them (veraPDF) — information, not a
+# reason to fail a deploy that is serving.
 #
 # These exist because two of the paths below have silently 404'd in
 # production for months. Nothing in the build catches it: the files are
@@ -373,9 +870,9 @@ SMOKE_URL="${SMOKE_URL:-https://audit.icjia.app}"
 # --max-time and exits non-zero — which on the first version of this script
 # printed the real code AND the fallback, producing a nonsense "502000".
 #
-# `|| true` keeps `set -e` from aborting the deploy on a failed probe: by this
-# point PM2 has already restarted successfully and a bad probe is information,
-# not a reason to abort.
+# `|| true` keeps `set -e` from aborting on a failed probe: by this point both
+# processes have answered locally, and a bad public probe is information, not
+# a reason to abort.
 _http_code() {
   _m=""
   [ "${2:-GET}" = "HEAD" ] && _m="--head"
@@ -384,15 +881,14 @@ _http_code() {
   printf '%s' "$_c"
 }
 
-# Wait for the app to actually accept requests before probing.
-#
-# `pm2 restart` returns as soon as the process is SPAWNED, not when it is
-# listening. Probing immediately measures our own impatience: the first
+# Wait for the PUBLIC route to come back before probing it. The processes are
+# already known to be up (local health checks above); nginx can lag them by a
+# moment, and probing immediately measures our own impatience: the first
 # version of this block reported 502s against a completely healthy deploy.
 echo ""
-printf "Waiting for the app to accept requests"
+printf "Waiting for %s to answer" "$SMOKE_URL"
 _ready=0
-for _i in $(seq 1 30); do
+for _i in $(seq 1 15); do
   if [ "$(_http_code /healthz GET)" = "200" ]; then
     _ready=1
     echo " ready."
@@ -403,8 +899,8 @@ for _i in $(seq 1 30); do
 done
 if [ "$_ready" -eq 0 ]; then
   echo ""
-  echo "  (still not answering after 60s — probing anyway; results below may"
-  echo "   reflect a slow start rather than a real fault)"
+  echo "  (the public URL is still not answering after 30s although both"
+  echo "   processes answer locally — look at nginx / DNS / TLS; probing anyway)"
 fi
 
 echo ""
@@ -498,11 +994,20 @@ else
   _smoke_failed=1
 fi
 
+echo ""
+echo "✓ Deployed: the API and the web app both answer their local health checks."
+if [ -n "$_predeploy_snapshot" ]; then
+  echo "  Pre-restart database snapshot: $_predeploy_snapshot"
+fi
 if [ "$_smoke_failed" -eq 0 ]; then
-  echo ""
   echo "✓ All post-deploy smoke checks passed."
 else
-  echo ""
-  echo "WARNING: one or more post-deploy checks failed (see above)."
-  echo "         The deploy itself succeeded; these are runtime/config issues."
+  echo "WARNING: one or more post-deploy smoke checks failed (see above). Both"
+  echo "         processes are running and healthy locally, so these are routing"
+  echo "         or configuration problems (nginx, DNS, TLS, veraPDF) — but they"
+  echo "         are real, and visitors may be affected until they are fixed."
+fi
+if [ "$_supervision_warn" -ne 0 ]; then
+  echo "WARNING: PM2 is not measuring the server processes' memory (see the"
+  echo "         supervision check above)."
 fi

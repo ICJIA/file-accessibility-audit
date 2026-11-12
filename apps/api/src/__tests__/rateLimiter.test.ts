@@ -588,7 +588,8 @@ describe("analyze-budget refund for privileged store-served answers", () => {
   it("does not count a privileged request answered from the store", async () => {
     process.env.API_PRIVILEGED_TOKEN = TOKEN;
     const l = limiter();
-    const priv = () => makeReq({ ip: "198.51.100.90", headers: { authorization: `Bearer ${TOKEN}` } });
+    const priv = () =>
+      makeReq({ ip: "198.51.100.90", headers: { authorization: `Bearer ${TOKEN}` } });
     for (let i = 0; i < 10; i++) expect(await request(l, priv(), true)).toBe(true);
     // The full budget of 3 fresh analyses is still there.
     for (let i = 0; i < 3; i++) expect(await request(l, priv(), false)).toBe(true);
@@ -614,10 +615,19 @@ describe("analyze-budget refund for privileged store-served answers", () => {
   it("isRefundablePrivilegedHit needs the store flag, a < 400 status, and the token", () => {
     process.env.API_PRIVILEGED_TOKEN = TOKEN;
     const priv = makeReq({ headers: { authorization: `Bearer ${TOKEN}` } });
-    expect(isRefundablePrivilegedHit(priv, { statusCode: 200, locals: { servedFromStore: true } })).toBe(true);
+    expect(
+      isRefundablePrivilegedHit(priv, { statusCode: 200, locals: { servedFromStore: true } }),
+    ).toBe(true);
     expect(isRefundablePrivilegedHit(priv, { statusCode: 200, locals: {} })).toBe(false);
-    expect(isRefundablePrivilegedHit(priv, { statusCode: 500, locals: { servedFromStore: true } })).toBe(false);
-    expect(isRefundablePrivilegedHit(makeReq({}), { statusCode: 200, locals: { servedFromStore: true } })).toBe(false);
+    expect(
+      isRefundablePrivilegedHit(priv, { statusCode: 500, locals: { servedFromStore: true } }),
+    ).toBe(false);
+    expect(
+      isRefundablePrivilegedHit(makeReq({}), {
+        statusCode: 200,
+        locals: { servedFromStore: true },
+      }),
+    ).toBe(false);
   });
 });
 

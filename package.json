@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.167.0",
+  "version": "1.168.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev:api": "kill-port 5103 && pnpm --filter api dev",
     "dev:web": "kill-port 5102 && pnpm --filter web dev",
     "build": "pnpm --filter @file-audit/analyzer build && pnpm --filter api build && pnpm --filter web build",
-    "typecheck": "pnpm --filter api build && pnpm --filter web typecheck && tsc -p scripts/tsconfig.json --noEmit",
+    "typecheck": "pnpm --filter api build && pnpm --filter web typecheck && pnpm --filter @icjia/a11y-audit typecheck && tsc -p scripts/tsconfig.json --noEmit",
     "test": "tsx scripts/test.ts",
     "test:api": "pnpm --filter api test",
     "test:web": "pnpm --filter web test",

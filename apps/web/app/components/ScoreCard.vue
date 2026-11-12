@@ -23,7 +23,11 @@
     </p>
 
     <!-- Label -->
-    <p class="text-sm font-medium" :style="{ color: gradeColor }">
+    <p
+      data-testid="scorecard-grade-label"
+      class="text-sm font-medium"
+      :style="{ color: gradeLabelColor }"
+    >
       {{ gradeLabel }}
     </p>
 
@@ -219,6 +223,7 @@ import {
   type ScoringMode,
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
+import { allChecksPassedCaveat, gradeLabelFor, publicationStatus } from "~/utils/publicationStatus";
 import { GRADE_THRESHOLDS, safeHttpUrl, scoreCapReason, withAlpha } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
@@ -363,7 +368,30 @@ const displayedCategories = computed(() =>
 );
 
 const gradeColor = computed(() => gradeMap[displayedProfile.value.grade]?.color || "#666");
-const gradeLabel = computed(() => gradeMap[displayedProfile.value.grade]?.label || "");
+
+// The shared publish decision for the document on screen. Null when the
+// payload has no categories (page-audit rows): nothing document-level is
+// known, so nothing is claimed either way.
+const pubStatus = computed(() =>
+  publicationStatus(displayedCategories.value, props.result.conformance),
+);
+const hasScoredCategories = computed(
+  () => Array.isArray(props.result.categories) && props.result.categories.length > 0,
+);
+// "Excellent" describes the score. Under a document that is not ready to
+// publish the blocker leads and the adjective is dropped — the same rule as
+// the Visual view's hero (see publicationVerdict in utils/actionPlan.ts).
+const gradeLabel = computed(() => {
+  const adjective = gradeMap[displayedProfile.value.grade]?.label || "";
+  if (!adjective || !hasScoredCategories.value) return adjective;
+  return gradeLabelFor(adjective, pubStatus.value);
+});
+// A blocking verdict never renders in reassuring grade-green.
+const gradeLabelColor = computed(() =>
+  hasScoredCategories.value && pubStatus.value.tone === "critical"
+    ? "var(--icon-fail)"
+    : gradeColor.value,
+);
 
 // Computed against the STRICT profile's own categories, the same ones
 // displayedProfile's score came from, so it can never describe a document
@@ -384,9 +412,13 @@ const barWidth = computed(() =>
 const progressNote = computed(() => {
   const reason = scoreCapReason(displayedProfile.value.overallScore, displayedCategories.value);
   if (!reason) {
-    return checksPassed.value === checksTotal.value && checksTotal.value > 0
-      ? "Every automated check passed. Some things still need a person — see the manual-review list."
-      : "Fix the findings below and re-upload to watch this rise.";
+    if (checksPassed.value === checksTotal.value && checksTotal.value > 0) {
+      return (
+        allChecksPassedCaveat(pubStatus.value) ??
+        "Every automated check passed. Some things still need a person — see the manual-review list."
+      );
+    }
+    return "Fix the findings below and re-upload to watch this rise.";
   }
   const n = checksTotal.value - checksPassed.value;
   return (
@@ -505,7 +537,7 @@ const conformanceBody = computed(() => {
     if (conformanceHasFailures.value) {
       const n = c.failures.length;
       const items = n === 1 ? "the 1 item" : `the ${n} items`;
-      return `This file earned a grade of ${grade} — a high mark overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
+      return `This file earned a grade of ${grade} — a high mark overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance, and it needs doing before publishing — the ${grade} grade reflects a document that is otherwise in good shape.`;
     }
     return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — ${manualReviewNote.value}`;
   }
@@ -559,6 +591,16 @@ const verdictExplanation = computed(() => {
   }
 
   if (parts.length === 0) {
+    // "Every scored category passed" is only true to a reader when the WCAG
+    // gate agrees: a Minor category can carry a confirmed failure, and a
+    // file the gate could not judge has not passed anything (2026-11-12).
+    const pub = pubStatus.value;
+    if (pub.wcagFails) {
+      return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. No scored category has a critical or moderate issue, but ${pub.requirementSentence} — fix before publishing, even though the ${pub.failureCount === 1 ? "issue is" : "issues are"} small in extent.`;
+    }
+    if (!pub.mayClaimPass) {
+      return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. No scored category has a critical or moderate issue, but the WCAG 2.1 check could not be completed for this file, so it is not confirmed ready to publish.`;
+    }
     return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. Every scored category passed with no critical or moderate issues — a good structural signal, though not a final legal determination.`;
   }
   return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. The scored categories below show ${joinParts(parts)} — review the detailed findings before treating the file as publication-ready.`;

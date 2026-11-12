@@ -419,6 +419,48 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 16,
+    // When the dispatcher handed a queued remediation job to a worker
+    // (review 2026-11-12). NULL = still queued (or a row that predates the
+    // column). The global concurrency cap is DERIVED from these rows — a
+    // job holds a slot while status is pending/running AND started_at is
+    // set — because workers are detached processes that outlive an API
+    // restart, so an in-process counter would be zeroed incorrectly.
+    name: "remediation_jobs.started_at (queued vs dispatched, for the global worker cap)",
+    up(db) {
+      if (!hasColumn(db, "remediation_jobs", "started_at")) {
+        db.exec("ALTER TABLE remediation_jobs ADD COLUMN started_at INTEGER");
+      }
+    },
+  },
+  {
+    version: 17,
+    // Which engine (app) version produced a persisted /api/audit-url report
+    // (review 2026-11-12). The content-hash dedup treats a mismatch — or
+    // NULL, i.e. every row written before this column — as a cache miss, so
+    // a detection change reaches fleet callers without `force`.
+    name: "shared_reports.engine_version (audit-url dedup is version-aware)",
+    up(db) {
+      if (!hasColumn(db, "shared_reports", "engine_version")) {
+        db.exec("ALTER TABLE shared_reports ADD COLUMN engine_version TEXT");
+      }
+    },
+  },
+  {
+    version: 18,
+    // The remediation worker's pid, which is also its process-GROUP id (it
+    // is spawned detached). Needed to end the worker's children — the
+    // OpenDataLoader / veraPDF JVMs — when a job is failed from outside, and
+    // to tell on boot whether a `running` row still has a worker behind it.
+    // Not an identifier of any caller: a transient OS process number.
+    name: "remediation_jobs.worker_pid (kill the worker's process group; boot reconcile)",
+    up(db) {
+      if (!hasColumn(db, "remediation_jobs", "worker_pid")) {
+        db.exec("ALTER TABLE remediation_jobs ADD COLUMN worker_pid INTEGER");
+      }
+    },
+  },
 ];
 
 /**

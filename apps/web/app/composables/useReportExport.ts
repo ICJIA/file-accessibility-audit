@@ -15,6 +15,7 @@
  * Also: file-saver is gone. Downloads go through the native
  * ~/utils/download.ts anchor-click helper instead.
  */
+import { shallowRef } from "vue";
 import { downloadBlob } from "~/utils/download";
 import { escapeHtml } from "~/utils/escapeHtml";
 import { buildMarkdown } from "~/utils/exportFormats/markdown";
@@ -26,6 +27,38 @@ import { baseFilename, type ReportResult, type BrandingInfo } from "~/utils/expo
 
 export { baseFilename, buildMarkdown, buildJSON, buildText, buildHtml, buildAiAnalysis };
 export type { ReportResult };
+
+/**
+ * What to show when a share link could not be made (2026-11-12). The server's
+ * own sentence is kept whenever it sent one; a 400 means the report itself
+ * was refused — most often a result restored from an older session, which
+ * carries no valid seal — and the only way forward is a fresh audit, so the
+ * message always ends by saying so.
+ */
+export function shareErrorMessage(err: unknown): string {
+  const e = err as {
+    status?: number;
+    statusCode?: number;
+    data?: { error?: unknown } | null;
+  } | null;
+  const code = e?.status ?? e?.statusCode;
+  const raw = e?.data && typeof e.data === "object" ? e.data.error : undefined;
+  const server = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+  if (code === 400) {
+    const base = server ?? "This report could not be verified.";
+    return /run the audit again/i.test(base)
+      ? base
+      : `${base.replace(/[.\s]*$/, "")}. Run the audit again, then create the link.`;
+  }
+  if (server) return server;
+  if (code === 413) {
+    return "This report is too large to share as a link. Download it instead — the HTML or JSON download holds the full report.";
+  }
+  if (code === 429) {
+    return "Too many share links were requested from this network. Wait a minute, then try again.";
+  }
+  return "The share link could not be created. Check your connection, then try again.";
+}
 
 // ── Public composable ─────────────────────────────────────────────────────
 
@@ -43,6 +76,14 @@ export function useReportExport() {
   const sharing = ref(false);
   const shareUrl = ref<string | null>(null);
   const shareError = ref<string | null>(null);
+  // The report the current link (or error) belongs to. A link is only ever
+  // shown, copied or emailed together with THIS report's name and score —
+  // never with whichever report happens to be on screen (2026-11-12).
+  const sharedReport = shallowRef<ReportResult | null>(null);
+  // Bumped by every new share request and every clear. A response that comes
+  // back holding an older number was overtaken — the visitor switched to
+  // another report, or reset — and is dropped.
+  let shareSeq = 0;
   const aiCopied = ref(false);
   let aiCopyTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -193,30 +234,43 @@ export function useReportExport() {
   }
 
   async function shareReport(result: ReportResult): Promise<string | null> {
+    const seq = ++shareSeq;
     sharing.value = true;
     shareError.value = null;
     shareUrl.value = null;
+    sharedReport.value = null;
     try {
       const response = await $fetch<{ id: string }>("/api/reports", {
         method: "POST",
+        // The result goes back EXACTLY as the API issued it — same object, no
+        // regrading, no trimming. It carries a `seal` over its score, grade,
+        // findings and conformance verdict, and the server refuses a report
+        // whose sealed fields were altered or whose seal is missing.
         body: { report: result },
         credentials: "include",
       });
+      if (seq !== shareSeq) return null;
       const config = useRuntimeConfig();
       const url = `${config.public.siteUrl}/report/${response.id}`;
+      sharedReport.value = result;
       shareUrl.value = url;
       return url;
-    } catch (err: any) {
-      shareError.value = err?.data?.error || "Failed to create share link";
+    } catch (err: unknown) {
+      if (seq !== shareSeq) return null;
+      shareError.value = shareErrorMessage(err);
       return null;
     } finally {
-      sharing.value = false;
+      if (seq === shareSeq) sharing.value = false;
     }
   }
 
   function clearShare() {
+    // Also disowns any request still in flight.
+    shareSeq++;
+    sharing.value = false;
     shareUrl.value = null;
     shareError.value = null;
+    sharedReport.value = null;
   }
 
   function buildAiAnalysisText(result: ReportResult): string {
@@ -251,6 +305,7 @@ export function useReportExport() {
     shareReport,
     shareUrl,
     shareError,
+    sharedReport,
     sharing,
     clearShare,
     exporting,

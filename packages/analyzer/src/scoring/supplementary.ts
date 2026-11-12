@@ -316,6 +316,25 @@ export function appendSupplementaryFindings(
       textCat.findings.push(
         "  Empty pages may indicate scanned images without OCR, blank separator pages, or content stored only as images",
       );
+      // Scanned pages inside a text document (2026-11-12). The whole-file
+      // "scanned" classification needs zero text anywhere, so a report with
+      // a typed cover letter and forty scanned pages was never told which
+      // pages a screen reader cannot read — at best it heard "images are
+      // missing alt text". This names them. Evidence only: a page with no
+      // text that paints a page-sized content image. It moves no score here
+      // (untagged page images are already counted under Alt Text), because a
+      // full-page photograph has the same shape and is not a scan.
+      const imageOnly = pdfjs.imageOnlyPages ?? [];
+      if (imageOnly.length > 0 && pdfjs.hasText) {
+        const shown = imageOnly.slice(0, 12).join(", ");
+        const more = imageOnly.length > 12 ? `, and ${imageOnly.length - 12} more` : "";
+        textCat.findings.push(
+          `  Advisory — not scored here: ${imageOnly.length} page(s) have no text and are filled by an image (page${imageOnly.length === 1 ? "" : "s"} ${shown}${more}) — they look like scanned pages inside a text document. A screen reader reads nothing from a scanned page.`,
+        );
+        textCat.findings.push(
+          "  How to fix: if these pages are scans, run OCR on them (Adobe Acrobat: All tools → Scan & OCR → Recognize Text → In this file) and then tag the new text. If a page is a full-page photograph or chart, give the image alternative text instead.",
+        );
+      }
     }
   }
 

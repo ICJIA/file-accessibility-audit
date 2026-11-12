@@ -33,6 +33,8 @@
  * conventional names, which the parsers read directly.
  *
  * Exit code is non-zero if any encoding disagrees with its family's baseline.
+ * It is also non-zero if any encoding cannot be analysed at all, or if a
+ * family's baseline is not the verdict pinned in EXPECTED_BASELINE (see there).
  *
  * OFFICE_ENCODING_DUMP_DIR=<dir> also writes every encoding's package there
  * (<family>-<name>.<ext>), to open by hand or feed to another producer — the
@@ -1422,8 +1424,34 @@ interface Outcome {
   why: string;
   scores: string;
   print: Record<string, unknown>;
+  threw: boolean;
 }
 
+/**
+ * The score line each family's BASELINE must return — pinned (2026-11-12).
+ *
+ * This gate compared every encoding with whatever the baseline happened to
+ * return, and recorded a thrown analysis as the string `THREW <message>`
+ * with an empty fingerprint. When the analysis worker could not start at
+ * all, all 89 encodings threw the same message, all 89 "matched", and the
+ * gate printed success without having read one document. Agreement proves
+ * nothing unless the thing agreed on is the right answer.
+ *
+ * Each sample document is built with two deliberate contrast failures and
+ * is otherwise clean, hence 79/C. If a scoring change moves a line on
+ * purpose, update it here in the same commit — as a moved row is re-blessed
+ * in scripts/score-ledger.json.
+ */
+const EXPECTED_BASELINE: Record<string, string> = {
+  Word: "79/C alt_text=100|No issues found color_contrast=50|Moderate form_accessibility=null|none heading_structure=100|No issues found link_quality=100|No issues found list_structure=100|No issues found reading_order=null|none table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found",
+  PowerPoint:
+    "79/C alt_text=100|No issues found color_contrast=60|Moderate form_accessibility=null|none link_quality=100|No issues found list_structure=100|No issues found reading_order=100|No issues found slide_titles=85|Minor table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found",
+  Excel:
+    "79/C alt_text=100|No issues found color_contrast=60|Moderate form_accessibility=null|none link_quality=100|No issues found sheet_names=100|No issues found table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found",
+};
+
+/** Returns how many encodings FAILED: diverged from the baseline, could not
+ *  be analysed, or — for the baseline — did not return its pinned verdict. */
 async function runFamily(f: Family): Promise<number> {
   const results: Outcome[] = [];
   for (const e of f.encodings) {
@@ -1440,10 +1468,11 @@ async function runFamily(f: Family): Promise<number> {
         why: e.why,
         scores: scores(r),
         print: await f.fingerprint(buf),
+        threw: false,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      results.push({ name: e.name, why: e.why, scores: `THREW ${msg}`, print: {} });
+      results.push({ name: e.name, why: e.why, scores: `THREW ${msg}`, print: {}, threw: true });
     }
   }
   const base = results[0]!;
@@ -1451,7 +1480,34 @@ async function runFamily(f: Family): Promise<number> {
   console.log(`baseline:\n  ${base.scores}`);
   for (const [k, v] of Object.entries(base.print)) console.log(`  ${k}: ${JSON.stringify(v)}`);
   let diverged = 0;
+  const expected = EXPECTED_BASELINE[f.name];
+  if (base.threw) {
+    diverged++;
+    console.log(
+      `THREW     ${base.name} — the BASELINE could not be analysed at all; nothing below it means anything`,
+    );
+  } else if (expected === undefined || base.scores !== expected) {
+    diverged++;
+    console.log(
+      `WRONG     ${base.name} — the baseline is not the document this gate was built around\n          expected: ${expected ?? "(no EXPECTED_BASELINE entry for this family — add one)"}\n          got:      ${base.scores}\n          If a scoring change moved this on purpose, update EXPECTED_BASELINE in the same commit.`,
+    );
+  } else if (Object.keys(base.print).length === 0) {
+    diverged++;
+    console.log(
+      `EMPTY     ${base.name} — the baseline produced no fingerprint, so "reads identically" compares nothing`,
+    );
+  }
   for (const r of results.slice(1)) {
+    // No encoding here is expected to be refused — every one is a legal
+    // document. A thrown analysis is a failure in its own right, never a
+    // "verdict" that can match another throw.
+    if (r.threw) {
+      diverged++;
+      console.log(`THREW     ${r.name}`);
+      console.log(`          ${r.why}`);
+      console.log(`          ${r.scores}`);
+      continue;
+    }
     const changed = Object.keys({ ...base.print, ...r.print }).filter(
       (k) => JSON.stringify(base.print[k]) !== JSON.stringify(r.print[k]),
     );
@@ -1471,7 +1527,7 @@ async function main() {
   for (const f of [WORD, POWERPOINT, EXCEL]) diverged += await runFamily(f);
   if (diverged > 0) {
     console.error(
-      `\n${diverged} ENCODING(S) CHANGED THE VERDICT — the checker is reading the encoding, not the document.`,
+      `\n${diverged} ENCODING(S) FAILED — a DIVERGED line means the checker is reading the encoding, not the document; a THREW, WRONG or EMPTY line means the gate could not establish the verdict at all (a broken checker or a broken environment), which is never a pass.`,
     );
     process.exit(1);
   }

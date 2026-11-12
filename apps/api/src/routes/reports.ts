@@ -5,6 +5,7 @@ import { reportsLimiter } from "../middleware/rateLimiter.js";
 import { SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
+import { REPORT_SEAL_ERROR, verifyReportSeal } from "../services/reportSeal.js";
 
 const router: IRouter = Router();
 
@@ -27,6 +28,20 @@ router.post("/reports", reportsLimiter, (req: Request, res: Response) => {
       return;
     }
 
+    // Provenance (review 2026-11-12): only a result THIS server computed may
+    // be published. Every analysis result the API returns carries an HMAC
+    // `seal` over the WHOLE result (services/reportSeal.ts); a missing or
+    // non-matching seal means some field — a score, a weight the regrade
+    // reads, a finding, an added key another view would render — was written
+    // or altered by the client. Refuse it rather than host a forged report at
+    // /report/<id> for a year. Only DOCUMENT results are shareable here: page
+    // audits are stored by the server itself (audit-url-page) and their seal
+    // kind can never verify as a document.
+    if (!verifyReportSeal(report, "document")) {
+      res.status(400).json({ error: REPORT_SEAL_ERROR });
+      return;
+    }
+
     // Store-boundary hardening: strip javascript:/data: help-link URLs
     // (stored XSS on the public /report/:id page) and reject a malformed
     // categories value (would 500 the render). See reportSanitize.ts.
@@ -34,6 +49,11 @@ router.post("/reports", reportsLimiter, (req: Request, res: Response) => {
     if (!sanitized.ok) {
       res.status(400).json({ error: "Invalid report data" });
       return;
+    }
+
+    // The seal has done its job; it is not part of the published report.
+    if (sanitized.report && typeof sanitized.report === "object") {
+      delete (sanitized.report as Record<string, unknown>).seal;
     }
 
     const id = crypto.randomBytes(16).toString("hex");

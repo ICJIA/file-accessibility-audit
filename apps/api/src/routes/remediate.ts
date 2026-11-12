@@ -1,14 +1,15 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
-import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
-import { createReadStream, promises as fs, existsSync, statSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { createReadStream, promises as fs, existsSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { analyzeLimiter, remediationStatusLimiter } from "../middleware/rateLimiter.js";
-import { FIELD_ARRAY_INDEX_LIMIT, type MultipartLimits } from "../middleware/uploadMiddleware.js";
+import {
+  FIELD_ARRAY_INDEX_LIMIT,
+  UnsupportedFileTypeError,
+  type MultipartLimits,
+} from "../middleware/uploadMiddleware.js";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
-import { buildChildSpawnEnv } from "../services/childSpawnEnv.js";
 import {
   createJob,
   getJob,
@@ -17,23 +18,80 @@ import {
   setInputAudit,
   getJobAuditPair,
   getJobVeraPdf,
+  countActiveJobs,
+  countQueuedJobs,
+  queuedAhead,
   type RemediationJob,
 } from "../services/remediationJobs.js";
-import { recordEvent, getEventsForJob, deleteAndVerify } from "../services/remediationEvents.js";
+import {
+  recordEvent,
+  getEventsForJob,
+  deleteAndVerify,
+  jobDirFor,
+  purgeJobDir,
+} from "../services/remediationEvents.js";
+import { dispatchQueuedJobs, spawnWorker } from "../services/remediationQueue.js";
 import { DEPLOY, FILENAME, REMEDIATION } from "#config";
+import db from "../db/sqlite.js";
 import { hasRecentAudit } from "../services/auditLog.js";
 import {
+  callerActiveJobs,
   capKeyFromIp,
   reserveRemediationSlot,
   remediationSlotsUsed,
+  trackCallerJob,
 } from "../services/remediationCap.js";
+import { setBusyRetryAfter } from "../services/busy.js";
 
 const router: IRouter = Router();
 
 const DAILY_CAP_WINDOW_MS = 24 * 60 * 60_000;
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WORKER_PATH = path.resolve(HERE, "../jobs/remediate.ts");
+// The worker launcher moved to services/remediationQueue.ts with the global
+// concurrency cap (review 2026-11-12); re-exported so its historical import
+// path — and remediate-spawn-env.test.ts — keep working.
+export { spawnWorker };
+
+/** Seconds a caller is told to wait when the remediation queue is full. */
+const QUEUE_FULL_RETRY_AFTER_S = 60;
+
+/**
+ * Whether one more job may be admitted: it either gets a worker slot at once
+ * or fits in the waiting queue. Derived from the job rows (see
+ * services/remediationJobs.ts), so it is right across an API restart.
+ */
+function hasRemediationCapacity(): boolean {
+  return (
+    countActiveJobs() < REMEDIATION.MAX_CONCURRENT_JOBS ||
+    countQueuedJobs() < REMEDIATION.MAX_QUEUED_JOBS
+  );
+}
+
+/** A job still occupies its caller's share while it is queued or running. */
+function isJobActive(jobId: string): boolean {
+  const s = getJob(jobId)?.status;
+  return s === "pending" || s === "running";
+}
+
+function sendCallerShareFull(res: Response, active: number): void {
+  res.status(429).json({
+    error: "You already have remediations in progress.",
+    details:
+      `Up to ${REMEDIATION.MAX_ACTIVE_JOBS_PER_CALLER} remediations per caller can be ` +
+      `queued or running at the same time, and you have ${active}. Wait for one to ` +
+      `finish, then try again.`,
+    limit: REMEDIATION.MAX_ACTIVE_JOBS_PER_CALLER,
+    active,
+  });
+}
+
+function sendQueueFull(res: Response): void {
+  res.setHeader("Retry-After", String(QUEUE_FULL_RETRY_AFTER_S));
+  res.status(503).json({
+    error: "Auto-remediation is busy.",
+    details: "Too many remediations are already running or waiting. Please try again in a minute.",
+  });
+}
 
 // The same field-name limit as every other upload parser (see
 // FIELD_ARRAY_INDEX_LIMIT): this route builds its own multer instance, so it
@@ -51,7 +109,11 @@ const remediateUpload = multer({
     if (file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf")) {
       cb(null, true);
     } else {
-      cb(new Error("Only PDF files are accepted"));
+      // A status-bearing error (400), not a plain Error: multer hands this
+      // straight to the app-level error handler, where a status-less Error
+      // became a 500 and a full stack in the error log for what is simply a
+      // caller uploading the wrong kind of file (review 2026-11-12).
+      cb(new UnsupportedFileTypeError("Only PDF files are accepted"));
     }
   },
 });
@@ -102,25 +164,6 @@ async function ensureOutputRoot(): Promise<void> {
   await fs.mkdir(outputRoot, { recursive: true, mode: 0o700 });
 }
 
-// Exported for testability (RB2-d spawn-env verification) — spawnWorker's
-// own detach/launch behavior is unchanged; only the `env` it passes differs.
-export function spawnWorker(jobId: string): void {
-  // Detached child so the parent (API) doesn't have to wait. tsx is the
-  // runtime loader used by both `pnpm dev` (`tsx watch`) and `pnpm start`
-  // (`node --import tsx`); we pass it explicitly here so the worker
-  // launches the same way regardless of how the parent was started.
-  const child = spawn(process.execPath, ["--import", "tsx", WORKER_PATH, jobId], {
-    detached: true,
-    stdio: "ignore",
-    // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
-    // worker parses an attacker-controlled PDF, so it must not hold the
-    // API's secrets while still getting everything it needs to boot
-    // (PATH/HOME/NODE_*/TSX_*) and to run the JVM pipeline (JAVA_*).
-    env: buildChildSpawnEnv(),
-  });
-  child.unref();
-}
-
 /* -------------------------------------------------------------------- */
 /* POST /api/remediate                                                  */
 /* -------------------------------------------------------------------- */
@@ -131,6 +174,10 @@ router.post(
   analyzeLimiter,
   remediateUpload.single("file"),
   async (req: Request, res: Response) => {
+    // Set once the upload has been written to disk, so every exit that does
+    // NOT end in a created job removes it again.
+    let writtenJobDir: string | null = null;
+    let jobCreated = false;
     try {
       const file = req.file;
       if (!file) {
@@ -215,6 +262,26 @@ router.post(
         return;
       }
 
+      // (2b) Per-caller share fast-path: one caller may hold only
+      // REMEDIATION.MAX_ACTIVE_JOBS_PER_CALLER queued-or-running jobs, so a
+      // single caller cannot fill both slots and the whole queue. In-memory,
+      // same key as the daily cap. Re-checked authoritatively below.
+      const activeNow = callerActiveJobs(capKey, isJobActive);
+      if (activeNow >= REMEDIATION.MAX_ACTIVE_JOBS_PER_CALLER) {
+        sendCallerShareFull(res, activeNow);
+        return;
+      }
+
+      // (3) Global capacity fast-path (review 2026-11-12). Remediation is
+      // bounded across ALL callers: REMEDIATION.MAX_CONCURRENT_JOBS workers
+      // at once, MAX_QUEUED_JOBS waiting. When both are full, refuse before
+      // spending an analysis slot on the preflight. Re-checked
+      // authoritatively at job creation below.
+      if (!hasRemediationCapacity()) {
+        sendQueueFull(res);
+        return;
+      }
+
       // Pre-flight audit — gives us inputScore and page count without
       // committing to a job yet. analyzePDF runs against the in-memory
       // buffer; nothing has been written to disk yet at this point.
@@ -229,6 +296,40 @@ router.post(
       }
 
       // contentHash was computed earlier for the audit-gate check.
+
+      // Write the upload into the job's directory BEFORE the job row exists.
+      // A queued row is dispatchable the instant it is inserted (another
+      // worker exiting triggers a dispatch pass), so its input must already
+      // be on disk; the id is generated here for that reason. Every refusal
+      // or failure after this point removes the directory again (see the
+      // `finally` below) — and the retention sweep removes any directory
+      // that has no job row, as a backstop.
+      const jobId = randomUUID();
+      await ensureOutputRoot();
+      const jobDir = jobDirFor(jobId);
+      const workDir = path.join(jobDir, "work");
+      writtenJobDir = jobDir;
+      await fs.mkdir(workDir, { recursive: true, mode: 0o700 });
+      const inputPath = path.join(workDir, "input.pdf");
+      await fs.writeFile(inputPath, file.buffer, { mode: 0o600 });
+
+      // ---- From here to dispatchQueuedJobs() there is NO await: the
+      // capacity check, the daily-cap reservation, the row insert and the
+      // dispatch are one atomic step on Node's single thread. ----
+
+      // Authoritative per-caller and global capacity checks (a concurrent
+      // request may have taken the last place during the preflight). Before
+      // the daily-cap reservation, so a refused job does not consume a slot
+      // of the caller's daily allowance.
+      const activeAtCreate = callerActiveJobs(capKey, isJobActive);
+      if (activeAtCreate >= REMEDIATION.MAX_ACTIVE_JOBS_PER_CALLER) {
+        sendCallerShareFull(res, activeAtCreate);
+        return;
+      }
+      if (!hasRemediationCapacity()) {
+        sendQueueFull(res);
+        return;
+      }
 
       // Authoritative cap enforcement (the successor to the v1.20.1 P2.4
       // SQL transaction): reserveRemediationSlot's check-and-reserve is
@@ -258,6 +359,7 @@ router.post(
         return;
       }
       const { job, downloadToken } = createJob({
+        id: jobId,
         inputFilename: filename,
         originalFilename,
         contentHash,
@@ -268,18 +370,13 @@ router.post(
       // the worker doesn't have to re-audit the input. Also persist the
       // full audit (categories) so the result page can show category-
       // level before/after without re-auditing.
-      const setInputScore = (await import("../db/sqlite.js")).default.prepare(
-        "UPDATE remediation_jobs SET input_score = ? WHERE id = ?",
+      jobCreated = true;
+      trackCallerJob(capKey, job.id);
+      db.prepare("UPDATE remediation_jobs SET input_score = ? WHERE id = ?").run(
+        preflight.overallScore,
+        job.id,
       );
-      setInputScore.run(preflight.overallScore, job.id);
       setInputAudit(job.id, JSON.stringify(preflight));
-
-      await ensureOutputRoot();
-      const jobDir = path.join(path.resolve(REMEDIATION.OUTPUT_DIR), job.id);
-      const workDir = path.join(jobDir, "work");
-      await fs.mkdir(workDir, { recursive: true, mode: 0o700 });
-      const inputPath = path.join(workDir, "input.pdf");
-      await fs.writeFile(inputPath, file.buffer, { mode: 0o600 });
 
       recordEvent(job.id, "received", {
         filename,
@@ -288,22 +385,40 @@ router.post(
         input_score: preflight.overallScore,
       });
 
-      spawnWorker(job.id);
+      // Start it now if a worker slot is free; otherwise it waits its turn
+      // and is started when one frees up (services/remediationQueue.ts).
+      dispatchQueuedJobs();
+      const queued = getJob(job.id)?.startedAt == null;
 
       res.status(202).json({
         jobId: job.id,
         downloadToken,
         inputScore: preflight.overallScore,
         inputGrade: preflight.grade,
+        // true = accepted but waiting for a worker slot (additive field).
+        queued,
       });
     } catch (err) {
       const e = err as Error & { status?: number };
       console.error("Remediation request error:", e);
       if (e.status === 503) {
+        setBusyRetryAfter(res);
         res.status(503).json({ error: "Server busy" });
         return;
       }
       res.status(500).json({ error: "Could not start remediation" });
+    } finally {
+      // The upload was written but no job owns it (queue filled, daily cap
+      // hit at the last moment, or an error): delete it now rather than
+      // leave a copy of the document for the sweep to find.
+      // (No lifecycle events: no job exists for them to belong to.)
+      if (writtenJobDir && !jobCreated) {
+        try {
+          rmSync(writtenJobDir, { recursive: true, force: true });
+        } catch {
+          // best effort — the sweep's no-row scan removes it
+        }
+      }
     }
   },
 );
@@ -335,9 +450,24 @@ router.get(
       return;
     }
 
+    // Still queued: give the dispatcher a chance on every poll. This is what
+    // moves the queue after an API restart, when the workers started by the
+    // previous process have no exit listener in this one. Cheap (two COUNTs)
+    // and a no-op while every slot is taken.
+    let current = job;
+    if (job.status === "pending" && job.startedAt == null) {
+      dispatchQueuedJobs();
+      current = getJob(job.id) ?? job;
+    }
+    const queued = current.status === "pending" && current.startedAt == null;
+
     res.json({
       jobId: job.id,
-      status: job.status,
+      status: current.status,
+      // Additive (review 2026-11-12): true while the job waits for a worker
+      // slot; queuePosition is 1 for the next job to start.
+      queued,
+      ...(queued ? { queuePosition: queuedAhead(current) + 1 } : {}),
       step: job.step,
       progressPct: job.progressPct,
       inputScore: job.inputScore,
@@ -461,6 +591,8 @@ router.get("/remediate/:jobId/download", requireEnabled, async (req: Request, re
     if (job.outputPath) {
       await deleteAndVerify(job.id, job.outputPath, "download");
     }
+    // Nothing else of this job belongs on disk once it has been collected.
+    purgeJobDir(job.id, jobDirFor(job.id), "download");
   };
   res.once("close", () => {
     void cleanup();

@@ -11,6 +11,7 @@ import { PPTX, OOXML } from "#config";
 import {
   type PONode,
   parseXml,
+  parseMainXml,
   tagOf,
   childrenOf,
   attrOf,
@@ -38,6 +39,8 @@ import {
   xsdBoolean,
   relationshipIdsOf,
   resolveRelTarget,
+  TEXTLESS_SHAPE_NEEDS_ALT,
+  hasPictureFill,
 } from "./ooxml.js";
 
 export interface PptxMetadata {
@@ -55,8 +58,15 @@ export interface PptxAnalysis {
    *  score or gate as "no title". Optional so stored payloads stay valid. */
   parse?: { coreState: "ok" | "absent" | "unparseable" };
   slides: Array<{
-    /** Slide is hidden (p:sld show="0") — excluded from title judgment. */
+    /** Slide is hidden (p:sld show="0"). A hidden slide is not presented, so
+     *  it contributes to NO scored category (2026-11-12 — until then only
+     *  its title, typed heading and language were left out, while its
+     *  images, tables, links, lists and colours were still scored; Excel has
+     *  skipped hidden sheets wholesale since v1.95.0). */
     hidden?: boolean;
+    /** The slide part is missing or could not be parsed, so nothing on it
+     *  was checked (2026-11-12). See unparsedSlides. */
+    unparsed?: boolean;
     index: number;
     title: string | null;
     titleIsFirstShape: boolean;
@@ -77,6 +87,9 @@ export interface PptxAnalysis {
     titleOnly: boolean;
     /** Only a file name or placeholder word (WCAG F30) — see drawingAltText. */
     placeholderAlt?: string;
+    /** A plain drawn shape with no text and no picture fill (2026-11-12) —
+     *  see TEXTLESS_SHAPE_NEEDS_ALT in ooxml.ts. Absent on pictures. */
+    drawnShape?: boolean;
   }>;
   tables: Array<{
     hasHeaderRow: boolean;
@@ -105,6 +118,18 @@ export interface PptxAnalysis {
   };
   hasMedia: boolean;
   shapeCount: number;
+  /** 1-based numbers of slides whose part is missing or unparseable
+   *  (2026-11-12). They were skipped without a word, so a deck with an
+   *  unread slide could be graded as clean. Absent/empty = every slide read. */
+  unparsedSlides?: number[];
+  /** Every readable slide is hidden (2026-11-12). With nothing else to
+   *  judge, the slides are audited as they are — none carries `hidden` —
+   *  and the report says they are all hidden. */
+  allSlidesHidden?: boolean;
+  /** Characters of run text on visible slides (2026-11-12) — the evidence
+   *  behind the text-extractability claim, as Excel's totalCellsWithValue
+   *  is. Absent on older payloads, where the claim stays as it was. */
+  textCharCount?: number;
   /** True when the deck sets no default language and `metadata.language` is
    *  the one declared on most of its visible text (2026-10-06). */
   languageFromText?: boolean;
@@ -894,12 +919,25 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     // "/ppt/slides/slide1.xml" became "ppt/ppt/slides/…", matched no slide,
     // and the order silently fell back to file names.
     const relTargets = new Map(presRels.map((r) => [r.id, resolveRelTarget("ppt", r.target)]));
+    // A slide the deck LISTS (p:sldIdLst → a slide relationship) is a slide
+    // of the deck even when its part is missing from the package
+    // (2026-11-12): it stays in the list, cannot be read, and is recorded as
+    // an unparsed slide. It was dropped here, so the deck graded as whole.
+    const slideRelIds = new Set(presRels.filter((r) => /\/slide$/.test(r.type)).map((r) => r.id));
     // <p:sldId id="256" r:id="rId2"/> carries two ids, and with prefixes
     // stripped only the LAST one written survives — so r:id written first
     // lost the slide. relationshipIdsOf reads the relationship id itself.
-    const orderedPaths = relationshipIdsOf(presentationXml, "sldId")
-      .map((rid) => (rid ? relTargets.get(rid) : undefined))
-      .filter((p): p is string => !!p && filenameOrdered.includes(p));
+    const orderedPaths = [
+      ...new Set(
+        relationshipIdsOf(presentationXml, "sldId")
+          .map((rid) =>
+            rid && (slideRelIds.has(rid) || filenameOrdered.includes(relTargets.get(rid) ?? ""))
+              ? relTargets.get(rid)
+              : undefined,
+          )
+          .filter((p): p is string => !!p),
+      ),
+    ];
     if (orderedPaths.length > 0) {
       const remainder = filenameOrdered.filter((p) => !orderedPaths.includes(p));
       slidePaths = [...orderedPaths, ...remainder];
@@ -998,6 +1036,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   // language stood in for the deck, so one stray marked word could.
   const textLangChars = new Map<string, number>();
   let textChars = 0;
+  let fieldChars = 0;
   const layoutCache = new Map<string, LayoutInfo>();
   const masterCache = new Map<string, MasterInfo>();
   const DECK_MASTER = "ppt/slideMasters/slideMaster1.xml";
@@ -1025,19 +1064,47 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     return info;
   };
 
+  // EVERY SLIDE HIDDEN (2026-11-12): a hidden slide is skipped because the
+  // visible ones are the presentation — but a deck whose slides are ALL
+  // hidden has nothing else to judge, and skipping them graded it 100/A,
+  // "cleared every automated check", unread. Such a deck is audited as it
+  // is. Decided before the walk from each slide's root tag, stopping at the
+  // first slide that is shown (normally the first).
+  let allSlidesHidden = slidePaths.length > 0;
+  let anySlideTag = false;
+  for (const path of slidePaths) {
+    const head = /<(?:[\w.-]+:)?sld\b[^>]*>/.exec(((await read(path)) ?? "").slice(0, 8192));
+    if (!head) continue; // unreadable here is unreadable below
+    anySlideTag = true;
+    const show = /\sshow\s*=\s*["']([^"']*)["']/.exec(head[0]);
+    if (xsdBoolean(show?.[1]) !== false) {
+      allSlidesHidden = false;
+      break;
+    }
+  }
+  allSlidesHidden = allSlidesHidden && anySlideTag;
+  if (allSlidesHidden) analysis.allSlidesHidden = true;
+
   for (let i = 0; i < slidePaths.length; i++) {
     const slideXml = await read(slidePaths[i]);
-    const slideRoot = rootElement(parseXml(slideXml), "sld");
-    const relsXml = await read(
-      slidePaths[i].replace(/slides\/(slide\d+\.xml)$/, "slides/_rels/$1.rels"),
-    );
+    // parseMainXml: a slide cut short is unparseable, not a shorter slide.
+    const slideRoot = rootElement(parseMainXml(slideXml, ["sld"]), "sld");
+    const relsXml = await read(relsPathOf(slidePaths[i]));
     const relMap = parseRelationships(relsXml);
     const relEntries = parseRelationshipEntries(relsXml);
-    if (relEntries.some((r) => /\/(audio|video)$/.test(r.type))) {
-      analysis.hasMedia = true;
-    }
+    const slideHasMedia = relEntries.some((r) => /\/(audio|video)$/.test(r.type));
     if (!slideRoot) {
-      analysis.slides.push({ index: i + 1, title: null, titleIsFirstShape: false, shapeCount: 0 });
+      // Recorded, never skipped silently (2026-11-12): the scorer and the
+      // gate withhold a clean result for a deck with a slide nobody read.
+      if (slideHasMedia) analysis.hasMedia = true;
+      analysis.slides.push({
+        index: i + 1,
+        unparsed: true,
+        title: null,
+        titleIsFirstShape: false,
+        shapeCount: 0,
+      });
+      (analysis.unparsedSlides ??= []).push(i + 1);
       continue;
     }
     const spTree = descendants(slideRoot, "spTree")[0];
@@ -1075,7 +1142,9 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     }
 
     // show is an xsd:boolean: "false" hides a slide exactly as "0" does.
-    const shown = xsdBoolean(attrOf(slideRoot, "show")) !== false;
+    const shown = allSlidesHidden || xsdBoolean(attrOf(slideRoot, "show")) !== false;
+    // A hidden slide's media is not presented either.
+    if (slideHasMedia && shown) analysis.hasMedia = true;
     const titleSp = shapes.find((s) => tagOf(s) === "sp" && isTitlePlaceholder(s));
     const titleText = titleSp ? textOf(titleSp).trim() : "";
     const contentBearing = shapes.filter((s) => {
@@ -1116,6 +1185,12 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
         const pPr = firstChild(p, "pPr");
         const pDefRPr = pPr ? firstChild(pPr, "defRPr") : undefined;
         const paragraphLang = (pDefRPr ? (attrOf(pDefRPr, "lang") ?? "") : "").trim();
+        // Text that lives in a field (a date, a slide number, a footer) is
+        // text a screen reader gets — counted for the extractability claim,
+        // not for the language tally, which is about what the author wrote.
+        for (const fld of childrenOf(p).filter((c) => tagOf(c) === "fld")) {
+          fieldChars += textOf(fld).trim().length;
+        }
         for (const r of childrenOf(p).filter((c) => tagOf(c) === "r")) {
           const n = textOf(r).trim().length;
           if (n === 0) continue;
@@ -1139,6 +1214,14 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
           );
       }
     }
+
+    // A HIDDEN SLIDE IS NOT CHECKED (2026-11-12). It is not presented to any
+    // reader — the reason its title, typed heading and language were already
+    // left out — yet its images, tables, links, lists and colours were still
+    // scored, so a backup slide nobody sees could fail a deck. Excel skips
+    // hidden sheets wholesale; so does this now. The slide record above
+    // carries `hidden`, and the report says how many were not checked.
+    if (!shown) continue;
 
     // The slide's layout and master, each read once per distinct part (capped).
     let layout: LayoutInfo = { bullets: NO_LAYOUT, root: undefined, masterPath: DECK_MASTER };
@@ -1183,6 +1266,19 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   }
   analysis.textSample = textSample;
   analysis.declaredLanguages = [...declaredLanguageSet].sort();
+  // Slide text only — runs and fields. Layout and master text (footers,
+  // placeholders' prompts) is page furniture, as headers and footers are in
+  // Word and Excel, and is not counted.
+  analysis.textCharCount = textChars + fieldChars;
+
+  // NOT ONE SLIDE COULD BE READ (2026-11-12) — PDF's rule that both analyzers
+  // failing never reaches scoring. A partly unread deck is still scored on
+  // what was read, with its unread slides withheld (scoring/pptx.ts).
+  if (slidePaths.length > 0 && (analysis.unparsedSlides?.length ?? 0) === slidePaths.length) {
+    throw new PptxParseError(
+      "None of this presentation's slides could be read — the slide parts are missing, damaged, incomplete, or not valid XML.",
+    );
+  }
 
   return analysis;
 }
@@ -1213,8 +1309,25 @@ function walkPicsAndFrames(
   standalonePics: PONode[],
   frames: FrameAcc[],
   coveredGroups: PONode[],
+  shapeImages: PONode[],
 ): void {
   const tag = tagOf(node);
+  if (tag === "sp") {
+    // A drawn shape that is an image (2026-11-12, the one rule in ooxml.ts):
+    // no text, no placeholder role, not an (empty) text box — and either
+    // filled with a picture, or plain under TEXTLESS_SHAPE_NEEDS_ALT. These
+    // were never looked at here, while Word has always counted them.
+    const cNvPr = shapeImageProps(node);
+    if (cNvPr && frameStack.length === 0) shapeImages.push(node);
+    return; // nothing a shape holds is a picture or a frame
+  }
+  if (tag === "cxnSp") {
+    // A connector or line is a drawn shape like any other (2026-11-12).
+    if (TEXTLESS_SHAPE_NEEDS_ALT && frameStack.length === 0 && connectorProps(node)) {
+      shapeImages.push(node);
+    }
+    return;
+  }
   if (tag === "grpSp") {
     // Alt text (or the decorative mark) set on the GROUP — the pattern
     // Microsoft's Alt Text UI applies to grouped objects — covers its
@@ -1224,7 +1337,10 @@ function walkPicsAndFrames(
     if (groupPr) {
       const alt = drawingAltText(groupPr);
       if (alt.altText || alt.decorative) {
-        coveredGroups.push(groupPr);
+        // …unless every member is a text box (2026-11-12): a group of text
+        // boxes is text, in every format — its alt text is harmless, but
+        // there is no image to count.
+        if (!groupIsOnlyText(node)) coveredGroups.push(groupPr);
         return;
       }
     }
@@ -1235,7 +1351,7 @@ function walkPicsAndFrames(
     frames.push(acc);
     frameStack.push(acc);
     for (const c of childrenOf(node))
-      walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
+      walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups, shapeImages);
     frameStack.pop();
     return;
   }
@@ -1254,7 +1370,53 @@ function walkPicsAndFrames(
     if (top && !top.cNvPr) top.cNvPr = node;
   }
   for (const c of childrenOf(node))
-    walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
+    walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups, shapeImages);
+}
+
+/** Whether every member of a p:grpSp (nested groups included) is a shape
+ *  that carries text. A picture, frame, connector or textless shape makes it
+ *  a drawing; an empty group is not text either. */
+function groupIsOnlyText(group: PONode): boolean {
+  let members = 0;
+  const allText = (g: PONode): boolean => {
+    for (const member of childrenOf(g)) {
+      const tag = tagOf(member);
+      if (tag === "grpSp") {
+        if (!allText(member)) return false;
+      } else if (tag === "sp") {
+        members++;
+        if (textOf(member).trim().length === 0) return false;
+      } else if (tag === "pic" || tag === "graphicFrame" || tag === "cxnSp") {
+        return false;
+      }
+    }
+    return true;
+  };
+  return allText(group) && members > 0;
+}
+
+/** The cNvPr of a p:cxnSp that is drawn (not hidden), else null. */
+function connectorProps(cxn: PONode): PONode | null {
+  const nv = firstChild(cxn, "nvCxnSpPr");
+  const cNvPr = nv ? firstChild(nv, "cNvPr") : undefined;
+  if (!cNvPr || xsdBoolean(attrOf(cNvPr, "hidden")) === true) return null;
+  return cNvPr;
+}
+
+/** The cNvPr of a p:sp that is an image by the shared drawn-shape rule
+ *  (ooxml.ts TEXTLESS_SHAPE_NEEDS_ALT), else null. */
+function shapeImageProps(sp: PONode): PONode | null {
+  const nv = firstChild(sp, "nvSpPr");
+  const cNvPr = nv ? firstChild(nv, "cNvPr") : undefined;
+  if (!nv || !cNvPr) return null;
+  const nvPr = firstChild(nv, "nvPr");
+  if (nvPr && firstChild(nvPr, "ph")) return null; // an (empty) placeholder
+  if (xsdBoolean(attrOf(cNvPr, "hidden")) === true) return null; // not drawn
+  const cNvSpPr = firstChild(nv, "cNvSpPr");
+  if (cNvSpPr && xsdBoolean(attrOf(cNvSpPr, "txBox")) === true) return null; // an empty text box draws nothing
+  if (textOf(sp).trim().length > 0) return null; // text is text
+  if (!hasPictureFill(firstChild(sp, "spPr")) && !TEXTLESS_SHAPE_NEEDS_ALT) return null;
+  return cNvPr;
 }
 
 function collectSlideContent(
@@ -1274,9 +1436,17 @@ function collectSlideContent(
   const standalonePics: PONode[] = [];
   const frames: FrameAcc[] = [];
   const coveredGroups: PONode[] = [];
-  walkPicsAndFrames(slideRoot, [], standalonePics, frames, coveredGroups);
+  const shapeImages: PONode[] = [];
+  walkPicsAndFrames(slideRoot, [], standalonePics, frames, coveredGroups, shapeImages);
   for (const groupPr of coveredGroups) {
     analysis.images.push(drawingAltText(groupPr));
+  }
+  for (const shape of shapeImages) {
+    const isConnector = tagOf(shape) === "cxnSp";
+    const cNvPr = isConnector ? connectorProps(shape) : shapeImageProps(shape);
+    if (!cNvPr) continue;
+    const plain = isConnector || !hasPictureFill(firstChild(shape, "spPr"));
+    analysis.images.push({ ...drawingAltText(cNvPr), ...(plain ? { drawnShape: true } : {}) });
   }
   for (const pic of standalonePics) {
     const cNvPr = descendants(pic, "cNvPr")[0];
@@ -1341,14 +1511,48 @@ function collectSlideContent(
     flush();
   }
   // Shape/picture-level links (image buttons): a:hlinkClick on the cNvPr.
-  // The object's alt text is its accessible name, so it doubles as link text.
+  // The object's alt text is its accessible name, so it doubles as link text
+  // — and with no alt text, a shape's OWN TEXT is its name (2026-11-12): a
+  // linked text box reading "Visit the grants portal" was an unnamed link, a
+  // confirmed 4.1.2 failure, for want of alt text it does not need.
+  // A linked GROUP is named the same way: its alt text, else the text of
+  // the shapes inside it.
+  //
+  // ONE LINK, COUNTED ONCE: PowerPoint lets the same box carry the link on
+  // the shape AND on its text; where a run inside the object already links
+  // to the same target, that run-level link (with its text) is the link.
+  const ownerByProps = new Map<PONode, PONode>();
+  for (const [tag, nvTag] of [
+    ["sp", "nvSpPr"],
+    ["grpSp", "nvGrpSpPr"],
+  ] as const) {
+    for (const obj of descendants(slideRoot, tag)) {
+      const nv = firstChild(obj, nvTag);
+      const cNvPr = nv ? firstChild(nv, "cNvPr") : undefined;
+      if (cNvPr) ownerByProps.set(cNvPr, obj);
+    }
+  }
+  const targetOf = (hlink: PONode): string => {
+    const id = attrOf(hlink, "id") ?? "";
+    return relMap.get(id) ?? `#${id}`;
+  };
   for (const cNvPr of descendants(slideRoot, "cNvPr")) {
     const hlink = firstChild(cNvPr, "hlinkClick");
     if (!hlink) continue;
     const id = attrOf(hlink, "id");
+    const owner = ownerByProps.get(cNvPr);
+    if (
+      owner &&
+      descendants(owner, "rPr").some((rPr) => {
+        const inner = firstChild(rPr, "hlinkClick");
+        return !!inner && targetOf(inner) === targetOf(hlink);
+      })
+    ) {
+      continue;
+    }
     const alt = drawingAltText(cNvPr);
     analysis.links.push({
-      text: (alt.altText ?? "").trim(),
+      text: (alt.altText ?? "").trim() || (owner ? textOf(owner).trim() : ""),
       url: id && relMap.has(id) ? relMap.get(id)! : null,
     });
   }
@@ -1602,6 +1806,16 @@ function collectSlideContrast(
     if (tagOf(sp) !== "sp") {
       const painter = painterOf(sp, ctx.scheme, ctx.theme, slideBg);
       if (painter) beneath.push(painter);
+      // Text in a table's cells or in a grouped shape is not judged — its
+      // background is the cell's or the member's, which this walk does not
+      // resolve — but it IS text whose contrast nobody checked, so it counts
+      // as unresolved (2026-11-12). It was not counted at all, so a deck
+      // whose words all sit in a table read as having no text to check.
+      for (const p of descendants(sp, "p")) {
+        for (const run of childrenOf(p)) {
+          if (tagOf(run) === "r" && textOf(run).trim()) analysis.contrast.unresolvedRuns++;
+        }
+      }
       continue;
     }
     // A placeholder takes its position and fill from the layout's matching

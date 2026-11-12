@@ -6,6 +6,15 @@
  * markdown.ts / json.ts / text.ts / html.ts / aiAnalysis.ts.
  */
 
+import { wcagSlugFor } from "@file-audit/shared";
+import { buildActionPlan, type PlanStep } from "~/utils/actionPlan";
+import {
+  emptyPlanSentence,
+  failingCategoryIds,
+  publicationStatus,
+  type PublicationStatus,
+} from "~/utils/publicationStatus";
+
 export interface HelpLink {
   label: string;
   url: string;
@@ -110,6 +119,11 @@ export interface ReportResult {
    *  than implying the check passed. */
   pdfUaVerdict?: PdfUaVerdict;
   fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+  /** The API's proof that it computed this result (an HMAC over the score,
+   *  grade, findings and conformance verdict). Opaque here: carried through
+   *  untouched and posted back when the report is shared. Absent on results
+   *  restored from a session older than the seal. */
+  seal?: string;
   /** Stored PDF document info; `creator` drives the plan's InDesign-aware
    *  source steps. Optional — OOXML reports and old stored PDFs lack it. */
   pdfMetadata?: { creator?: string | null } | null;
@@ -213,4 +227,67 @@ export function getScoreProfiles(result: ReportResult, wcagVersion?: string): Sc
     : strictFallback;
 
   return [strict];
+}
+
+// ── Shared by the text and Markdown exports (2026-11-12) ───────────────────
+// Both used to stop at a bare "Grade: A — Excellent": no publication verdict,
+// no fix steps, and no statement of what an automated check cannot see —
+// while every other surface carried all three.
+
+/** The same disclosure the HTML export and the printable plan carry, as
+ *  plain text. */
+export const AUTOMATION_LIMIT_HEADING =
+  "Automated checks cover a subset — a person checks the rest";
+export const AUTOMATION_LIMIT_TEXT =
+  "This score covers the machine-checkable share of accessibility — roughly 30–40% of issues in independent tests (the UK government's ten-tool study found the best checker caught 41% of planted barriers; Deque's own audit data, the most optimistic figure on record, reaches 57% of issue volume). No automated checker — this one, Adobe Acrobat's, PAC, Word's — can tell you the document works in a screen reader: whether the alt text describes each image, headings match their sections, and the reading order makes sense can only be confirmed by a person. If you have additional questions about file accessibility, contact your agency accessibility coordinator.";
+
+export interface ExportPlan {
+  status: PublicationStatus;
+  /** The line beside the grade — the hero's own wording: a blocker leads on
+   *  its own, anything else follows the grade adjective. */
+  verdictLabel: string;
+  steps: PlanStep[];
+  /** Step is backed by a confirmed WCAG 2.1 failure. null = the payload has
+   *  no verdict to ask (never assert what cannot be verified). */
+  required: (step: PlanStep) => boolean | null;
+  /** What to print when there are no steps. */
+  emptySentence: string;
+  /** False for a payload with no categories (page-audit rows). */
+  hasCategories: boolean;
+}
+
+/** The action plan exactly as the screen orders it, plus the shared publish
+ *  decision — one call so an export cannot assemble a different answer. */
+export function exportPlan(result: ReportResult): ExportPlan {
+  const categories = Array.isArray(result.categories) ? result.categories : [];
+  const status = publicationStatus(categories, result.conformance);
+  const steps = buildActionPlan(
+    categories,
+    result.fileType,
+    result.pdfMetadata?.creator,
+    result.conformance,
+  );
+  const failing = failingCategoryIds(result.conformance);
+  const adjective = gradeLabel(result.grade);
+  return {
+    status,
+    steps,
+    hasCategories: categories.length > 0,
+    verdictLabel: !categories.length
+      ? adjective
+      : status.tone === "critical"
+        ? status.verdictText
+        : `${adjective} — ${status.verdictText}`,
+    required: (step) => (status.conformanceKnown ? failing.has(step.categoryId) : null),
+    emptySentence: status.mayClaimPass
+      ? "Nothing to fix — this document passes all automated checks."
+      : emptyPlanSentence(status),
+  };
+}
+
+/** W3C Understanding-page address for a criterion number, or null when the
+ *  number is unknown — naming a criterion means linking it. */
+export function criterionUrl(sc: string, branding: BrandingInfo): string | null {
+  const slug = wcagSlugFor(sc);
+  return slug ? `${branding.wcagUnderstandingBase}${slug}.html` : null;
 }

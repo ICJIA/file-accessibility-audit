@@ -13,25 +13,64 @@
  * addition. The web page uses this when available and falls back to the
  * synchronous endpoint otherwise, so a deploy skew can never break uploads.
  */
-import { Router, Request, Response, type IRouter } from "express";
-import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
+import { Router, Request, Response, type IRouter, type NextFunction } from "express";
+import {
+  analyzeJobStatusLimiter,
+  analyzeLimiter,
+  isPrivilegedRequest,
+} from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { detectFileType } from "../services/analyzer.js";
 import { performAudit, mapAnalyzeError } from "../services/analyzeCore.js";
 import {
   createAnalyzeJob,
+  reserveAnalyzeJobSlot,
   finishJob,
   markStep,
   markStepSkipped,
   pollAnalyzeJob,
 } from "../services/analyzeJobs.js";
-import { REMEDIATION } from "#config";
+import { sealReport } from "../services/reportSeal.js";
+import { setBusyRetryAfter } from "../services/busy.js";
+import { ANALYZE_JOB, REMEDIATION } from "#config";
 
 const router: IRouter = Router();
+
+const BUSY_BODY = {
+  error: "The server is busy processing other files.",
+  details: "Please wait a moment and try again.",
+};
+
+/**
+ * Capacity check BEFORE the upload is read (review 2026-11-12). multer
+ * buffers the whole file in memory (up to ANALYSIS.MAX_FILE_SIZE_MB) before
+ * the handler runs, so with the check only in the handler a full job store
+ * still cost a 25 MB buffer per refused request. The handler's own check in
+ * createAnalyzeJob stays — it is the authoritative one (uploads that were
+ * already in flight when the store filled).
+ *
+ * RESERVES the place it checks for (second pass): a pure check let every
+ * upload in a simultaneous burst through, because none of them had a job yet
+ * when the others were checked. The reservation is released when the handler
+ * registers the job (it then counts as a job instead), or when the response
+ * closes without one — a refused file, a parse error, a dropped connection.
+ */
+export function requireJobCapacity(_req: Request, res: Response, next: NextFunction): void {
+  const release = reserveAnalyzeJobSlot();
+  if (!release) {
+    setBusyRetryAfter(res);
+    res.status(503).json(BUSY_BODY);
+    return;
+  }
+  res.locals.releaseJobSlot = release;
+  res.on("close", release);
+  next();
+}
 
 router.post(
   "/analyze-job",
   analyzeLimiter,
+  requireJobCapacity,
   uploadMiddleware.single("file"),
   async (req: Request, res: Response): Promise<void> => {
     const privileged = isPrivilegedRequest(req);
@@ -42,12 +81,13 @@ router.post(
     }
 
     const detectedType = await detectFileType(file.buffer).catch(() => null);
+    // Trade the pre-upload reservation for the job itself. Synchronous with
+    // createAnalyzeJob, so the place cannot be taken in between.
+    (res.locals?.releaseJobSlot as (() => void) | undefined)?.();
     const created = createAnalyzeJob(detectedType === "pdf");
     if (!created) {
-      res.status(503).json({
-        error: "The server is busy processing other files.",
-        details: "Please wait a moment and try again.",
-      });
+      setBusyRetryAfter(res);
+      res.status(503).json(BUSY_BODY);
       return;
     }
     const { id, token } = created;
@@ -64,10 +104,18 @@ router.post(
     res.status(202).json({ jobId: id, token });
 
     try {
-      const result = await performAudit(file.buffer, file.originalname, privileged, (step, state) =>
-        markStep(id, step, state),
+      // retryBusyMs: a full analysis line must not fail a JOB — the page is
+      // only polling and cannot retry — so the job waits for a place itself.
+      const result = await performAudit(
+        file.buffer,
+        file.originalname,
+        privileged,
+        (step, state) => markStep(id, step, state),
+        { retryBusyMs: ANALYZE_JOB.BUSY_RETRY_TOTAL_MS },
       );
-      finishJob(id, { result });
+      // Sealed like the synchronous path's response, so a result collected
+      // through the poll can be shared (services/reportSeal.ts).
+      finishJob(id, { result: sealReport(result) });
     } catch (err) {
       console.error("Analysis error (job):", err);
       finishJob(id, {
@@ -81,7 +129,10 @@ router.post(
   },
 );
 
-router.get("/analyze-job/:id", (req: Request, res: Response): void => {
+// Exempt from globalLimiter (the page polls this while an audit runs — see
+// isAnalyzeJobStatusRequest), so this dedicated flood guard is the only cap
+// that applies. Authorisation is the job's own token, checked below.
+router.get("/analyze-job/:id", analyzeJobStatusLimiter, (req: Request, res: Response): void => {
   const token = typeof req.query.t === "string" ? req.query.t : "";
   const status = pollAnalyzeJob(String(req.params.id), token);
   if (!status) {

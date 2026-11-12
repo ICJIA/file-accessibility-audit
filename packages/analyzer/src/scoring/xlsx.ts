@@ -19,7 +19,9 @@ import {
   type ScoringResult,
   placeholderAltFinding,
 } from "./common.js";
+import { drawnShapeFinding } from "../ooxml.js";
 import { evaluateXlsxConformance } from "./conformance.js";
+import { withholdUnreadCategories, UNREAD_BODY_WARNING } from "./docx.js";
 
 // ===========================================================================
 // XLSX (EXCEL) SCORING
@@ -397,6 +399,8 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
     );
     const placeholders = placeholderAltFinding(missingAlt);
     if (placeholders) findings.push(placeholders);
+    const drawnShapes = drawnShapeFinding(missingAlt, "Excel");
+    if (drawnShapes) findings.push(drawnShapes);
     const titleOnly = nonDec.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {
       findings.push(
@@ -600,6 +604,25 @@ function buildXlsxCategories(a: XlsxAnalysis): CategoryResult[] {
  */
 export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
   const categories = buildXlsxCategories(analysis);
+  const warnings: string[] = [];
+  const unparsed = analysis.unparsedSheets ?? [];
+  if (unparsed.length > 0) {
+    // A visible sheet nobody read (2026-11-12) — see withholdUnreadCategories.
+    warnings.push(UNREAD_BODY_WARNING);
+    withholdUnreadCategories(
+      categories,
+      // Everything read from the sheets. The title comes from the properties
+      // part and the sheet names from the workbook part, both of which were
+      // read.
+      new Set(
+        categories.map((c) => c.id).filter((id) => id !== "title_language" && id !== "sheet_names"),
+      ),
+      `the sheet${unparsed.length > 1 ? "s" : ""} ${unparsed
+        .slice(0, 5)
+        .map((n) => `"${n}"`)
+        .join(", ")}${unparsed.length > 5 ? ` and ${unparsed.length - 5} more` : ""}`,
+    );
+  }
   const conformance = evaluateXlsxConformance(analysis);
   const aggregate = aggregateScore(categories, false, "strict", conformance, "Excel workbook");
   return {
@@ -608,7 +631,7 @@ export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
     isScanned: false,
     executiveSummary: aggregate.executiveSummary,
     categories,
-    warnings: [],
+    warnings,
     scoringMode: "strict",
     scoreProfiles: { strict: aggregate.profile, remediation: aggregate.profile },
     conformance,

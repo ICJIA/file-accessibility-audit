@@ -30,6 +30,14 @@ export interface RemediationJob {
   downloadTokenHash: string | null;
   failureReason: string | null;
   createdAt: number;
+  /**
+   * When the dispatcher handed the job to a worker; null while it is still
+   * QUEUED behind REMEDIATION.MAX_CONCURRENT_JOBS (and on rows that predate
+   * migration 16).
+   */
+  startedAt: number | null;
+  /** The worker's pid (= its process-group id); null until dispatched. */
+  workerPid: number | null;
   completedAt: number | null;
   expiresAt: number;
 }
@@ -50,6 +58,8 @@ interface JobRow {
   download_token_hash: string | null;
   failure_reason: string | null;
   created_at: number;
+  started_at?: number | null;
+  worker_pid?: number | null;
   completed_at: number | null;
   expires_at: number;
 }
@@ -71,6 +81,8 @@ function rowToJob(r: JobRow): RemediationJob {
     downloadTokenHash: r.download_token_hash,
     failureReason: r.failure_reason,
     createdAt: r.created_at,
+    startedAt: r.started_at ?? null,
+    workerPid: r.worker_pid ?? null,
     completedAt: r.completed_at,
     expiresAt: r.expires_at,
   };
@@ -116,6 +128,13 @@ const expireJob = db.prepare(
 );
 
 export interface CreateJobInput {
+  /**
+   * Optional pre-generated job id (a UUID). POST /api/remediate generates the
+   * id first so it can write the uploaded file into the job's directory
+   * BEFORE the row exists — a queued row is dispatchable the instant it is
+   * inserted, so its input must already be on disk.
+   */
+  id?: string;
   inputFilename: string;
   /**
    * Optional. The user's exact uploaded filename (no sanitization).
@@ -136,7 +155,7 @@ export interface CreatedJob {
  * token (returned to the client; we only store the SHA-256 hash).
  */
 export function createJob(input: CreateJobInput): CreatedJob {
-  const id = randomUUID();
+  const id = input.id ?? randomUUID();
   const downloadToken = randomBytes(32).toString("base64url");
   const downloadTokenHash = createHash("sha256").update(downloadToken).digest("hex");
   const now = Date.now();
@@ -286,6 +305,102 @@ export function getJobVeraPdf(id: string): JobVeraPdf {
 
 export function setFailed(id: string, reason: string): void {
   failJob.run(reason, Date.now(), id);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Global worker cap — queue + slots, derived from the rows                */
+/* ---------------------------------------------------------------------- */
+// A job HOLDS A SLOT while it is `running`, or `pending` with started_at set
+// (dispatched; the worker is booting). A job is QUEUED while it is `pending`
+// with started_at NULL. Every terminal transition (complete / failed /
+// expired) releases the slot by construction, whoever makes it — the worker,
+// its kill timer, the stuck-job sweep, the exit listener — because the count
+// is a query over the rows, never a counter someone has to remember to
+// decrement, and never zeroed by an API restart while detached workers are
+// still running (review 2026-11-12).
+
+const countActiveStmt = db.prepare(
+  `SELECT COUNT(*) AS n FROM remediation_jobs
+    WHERE status = 'running' OR (status = 'pending' AND started_at IS NOT NULL)`,
+);
+const countQueuedStmt = db.prepare(
+  `SELECT COUNT(*) AS n FROM remediation_jobs
+    WHERE status = 'pending' AND started_at IS NULL`,
+);
+const nextQueuedStmt = db.prepare(
+  `SELECT id FROM remediation_jobs
+    WHERE status = 'pending' AND started_at IS NULL
+    ORDER BY created_at ASC, rowid ASC
+    LIMIT 1`,
+);
+const markDispatchedStmt = db.prepare(
+  `UPDATE remediation_jobs SET started_at = ?
+    WHERE id = ? AND status = 'pending' AND started_at IS NULL`,
+);
+const queueAheadStmt = db.prepare(
+  `SELECT COUNT(*) AS n FROM remediation_jobs
+    WHERE status = 'pending' AND started_at IS NULL AND created_at < ?`,
+);
+const failIfActiveStmt = db.prepare(
+  `UPDATE remediation_jobs
+      SET status = 'failed', step = NULL, failure_reason = ?, completed_at = ?
+    WHERE id = ? AND status IN ('pending','running')`,
+);
+
+const setWorkerPidStmt = db.prepare("UPDATE remediation_jobs SET worker_pid = ? WHERE id = ?");
+const selectActiveStmt = db.prepare(
+  `SELECT * FROM remediation_jobs
+    WHERE status = 'running' OR (status = 'pending' AND started_at IS NOT NULL)`,
+);
+
+/** Record the worker's pid (its process-group id) on the job it runs. */
+export function setWorkerPid(id: string, pid: number): void {
+  setWorkerPidStmt.run(pid, id);
+}
+
+/** Every job currently holding a worker slot. */
+export function listActiveJobs(): RemediationJob[] {
+  return (selectActiveStmt.all() as JobRow[]).map(rowToJob);
+}
+
+/** Jobs currently holding a worker slot. */
+export function countActiveJobs(): number {
+  return (countActiveStmt.get() as { n: number }).n;
+}
+
+/** Jobs waiting for a worker slot. */
+export function countQueuedJobs(): number {
+  return (countQueuedStmt.get() as { n: number }).n;
+}
+
+/** The oldest queued job's id, or null when the queue is empty. */
+export function nextQueuedJobId(): string | null {
+  const row = nextQueuedStmt.get() as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
+/**
+ * Claim a queued job for a worker (sets started_at). False if the job was
+ * not queued any more — the claim is a guarded UPDATE, so two dispatch
+ * passes can never start the same job twice.
+ */
+export function markDispatched(id: string, now: number = Date.now()): boolean {
+  return markDispatchedStmt.run(now, id).changes > 0;
+}
+
+/** How many queued jobs are ahead of this one (0 = next to start). */
+export function queuedAhead(job: RemediationJob): number {
+  return (queueAheadStmt.get(job.createdAt) as { n: number }).n;
+}
+
+/**
+ * Fail a job ONLY if it has not already reached a terminal state. Used where
+ * the caller cannot know whether the worker finished first (its exit
+ * listener, a spawn error): an unconditional setFailed there would overwrite
+ * a `complete`. Returns whether the row changed.
+ */
+export function failIfActive(id: string, reason: string): boolean {
+  return failIfActiveStmt.run(reason, Date.now(), id).changes > 0;
 }
 
 export function setExpired(id: string): void {
