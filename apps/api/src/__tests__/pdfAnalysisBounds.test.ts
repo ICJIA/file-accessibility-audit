@@ -23,6 +23,11 @@ import { taggedBaseline } from "./helpers/mockResults.js";
 const control = (name: string): Buffer =>
   readFileSync(resolve(import.meta.dirname, "../../../../controls", name));
 
+// One of the control documents that IS committed (controls/ is otherwise
+// git-ignored, so CI has only the tracked ones): a 38-page tagged report
+// whose cover is a full page of text saved as a single picture.
+const TRACKED_REPORT = "2022_DVFR_Annual_Report_Final_a688e16b10_a00d65b63f.pdf";
+
 describe("analysis wait line", () => {
   it("refuses at once, with a 503, when the line is already full", async () => {
     const held: Array<Promise<void>> = [];
@@ -51,7 +56,7 @@ describe("pdfjs extraction honours its abort signal", () => {
   it("stops instead of reading the document when already aborted", async () => {
     const ac = new AbortController();
     ac.abort();
-    const result = await analyzeWithPdfjs(control("Seniors.pdf"), { signal: ac.signal });
+    const result = await analyzeWithPdfjs(control(TRACKED_REPORT), { signal: ac.signal });
     expect(result.error).toBeTruthy();
     expect(result.textLength).toBe(0);
     expect(result.imageCount).toBe(0);
@@ -69,22 +74,22 @@ describe("pdfjs extraction honours its abort signal", () => {
       addEventListener() {},
       removeEventListener() {},
     } as unknown as AbortSignal;
-    const result = await analyzeWithPdfjs(control("Seniors.pdf"), { signal });
+    const result = await analyzeWithPdfjs(control(TRACKED_REPORT), { signal });
     expect(checks).toBeGreaterThan(3);
     expect(result.error).toBeTruthy();
   });
 
   it("is unchanged without a signal", async () => {
-    const result = await analyzeWithPdfjs(control("Seniors.pdf"));
+    const result = await analyzeWithPdfjs(control(TRACKED_REPORT));
     expect(result.error).toBeNull();
     expect(result.pageCount).toBeGreaterThan(0);
   });
 });
 
 describe("scanned pages inside a text document", () => {
-  it("records every page of a scanned control as image-only", async () => {
-    const result = await analyzeWithPdfjs(control("Seniors.pdf"));
-    expect(result.imageOnlyPages?.length).toBe(result.pageCount);
+  it("records the picture-only cover of a real report, and only that page", async () => {
+    const result = await analyzeWithPdfjs(control(TRACKED_REPORT));
+    expect(result.imageOnlyPages).toEqual([1]);
   });
 
   const textFindings = (pages: number[] | undefined, hasText = true): string => {
