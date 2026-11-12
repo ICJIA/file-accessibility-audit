@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.168.2",
+    meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: the third-party software the service is built on, updated to close the warnings the previous two reviews recorded as open.",
+    body: [
+      {
+        kind: "p",
+        html: "The previous review found 36 published warnings about software this service uses. This update closes 35 of them. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>One warning could be seen on the live site, and did no harm.</strong> A web address written in an unusual way could be answered without one instruction the site normally sends to search engines, on one page. The site&rsquo;s security settings were sent every time. This is fixed.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The other warnings are closed too.</strong> They concerned the program that reads Word, PowerPoint and Excel files, the program that reads web addresses, the framework the website is built with, and tools used only while building or developing the site. For each, the conditions the warning needs do not exist here. The file-reading program was updated anyway, and every test document was graded again to confirm that no grade changed.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One warning stays open, with no fix yet published.</strong> It concerns a tool used only while the site is being built; it is not part of the live site, which was checked to confirm it. It will be closed when its makers publish a fix. Its warning is dated before the last review, which did not list it; the reason could not be established.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every self-check and every scoring gate passed. A full copy of the site was run and its pages, uploads and security settings checked before release.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.168.1",
     meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: how the server watches the two programs that run this service, and restarts one that uses too much memory.",
     body: [

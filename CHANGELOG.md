@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.168.2] - 2026-11-12
+
+### Security
+
+The dependency release v1.168.0 recorded as open: `pnpm audit --prod` **36 → 1**. All but one of the 36 were published after the last clean scan on 2026-10-26. None was a reachable way to stop or read from the live service; one was observable on it.
+
+- **`nuxt` 4.6.2 → 4.6.4**, with `@nuxt/nitro-server`, `@nuxt/vite-builder` and `nitropack` 2.13.6.
+  - GHSA-9v7c-q64q-vv33 (moderate): dot segments in a request path skipped route rules. **Observable on the live site**, with no consequence: a request for `/a/../publist` came back without `/publist`'s `noindex` header. The security headers use `/**` and were present on every form tried; the CSP is built per request. On 4.6.4 every dot-segment form carries the header.
+  - GHSA-3xf4-9g3c-4h4w, GHSA-x287-wcfc-q46c, GHSA-648h-gw55-m2g7 (moderate): the development server only. Not part of the production build.
+  - `h3` stayed on 1.15.11.
+- **`qs` 6.16.0 → 6.17.1** (GHSA-6pq8-jhm2-2vcw, moderate): `qs.stringify` with the comma array format. Express only parses with `qs`; nothing here calls `stringify`. Override floor raised to `^6.16.1`.
+- **`seroval` 1.6.8 → 1.8.1** (GHSA-f86p-h4j2-7qgj, GHSA-9wx9-5pv9-3349, moderate): build tooling under `@nuxt/vite-builder`.
+- **`node-forge` 1.4.0 → 1.4.3**: closes all 21 advisories on it, including the one accepted in v1.166.2 with no fix then published. Its only path is still the development server's certificate helper.
+- **`glob` 13 → 14.0.6 and `minimatch` 10 → 11.0.8** (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249, moderate): used by the build's file tracer, on paths and patterns this repository supplies. Version-scoped overrides; the production output is the same 330 files before and after, including all 168 traced server dependencies.
+- **`fast-xml-parser` 5.10.1 → 5.12.0** (GHSA-474x-hrwr-fgx4, low): quadratic time scanning unterminated stop-node tags. The analyzer sets no `stopNodes`, so it was not reachable. This is the XML engine behind every Word, PowerPoint and Excel check, so the upgrade was verified against documents, not assumed: the ledger (347 rows), both trap batteries (228), and both encoding gates are unchanged.
+
+### Notes
+
+- **`pnpm audit --prod`: 1** (was 36). `deepmerge` 4.3.1 (GHSA-gcqx-w48m-w2h4, low) has **no patched version published**. It reaches the tree only through the build's module resolver, and the production server bundle does not contain it (checked). Accepted until upstream publishes a fix. Its advisory is dated 2026-09-18, yet the 2026-10-26 scan did not report it; I do not know why.
+- **Updated by editing the manifests and running `pnpm install`,** not `pnpm --filter web update nuxt`. The update command re-resolved 185 packages and left the Tiptap extensions at 3.33.1 beside a 3.31.3 core; the install changed 79, all build tooling under Nuxt.
+- A local run of the production build served every page with the security headers and a fresh CSP nonce per request, proxied a PDF and a PowerPoint upload through `/api/**`, and returned sealed results.
+- No application code changed. **Tests:** 4,577 (API 2,468 · Web 2,012 · CLI 97), unchanged.
+- Pre-existing and unchanged: unmet-peer warnings for `vite` 7 against 8 and for `@tiptap/pm`.
+
 ## [1.168.1] - 2026-11-12
 
 ### Fixed

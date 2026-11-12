@@ -1424,6 +1424,26 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.168.2 — 2026-11-12 · Dependency release: 36 advisories to 1 (SECURITY RELEASE)
+
+The release v1.168.0 and v1.168.1 recorded as **P2 · Open**. No application code changed.
+
+**Fixed:**
+1. **P3 · Fixed: `nuxt` 4.6.2 → 4.6.4** ([GHSA-9v7c-q64q-vv33](https://github.com/advisories/GHSA-9v7c-q64q-vv33), moderate): dot segments in the request path skipped route rules. **Observable on the live site, without consequence:** `/a/../publist` was answered without the `noindex` header that `/publist` carries. The security headers are set on `/**` and were present on every form tried, and the CSP is per-request. After the upgrade every dot-segment form carries the header. The three development-server advisories in the same release do not apply to the production build. `h3` stayed on 1.15.11.
+2. **P3 · Fixed: `qs` 6.16.0 → 6.17.1** ([GHSA-6pq8-jhm2-2vcw](https://github.com/advisories/GHSA-6pq8-jhm2-2vcw), moderate). It needs `qs.stringify`; Express only parses. Not reachable.
+3. **P3 · Fixed: `fast-xml-parser` 5.10.1 → 5.12.0** ([GHSA-474x-hrwr-fgx4](https://github.com/advisories/GHSA-474x-hrwr-fgx4), low). It needs the `stopNodes` option, which the analyzer does not set. Not reachable. Because this parser reads every Office document, the upgrade was checked against the full control set: no score moved.
+4. **P3 · Fixed, build and development tooling only:** `seroval` 1.8.1, `node-forge` 1.4.3 (all 21, including the one accepted in v1.166.2), `glob` 14.0.6 and `minimatch` 11.0.8.
+
+**Accepted:** **P3 · Accepted: `deepmerge` 4.3.1** ([GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4), low), with **no patched version published**. Its only path is `nitropack` → `@rollup/plugin-node-resolve`, a build-time module resolver; the production server bundle (`apps/web/.output/server`) does not contain it (checked).
+
+**A correction to how this is recorded.** That `deepmerge` advisory is dated 2026-09-18, but the v1.166.2 scan on 2026-10-26 reported one advisory and it was not this one. The other 35 are dated 2026-10-27 or later. I could not establish why the earlier scan did not list it.
+
+**Verified rather than assumed.**
+- `pnpm audit --prod`: **1** (was 36), the `deepmerge` acceptance above.
+- Typecheck, lint, format, build and tests: 4,577 green. Ledger 347, traps 228 and all eight gates unchanged.
+- The production output is the same 330 files before and after the `glob`/`minimatch` change, including all 168 traced server dependencies.
+- A local run of the production build: every page 200; security headers and a fresh CSP nonce present; a PDF and a PowerPoint upload proxied through `/api/**` and returned sealed results; `/publist` and five dot-segment forms of it all carry `noindex`.
+
 ### v1.168.1 — 2026-11-12 · PM2's memory cap now measures the server (closes the item left open in v1.168.0)
 
 **Fixed:**
