@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.168.1] - 2026-11-12
+
+### Fixed
+
+- **PM2's memory cap was measuring the wrong process.** Both apps were registered as `pnpm start`, so the process PM2 spawned, and the only one whose memory it compares with `max_memory_restart`, was the `pnpm` wrapper; the server was two processes further down (`pnpm` → `sh -c` → `node`). Measured on production: PM2 reported about 42 MB for each app while the API was using 241 MB and the web app 130 MB. The cap could never fire. `ecosystem.config.cjs` now starts `node` with the same command line each app's own `start` script uses, so PM2's pid is the listening pid.
+- **The caps.** The API's is 768 MB (it idles near 240 MB, and a restart mid-audit loses the audit); the web app's stays 512 MB. Until now neither had ever been enforced.
+- **`rebuild.sh` re-registers the two apps when it has to.** PM2 keeps the executable it resolved when a process was first registered and takes only new arguments on `pm2 restart`, so a changed `script` reached a running app as the old program with the new arguments. Rehearsed against a real PM2 7.1.2: `pnpm .output/server/index.mjs` crash-looped and the web app stopped listening. The deploy now compares PM2's stored command with the file; when they differ it runs `pm2 delete file-audit-api file-audit-web`, `pm2 start ecosystem.config.cjs` and `pm2 save` (by name, so other applications on the same PM2 are untouched), and otherwise restarts as before.
+
+### Notes
+
+- No application code changed, so no score can move. Ledger 347 and traps 228 unchanged.
+- **Tests:** 4,577 (API 2,468 · Web 2,012 · CLI 97) across 252 files. New: `ecosystemConfig` (5) fails if either app's PM2 command drifts from its `start` script, if a package-manager wrapper returns, or if the caps change.
+- Rehearsed locally with PM2 7.1.2 in an isolated home: from the old command the new block re-registered both apps (PM2 pid = listening pid, caps 768 MB and 512 MB); run again, it took the ordinary restart. Not exercised on the server before release.
+- No What's New entry: nothing a visitor sees changes.
+
 ## [1.168.0] - 2026-11-12
 
 A review of the whole application, the fixes for what it found, and a second independent pass over those fixes.

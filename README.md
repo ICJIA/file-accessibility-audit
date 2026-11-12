@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,572 tests** across 251 test files (API 2,463 · Web 2,012 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,577 tests** across 252 test files (API 2,468 · Web 2,012 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1423,6 +1423,18 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.168.1 — 2026-11-12 · PM2's memory cap now measures the server (closes the item left open in v1.168.0)
+
+**Fixed:**
+1. **P3 · Fixed: `max_memory_restart` was measured on a `pnpm` wrapper.** Both apps were registered as `pnpm start`; PM2 samples memory on the pid it spawned and does not add up children, and the server was two processes below it. On production PM2 showed about 42 MB for each app while the API was using 241 MB, so a runaway server would never have been restarted. `ecosystem.config.cjs` now starts `node` directly. The API's cap is 768 MB and the web app's 512 MB.
+2. **P3 · Fixed: a changed start command did not reach a running process safely.** `pm2 restart` keeps the registered executable and applies only the new arguments. `rebuild.sh` now detects that mismatch and re-registers the two apps by name, then saves the process list.
+
+**Verified rather than assumed.**
+- A real PM2 7.1.2, isolated: restart-only with the new file left the web app crash-looping (the fault the new deploy step exists to avoid); the new step, run from the old registration, ended with PM2's pid equal to the listening pid for both apps and the new caps; run a second time it took the ordinary restart.
+- Typecheck, lint, format, build and tests: 4,577 green. No analyzer or application code changed; ledger and gates unaffected.
+- **Not exercised on the server before release.** After the deploy, `rebuild.sh` must print "PM2 supervises the listening process itself" for both apps.
+- `pnpm audit --prod`: **36**, unchanged from v1.168.0 and still untriaged; no dependency changed. The dependency release is still owed.
 
 ### v1.168.0 — 2026-11-12 · Whole-application review: verdict copy, Office accuracy, share-link sealing, remediation limits, deploy safety (SECURITY RELEASE)
 

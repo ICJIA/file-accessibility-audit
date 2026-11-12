@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.168.1",
+    meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: how the server watches the two programs that run this service, and restarts one that uses too much memory.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent. This closes the memory-limit item the previous review left open.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The memory limit was watching the wrong program.</strong> The server restarts a program that grows past a set amount of memory. It was measuring a small starter program instead of the service itself, so the limit could never act. On the live server it reported about 42 MB while the checking service was really using 241 MB. The server now starts the service directly and measures it.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>The update script makes the switch safely.</strong> Changing how a program is started needs it to be registered again, not just restarted. A rehearsal showed that a plain restart would have stopped the website. The update script now notices the difference and registers the two programs again by name, leaving other programs on the same server alone.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> The switch was rehearsed with the same process manager, in isolation: afterwards the program being watched was the one answering requests. Every self-check passed. Not tested before release: the switch on the live server itself. The 36 third-party software warnings recorded in the previous review are unchanged and still to be examined.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.168.0",
     meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: the whole service &mdash; how documents are checked, how reports are shared, the automatic-fix feature, and the scripts used to update and back up the server.",
     body: [

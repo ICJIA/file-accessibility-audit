@@ -50,51 +50,44 @@ const remediationEnv = {
 // so a dependency that is merely slow to come back (the database on a host
 // reboot) still recovers on its own.
 //
-// KNOWN GAP — max_memory_restart is probably not protecting either server
-// (review 2026-11-12; NOT fixed here, on purpose).
+// PM2 STARTS NODE ITSELF (v1.168.1, 2026-11-12) — so max_memory_restart
+// measures the server.
 //
-// Both apps start as `script: "pnpm"`, `args: "start"`, `interpreter: "none"`,
-// so the process PM2 spawns — and the only pid it measures — is the pnpm
-// wrapper. The server (`node --import tsx src/index.ts`, or
-// `node .output/server/index.mjs`) is pnpm's CHILD. PM2 samples memory with
-// pidusage on the pid it spawned and does not add up children (PM2 7.1.2:
-// lib/God/ActionMethods.js getMonitorData → getProcessId → `pro.pid`;
-// lib/Worker.js compares that figure with max_memory_restart). A pnpm wrapper
-// sits at a few tens of MB however large the server grows, so the 512M cap
-// would never fire. rebuild.sh now compares PM2's pid with the pid listening
-// on each port after every deploy and warns when they differ; confirm on the
-// server with `pm2 monit` (the memory shown is the wrapper's) against
-// `ps -o pid,rss,args --ppid "$(pm2 pid file-audit-api)"`.
+// Both apps used to start as `script: "pnpm"`, `args: "start"`. The process
+// PM2 spawned, and the only pid it measures, was then the pnpm wrapper; the
+// server was two processes further down (pnpm -> `sh -c` -> node). Measured on
+// production 2026-11-12: PM2 reported about 42 MB for each app while the API
+// was using 241 MB and the web app 130 MB. PM2 samples memory on the pid it
+// spawned and does not add up children, so the memory cap could never fire.
 //
-// The fix is to have PM2 start node itself — same command line, cwd and env
-// as `pnpm start` resolves to (apps/api and apps/web package.json "start"):
+// `script: "node"` below is the same command line `pnpm start` resolves to in
+// each app's package.json ("node --import tsx src/index.ts" and
+// "node .output/server/index.mjs"), run from the same cwd with the same env.
+// If either "start" script changes, change it here too —
+// ecosystemConfig.test.ts fails when the two disagree.
 //
-//   api:  script: "node", args: "--import tsx src/index.ts",  interpreter: "none"
-//   web:  script: "node", args: ".output/server/index.mjs",    interpreter: "none"
+// A CHANGED `script`/`args` DOES NOT REACH A PROCESS PM2 ALREADY KNOWS through
+// `pm2 restart ecosystem.config.cjs` (what rebuild.sh runs): PM2 keeps the
+// executable it resolved when the process was first registered. After any
+// edit to `script`, `args` or a restart option, re-register on the server:
 //
-// (Nothing in the app reads pnpm's injected npm_* variables or relies on
-// node_modules/.bin being on PATH — checked 2026-11-12 — and PM2 resolves a
-// bare "node" on PATH exactly as it resolves "pnpm" today.)
+//   pm2 delete file-audit-api file-audit-web     # never `pm2 delete all`:
+//   pm2 start ecosystem.config.cjs               # other apps share this PM2
+//   pm2 save
+//   ./rebuild.sh                                 # refreshes env, health-checks
 //
-// Why this file does NOT simply say that: a changed `script`/`args` must not
-// reach a running process through `pm2 restart ecosystem.config.cjs` (what
-// rebuild.sh runs). PM2 keeps the executable it resolved when the process was
-// first registered; depending on its version it either ignores the edit (the
-// 2026-08-08 finding above) or merges the new `args` onto the OLD executable
-// — i.e. `pnpm --import tsx src/index.ts` — and the API crash-loops. So this
-// change has to be made together with a re-registration, by the person at
-// the server, at a quiet time:
+// rebuild.sh compares PM2's pid with the pid listening on each port after
+// every deploy and says which of the two states the server is in.
 //
-//   1. edit the two apps below as shown, commit, and run ./rebuild.sh. Its
-//      restart may be ignored (old PM2) or may fail its health check (newer
-//      PM2, args merged onto pnpm) — either way go straight to step 2, which
-//      is the cure for both. Expect up to a minute of downtime in between.
-//   2. pm2 delete file-audit-api file-audit-web
-//      pm2 start ecosystem.config.cjs && pm2 save
-//      (required env exported in that shell first — see the note at the top)
-//   3. ./rebuild.sh again: it must print "PM2 supervises the listening
-//      process itself" for both apps, and `pm2 monit` shows the server's
-//      real memory.
+// THE CAPS. Until this change the 512M figure had never been enforced, so it
+// had never been tested against real use. The API idles near 240 MB and a
+// large PDF audit adds the upload and pdf.js working memory on top, so it
+// gets 768M (user decision, 2026-11-12); the web app, at about 130 MB, keeps
+// 512M. A restart mid-audit loses that audit, which is why the API's cap sits
+// well above its working range rather than just above its idle size.
+/** The API's own cap — see THE CAPS above. Overrides restartPolicy's. */
+const API_MAX_MEMORY = "768M";
+
 const restartPolicy = {
   max_memory_restart: "512M",
   restart_delay: 3000,
@@ -115,8 +108,8 @@ module.exports = {
     {
       name: "file-audit-api",
       cwd: "./apps/api",
-      script: "pnpm",
-      args: "start",
+      script: "node",
+      args: "--import tsx src/index.ts",
       interpreter: "none",
       env: {
         NODE_ENV: "production",
@@ -128,12 +121,13 @@ module.exports = {
       },
       watch: false,
       ...restartPolicy,
+      max_memory_restart: API_MAX_MEMORY,
     },
     {
       name: "file-audit-web",
       cwd: "./apps/web",
-      script: "pnpm",
-      args: "start",
+      script: "node",
+      args: ".output/server/index.mjs",
       interpreter: "none",
       env: {
         NODE_ENV: "production",

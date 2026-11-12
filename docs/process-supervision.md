@@ -15,7 +15,7 @@ Set in `ecosystem.config.cjs` as `restartPolicy`, shared by both apps:
 | `min_uptime` | 20000 | A process must stay up 20s to count as a successful start |
 | `restart_delay` | 3000 | Base delay between attempts |
 | `exp_backoff_restart_delay` | 100 | Spreads retries out instead of hammering |
-| `max_memory_restart` | 512M | Restart on runaway memory |
+| `max_memory_restart` | 768M (API) / 512M (web) | Restart on runaway memory. Since v1.168.1 PM2 starts `node` itself, so this is measured on the server; before that it was measured on a `pnpm` wrapper and never fired (production, 2026-11-12: PM2 showed 42 MB while the API used 241 MB). `rebuild.sh` re-registers the two apps on its own when PM2's stored start command differs from `ecosystem.config.cjs`, and reports after every deploy whether PM2's pid is the listening one. |
 | `time` / `merge_logs` | true | Timestamped, single log stream per app — what rotation acts on |
 
 **`max_restarts` + `min_uptime` are the pair that matters, and they were both

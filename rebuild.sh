@@ -712,11 +712,73 @@ else
   echo "✓ Pre-restart snapshot: $_predeploy_snapshot"
 fi
 
-echo "Restarting PM2..."
-# --update-env so rotated secrets (e.g. API_PRIVILEGED_TOKEN) actually refresh;
-# a plain `pm2 restart` reuses the env snapshot from the original `pm2 start`.
+# ---------------------------------------------------------------------
+# Does PM2 still hold the START COMMAND this ecosystem file describes?
+# (v1.168.1, 2026-11-12)
+#
+# `pm2 restart ecosystem.config.cjs` refreshes the environment, but PM2 keeps
+# the executable it resolved when each process was first registered and only
+# takes the NEW `args`. So when `script` changes in the file — as it did when
+# the apps moved from `pnpm start` to `node …` — a plain restart runs the OLD
+# program with the NEW arguments. Rehearsed against a real PM2 7.1.2 before
+# this shipped: `pnpm .output/server/index.mjs` crash-looped and the web app
+# stopped listening.
+#
+# The cure is to re-register: delete the two processes and start them from
+# the file. This block does that, and only when PM2's registered command
+# really differs from the file's — an ordinary deploy still restarts in place.
+# It runs here, after the build and the snapshot, with the same environment
+# the restart would have had, so the outage is the few seconds a restart costs.
+#
+# Prints "match", "differs" or "unknown". Anything but "differs" takes the
+# ordinary restart: a process PM2 has never heard of, or a list this cannot
+# read, is not evidence that re-registering is safe or needed.
+_pm2_command_state() {
+  pm2 jlist 2>/dev/null | node -e '
+    const path = require("path");
+    let d = "";
+    process.stdin.on("data", (c) => (d += c)).on("end", () => {
+      try {
+        const line = d.split("\n").filter((l) => l.trim().startsWith("[")).pop();
+        const list = JSON.parse(line);
+        const eco = require(path.resolve("ecosystem.config.cjs"));
+        let seen = 0;
+        let differs = false;
+        for (const app of eco.apps) {
+          const p = list.find((x) => x.name === app.name);
+          if (!p || !p.pm2_env) continue;
+          seen++;
+          const exec = path.basename(String(p.pm2_env.pm_exec_path || ""));
+          const args = [].concat(p.pm2_env.args || []).join(" ");
+          const wantExec = path.basename(String(app.script || ""));
+          const wantArgs = [].concat(app.args || []).join(" ");
+          if (exec !== wantExec || args !== wantArgs) differs = true;
+        }
+        process.stdout.write(seen === 0 ? "unknown" : differs ? "differs" : "match");
+      } catch {
+        process.stdout.write("unknown");
+      }
+    });
+  ' 2>/dev/null || true
+}
+
 _stage="pm2-restart"
-pm2 restart ecosystem.config.cjs --update-env
+if [ "$(_pm2_command_state)" = "differs" ]; then
+  echo "PM2 is holding an older start command than ecosystem.config.cjs describes."
+  echo "Re-registering file-audit-api and file-audit-web from the file (a plain"
+  echo "restart would run the old program with the new arguments)..."
+  # By name, never `pm2 delete all`: other applications share this PM2.
+  pm2 delete file-audit-api file-audit-web
+  pm2 start ecosystem.config.cjs
+  # Persist, so a reboot resurrects the new command rather than the old one.
+  pm2 save
+else
+  echo "Restarting PM2..."
+  # --update-env so rotated secrets (e.g. API_PRIVILEGED_TOKEN) actually
+  # refresh; a plain `pm2 restart` reuses the env snapshot from the original
+  # `pm2 start`.
+  pm2 restart ecosystem.config.cjs --update-env
+fi
 _stage="pm2-restarted"
 
 echo "PM2 restart issued. Process list:"
