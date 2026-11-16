@@ -75,3 +75,6 @@ controls/
 
 # Claude Code personal settings (hooks, etc.)
 .claude/settings.local.json
+
+# Local email drafts — never committed
+docs/email-drafts/
