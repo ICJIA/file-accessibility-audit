@@ -1,6 +1,6 @@
 {
   "name": "@icjia/a11y-audit",
-  "version": "1.173.0",
+  "version": "1.173.1",
   "private": true,
   "type": "module",
   "imports": {
@@ -24,7 +24,7 @@
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
     "tsx": "^4.19.3",
-    "vitest": "^3.2.6",
-    "@vitest/coverage-v8": "3.2.6"
+    "vitest": "^4.1.12",
+    "@vitest/coverage-v8": "4.1.12"
   }
 }

@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.1",
+    meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: an update of the tools used to build and test the software.",
+    body: [
+      {
+        kind: "p",
+        html: "This update brings the tools used to build and test the software up to date. None of these tools is part of the public site: they run on a developer&rsquo;s computer and in the automatic checks that run before a release. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>31 warnings in build and test tools are closed.</strong> The wider check of third-party software, which also covers tools that are not part of the public site, reported 31 warnings, three of them rated critical. All are now closed. The largest change is a new major version of the tool that runs the software&rsquo;s self-checks.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Because the tool that runs the self-checks was itself replaced, every self-check was run on the new version, and all of them pass. One self-check needed a small wording change to suit the new version; what it checks did not change. The parts of the software that read documents were not updated, so no score can have changed; every scoring gate was run anyway and passed. Both checks of third-party software, for the public site and for the tools, now report no warnings.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.173.0",
     meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: how lighter and darker shades of a colour are read in PowerPoint files.",
     body: [

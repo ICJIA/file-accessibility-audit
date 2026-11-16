@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.1] - 2026-11-16
+
+Dependency release for the build and test tools. `pnpm audit --prod` has read 0 since v1.172.2; the full audit, which also covers tools that never ship, read 31. It now reads 0 as well.
+
+### Security — development tooling only
+
+None of these packages is in the built server. They run on a developer's machine and in CI.
+
+- **vitest 3.2.6 → 4.1.12** (with `@vitest/coverage-v8` and `@vitest/mocker`), in all three apps. Closes the two critical `tinypool` advisories (prototype-pollution gadgets in the worker pool), the `vitest` and `@vitest/mocker` advisories, and the `glob` / `minimatch` pair that came in through the old coverage reporter's `test-exclude`, which vitest 4 no longer uses. No backport exists for vitest 3. All 4,687 tests pass on it; the one change needed was a type annotation in a single test (`download.test.ts`), because vitest 4 types a bare `vi.fn()` more loosely. Coverage reporting still runs.
+- **happy-dom 20.8.9 → 21.0.4** (three advisories, two high: SSRF through iframes and stylesheet links in the test DOM).
+- **sharp 0.35.3 → 0.35.5** (two high, in its bundled `librsvg` and `libheif`). Used to render the social card.
+- **@vue/test-utils 2.4.6 → 2.6.0**, which moves to `js-beautify` 2 and so drops the last `glob` 10 and `minimatch` 9.
+- **Overrides raised:** `dompurify` to `^3.4.17` (five advisories, one critical, under `mermaid`), `vite@7` to `^7.3.7` (five), and a new `katex` `^0.18.2` (one, under `mermaid`).
+
+### Notes
+
+- `pnpm audit`: **0** (was 31: 3 critical, 7 high, 15 moderate, 6 low). `pnpm audit --prod`: **0**, unchanged.
+- The audit engine's own dependencies did not move (`pdfjs-dist` 4.10.38, `fast-xml-parser` 5.12.0, `jszip` 3.10.1), so no score can have moved; every gate ran anyway. Ledger 369, traps 249, tests 4,687 unchanged.
+- No application or scoring code changed. `mermaid` stays at 11.17.2: the diagram generator was re-run to confirm it still works, and its output was discarded.
+
 ## [1.173.0] - 2026-11-16
 
 PowerPoint's shaded colours are computed. This is the second half of the question deferred on 2026-10-06 (the see-through half shipped in v1.172.0), decided the same day.

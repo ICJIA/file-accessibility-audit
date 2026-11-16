@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.173.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4687%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.173.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4687%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -1460,6 +1460,18 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.173.1 — 2026-11-16 · Dependency release: build and test tooling, 31 advisories to 0 (SECURITY RELEASE)
+
+Development tooling only: none of these packages is in the built server. `pnpm audit --prod` was already 0 (v1.172.2); this closes what the full audit reported.
+
+**Closed.** `vitest` 3.2.6 → **4.1.12** with its coverage reporter and mocker (two critical `tinypool` prototype-pollution advisories, plus `vitest`, `@vitest/mocker`, and the `glob` / `minimatch` pair under the old reporter's `test-exclude`; no backport exists for vitest 3). `happy-dom` 20.8.9 → **21.0.4** (three, two high). `sharp` 0.35.3 → **0.35.5** (two high, in bundled `librsvg` / `libheif`). `@vue/test-utils` 2.4.6 → **2.6.0** (drops `glob` 10 and `minimatch` 9 by moving to `js-beautify` 2). Overrides: `dompurify` ^3.4.17 (five, one critical), `vite@7` ^7.3.7 (five), new `katex` ^0.18.2 (one).
+
+**Verified rather than assumed.**
+- `pnpm audit`: **0** (was 31: 3 critical, 7 high, 15 moderate, 6 low). `pnpm audit --prod`: **0**.
+- Lockfile diff read package by package: the changes are the tools named above and their own dependencies. The audit engine's dependencies (`pdfjs-dist`, `fast-xml-parser`, `jszip`) did not move.
+- The test runner itself changed major version, so the suite was the test: all 4,687 pass, with one type annotation adjusted in one test for the new version's stricter mock typing, and coverage reporting runs. Typecheck, lint, format and build green; all eight accuracy gates green; ledger 369 unmoved.
+- `sharp` renders, and the diagram generator (which loads `mermaid`) still runs.
 
 ### v1.173.0 — 2026-11-16 · PowerPoint: lighter and darker shades are computed (no new attack surface)
 

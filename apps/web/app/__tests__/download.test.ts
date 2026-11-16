@@ -19,7 +19,9 @@ describe("downloadBlob", () => {
     clickSpy = vi.fn();
     (URL as any).createObjectURL = createObjectURLSpy;
     (URL as any).revokeObjectURL = revokeObjectURLSpy;
-    HTMLAnchorElement.prototype.click = clickSpy;
+    // vitest 4 types a bare vi.fn() as "function or constructor", which a
+    // DOM method slot does not accept; the spy is only ever called.
+    HTMLAnchorElement.prototype.click = clickSpy as unknown as () => void;
   });
 
   afterEach(() => {
