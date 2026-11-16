@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.172.2",
+    meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: an update of third-party software.",
+    body: [
+      {
+        kind: "p",
+        html: "This update closes the one remaining warning about third-party software. The warning concerned a tool used only while the software is being developed on a developer&rsquo;s own computer. The public site does not run that tool and was not affected. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The warning is closed.</strong> Two closely related pieces of third-party software were brought up to the corrected version together, so that nothing is left half-updated. No other third-party software changed.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> The routine check of third-party software used by the public site now reports no warnings. A wider check that also covers the tools used only for building and testing reports warnings in those tools; they are not part of the public site and are noted for a later update. Every self-check and every scoring gate passed, no score changed, and the built site was started and tested before release.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.172.1",
     meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: which fix steps a PDF report shows.",
     body: [

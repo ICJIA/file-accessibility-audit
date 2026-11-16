@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.172.2] - 2026-11-16
+
+Dependency release. Closes the one advisory `pnpm audit --prod` still reported.
+
+### Security
+
+- **GHSA-mjrq-cffv-q4qc (moderate), `@nuxt/schema` below 4.6.4.** The Nuxt development server can serve files from a parent directory that holds a stray lockfile or workspace file. Production runs the built server and was never exposed; the risk was on a developer's own machine. Nuxt itself was already 4.6.4 (v1.168.2), but the lockfile still held `@nuxt/schema` 4.5.2 and `@nuxt/kit` 4.5.2 / 4.6.2 for the modules that depend on them (`@nuxt/ui`, `@nuxt/fonts`, `@nuxt/icon`, `@nuxtjs/color-mode`, devtools). Their declared ranges already admitted the fix; the lock had never been refreshed.
+- **Fixed at the family, not the flagged package:** `pnpm.overrides` now pins `@nuxt/kit` and `@nuxt/schema` to `^4.6.4`, so every module resolves the same pair Nuxt uses. The lockfile lost the three stale copies and two packages only they used (`errx`, `verkit`); nothing else changed version.
+
+### Notes
+
+- `pnpm audit --prod`: **0** (was 1). `pnpm audit` including development tooling reports 31 (was 32), all in test and build tools (`tinypool`, `happy-dom`, `sharp`, `vite`, `dompurify`); none ships in the built server, and they are not part of this release.
+- No application or scoring code changed. Ledger 366, traps 246 and tests 4,670 are unchanged; every gate ran.
+- Verified by typecheck, lint, build, the full suite and a local run of the built server.
+
 ## [1.172.1] - 2026-11-16
 
 A PDF report with the right finding and the wrong fix. The flyer's PDF, exported from PowerPoint, failed one thing: its title is set, but the PDF is told to show the file name. The to-do list built from that finding was wrong three ways.

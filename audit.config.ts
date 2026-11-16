@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "dependency-release-2026-11-16",
+    badge: "Security",
+    text: "A routine update of third-party software. It closes the one remaining warning from our regular check, which concerned a tool used only while the software is being developed on a developer's own computer. The public site does not run that tool and was never affected. Nothing about how your files are checked or handled has changed, and no score changes.",
+    linkText: "Security review log",
+    linkTo: "/data-retention#security-audits",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 16, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "pdf-fix-steps-for-the-right-program-2026-11-16",
     badge: "Fixed",
     text: "Two corrections to the fix steps a PDF report gives. First, a PDF can have a title and still be set to show its file name, so the file name is what a screen reader announces. The checker found this correctly, but the report then told you to give the document a title and set its language, both already done, and suggested a fix that would have changed nothing. It now gives the one setting that fixes it. Second, reports on PDFs gave instructions for Microsoft Word even when the PDF records that it was made from PowerPoint or Excel; they now give that program's steps. No score changes because of either.",

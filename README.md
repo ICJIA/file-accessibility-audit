@@ -1424,6 +1424,15 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.172.2 — 2026-11-16 · Dependency release: the last production advisory closed (SECURITY RELEASE)
+
+Closes GHSA-mjrq-cffv-q4qc (moderate): `@nuxt/schema` < 4.6.4 lets the Nuxt **development** server serve files from a parent directory that holds a stray lockfile or workspace file. **Not reachable in production**, which runs the built Nitro server; the exposure was a developer's machine. Nuxt was already 4.6.4, but the lockfile kept `@nuxt/schema` 4.5.2 and `@nuxt/kit` 4.5.2 / 4.6.2 for the modules that depend on them. `pnpm.overrides` now pins both to `^4.6.4` (the family, not the one flagged package).
+
+**Verified rather than assumed.**
+- Lockfile diff: the three stale `@nuxt/kit` / `@nuxt/schema` copies and two packages only they used (`errx`, `verkit`) are gone; no other package changed version.
+- `pnpm audit --prod`: **0** (was 1). With development tooling included it reports 31 (was 32), all in test and build tools that do not ship in the built server; recorded, not addressed here.
+- No application code changed. Typecheck, lint, format, build and tests: 4,670 green. All eight accuracy gates green; ledger 366 unmoved. The built server was started locally and served the landing page with its security headers.
+
 ### v1.172.1 — 2026-11-16 · The report's to-do list: a title that is set but not shown; PowerPoint and Excel steps for PDFs made there (no new attack surface)
 
 No new attack surface. The change is in which pre-written fix steps the report page selects, from two things it already had: the analyzer's finding text and the PDF's stored Creator string. The Creator is matched against three fixed whole words and is never rendered into the steps. No analyzer, scoring, route, parameter or dependency changed; nothing new is stored or sent.
