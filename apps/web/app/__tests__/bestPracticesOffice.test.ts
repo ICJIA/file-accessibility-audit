@@ -505,6 +505,16 @@ describe("pptx-slide-titles", () => {
     expect(r.evidence.join(" ")).toMatch(/slides 3, 7, 12 have no title placeholder/);
   });
 
+  it("is NOT MET in today's wording — 'no slide title' (2026-11-16)", () => {
+    // The advisory now says "slide title" so it cannot be read as the file's
+    // Title property. A third era for the needle; the two older ones stay.
+    const r = run("pptx-slide-titles", [
+      "Advisory — not scored: slides 2, 4 have no slide title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. This is the slide's own title, not the presentation's title in the file's properties, which is scored under Title & Language. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.",
+    ]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/slides 2, 4 have no slide title/);
+  });
+
   it("is NOT APPLICABLE when the presentation has no slides", () => {
     expect(run("pptx-slide-titles", [PPTX_NO_SLIDES]).status).toBe("not-applicable");
   });

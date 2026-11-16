@@ -1,6 +1,6 @@
 {
-  "count": 103,
-  "generated": "2026-11-12",
+  "count": 106,
+  "generated": "2026-11-16",
   "items": [
     {
       "file": "synthetic-101-docx-bold-fake-headings.docx",
@@ -518,6 +518,21 @@
       "file": "synthetic-232-pptx-one-title-over-typed-headings.pptx",
       "label": "PowerPoint: one titled slide, twelve headings typed into text boxes",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-237-pptx-flyer-heading-after-a-bold-lead-in.pptx",
+      "label": "PowerPoint: a flyer whose heading sits after a bullet with a bold start",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-238-pptx-bold-lead-ins-are-not-headings.pptx",
+      "label": "PowerPoint: sentences that start in bold, on slides with no title",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-239-pptx-text-on-a-see-through-panel.pptx",
+      "label": "PowerPoint: text on a see-through panel the checker cannot judge",
+      "chip": "bug"
     }
   ]
 }

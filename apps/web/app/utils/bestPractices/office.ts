@@ -853,14 +853,21 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      const line = matchAdvisory(ctx, "no title", "use the outline view");
+      // A THIRD ERA (2026-11-16): the line now says "no slide title", so it
+      // cannot be read as the file's Title property — and "no title" no
+      // longer occurs in it. Same fix clause, same reason it cannot be forged.
+      const line =
+        matchAdvisory(ctx, "no title", "use the outline view") ??
+        matchAdvisory(ctx, "no slide title", "use the outline view");
       if (line) {
         // pptx.ts:154 — the evidence is a LIST of slide numbers ("slides 3,
         // 7, 12"), never a count: firstNumber would silently return only
         // the first. Lift the already-correctly-conjugated clause straight
         // out of the analyzer's own line instead of re-deriving grammar.
         const phrase =
-          /slides?\s+[\d,\s]+\s+(?:has|have)\s+no title(?: placeholder)?/i.exec(line)?.[0] ?? null;
+          /slides?\s+[\d,\s]+\s+(?:has|have)\s+no (?:slide )?title(?: placeholder)?/i.exec(
+            line,
+          )?.[0] ?? null;
         return {
           status: "not-met",
           evidence: [

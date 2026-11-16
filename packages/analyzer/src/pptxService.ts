@@ -176,28 +176,39 @@ const FAKE_HEADING_MAX_LEN = 120;
  * DELIBERATELY NARROW, because a false accusation here costs more than a miss:
  * it must be a shape with NO placeholder role at all (a floating text box —
  * text in a body placeholder is content, and its size is usually inherited),
- * short, and carrying a run whose size or weight is set EXPLICITLY on the run.
- * Inherited sizes are the false-positive trap this file already warns about
- * ("frequently inherited from the placeholder/layout/master"), so an inherited
- * large size proves nothing and is not read here.
+ * short, and set large or bold EXPLICITLY on its runs. Inherited sizes are
+ * the false-positive trap this file already warns about ("frequently
+ * inherited from the placeholder/layout/master"), so an inherited large size
+ * proves nothing and is not read here.
+ *
+ * EVERY run that carries text must qualify (2026-11-16). Until then one
+ * qualifying run was enough, so a sentence whose first few words are bold —
+ * "Understand what data you need to most effectively use the law" — was a
+ * heading, and so was a body-size sentence with one figure set large. Both
+ * are emphasis inside a sentence. A heading is styled as a whole.
+ *
+ * Returns the text and the largest run size, so the caller can choose
+ * between several boxes on one slide.
  */
-function typedHeadingText(sp: PONode): string | null {
+function typedHeading(sp: PONode): { text: string; size: number } | null {
   if (tagOf(sp) !== "sp") return null;
   const nv = firstChild(sp, "nvSpPr");
   const nvPr = nv ? firstChild(nv, "nvPr") : undefined;
   if (nvPr && firstChild(nvPr, "ph")) return null; // any placeholder: not floating
   const text = textOf(sp).trim();
   if (!text || text.length > FAKE_HEADING_MAX_LEN) return null;
+  let size = 0;
   for (const r of descendants(sp, "r")) {
+    if (!textOf(r).trim()) continue; // a space between two runs says nothing
     const rPr = firstChild(r, "rPr");
-    if (!rPr) continue;
-    const raw = attrOf(rPr, "sz");
+    const raw = rPr ? attrOf(rPr, "sz") : undefined;
     const sz = raw === undefined ? NaN : Number(raw);
-    const bold = xsdBoolean(attrOf(rPr, "b")) === true;
-    if (!Number.isFinite(sz)) continue; // inherited size — proves nothing
-    if (sz >= LARGE_HUNDREDTHS || (bold && sz >= LARGE_BOLD_HUNDREDTHS)) return text;
+    if (!Number.isFinite(sz)) return null; // inherited size — proves nothing
+    const bold = !!rPr && xsdBoolean(attrOf(rPr, "b")) === true;
+    if (!(sz >= LARGE_HUNDREDTHS || (bold && sz >= LARGE_BOLD_HUNDREDTHS))) return null;
+    size = Math.max(size, sz);
   }
-  return null;
+  return size > 0 ? { text, size } : null;
 }
 
 function contentShapes(spTree: PONode): PONode[] {
@@ -1171,13 +1182,17 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     // real title present the heading IS marked up, and a big bold line
     // elsewhere on the slide is just emphasis.
     if (titleText.length === 0 && shown) {
+      // One per slide: the finding is about the slide, not each box. Where
+      // several boxes qualify the LARGEST is the heading, and the first in
+      // reading order at the same size (2026-11-16). It was simply the first
+      // until then, so a one-page flyer was told its heading was a line of
+      // body text, with the 28-point heading stacked a few shapes later.
+      let best: { text: string; size: number } | null = null;
       for (const sp of shapes) {
-        const typed = typedHeadingText(sp);
-        if (typed) {
-          analysis.fakeHeadings.push({ slide: i + 1, text: typed });
-          break; // one per slide: the finding is about the slide, not each box
-        }
+        const typed = typedHeading(sp);
+        if (typed && (!best || typed.size > best.size)) best = typed;
       }
+      if (best) analysis.fakeHeadings.push({ slide: i + 1, text: best.text });
     }
 
     if (shown) {

@@ -763,6 +763,29 @@ interface Sample {
 }
 
 const cat = (id: string) => (r: AnalysisResult) => r.categories.find((c) => c.id === id);
+/** One run with its size, weight and (optionally) colour set on the run
+ *  itself — what PowerPoint writes when an author formats text by hand. */
+const SLIDE_RUN = (text: string, sz: number, bold = false, colorHex?: string) =>
+  `<a:r><a:rPr lang="en-US" sz="${sz}"${bold ? ' b="1"' : ""}>${colorHex ? `<a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill>` : ""}</a:rPr><a:t>${text}</a:t></a:r>`;
+/** A floating text box (Insert → Text Box): no <p:ph>, so no placeholder role
+ *  at all, at explicit bounds, with no fill of its own. */
+const SLIDE_TEXT_BOX = (id: number, runs: string, x: number, y: number, cx: number, cy: number) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="TextBox ${id}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(x, y, cx, cy)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr/><a:p>${runs}</a:p></p:txBody></p:sp>`;
+/** A rounded panel filled at 20% opacity — the tinted card a flyer puts
+ *  behind a call to action. Marked decorative, as a careful author would. */
+const SLIDE_SEE_THROUGH_PANEL = (x: number, y: number, cx: number, cy: number) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="35" name="Rectangle: Rounded Corners 35">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(x, y, cx, cy)}<a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="156082"><a:alpha val="20000"/></a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+/** A sentence whose first words alone are bold, at 16 point: emphasis at the
+ *  start of a bullet, not a heading. */
+const SLIDE_LEAD_IN = (id: number, lead: string, rest: string, y: number) =>
+  SLIDE_TEXT_BOX(
+    id,
+    SLIDE_RUN(lead, 1600, true) + SLIDE_RUN(rest, 1600),
+    1400000,
+    y,
+    6000000,
+    800000,
+  );
 /** A drawn arrow with no text (2026-11-12). `props` is the inner XML of its
  *  non-visual properties — empty, or DECORATIVE. */
 const SLIDE_DRAWN_SHAPE = (props: string) =>
@@ -989,7 +1012,7 @@ const SAMPLES: Sample[] = [
     build: () => pptx([SLIDE_BODY(BODY_TEXT), SLIDE_BODY(BODY_TEXT)]),
     check: (r) => {
       const t = allFindings(r);
-      if (!/Advisory — not scored:.*no title\b/is.test(t))
+      if (!/Advisory — not scored:.*no slide title\b/is.test(t))
         return "untitled slides not reported as advisory";
       const c = cat("slide_titles")(r);
       if (c && c.score !== null && c.score < 100)
@@ -3336,6 +3359,124 @@ const SAMPLES: Sample[] = [
       return accused(r, "slide_titles") ? null : "points lost with no 1.3.1 failure named";
     },
   },
+  {
+    file: "synthetic-237-pptx-flyer-heading-after-a-bold-lead-in.pptx",
+    truth:
+      "A one-page flyer built the way a real one was (found 2026-11-16): no title placeholder, no title in the file's properties, a bullet whose first words are bold at 16 point, a bold 15-point footer line, and — stacked AFTER both — the flyer's 28-point bold heading. The checker took the first text box with any bold run of 14 point or more, so it told the author their heading was a line of body text. The heading named must be the 28-point one. One typed heading on a deck with no titled slide is a title, so slide_titles stays 100 and unscored. And the two titles must be told apart in words: the scored finding is the FILE's title (2.4.2), the advisory is the SLIDE's title — a reader took them for one issue reported twice.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_BANNER("FFC000", 0, 700000, 6200000, 1600000) +
+            SLIDE_LEAD_IN(
+              41,
+              "Understand what data you need ",
+              "to most effectively use the law",
+              5000000,
+            ) +
+            SLIDE_TEXT_BOX(
+              42,
+              SLIDE_RUN("Data Infrastructure Project", 1500, true),
+              450000,
+              6200000,
+              3900000,
+              500000,
+            ) +
+            SLIDE_TEXT_BOX(
+              43,
+              SLIDE_RUN("Help Improve ", 2800, true) +
+                SLIDE_RUN("Order Data Systems in Illinois", 2800, true),
+              480000,
+              780000,
+              5300000,
+              1400000,
+            ),
+        ],
+        { title: null, slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score !== 100) return `slide_titles scored ${c?.score}, not an unscored 100`;
+      if (accused(r, "slide_titles")) return "1.3.1 asserted against a one-slide flyer's title";
+      const f = c.findings.join("\n");
+      if (/typed into a text box \("Understand what data/.test(f))
+        return "the bold lead-in of a bullet was named as the slide's heading";
+      if (!/typed into a text box \("Help Improve Order Data Systems in Illinois"\)/.test(f))
+        return "the 28-point heading was not named as the slide's heading";
+      if (!/no slide title\b.*not the presentation's title/s.test(f))
+        return "the slide-title advisory does not say it is not the presentation's title";
+      const t = cat("title_language")(r);
+      if (!t || t.score !== 50) return `title_language scored ${t?.score}, not 50`;
+      if (!/No presentation title is set.*not a slide's title/s.test(t.findings.join("\n")))
+        return "the scored title finding does not say it is not a slide's title";
+      return names(r, "2.4.2", "title_language") ? null : "2.4.2 was not named";
+    },
+  },
+  {
+    file: "synthetic-238-pptx-bold-lead-ins-are-not-headings.pptx",
+    truth:
+      "Two slides with no title, each carrying a sentence whose first few words are bold at 16 point — the commonest way to start a bullet. Until 2026-11-16 one bold run of 14 point or more made the whole text box a typed heading, and two of those on an untitled deck are 'sections that exist only visually': slide_titles 30 (Critical) with a WCAG 1.3.1 Level A failure named, for bold type at the start of two sentences. A heading is styled as a whole; emphasis inside a sentence is not one. slide_titles must be 100, nothing may be called a typed heading, and 1.3.1 must not be asserted.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_LEAD_IN(
+            41,
+            "Identify data system challenges ",
+            "and opportunities for improvement",
+            2000000,
+          ) + SLIDE_BODY("Interviews take about one hour."),
+          SLIDE_LEAD_IN(
+            41,
+            "Improve criminal justice systems ",
+            "and support safer communities",
+            2000000,
+          ) + SLIDE_BODY("Participation is voluntary."),
+        ],
+        { title: "Interview Recruitment" },
+      ),
+    check: (r) => {
+      const c = cat("slide_titles")(r);
+      if (!c || c.score !== 100)
+        return `bold lead-ins scored slide_titles ${c?.score} — emphasis was read as headings`;
+      if (/typed into/i.test(allFindings(r))) return "a bold lead-in was called a typed heading";
+      if (accused(r, "slide_titles")) return "1.3.1 asserted against bold type inside a sentence";
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-239-pptx-text-on-a-see-through-panel.pptx",
+    truth:
+      "A dark title on a white slide — checked, and passing — beside a blue 16-point line sitting on a panel filled at 20% opacity. The checker does not blend see-through fills, so that line is never judged; on the real flyer this came from (2026-11-16) it is a link at about 3.8:1, under the 4.5:1 minimum. The report said 'all meet the WCAG contrast minimum' at 100 and 'No issues found', and never mentioned the runs it had skipped. A clean result must not speak for text it did not check: the finding must count the unchecked runs, the label must read 'No scored issues', and — because it was not measured — no 1.4.3 failure may be asserted either.",
+    build: () =>
+      pptx(
+        [
+          SLIDE_COLORED_TITLE("Join the Study", "1A1A1A", 600000, 500000, 9000000, 1200000) +
+            SLIDE_SEE_THROUGH_PANEL(5100000, 2400000, 4000000, 3000000) +
+            SLIDE_TEXT_BOX(
+              44,
+              SLIDE_RUN("Email the project team to take part.", 1600, false, "0070C0"),
+              5400000,
+              2700000,
+              3400000,
+              1000000,
+            ),
+        ],
+        { title: "Join the Study", slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100) return `color_contrast scored ${c?.score}, not 100`;
+      const f = c.findings.join("\n");
+      if (!/1 colored text run\(s\) checked; all meet/.test(f))
+        return "the title's checked run is not reported";
+      if (!/Advisory — not scored: 1 more text run\(s\) could not be checked/.test(f))
+        return "the run on the see-through panel was skipped without a word";
+      if (c.severity !== "No scored issues")
+        return `the label reads "${c.severity}" over text that was never checked`;
+      return names(r, "1.4.3", "color_contrast")
+        ? "a 1.4.3 failure is asserted for text that was not measured"
+        : null;
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
@@ -3501,6 +3642,18 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-232-pptx-one-title-over-typed-headings.pptx": {
     label: "PowerPoint: one titled slide, twelve headings typed into text boxes",
     chip: "caught",
+  },
+  "synthetic-237-pptx-flyer-heading-after-a-bold-lead-in.pptx": {
+    label: "PowerPoint: a flyer whose heading sits after a bullet with a bold start",
+    chip: "bug",
+  },
+  "synthetic-238-pptx-bold-lead-ins-are-not-headings.pptx": {
+    label: "PowerPoint: sentences that start in bold, on slides with no title",
+    chip: "bug",
+  },
+  "synthetic-239-pptx-text-on-a-see-through-panel.pptx": {
+    label: "PowerPoint: text on a see-through panel the checker cannot judge",
+    chip: "bug",
   },
   "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx": {
     label: "PowerPoint: the same arrow, marked decorative",

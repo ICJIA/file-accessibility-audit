@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.171.0] - 2026-11-16
+
+Found by checking one PowerPoint report by hand: the recruitment flyer from v1.170.0, this time as the `.pptx` it was made in. It scored 69/D with two failures (no title in the file's properties; the QR code, the logo and six background shapes undescribed), and both are right. Three things beside them were not.
+
+### Fixed — scoring (PowerPoint)
+
+- **A sentence that starts in bold was a heading.** A floating text box counted as a typed heading when ANY run in it was bold at 14 point or more, or 18 point or larger. A bullet whose first few words are bold qualified, and so did a sentence with one figure set large. Two of those on a deck with no titled slide are "sections that exist only visually": `slide_titles` 30 (Critical) and a WCAG 1.3.1 Level A failure, for bold type at the start of two sentences. Every run that carries text must now qualify (`typedHeading` in `pptxService.ts`); a run of spaces between two runs is ignored. A heading is styled as a whole.
+- **The heading named was the first that qualified, not the largest.** One typed heading is reported per slide, and it was the first in stacking order. On the flyer that was a bullet ("Understand what data you need to most effectively use Illinois FRO laws"), with the 28-point heading a few shapes later. The largest qualifying text box is now the heading; at the same size, the first.
+
+### Changed — report wording (no score moves)
+
+- **Contrast says how much it could not check (PowerPoint and Excel).** The flyer read "13 colored text run(s) checked; all meet the WCAG contrast minimum" at 100 and "No issues found". Nine more runs sat on a panel filled at 20% opacity and were skipped, as designed: see-through fills are not blended. One of them is a 16-point link in `#0070C0` at about 3.8:1, under the 4.5:1 minimum. The count of unchecked runs was always known and never reported. Both formats now add "Advisory — not scored: N more … could not be checked", on a pass and on a failure, and a 100 that carries the line reads "No scored issues". Word has always reported its unresolved runs. PDF contrast is not assessed at all and already says so.
+- **The file's title and a slide's title are told apart (PowerPoint).** The scored finding (WCAG 2.4.2) is about the Title in the file's properties. The unscored advisory further down is about a slide's title placeholder. Both said only "title", and a reader could not tell whether one issue was being reported twice. The scored finding now says it is the title of the whole file, not a slide's; the advisory says "no slide title" and that it is not the presentation's title. The best-practice row "Every slide has a title" reads the new wording as well as the two older ones.
+
+### Notes
+
+- **Measured against every control document: no score and no letter grade moved.** The ledger's only movement is the label on `color_contrast` in 12 presentations and 2 workbooks, from "No issues found" to "No scored issues" at an unchanged 100. The flyer itself stays 69/D. Ledger 359 (was 356), re-blessed in this commit.
+- **Traps 239 (was 236): 133 PDF + 106 Office.** 237: a flyer whose 28-point heading sits after a bullet with a bold start, and whose two "title" findings must be told apart. 238: two untitled slides whose sentences start in bold, which must not be accused of anything. 239: a line of text on a see-through panel that must be counted as unchecked. Sabotage-tested: all three fail on the previous code (238 scored 69/D there).
+- **Word shares one half of the heading rule and is unchanged.** Word's fake-heading check also accepts a paragraph on the strength of one bold run. Trialled against the control set, the stricter rule moves no Word document, so nothing was changed without a decision. It is recorded as open.
+- **Not detected, and said so:** the flyer's reading order puts its heading eighth and its first bullet after the other two. Only "does the title placeholder read first" is checked, the report says reading order was not assessed, and that is still true.
+- Tests 4,625 across 255 files (API 2,515 · Web 2,013 · CLI 97).
+- `pnpm audit --prod`: **2** (was 1). New since v1.170.1: GHSA-mjrq-cffv-q4qc, moderate, in `@nuxt/schema` below 4.6.4 — the Nuxt DEVELOPMENT server can serve files from a parent directory. Production runs the built server, not the development server. Not fixed in this release; it belongs in a dependency release. The `deepmerge` acceptance from v1.168.2 is unchanged.
+
 ## [1.170.1] - 2026-11-12
 
 ### Added

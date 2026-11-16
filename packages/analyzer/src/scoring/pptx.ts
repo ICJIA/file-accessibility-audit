@@ -154,7 +154,12 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     );
   } else {
     findings.push(
-      "No presentation title is set. In PowerPoint: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the presentation opens.",
+      // "The file's title, not a slide's title" (2026-11-16): a reader saw this
+      // scored finding and, further down, the unscored slide-title advisory,
+      // and could not tell whether they were one issue or two. They are two.
+      // The opening words are matched by the action plan and the fix-time
+      // chip (apps/web utils/actionPlan.ts, fixTime.ts) — keep them.
+      "No presentation title is set in the file's properties. This is the title of the whole file — not a slide's title, which is reported separately under Slide Titles. In PowerPoint: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the presentation opens.",
     );
   }
   if (a.metadata.language) {
@@ -297,7 +302,7 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     findings.push(
       `Advisory — not scored: slide${untitled.length > 1 ? "s" : ""} ${nums} ${
         untitled.length > 1 ? "have" : "has"
-      } no title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.`,
+      } no slide title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. This is the slide's own title, not the presentation's title in the file's properties, which is scored under Title & Language. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.`,
     );
   }
 
@@ -550,6 +555,17 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
 
 function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
   const { checkedRuns, unresolvedRuns, failing } = a.contrast;
+  // The runs nobody checked (2026-11-16). A one-page flyer read "13 colored
+  // text run(s) checked; all meet the WCAG contrast minimum" at 100 while 9
+  // more runs sat on a see-through panel and were skipped — one of them a
+  // 3.8:1 link. The count was always known and never said; Word has always
+  // said it. "not scored" is what turns the label into "No scored issues".
+  const unchecked =
+    unresolvedRuns > 0
+      ? [
+          `Advisory — not scored: ${unresolvedRuns} more text run(s) could not be checked — text on a picture, gradient, shaded or see-through fill, or in a shaded or see-through color, is not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
+        ]
+      : [];
   if (checkedRuns === 0) {
     return pptxCategory(
       "color_contrast",
@@ -570,7 +586,10 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       "Color Contrast",
       PPTX.SCORING_WEIGHTS.color_contrast,
       100,
-      [`${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`],
+      [
+        `${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`,
+        ...unchecked,
+      ],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       [PPTX_HELP.contrast],
     );
@@ -584,6 +603,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
   const findings = [
     `${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
     `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+    ...unchecked,
   ];
   return pptxCategory(
     "color_contrast",

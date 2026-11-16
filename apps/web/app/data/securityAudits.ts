@@ -54,6 +54,41 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.171.0",
+    meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: how a heading typed onto a PowerPoint slide is recognised, and the wording of three findings.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The checker reads the same information from a document as before and interprets it more accurately. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A sentence that starts in bold is not a heading.</strong> On a PowerPoint slide with no title, the checker looks for a heading that was typed into an ordinary text box. It was accepting any text box with a few bold words in it, so a bullet that begins in bold could be called a heading, and two of them could fail a presentation. The whole line must now be set as a heading. Where a slide has more than one candidate, the largest is the one named; before, it was simply the first, which on a real flyer was a line of body text.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The colour check now says what it could not check.</strong> In PowerPoint and Excel, some text cannot be judged automatically, such as text on a see-through panel or on a picture. The report used to say that all the text it checked had passed, without mentioning the text it had skipped. It now counts the skipped text and asks for it to be checked by eye. No score changes because of this.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Two different &ldquo;titles&rdquo; are now told apart.</strong> A PowerPoint file has a title in its properties, which is required, and each slide can have its own title, which is recommended. The report used the single word &ldquo;title&rdquo; for both, and a reader could not tell whether one problem was being reported twice. Each finding now says which title it means.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One new warning about third-party software, not fixed in this update.</strong> The routine check now reports two warnings where it reported one. The new one concerns a tool used only while the software is being developed on a developer&rsquo;s own computer. The public site does not run that tool, so the site is not affected. It will be closed in the next update of third-party software. The earlier warning is the one already recorded and accepted.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every test document was run again and no score or letter grade moved; fourteen now carry the new note about text that could not be checked. Three new test documents pin the fixes, and all three fail on the previous version, as they should. Every self-check and every scoring gate passed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.170.1",
     meta: "Reviewed <strong>2026-11-12</strong> &middot; scope: one announcement added to the site&rsquo;s list of updates.",
     body: [

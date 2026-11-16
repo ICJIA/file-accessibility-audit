@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "powerpoint-headings-and-unchecked-contrast-2026-11-16",
+    badge: "Fixed",
+    text: "Three corrections to PowerPoint reports, found by checking one flyer by hand. First, on a slide with no title the checker looks for a heading typed into an ordinary text box, and it was accepting any text box with a few bold words in it. A bullet that begins in bold could be called a heading, and two of them could fail a presentation. The whole line must now be set as a heading, and where a slide has several candidates the largest is the one named. Second, the color contrast check now says how much text it could not check. Text on a see-through panel, a picture or a gradient cannot be judged automatically, and the report used to say everything it checked had passed without mentioning what it skipped. It now counts the skipped text, in PowerPoint and in Excel, and asks you to check it by eye. Third, a PowerPoint file has a title in its properties, which is required, and each slide can have its own title, which is recommended. The report called both simply the title; each finding now says which one it means. In our test set no score and no letter grade changed.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 16, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "wrapped-and-bold-headings-2026-11-12",
     badge: "Fixed",
     text: "Two mistakes in how the checker finds headings in a PDF are fixed. First, a title that ran onto two or three lines was counted as two or three separate section headings, so a one-page flyer with a title and no sections was told it had unmarked sections and failed for them. A heading that wraps is now counted once. Second, the checker looks for section headings that are set in bold at the same size as the text around them, which is how Word sets headings in most reports, and it had never actually found any: it was checking which text was bold before the fonts had loaded. That is repaired, so some reports will now show section headings that are marked as ordinary paragraphs, correctly. In our test set seven reports are affected; three lose a few points and none changes its letter grade. Bold names, bulleted lists and table labels are not treated as headings. Separately, when a PDF has pictures without descriptions, the report now tells real pictures apart from drawn shapes such as background boxes, and says that a decorative shape should be marked decorative rather than described.",

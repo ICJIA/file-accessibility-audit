@@ -421,6 +421,14 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
 
 function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
   const { checkedRuns, unresolvedRuns, failing } = a.contrast;
+  // The styles nobody checked (2026-11-16) — see scorePptxColorContrast. A
+  // clean "all meet the minimum" must not speak for cells it never judged.
+  const unchecked =
+    unresolvedRuns > 0
+      ? [
+          `Advisory — not scored: ${unresolvedRuns} more cell style(s) could not be checked — automatic colors, patterned or gradient fills, cells inside a styled table, and sheets with a background picture are not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
+        ]
+      : [];
   if (checkedRuns === 0) {
     return xlsxCategory(
       "color_contrast",
@@ -441,7 +449,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       "Color Contrast",
       XLSX.SCORING_WEIGHTS.color_contrast,
       100,
-      [`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`],
+      [`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`, ...unchecked],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color is set — against the cell's solid fill, or the white grid when the cell has no fill.",
       [XLSX_HELP.contrast],
     );
@@ -455,6 +463,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
   const findings = [
     `${checkedRuns} cell style(s) checked; ${failing.length} below the WCAG contrast minimum.`,
     `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+    ...unchecked,
   ];
   return xlsxCategory(
     "color_contrast",

@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-11-12",
+  "blessed": "2026-11-16",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -431,7 +431,7 @@
         "alt_text": "null|none",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "75|Minor",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -527,7 +527,7 @@
         "alt_text": "6|Critical",
         "reading_order": "100|No scored issues",
         "table_markup": "100|No issues found",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "100|No issues found",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -1101,7 +1101,7 @@
         "alt_text": "59|Moderate",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "100|No issues found",
         "link_quality": "50|Moderate",
         "form_accessibility": "null|none"
@@ -1117,7 +1117,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "100|No issues found",
         "link_quality": "92|Minor",
         "form_accessibility": "null|none"
@@ -1133,7 +1133,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "100|No issues found",
         "link_quality": "100|No scored issues",
         "form_accessibility": "null|none"
@@ -1149,7 +1149,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No scored issues",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "100|No issues found",
         "link_quality": "100|No scored issues",
         "form_accessibility": "null|none"
@@ -1408,7 +1408,7 @@
         "alt_text": "100|No issues found",
         "reading_order": "100|No issues found",
         "table_markup": "100|No issues found",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "100|No issues found",
         "link_quality": "100|No issues found",
         "form_accessibility": "null|none"
@@ -1839,7 +1839,7 @@
         "sheet_names": "100|No issues found",
         "table_markup": "100|No scored issues",
         "alt_text": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
@@ -1853,7 +1853,7 @@
         "sheet_names": "100|No issues found",
         "table_markup": "100|No scored issues",
         "alt_text": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
@@ -1884,7 +1884,7 @@
         "alt_text": "61|Moderate",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -4002,7 +4002,7 @@
         "alt_text": "null|none",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -4114,7 +4114,7 @@
         "alt_text": "null|none",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -4162,7 +4162,7 @@
         "alt_text": "null|none",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -4178,7 +4178,7 @@
         "alt_text": "null|none",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
-        "color_contrast": "100|No issues found",
+        "color_contrast": "100|No scored issues",
         "list_structure": "null|none",
         "link_quality": "null|none",
         "form_accessibility": "null|none"
@@ -4419,6 +4419,54 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-237-pptx-flyer-heading-after-a-bold-lead-in.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "slide_titles": "100|No scored issues",
+        "alt_text": "null|none",
+        "reading_order": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-238-pptx-bold-lead-ins-are-not-headings.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No scored issues",
+        "alt_text": "null|none",
+        "reading_order": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-239-pptx-text-on-a-see-through-panel.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "100|No scored issues",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },
