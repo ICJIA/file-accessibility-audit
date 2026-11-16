@@ -54,6 +54,41 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.172.0",
+    meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: how Word headings typed by hand are recognised, and how text on a see-through panel in PowerPoint is checked.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The checker reads the same information from a document as before and interprets it more accurately. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>In Word, a sentence that starts in bold is not a heading.</strong> The checker looks for headings that were made by hand with bold type instead of a heading style. It was accepting any short paragraph with a few bold words in it, so a sentence such as &ldquo;Deadline: applications close on March 3&rdquo; could be counted as a heading and cost points. The whole line must now be bold. PowerPoint received the same correction earlier the same day.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Text on a see-through panel is now checked.</strong> Designers often put text on a lightly tinted box. The checker used to skip that text because the box is partly transparent. Where the box sits on one plain colour, the colour a reader actually sees can be worked out exactly, so the text is now checked against it. Where the box sits on a picture or a gradient, the text is still left for a person to check, and the report says so.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Links that can appear in two colours.</strong> Some PowerPoint links are drawn in one colour by current versions of PowerPoint and another by older versions. The checker used to skip them. It now checks both colours and reports a result when both agree.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>The warning about third-party software recorded in the previous entry is unchanged.</strong> It concerns a tool used only on a developer&rsquo;s own computer, the public site does not run it, and it will be closed in the next update of third-party software.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every test document was run again and no real document&rsquo;s score or letter grade moved. The new colour calculation was compared with a rendered page. Five new test documents pin the changes, including two that must <em>not</em> be marked down, and each was shown to fail when the correction is removed. Every self-check and every scoring gate passed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.171.0",
     meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: how a heading typed onto a PowerPoint slide is recognised, and the wording of three findings.",
     body: [

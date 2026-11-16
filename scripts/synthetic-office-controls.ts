@@ -775,6 +775,24 @@ const SLIDE_TEXT_BOX = (id: number, runs: string, x: number, y: number, cx: numb
  *  behind a call to action. Marked decorative, as a careful author would. */
 const SLIDE_SEE_THROUGH_PANEL = (x: number, y: number, cx: number, cy: number) =>
   `<p:sp><p:nvSpPr><p:cNvPr id="35" name="Rectangle: Rounded Corners 35">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(x, y, cx, cy)}<a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="156082"><a:alpha val="20000"/></a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+/** The same rounded panel over a two-stop gradient — nothing a contrast
+ *  check can reduce to one colour. Marked decorative. */
+const SLIDE_GRADIENT_PANEL = (x: number, y: number, cx: number, cy: number) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="36" name="Rectangle 36">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(x, y, cx, cy)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:gradFill><a:gsLst><a:gs pos="0"><a:srgbClr val="DCEBF2"/></a:gs><a:gs pos="100000"><a:srgbClr val="7FB2C9"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill></p:spPr><p:txBody><a:bodyPr/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+/** A link that asks to be drawn in its text's colour — PowerPoint 2019's
+ *  mark, which earlier versions ignore and draw in the theme's link colour. */
+const SLIDE_LINK_RUN = (text: string, sz: number, colorHex: string) =>
+  `<a:r><a:rPr lang="en-US" sz="${sz}"><a:solidFill><a:srgbClr val="${colorHex}"/></a:solidFill><a:hlinkClick xmlns:r="${PPT_REL}" r:id="rIdLink"><a:extLst><a:ext uri="{A12FA001-AC4F-418D-AE19-62706E023703}"><ahyp:hlinkClr xmlns:ahyp="http://schemas.microsoft.com/office/drawing/2018/hyperlinkcolor" val="tx"/></a:ext></a:extLst></a:hlinkClick></a:rPr><a:t>${text}</a:t></a:r>`;
+/** A Word paragraph whose first words alone are bold, at 14 point. */
+const DOCX_LEAD_IN = (lead: string, rest: string) =>
+  `<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">${lead}</w:t></w:r><w:r><w:rPr><w:sz w:val="28"/></w:rPr><w:t>${rest}</w:t></w:r></w:p>`;
+/** The contrast slide the see-through traps share: a dark title on white,
+ *  checked and passing, beside one 16-point line on a panel. */
+const PANEL_SLIDE = (panel: string, line: string) =>
+  SLIDE_COLORED_TITLE("Join the Study", "1A1A1A", 600000, 500000, 9000000, 1200000) +
+  panel +
+  SLIDE_TEXT_BOX(44, line, 5400000, 2700000, 3400000, 1000000);
+const PANEL_AT = [5100000, 2400000, 4000000, 3000000] as const;
 /** A sentence whose first words alone are bold, at 16 point: emphasis at the
  *  start of a bullet, not a heading. */
 const SLIDE_LEAD_IN = (id: number, lead: string, rest: string, y: number) =>
@@ -3445,12 +3463,117 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-239-pptx-text-on-a-see-through-panel.pptx",
     truth:
-      "A dark title on a white slide — checked, and passing — beside a blue 16-point line sitting on a panel filled at 20% opacity. The checker does not blend see-through fills, so that line is never judged; on the real flyer this came from (2026-11-16) it is a link at about 3.8:1, under the 4.5:1 minimum. The report said 'all meet the WCAG contrast minimum' at 100 and 'No issues found', and never mentioned the runs it had skipped. A clean result must not speak for text it did not check: the finding must count the unchecked runs, the label must read 'No scored issues', and — because it was not measured — no 1.4.3 failure may be asserted either.",
+      "A dark title on a white slide beside a blue 16-point line sitting on a panel filled at 20% opacity — the tinted card a real flyer put behind its call to action (2026-11-16). Until v1.171.0 the report said 'all meet the WCAG contrast minimum' and never mentioned the line; from v1.171.0 it said the line could not be checked. It can be: a see-through fill over one stated colour draws one colour, each channel fill·α + beneath·(1−α) — here #D0DFE6 — and blue #0070C0 on it is 3.77:1, under the 4.5:1 minimum for 16-point text. Both runs must be checked, the line must fail, the finding must show the blended colour, and 1.4.3 must be named.",
     build: () =>
       pptx(
         [
-          SLIDE_COLORED_TITLE("Join the Study", "1A1A1A", 600000, 500000, 9000000, 1200000) +
-            SLIDE_SEE_THROUGH_PANEL(5100000, 2400000, 4000000, 3000000) +
+          PANEL_SLIDE(
+            SLIDE_SEE_THROUGH_PANEL(...PANEL_AT),
+            SLIDE_RUN("Email the project team to take part.", 1600, false, "0070C0"),
+          ),
+        ],
+        { title: "Join the Study", slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null) return "color_contrast was not assessed";
+      const f = c.findings.join("\n");
+      if (!/2 colored text run\(s\) checked; 1 below the WCAG minimum/.test(f))
+        return `the line on the see-through panel was not measured: ${f.slice(0, 90)}`;
+      if (!/3\.77:1 \(#0070C0 on #D0DFE6\)/.test(f))
+        return "the finding does not show the blended colour the text sits on";
+      if (/could not be checked/.test(f)) return "a measured run is still reported as unchecked";
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-240-docx-bold-lead-ins-are-not-headings.docx",
+    truth:
+      "A Word memo with a real Heading 1 and two paragraphs that each begin with a few bold words at 14 point — 'Deadline: applications close on March 3.' Word's check for headings typed by hand accepted a paragraph when ANY run in it was bold and large, so each of these sentences was a fake heading: a scored WCAG 1.3.1 finding against bold type at the start of a sentence. The same rule PowerPoint took in v1.171.0 (trap 238): every run that carries text must be bold and large. heading_structure must be 100, no paragraph may be called a look-alike heading, and 1.3.1 must not be asserted.",
+    build: () =>
+      docx(
+        [
+          HEADING(1, "Grant Application Notice"),
+          P(BODY_TEXT),
+          DOCX_LEAD_IN("Deadline: ", "applications close on March 3."),
+          DOCX_LEAD_IN("Who may apply: ", "units of local government in Illinois."),
+          P(BODY_TEXT),
+        ].join(""),
+        { title: "Grant Application Notice", styles: true },
+      ),
+    check: (r) => {
+      const c = cat("heading_structure")(r);
+      if (!c || c.score !== 100)
+        return `bold lead-ins scored heading_structure ${c?.score} — emphasis was read as headings`;
+      if (/formatted to look like headings/i.test(allFindings(r)))
+        return "a sentence with a bold start was called a look-alike heading";
+      if (accused(r, "heading_structure")) return "1.3.1 asserted against bold type in a sentence";
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-241-pptx-text-on-a-gradient-is-disclosed.pptx",
+    truth:
+      "The same slide with the panel filled by a gradient. No single colour lies behind the blue line, so its contrast cannot be judged — and the report must say so. Until v1.171.0 it said 'all meet the WCAG contrast minimum' at 100 and 'No issues found' over text it had skipped. color_contrast stays 100 on the title it could check, the finding must count the one run it could not, the label must read 'No scored issues', and no 1.4.3 failure may be asserted for text that was never measured.",
+    build: () =>
+      pptx(
+        [
+          PANEL_SLIDE(
+            SLIDE_GRADIENT_PANEL(...PANEL_AT),
+            SLIDE_RUN("Email the project team to take part.", 1600, false, "0070C0"),
+          ),
+        ],
+        { title: "Join the Study", slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100) return `color_contrast scored ${c?.score}, not 100`;
+      const f = c.findings.join("\n");
+      if (!/1 colored text run\(s\) checked; all meet/.test(f))
+        return "the title's checked run is not reported";
+      if (!/Advisory — not scored: 1 more text run\(s\) could not be checked/.test(f))
+        return "the run on the gradient was skipped without a word";
+      if (c.severity !== "No scored issues")
+        return `the label reads "${c.severity}" over text that was never checked`;
+      return names(r, "1.4.3", "color_contrast")
+        ? "a 1.4.3 failure is asserted for text that was not measured"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-242-pptx-dark-text-on-a-see-through-panel-twin.pptx",
+    truth:
+      "Trap 239 with the line set in near-black instead of blue: 12.7:1 on the same tinted panel. Measuring see-through fills must not turn every tinted card into an accusation — both runs must be checked, both must pass, color_contrast must be a clean 100 with nothing left unchecked, and it must never score below its flawed twin.",
+    build: () =>
+      pptx(
+        [
+          PANEL_SLIDE(
+            SLIDE_SEE_THROUGH_PANEL(...PANEL_AT),
+            SLIDE_RUN("Email the project team to take part.", 1600, false, "1A1A1A"),
+          ),
+        ],
+        { title: "Join the Study", slideBgHex: "FFFFFF" },
+      ),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100) return `color_contrast scored ${c?.score}, not 100`;
+      const f = c.findings.join("\n");
+      if (!/2 colored text run\(s\) checked; all meet/.test(f))
+        return "the line on the see-through panel was not measured";
+      if (/could not be checked/.test(f)) return "a measured run is still reported as unchecked";
+      if (names(r, "1.4.3", "color_contrast")) return "1.4.3 asserted against 12.7:1 text";
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-243-pptx-see-through-panel-over-a-picture.pptx",
+    truth:
+      "The see-through panel again, this time lying on a full-slide picture. What shows through a 20% fill is the picture, which is not one colour, so the blue line on it cannot be judged — however tempting it is to blend with the slide's white. It must stay unchecked and be counted as such, and no 1.4.3 failure may be asserted. The guard on trap 239's rule: a see-through fill is computed only over one stated colour.",
+    build: () =>
+      pptx(
+        [
+          `<p:pic><p:nvPicPr><p:cNvPr id="50" name="Picture 50" descr="A desk covered in printed charts"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip/></p:blipFill><p:spPr>${XFRM(0, 0, 12192000, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>` +
+            SLIDE_SEE_THROUGH_PANEL(...PANEL_AT) +
             SLIDE_TEXT_BOX(
               44,
               SLIDE_RUN("Email the project team to take part.", 1600, false, "0070C0"),
@@ -3464,23 +3587,62 @@ const SAMPLES: Sample[] = [
       ),
     check: (r) => {
       const c = cat("color_contrast")(r);
-      if (!c || c.score !== 100) return `color_contrast scored ${c?.score}, not 100`;
+      if (!c) return "color_contrast missing";
+      if (c.score !== null) return `text over a picture was scored ${c.score}`;
+      if (names(r, "1.4.3", "color_contrast"))
+        return "a 1.4.3 failure is asserted for text over a picture";
+      return /text on a picture/.test(c.findings.join("\n"))
+        ? null
+        : "the unassessed text is not explained";
+    },
+  },
+  {
+    file: "synthetic-244-pptx-link-drawn-in-one-of-two-colours.pptx",
+    truth:
+      "A 16-point link on the see-through panel, set to blue #0070C0 and carrying PowerPoint 2019's mark asking to be drawn in its text's colour. Earlier versions ignore the mark and draw the theme's link colour, #0563C1, so which colour a reader sees depends on what opens the file — and the checker called every such link unknown unless the two colours were equal. Here it does not matter which is drawn: 3.77:1 and 4.32:1 are both under 4.5:1. Where both colours give the same verdict the link is judged, so this one must fail and name 1.4.3. (This is the link on the real flyer of 2026-11-16.)",
+    build: () => {
+      const chain = deckChain({
+        master: PPT_MASTER({ bg: BGREF_BG1 }),
+        layouts: [PPT_LAYOUT("")],
+        slideLayouts: [1],
+      });
+      return pptx(
+        [
+          PANEL_SLIDE(
+            SLIDE_SEE_THROUGH_PANEL(...PANEL_AT),
+            SLIDE_LINK_RUN("project@example.org", 1600, "0070C0"),
+          ),
+        ],
+        {
+          title: "Join the Study",
+          slideBgHex: "FFFFFF",
+          ...chain,
+          slideRels: {
+            1:
+              chain.slideRels[1] +
+              `<Relationship Id="rIdLink" Type="${PPT_REL}/hyperlink" Target="mailto:project@example.org" TargetMode="External"/>`,
+          },
+        },
+      );
+    },
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null) return "color_contrast was not assessed";
       const f = c.findings.join("\n");
-      if (!/1 colored text run\(s\) checked; all meet/.test(f))
-        return "the title's checked run is not reported";
-      if (!/Advisory — not scored: 1 more text run\(s\) could not be checked/.test(f))
-        return "the run on the see-through panel was skipped without a word";
-      if (c.severity !== "No scored issues")
-        return `the label reads "${c.severity}" over text that was never checked`;
-      return names(r, "1.4.3", "color_contrast")
-        ? "a 1.4.3 failure is asserted for text that was not measured"
-        : null;
+      if (!/2 colored text run\(s\) checked; 1 below the WCAG minimum/.test(f))
+        return `the link was not judged though both of its colours fail: ${f.slice(0, 90)}`;
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
     },
   },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-239-pptx-text-on-a-see-through-panel.pptx",
+    good: "synthetic-242-pptx-dark-text-on-a-see-through-panel-twin.pptx",
+    category: "color_contrast",
+  },
   {
     bad: "synthetic-226-pptx-undescribed-drawn-shape.pptx",
     good: "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx",
@@ -3652,8 +3814,28 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
     chip: "bug",
   },
   "synthetic-239-pptx-text-on-a-see-through-panel.pptx": {
-    label: "PowerPoint: text on a see-through panel the checker cannot judge",
+    label: "PowerPoint: faint text on a see-through panel",
     chip: "bug",
+  },
+  "synthetic-240-docx-bold-lead-ins-are-not-headings.docx": {
+    label: "Word: sentences that start in bold",
+    chip: "bug",
+  },
+  "synthetic-241-pptx-text-on-a-gradient-is-disclosed.pptx": {
+    label: "PowerPoint: text on a gradient the checker cannot judge",
+    chip: "held",
+  },
+  "synthetic-242-pptx-dark-text-on-a-see-through-panel-twin.pptx": {
+    label: "PowerPoint: dark text on the same see-through panel",
+    chip: "held",
+  },
+  "synthetic-243-pptx-see-through-panel-over-a-picture.pptx": {
+    label: "PowerPoint: a see-through panel lying on a picture",
+    chip: "held",
+  },
+  "synthetic-244-pptx-link-drawn-in-one-of-two-colours.pptx": {
+    label: "PowerPoint: a link drawn in one of two colours, both too faint",
+    chip: "caught",
   },
   "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx": {
     label: "PowerPoint: the same arrow, marked decorative",

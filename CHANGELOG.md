@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.172.0] - 2026-11-16
+
+The two decisions left open by v1.171.0, both taken the same day: Word gets PowerPoint's bold-start rule, and PowerPoint text on a see-through fill is measured instead of skipped. With them the flyer that started this reports its third real failure, a link at 3.77:1.
+
+### Fixed — scoring
+
+- **Word: a sentence that starts in bold was a heading typed by hand.** `isFakeHeading` accepted a short paragraph when ANY run in it was bold at 14 point or more. "Deadline: applications close on March 3." with only its first word in bold was a look-alike heading, a scored WCAG 1.3.1 finding. Every run that carries text must now be bold and large, the rule PowerPoint took in v1.171.0; a run of spaces between two runs is ignored.
+- **PowerPoint: text on a see-through fill is measured (user decision).** A fill at 20% opacity over a white slide draws one colour: each channel is fill·α + beneath·(1−α). Any colour carrying a modifier was unknown until now, so text on a tinted panel was never judged. A shape's own solid fill whose ONLY modifier is `alpha` is now blended with what lies beneath it, when that is one stated colour: the slide's background, or a solid shape that fully contains the panel (the same test `stackedBackground` applies to text). The blended panel then paints beneath later shapes like any solid one, so a panel on a panel blends twice.
+- **PowerPoint: a link drawn in one of two colours is judged when both agree.** A link carrying PowerPoint 2019's "use the text colour" mark is drawn in its text's colour by current PowerPoint and in the theme's link colour by earlier versions. It was unknown unless the two colours were equal. It is now judged in both and counted when both pass or both fail; where they disagree it is still unknown. The flyer's link needed this as well as the blend: `#0070C0` (3.77:1) and the theme's `#467886` (3.58:1) both fail on its panel.
+
+### What stays unknown, by design
+
+- A see-through fill over a picture, a gradient, a partial cover or a background that is not stated. What shows through is not one colour.
+- Any other modifier, alone or beside `alpha`: `lumMod`, `lumOff`, `tint`, `shade`. PowerPoint's shaded colours ("lighter/darker NN%") are a separate decision and are not computed.
+- A see-through TEXT colour, a theme style's fill, and a placeholder's inherited fill.
+- A blend that rounds either way across the bar. 50% black over white is #7F7F7F in one program and #808080 in another; the darkest and lightest a blend can round to travel with it, and a verdict that differs between them is not given.
+
+### Notes
+
+- **Measured against every control document: no real file's score or grade moved,** from either change. The real flyer stays 69/D and now lists 1.4.3 beside 1.1.1 and 2.4.2: 18 runs checked, 2 failing, 4 still unchecked (was 13, 0 and 9).
+- **Checked against a renderer.** Quick Look draws the flyer's panel as #D0E3EA where the arithmetic gives #D0DFE6; it draws the plain cream panel beside it (#FFF2CC in the file) as #FFF4D5, the same few-point shift, so the difference is the renderer's colour handling and not the blend. The verdict is the same on either. LibreOffice is no longer installed here, so that is the only render.
+- **Traps 244 (was 239): 133 PDF + 111 Office.** 239 is the same file with a new truth: its line on a see-through panel must now be measured and fail at 3.77:1 on #D0DFE6. 240: a Word memo whose sentences start in bold must not be accused (89/B on the previous code). 241: text on a gradient must still be reported as unchecked. 242: dark text on the see-through panel must be checked and pass, and may never score below 239. 243: a see-through panel on a picture must stay unchecked. 244: a link whose two possible colours both fail must be judged. Sabotage-tested: 239, 240, 242 and 244 fail on v1.171.0; 243 fails when the blend is taken against the slide instead of what lies between.
+- Ledger 364 (was 359), re-blessed in this commit: 239 moves 100/A → 79/C by design; five new rows.
+- Tests 4,645 across 257 files (API 2,535 · Web 2,013 · CLI 97).
+- `pnpm audit --prod`: **2**, unchanged from v1.171.0 (the development-server advisory in `@nuxt/schema`, and the `deepmerge` acceptance). Still to be closed in a dependency release.
+
 ## [1.171.0] - 2026-11-16
 
 Found by checking one PowerPoint report by hand: the recruitment flyer from v1.170.0, this time as the `.pptx` it was made in. It scored 69/D with two failures (no title in the file's properties; the QR code, the logo and six background shapes undescribed), and both are right. Three things beside them were not.

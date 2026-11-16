@@ -1,5 +1,5 @@
 {
-  "count": 106,
+  "count": 111,
   "generated": "2026-11-16",
   "items": [
     {
@@ -531,8 +531,33 @@
     },
     {
       "file": "synthetic-239-pptx-text-on-a-see-through-panel.pptx",
-      "label": "PowerPoint: text on a see-through panel the checker cannot judge",
+      "label": "PowerPoint: faint text on a see-through panel",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-240-docx-bold-lead-ins-are-not-headings.docx",
+      "label": "Word: sentences that start in bold",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-241-pptx-text-on-a-gradient-is-disclosed.pptx",
+      "label": "PowerPoint: text on a gradient the checker cannot judge",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-242-pptx-dark-text-on-a-see-through-panel-twin.pptx",
+      "label": "PowerPoint: dark text on the same see-through panel",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-243-pptx-see-through-panel-over-a-picture.pptx",
+      "label": "PowerPoint: a see-through panel lying on a picture",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-244-pptx-link-drawn-in-one-of-two-colours.pptx",
+      "label": "PowerPoint: a link drawn in one of two colours, both too faint",
+      "chip": "caught"
     }
   ]
 }

@@ -563,7 +563,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
   const unchecked =
     unresolvedRuns > 0
       ? [
-          `Advisory — not scored: ${unresolvedRuns} more text run(s) could not be checked — text on a picture, gradient, shaded or see-through fill, or in a shaded or see-through color, is not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
+          `Advisory — not scored: ${unresolvedRuns} more text run(s) could not be checked — text on a picture, gradient or shaded fill, on a see-through fill with more than one color beneath it, or in a shaded or see-through color, is not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
         ]
       : [];
   if (checkedRuns === 0) {
@@ -575,7 +575,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       [
         "No text whose color and background are each one stated color was found — text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       ],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, links are judged in the theme's link color, and a see-through fill is blended with the one color beneath it; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       [PPTX_HELP.contrast],
       unresolvedRuns > 0,
     );
@@ -590,7 +590,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
         `${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`,
         ...unchecked,
       ],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, links are judged in the theme's link color, and a see-through fill is blended with the one color beneath it; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
       [PPTX_HELP.contrast],
     );
   }
@@ -611,7 +611,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
     PPTX.SCORING_WEIGHTS.color_contrast,
     clamp100(score),
     findings,
-    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, and links are judged in the theme's link color; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
+    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, links are judged in the theme's link color, and a see-through fill is blended with the one color beneath it; text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed.",
     [PPTX_HELP.contrast],
   );
 }

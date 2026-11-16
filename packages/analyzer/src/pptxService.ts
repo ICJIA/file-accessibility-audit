@@ -374,6 +374,15 @@ function strictColor(
   phClr: string | null = null,
 ): string | null {
   if (!el || childrenOf(el).some((c) => tagOf(c) !== "#text")) return null;
+  return baseColor(el, scheme, phClr);
+}
+
+/** The colour an element names, before any modifier it carries. */
+function baseColor(
+  el: PONode,
+  scheme: Map<string, string>,
+  phClr: string | null = null,
+): string | null {
   const tag = tagOf(el);
   if (tag === "srgbClr") return normalizeHex(attrOf(el, "val"));
   if (tag === "sysClr") return normalizeHex(attrOf(el, "lastClr"));
@@ -1755,6 +1764,68 @@ function painterOf(
   return null; // cxnSp connectors and anything unknown paint no background.
 }
 
+/** A shape's own solid fill when it is SEE-THROUGH AND NOTHING ELSE: one
+ *  colour whose only modifier is `alpha` (2026-11-16, user decision). A
+ *  fill at 20% opacity draws one colour wherever what lies beneath it is
+ *  one colour, so it can be computed instead of guessed. Any other modifier
+ *  beside or instead of alpha (lumMod, tint, shade …) is still unknown, and
+ *  so is a theme style's fill or a placeholder's inherited one. */
+function seeThroughFill(
+  sp: PONode,
+  scheme: Map<string, string>,
+): { color: string; alpha: number } | null {
+  if (xsdBoolean(attrOf(sp, "useBgFill")) === true) return null;
+  const spPr = firstChild(sp, "spPr");
+  const solid = spPr ? firstChild(spPr, "solidFill") : undefined;
+  const el = solid ? firstColor(solid) : undefined;
+  if (!el) return null;
+  const modifiers = childrenOf(el).filter((c) => tagOf(c) !== "#text");
+  if (modifiers.length !== 1 || tagOf(modifiers[0]) !== "alpha") return null;
+  // "20000" (thousandths of a percent) or "20%" (Strict). 0 is legal: the
+  // fill is then invisible and what lies beneath shows unchanged.
+  const raw = (attrOf(modifiers[0], "val") ?? "").trim();
+  const alpha = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw) / 100000;
+  if (raw === "" || !Number.isFinite(alpha) || alpha < 0 || alpha > 1) return null;
+  const color = baseColor(el, scheme);
+  return color ? { color, alpha } : null;
+}
+
+/** A colour drawn at `alpha` over another: each channel is top·α +
+ *  under·(1−α). The result rarely lands on a whole number, and programs
+ *  round differently (50% black over white is #7F7F7F in one and #808080 in
+ *  another), so the darkest and lightest it can honestly be travel with it:
+ *  a verdict that differs between them is not known. */
+interface Blend {
+  color: string;
+  dark: string;
+  light: string;
+}
+function blendOver(
+  top: string,
+  alpha: number,
+  under: string,
+  underDark: string = under,
+  underLight: string = under,
+): Blend {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  const mix = (u: string, round: (n: number) => number) =>
+    [0, 1, 2]
+      .map((i) => {
+        // Six decimals: 208.20000000000002 is 208.2, and 127.99999999 is 128.
+        const v = Number((channel(top, i) * alpha + channel(u, i) * (1 - alpha)).toFixed(6));
+        return Math.min(255, Math.max(0, round(v)))
+          .toString(16)
+          .padStart(2, "0")
+          .toUpperCase();
+      })
+      .join("");
+  return {
+    color: mix(under, Math.round),
+    dark: mix(underDark, Math.floor),
+    light: mix(underLight, Math.ceil),
+  };
+}
+
 /** The background behind a text shape with no fill of its own. Walks the
  *  shapes painted BENEATH it (earlier in spTree order): the topmost one that
  *  overlaps decides — a solid card that fully contains the text shape IS the
@@ -1817,6 +1888,9 @@ function collectSlideContrast(
   if (!spTree) return;
   // What the master and layout paint lies beneath everything on the slide.
   const beneath: Painter[] = [...ctx.inherited];
+  // Colours this slide computed by blending a see-through fill, with the
+  // darkest and lightest each may be drawn as (see blendOver).
+  const blends = new Map<string, { dark: string; light: string }>();
   for (const sp of contentShapes(spTree)) {
     if (tagOf(sp) !== "sp") {
       const painter = painterOf(sp, ctx.scheme, ctx.theme, slideBg);
@@ -1837,8 +1911,24 @@ function collectSlideContrast(
     // placeholder, else the master's, when it states none of its own.
     const inherited = ctx.placeholder(sp);
     const own = shapeFill(sp, ctx.scheme, ctx.theme, slideBg);
-    const fill = own !== undefined ? own : inherited.fill;
+    let fill = own !== undefined ? own : inherited.fill;
     const bounds = xfrmRect(firstChild(sp, "spPr")) ?? inherited.bounds;
+    // A see-through fill over ONE stated colour is one colour (2026-11-16):
+    // the slide's background, or a solid shape that fully contains this one
+    // — exactly what stackedBackground resolves for text. Over anything else
+    // it stays unknown, as every modified colour was until then.
+    if (own === "unknown") {
+      const glass = seeThroughFill(sp, ctx.scheme);
+      const under = glass ? stackedBackground(bounds, beneath, slideBg) : null;
+      if (glass && under) {
+        const range = blends.get(under);
+        const blend = blendOver(glass.color, glass.alpha, under, range?.dark, range?.light);
+        fill = blend.color;
+        if (blend.dark !== blend.color || blend.light !== blend.color) {
+          blends.set(blend.color, { dark: blend.dark, light: blend.light });
+        }
+      }
+    }
     const shapeBg: string | null =
       fill === "unknown" ? null : (fill ?? stackedBackground(bounds, beneath, slideBg));
     // The shape paints over what was beneath it for LATER shapes — with the
@@ -1867,8 +1957,13 @@ function collectSlideContrast(
         const link = rPr
           ? (firstChild(rPr, "hlinkClick") ?? firstChild(rPr, "hlinkMouseOver"))
           : undefined;
-        if (link) look.fill = linkFill(link, look.fill, ctx.scheme);
-        judgeRun(analysis, text, look, shapeBg, scale);
+        // A link that may be drawn in either of two colours is judged in both.
+        const drawnAs = link ? linkFill(link, look.fill, ctx.scheme) : null;
+        if (drawnAs) look.fill = drawnAs.fill;
+        judgeRun(analysis, text, look, shapeBg, scale, {
+          otherForeground: drawnAs?.other,
+          backgroundRange: shapeBg ? blends.get(shapeBg) : undefined,
+        });
       }
     }
   }
@@ -1877,28 +1972,39 @@ function collectSlideContrast(
 /** Link text is drawn in the theme's hyperlink colour, whatever colour the
  *  run states — unless the link carries PowerPoint 2019's "use the text
  *  colour" mark (the 2018 hlinkClr extension, val="tx"), which earlier
- *  versions ignore: the colour is then known only when the two agree. */
+ *  versions ignore. Such a link is drawn in one of TWO colours, depending on
+ *  who opens it: `fill` is what current PowerPoint draws and `other` what an
+ *  older one does. It was unknown unless the two were equal; judgeRun now
+ *  also accepts it where both give the same verdict (2026-11-16). */
 function linkFill(
   link: PONode,
   textFill: RunLook["fill"],
   scheme: Map<string, string>,
-): string | "unknown" {
-  const hlink = scheme.get("hlink") ?? "unknown";
+): { fill: string | "unknown"; other?: string } {
+  const hlink = scheme.get("hlink");
   const usesText = descendants(link, "hlinkClr").some((e) => attrOf(e, "val") === "tx");
-  return !usesText || textFill === hlink ? hlink : "unknown";
+  if (!usesText) return { fill: hlink ?? "unknown" };
+  if (!hlink || textFill === undefined || textFill === "unknown") return { fill: "unknown" };
+  return textFill === hlink ? { fill: hlink } : { fill: textFill, other: hlink };
 }
 
-/** One run against what is behind it — its highlight, else its shape's. */
+/** One run against what is behind it — its highlight, else its shape's.
+ *
+ *  `also` carries the other colours the pair may honestly be drawn in: a
+ *  link's second colour, and the darkest and lightest a blended background
+ *  can round to. The run is judged in every combination, and counted only
+ *  when they all agree — pass in all, or fail in all. */
 function judgeRun(
   analysis: PptxAnalysis,
   text: string,
   look: RunLook,
   shapeBg: string | null,
   scale: number | null,
+  also: { otherForeground?: string; backgroundRange?: { dark: string; light: string } } = {},
 ): void {
   const fg = look.fill;
-  const bg =
-    look.highlight === undefined ? shapeBg : look.highlight === "unknown" ? null : look.highlight;
+  const highlighted = look.highlight !== undefined;
+  const bg = !highlighted ? shapeBg : look.highlight === "unknown" ? null : look.highlight;
   if (fg === undefined || fg === "unknown" || !bg) {
     analysis.contrast.unresolvedRuns++;
     return;
@@ -1917,20 +2023,29 @@ function judgeRun(
             ? null
             : bold
           : false;
-  const ratio = contrastRatio(fg, bg);
+  const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
   // A ratio between the two bars passes as large text and fails as normal
   // text — with largeness unknown, which bar applies cannot be determined,
-  // so the run is unresolved rather than failed.
-  if (large === null && ratio >= CONTRAST_MIN_LARGE && ratio < CONTRAST_MIN_NORMAL) {
+  // so the pair is unknown rather than failed.
+  const verdictOf = (f: string, b: string): "pass" | "fail" | "unknown" => {
+    const r = contrastRatio(f, b);
+    if (large === null && r >= CONTRAST_MIN_LARGE && r < CONTRAST_MIN_NORMAL) return "unknown";
+    return r < min ? "fail" : "pass";
+  };
+  const foregrounds = also.otherForeground ? [fg, also.otherForeground] : [fg];
+  const range = highlighted ? undefined : also.backgroundRange;
+  const backgrounds = range ? [bg, range.dark, range.light] : [bg];
+  const verdict = verdictOf(fg, bg);
+  const agreed = foregrounds.every((f) => backgrounds.every((b) => verdictOf(f, b) === verdict));
+  if (verdict === "unknown" || !agreed) {
     analysis.contrast.unresolvedRuns++;
     return;
   }
   analysis.contrast.checkedRuns++;
-  const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
-  if (ratio < min) {
+  if (verdict === "fail") {
     analysis.contrast.failing.push({
       text,
-      ratio: Math.round(ratio * 100) / 100,
+      ratio: Math.round(contrastRatio(fg, bg) * 100) / 100,
       foreground: `#${fg}`,
       background: `#${bg}`,
       large: large === true,

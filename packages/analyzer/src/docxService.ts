@@ -457,7 +457,14 @@ function ownRunText(p: PONode): string {
     .join("");
 }
 
-/** Bold + large + short + styleless → looks like a heading but isn't tagged. */
+/** Bold + large + short + styleless → looks like a heading but isn't tagged.
+ *
+ *  EVERY run that carries text must be bold and large (2026-11-16) — the rule
+ *  PowerPoint's typedHeading took in v1.171.0. One qualifying run was enough
+ *  until then, so "Deadline: applications close on March 3." with only its
+ *  first word in bold was a heading typed by hand, a scored 1.3.1 finding
+ *  against a sentence. A heading is styled as a whole; a run of spaces
+ *  between two runs says nothing either way. */
 function isFakeHeading(
   p: PONode,
   headingStyles: Map<string, number>,
@@ -467,10 +474,16 @@ function isFakeHeading(
   if (styleId && (headingStyles.has(styleId) || structuralStyles.has(styleId))) return false;
   const text = ownRunText(p).trim();
   if (!text || text.length > FAKE_HEADING_MAX_LEN) return false;
-  return ownRuns(p).some((r) => {
-    const { bold, sizeHalfPt } = runProps(r);
-    return bold && sizeHalfPt !== null && sizeHalfPt >= FAKE_HEADING_MIN_HALF_PT;
-  });
+  const textRuns = ownRuns(p).filter((r) =>
+    childrenOf(r).some((c) => tagOf(c) === "t" && rawText(c).trim() !== ""),
+  );
+  return (
+    textRuns.length > 0 &&
+    textRuns.every((r) => {
+      const { bold, sizeHalfPt } = runProps(r);
+      return bold && sizeHalfPt !== null && sizeHalfPt >= FAKE_HEADING_MIN_HALF_PT;
+    })
+  );
 }
 
 // ---------------------------------------------------------------------------

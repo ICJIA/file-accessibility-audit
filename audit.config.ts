@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "see-through-panels-and-word-bold-starts-2026-11-16",
+    badge: "Scoring",
+    text: "Two changes to what the checker measures. First, in PowerPoint, text sitting on a see-through panel is now checked for contrast. Designers often put text on a lightly tinted box, and the checker used to skip that text because the box is partly transparent. Where the box sits on one plain color, the color a reader actually sees can be worked out exactly, so the text is checked against it; a link on a tinted panel on a real flyer turned out to be too faint to read comfortably, and is now reported. Where the box sits on a picture or a gradient, the text is still left for you to check by eye, and the report says how much. Second, in Word, a sentence that begins with a few bold words is no longer mistaken for a heading made by hand. The whole line has to be bold, the same correction PowerPoint received earlier today. In our test set no real document's score or letter grade changed.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 16, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "powerpoint-headings-and-unchecked-contrast-2026-11-16",
     badge: "Fixed",
     text: "Three corrections to PowerPoint reports, found by checking one flyer by hand. First, on a slide with no title the checker looks for a heading typed into an ordinary text box, and it was accepting any text box with a few bold words in it. A bullet that begins in bold could be called a heading, and two of them could fail a presentation. The whole line must now be set as a heading, and where a slide has several candidates the largest is the one named. Second, the color contrast check now says how much text it could not check. Text on a see-through panel, a picture or a gradient cannot be judged automatically, and the report used to say everything it checked had passed without mentioning what it skipped. It now counts the skipped text, in PowerPoint and in Excel, and asks you to check it by eye. Third, a PowerPoint file has a title in its properties, which is required, and each slide can have its own title, which is recommended. The report called both simply the title; each finding now says which one it means. In our test set no score and no letter grade changed.",
