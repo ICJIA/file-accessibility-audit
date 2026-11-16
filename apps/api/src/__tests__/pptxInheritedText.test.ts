@@ -239,8 +239,13 @@ describe("a paragraph's own default run properties", () => {
   });
 });
 
-describe("modified colours are not guessed at (the backgrounds' rule)", () => {
-  it("Text 1, lighter 50% (lumMod/lumOff) is not read as plain black", async () => {
+// Shaded colours (lumMod / lumOff) were unknown under the strict rule of
+// v1.166.0; the user chose on 2026-11-16 to compute them. What these two
+// tests guarded against is unchanged — reading the shading OFF — and they
+// now assert the computed colour instead of "unknown". Every other modifier
+// is still not guessed at. See pptxShadedColours.test.ts.
+describe("shaded colours are computed; other modifiers are not guessed at", () => {
+  it("Text 1, lighter 50% (lumMod/lumOff) is mid grey, not plain black", async () => {
     const c = await contrast(
       await deck({
         master: master(),
@@ -249,11 +254,13 @@ describe("modified colours are not guessed at (the backgrounds' rule)", () => {
         }),
       }),
     );
-    expect(c.checkedRuns).toBe(0);
-    expect(c.unresolvedRuns).toBe(1);
+    // Mid grey on white at 11 point is under 4.5:1; plain black would pass.
+    expect(c.unresolvedRuns).toBe(0);
+    expect(c.failing).toHaveLength(1);
+    expect(c.failing[0]!.foreground).not.toBe("#000000");
   });
 
-  it("nor is text with transparency (alpha)", async () => {
+  it("text with transparency (alpha) is not guessed at", async () => {
     const c = await contrast(
       await deck({
         master: master(),
@@ -273,8 +280,9 @@ describe("modified colours are not guessed at (the backgrounds' rule)", () => {
           shape({ rPr: ` sz="1100">${SRGB("000000")}` }),
       }),
     );
+    // Plain Accent 1 under black text would fail; the lighter tint passes.
     expect(c.failing).toEqual([]);
-    expect(c.unresolvedRuns).toBe(1);
+    expect(c.checkedRuns).toBe(1);
   });
 });
 

@@ -7,8 +7,9 @@
  * fill·α + beneath·(1−α). Until now any colour carrying a modifier was
  * unknown, so a 16-point link at 3.77:1 on a tinted panel was never judged
  * (a real flyer, 2026-11-16). The strict rules stay:
- *   - only `alpha`, alone, on a shape's own solid fill; any other modifier
- *     (lumMod, tint, shade …) is still unknown;
+ *   - only `alpha`, on a shape's own solid fill — alone, or after lumMod /
+ *     lumOff (computed since the shaded-colours change); tint, shade and the
+ *     rest are still unknown;
  *   - only over ONE stated colour — the slide background, or a solid shape
  *     that fully contains the panel. Over a picture, a gradient or a partial
  *     cover the result is not one colour and stays unknown;
@@ -122,14 +123,16 @@ describe("pptx contrast: what a see-through fill still cannot tell", () => {
     expect(c).toMatchObject({ checkedRuns: 0, unresolvedRuns: 1, failing: [] });
   });
 
-  it("a shaded fill (lumMod) is still not guessed at", async () => {
-    const c = await contrastOf(panel("156082", '<a:lumMod val="75000"/>') + text("FFFFFF"));
+  it("a tinted fill is still not guessed at", async () => {
+    // lumMod / lumOff are computed since the shaded-colours change (see
+    // pptxShadedColours.test.ts); tint, shade and the rest are not.
+    const c = await contrastOf(panel("156082", '<a:tint val="75000"/>') + text("FFFFFF"));
     expect(c).toMatchObject({ checkedRuns: 0, unresolvedRuns: 1, failing: [] });
   });
 
-  it("a fill both shaded and see-through is still not guessed at", async () => {
+  it("a fill both tinted and see-through is still not guessed at", async () => {
     const c = await contrastOf(
-      panel("156082", '<a:lumMod val="75000"/><a:alpha val="20000"/>') + text("0070C0"),
+      panel("156082", '<a:tint val="75000"/><a:alpha val="20000"/>') + text("0070C0"),
     );
     expect(c).toMatchObject({ checkedRuns: 0, unresolvedRuns: 1, failing: [] });
   });

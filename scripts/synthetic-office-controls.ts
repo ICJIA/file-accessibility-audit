@@ -775,6 +775,22 @@ const SLIDE_TEXT_BOX = (id: number, runs: string, x: number, y: number, cx: numb
  *  behind a call to action. Marked decorative, as a careful author would. */
 const SLIDE_SEE_THROUGH_PANEL = (x: number, y: number, cx: number, cy: number) =>
   `<p:sp><p:nvSpPr><p:cNvPr id="35" name="Rectangle: Rounded Corners 35">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(x, y, cx, cy)}<a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="156082"><a:alpha val="20000"/></a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+/** A full-slide rectangle in a SHADED colour — a base colour with the
+ *  modifiers PowerPoint writes for "Darker 50%" (lumMod 50000) and the like.
+ *  Marked decorative; stands in for a shaded slide background. */
+const SLIDE_SHADED_BACKDROP = (hex: string, modifiers: string) =>
+  `<p:sp><p:nvSpPr><p:cNvPr id="37" name="Rectangle 37">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(0, 0, 12192000, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="${hex}">${modifiers}</a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`;
+/** One 28-point line in a text box on that backdrop. */
+const SHADED_SLIDE = (modifiers: string, textHex: string) =>
+  SLIDE_SHADED_BACKDROP("5B9BD5", modifiers) +
+  SLIDE_TEXT_BOX(
+    45,
+    SLIDE_RUN("25% did not identify a category", 2800, false, textHex),
+    4500000,
+    2400000,
+    6500000,
+    1200000,
+  );
 /** The same rounded panel over a two-stop gradient — nothing a contrast
  *  check can reduce to one colour. Marked decorative. */
 const SLIDE_GRADIENT_PANEL = (x: number, y: number, cx: number, cy: number) =>
@@ -3072,7 +3088,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-219-pptx-white-title-on-a-darker-band.pptx",
     truth:
-      "White titles on a band PowerPoint shades 25% darker than the theme's blue (accent 5, #5B9BD5 → about #2F75B5) — a real survey-results deck in the test set has six of them. The check read the shading off the band and judged the titles against the plain, lighter blue: 2.96:1, six failures that were not there (the shaded band gives about 4.85:1). A shaded colour is not one stated colour, so by the backgrounds' strict rule the band is not guessed at: the titles are not assessed, the black text beside them is, and nothing is asserted — color_contrast 100.",
+      "White titles on a band PowerPoint shades 25% darker than the theme's blue (accent 5, #5B9BD5 → about #2F75B5) — a real survey-results deck in the test set has six of them. The check read the shading off the band and judged the titles against the plain, lighter blue: 2.96:1, six failures that were not there (the shaded band gives about 4.85:1). From v1.166.0 a shaded colour was simply not guessed at, and the titles went unassessed. Since 2026-11-16 (user decision) the shading is computed — lumMod scales the colour's lightness — so the titles are checked against the band they are actually on and pass: every run is assessed, nothing is asserted, color_contrast 100.",
     build: () => {
       const band = `<p:sp><p:nvSpPr><p:cNvPr id="16" name="Rectangle 15">${DECORATIVE}</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${XFRM(832385, 0, 3218914, 6858000)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="accent5"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>`;
       const title = `<p:sp><p:nvSpPr><p:cNvPr id="2" name="Title 1"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr>${XFRM(992206, 1608667, 2823275, 4501127)}</p:spPr><p:txBody><a:bodyPr/><a:p><a:r><a:rPr lang="en-US" sz="4000" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr><a:t>Overview</a:t></a:r></a:p></p:txBody></p:sp>`;
@@ -3634,10 +3650,77 @@ const SAMPLES: Sample[] = [
       return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
     },
   },
+  {
+    file: "synthetic-247-pptx-red-text-on-a-darker-shade.pptx",
+    truth:
+      "Red 28-point text on a slide filled 'Accent 5, Darker 50%' — the theme's blue #5B9BD5 with lumMod 50000, which PowerPoint draws as dark navy #1F4E79. A real survey-results deck in the test set has two such lines (found 2026-11-16, and rendered: red on navy). Any colour carrying a modifier used to be unknown, so they were never judged and the deck's contrast read 100. A shaded colour is now computed: red on that navy is 2.17:1, under even the 3:1 that large text needs. The line must be checked, must fail against the computed navy, and 1.4.3 must be named.",
+    build: () =>
+      pptx([SHADED_SLIDE('<a:lumMod val="50000"/>', "FF0000")], {
+        title: "Survey Results",
+        slideBgHex: "FFFFFF",
+      }),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score === null) return "color_contrast was not assessed — the shade was skipped";
+      const f = c.findings.join("\n");
+      if (!/1 colored text run\(s\) checked; 1 below the WCAG minimum/.test(f))
+        return `red on a darker shade was not caught: ${f.slice(0, 90)}`;
+      const bg = /\(#FF0000 on #([0-9A-F]{6})\)/.exec(f)?.[1];
+      if (!bg) return "the finding does not show the pair it measured";
+      const off = [0, 1, 2].map((i) =>
+        Math.abs(parseInt(bg.slice(i * 2, i * 2 + 2), 16) - [0x1f, 0x4e, 0x79][i]!),
+      );
+      if (off.some((d) => d > 1))
+        return `the shade was computed as #${bg}, not PowerPoint's #1F4E79`;
+      return names(r, "1.4.3", "color_contrast") ? null : "1.4.3 was not named";
+    },
+  },
+  {
+    file: "synthetic-248-pptx-white-text-on-a-darker-shade-twin.pptx",
+    truth:
+      "Trap 247 with the line in white: 8.6:1 on the same shaded navy. Computing shades must not turn every darker band into an accusation — the line must be checked and pass, color_contrast must be a clean 100 with nothing left unchecked, and it must never score below its flawed twin.",
+    build: () =>
+      pptx([SHADED_SLIDE('<a:lumMod val="50000"/>', "FFFFFF")], {
+        title: "Survey Results",
+        slideBgHex: "FFFFFF",
+      }),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c || c.score !== 100) return `color_contrast scored ${c?.score}, not 100`;
+      const f = c.findings.join("\n");
+      if (!/1 colored text run\(s\) checked; all meet/.test(f))
+        return "white text on the shaded slide was not measured";
+      if (/could not be checked/.test(f)) return "a measured run is still reported as unchecked";
+      return noAccusation(r);
+    },
+  },
+  {
+    file: "synthetic-249-pptx-a-tinted-colour-is-not-guessed.pptx",
+    truth:
+      "The same slide with the backdrop's colour changed by `tint` instead of lumMod. Only PowerPoint's 'lighter / darker' pair (lumMod, lumOff) is computed; tint, shade, satMod and the rest are different arithmetic that this checker does not claim to reproduce. The red line on it must stay unchecked and be counted as such, and no 1.4.3 failure may be asserted — the guard on trap 247's rule.",
+    build: () =>
+      pptx([SHADED_SLIDE('<a:tint val="50000"/>', "FF0000")], {
+        title: "Survey Results",
+        slideBgHex: "FFFFFF",
+      }),
+    check: (r) => {
+      const c = cat("color_contrast")(r);
+      if (!c) return "color_contrast missing";
+      if (c.score !== null) return `text on a tinted colour was scored ${c.score}`;
+      return names(r, "1.4.3", "color_contrast")
+        ? "a 1.4.3 failure is asserted against a colour that was not computed"
+        : null;
+    },
+  },
 ];
 
 // Twin orderings, same contract as the PDF battery's.
 const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-247-pptx-red-text-on-a-darker-shade.pptx",
+    good: "synthetic-248-pptx-white-text-on-a-darker-shade-twin.pptx",
+    category: "color_contrast",
+  },
   {
     bad: "synthetic-239-pptx-text-on-a-see-through-panel.pptx",
     good: "synthetic-242-pptx-dark-text-on-a-see-through-panel-twin.pptx",
@@ -3836,6 +3919,18 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-244-pptx-link-drawn-in-one-of-two-colours.pptx": {
     label: "PowerPoint: a link drawn in one of two colours, both too faint",
     chip: "caught",
+  },
+  "synthetic-247-pptx-red-text-on-a-darker-shade.pptx": {
+    label: "PowerPoint: red text on a slide shaded 50% darker than the theme\u2019s blue",
+    chip: "caught",
+  },
+  "synthetic-248-pptx-white-text-on-a-darker-shade-twin.pptx": {
+    label: "PowerPoint: white text on the same darker shade",
+    chip: "held",
+  },
+  "synthetic-249-pptx-a-tinted-colour-is-not-guessed.pptx": {
+    label: "PowerPoint: a tinted colour the checker does not compute",
+    chip: "held",
   },
   "synthetic-228-pptx-drawn-shape-marked-decorative-twin.pptx": {
     label: "PowerPoint: the same arrow, marked decorative",

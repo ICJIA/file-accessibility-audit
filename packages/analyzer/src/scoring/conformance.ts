@@ -1447,7 +1447,7 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       name: "Contrast (Minimum)",
       level: "AA",
       reason:
-        "No text whose color and background are each one stated color was found — colors are followed through the slide's layout and master text styles, but text on a picture, gradient or shaded fill, or in a shaded or see-through color, is not assessed — so contrast could not be evaluated.",
+        "No text whose color and background are each one stated color was found — colors are followed through the slide's layout and master text styles, but text on a picture or gradient, or in a tinted or see-through color, is not assessed — so contrast could not be evaluated.",
       url: wcagUrl("1.4.3"),
     });
   }

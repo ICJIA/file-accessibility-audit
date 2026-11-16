@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.0] - 2026-11-16
+
+PowerPoint's shaded colours are computed. This is the second half of the question deferred on 2026-10-06 (the see-through half shipped in v1.172.0), decided the same day.
+
+### Changed — scoring (PowerPoint)
+
+- **"Lighter / darker NN%" is computed (user decision).** PowerPoint writes "Accent 1, Darker 25%" as the accent colour with `lumMod 75000`, and "Lighter 40%" as `lumMod 60000` + `lumOff 40000`. Both change the colour's lightness in HSL and leave hue and saturation alone, so the result can be worked out. Since v1.166.0 any colour carrying a modifier was unknown; text on a darker band, or text in a lighter shade, was never judged. `colourOf` in `pptxService.ts` now applies `lumMod` and `lumOff` in the order written, wherever a colour is read: text, shape fills, slide backgrounds, highlights and theme fills. A shaded fill that is also see-through is shaded first and then blended.
+- **Checked against PowerPoint's own palette.** For the Office theme's Accent 1 (#4472C4) the five shades PowerPoint offers are #2F5597, #1F3864, #8FAADC, #B4C7E7 and #DAE3F3. The computed values land within one step per channel of all five; a test pins each.
+- **One step either side.** A computed channel rarely lands on a whole number and programs round differently: "Darker 50%" is #1F3864 in PowerPoint where the arithmetic gives 32.0, not 31, for the first channel. Every computed colour therefore carries the darkest and lightest it may be drawn as, and a run is counted only when pass or fail holds across that range. The range now lives in one per-analysis store shared with see-through blends (`AsyncLocalStorage`, so two analyses running at once cannot read each other's).
+
+### What stays unknown, by design
+
+- `tint`, `shade`, `satMod`, `hueMod` and every other modifier, alone or beside `lumMod`. They are different arithmetic and are not guessed at.
+- A see-through TEXT colour.
+- A modifier written after the opacity, which is not a form PowerPoint writes.
+
+### One real document moved, and why
+
+- **A staff-survey deck in the test set: contrast 100 → 85, grade unchanged.** Slide 13 is filled "Accent 5, Darker 50%" (dark navy, #1F4E79) and carries two lines of red text, 28 and 24 point, directly on it: 2.17:1, under the 3:1 that large text needs. Rendered and confirmed by eye: red on navy. This is a real failure that was invisible while shades were unknown. The deck's only failures are those two lines. White titles on a "Darker 25%" band, the shape that deck has six of and that v1.166.0 stopped failing by declining to guess, are checked and pass in trap 219, which copies it.
+- No other real document changed score.
+
+### Notes
+
+- **Traps 249 (was 246): 135 PDF + 114 Office.** 247: red text on a slide shaded 50% darker must fail, against a navy within one step of PowerPoint's. 248: white text on the same shade must be checked and pass, and may never score below 247. 249: a tinted colour must stay unchecked. Trap 219 (white titles on a darker band) keeps its file and its 100, with a new truth: the titles are now checked, not skipped. Sabotage-tested: 247 and 248 fail on the previous code; 249 fails when tint is treated as lumMod.
+- Two tests that pinned "a shaded colour is unknown" (the v1.166.0 rule) now assert the computed colour. What they guarded against, reading the shading off, is unchanged.
+- Report wording follows: the contrast explanation says a lighter or darker shade is computed, and no longer lists shaded fills among what is not assessed.
+- **README brought current** in this release: the social card is first, the version and test badges were 21 releases stale (1.152.0, 3,541 tests), the per-file test tables were missing 37 files and had 11 stale counts, and the ledger row count was stale.
+- Ledger 369 (was 366), re-blessed in this commit. Tests 4,687 across 259 files (API 2,552 · Web 2,038 · CLI 97).
+- `pnpm audit --prod`: **0**, unchanged from v1.172.2.
+
 ## [1.172.2] - 2026-11-16
 
 Dependency release. Closes the one advisory `pnpm audit --prod` still reported.

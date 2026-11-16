@@ -1,5 +1,5 @@
 {
-  "count": 111,
+  "count": 114,
   "generated": "2026-11-16",
   "items": [
     {
@@ -558,6 +558,21 @@
       "file": "synthetic-244-pptx-link-drawn-in-one-of-two-colours.pptx",
       "label": "PowerPoint: a link drawn in one of two colours, both too faint",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-247-pptx-red-text-on-a-darker-shade.pptx",
+      "label": "PowerPoint: red text on a slide shaded 50% darker than the theme’s blue",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-248-pptx-white-text-on-a-darker-shade-twin.pptx",
+      "label": "PowerPoint: white text on the same darker shade",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-249-pptx-a-tinted-colour-is-not-guessed.pptx",
+      "label": "PowerPoint: a tinted colour the checker does not compute",
+      "chip": "held"
     }
   ]
 }

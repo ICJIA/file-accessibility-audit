@@ -6,6 +6,7 @@
  * p:sldIdLst + presentation rels (filename order as fallback); master
  * bodyStyle bullets are inherited for body-placeholder paragraphs.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import JSZip from "jszip";
 import { PPTX, OOXML } from "#config";
 import {
@@ -365,16 +366,149 @@ const COLOR_TAGS = new Set(["srgbClr", "schemeClr", "sysClr", "scrgbClr", "hslCl
 const firstColor = (node: PONode): PONode | undefined =>
   childrenOf(node).find((c) => COLOR_TAGS.has(tagOf(c) ?? ""));
 
-/** One colour element resolved STRICTLY, or null: a colour carrying
- *  modifiers is not guessed at. phClr is the colour a style reference
- *  supplies. */
+/** The darkest and lightest a COMPUTED colour may honestly be drawn as. A
+ *  shaded or blended channel rarely lands on a whole number and programs
+ *  round differently (PowerPoint shows "Accent 1, Darker 50%" as #1F3864
+ *  where the arithmetic gives 32.0 for the first channel), so a computed
+ *  colour carries a range and judgeRun gives a verdict only when it holds
+ *  across it. Kept per analysis, keyed by the colour: an analysis awaits,
+ *  and two must never read each other's. */
+interface ColourRange {
+  dark: string;
+  light: string;
+}
+const computedColours = new AsyncLocalStorage<Map<string, ColourRange>>();
+const rangeOf = (hex: string | null | undefined): ColourRange | undefined =>
+  hex ? computedColours.getStore()?.get(hex) : undefined;
+function rememberRange(hex: string, range: ColourRange): void {
+  if (range.dark === hex && range.light === hex) return;
+  const store = computedColours.getStore();
+  if (!store) return;
+  const seen = store.get(hex);
+  // The same colour reached two ways keeps the wider of the two ranges.
+  store.set(hex, {
+    dark: seen && seen.dark < range.dark ? seen.dark : range.dark,
+    light: seen && seen.light > range.light ? seen.light : range.light,
+  });
+}
+
+const hexOf = (rgb: number[], round: (n: number) => number): string =>
+  rgb
+    .map((v) =>
+      Math.min(255, Math.max(0, round(Number(v.toFixed(6)))))
+        .toString(16)
+        .padStart(2, "0")
+        .toUpperCase(),
+    )
+    .join("");
+const channelsOf = (hex: string): number[] =>
+  [0, 1, 2].map((i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16));
+
+/** "75000" (thousandths of a percent) or "75%" (Strict), as a fraction. */
+function fractionOf(v: string | undefined): number | null {
+  const raw = (v ?? "").trim();
+  if (raw === "") return null;
+  const n = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw) / 100000;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** PowerPoint's "lighter / darker NN%" (2026-11-16, user decision): lumMod
+ *  multiplies a colour's HSL lightness and lumOff adds to it, in the order
+ *  written; hue and saturation are untouched. "Darker 25%" is lumMod 75%;
+ *  "Lighter 40%" is lumMod 60% + lumOff 40%. Returns the colour to the
+ *  nearest step, with one step either side as its range. */
+function shadeColour(
+  hex: string,
+  steps: ReadonlyArray<{ kind: "lumMod" | "lumOff"; value: number }>,
+): { color: string } & ColourRange {
+  const [r, g, b] = channelsOf(hex).map((v) => v / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let l = (max + min) / 2;
+  const d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let hue = 0;
+  if (d !== 0) {
+    if (max === r) hue = ((g - b) / d) % 6;
+    else if (max === g) hue = (b - r) / d + 2;
+    else hue = (r - g) / d + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  for (const step of steps) {
+    l = step.kind === "lumMod" ? l * step.value : l + step.value;
+    l = Math.min(1, Math.max(0, l));
+  }
+  const c = (1 - Math.abs(2 * l - 1)) * sat;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] =
+    hue < 60
+      ? [c, x, 0]
+      : hue < 120
+        ? [x, c, 0]
+        : hue < 180
+          ? [0, c, x]
+          : hue < 240
+            ? [0, x, c]
+            : hue < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  const rgb = [r1, g1, b1].map((v) => (v + m) * 255);
+  return {
+    color: hexOf(rgb, Math.round),
+    dark: hexOf(
+      rgb.map((v) => v - 0.5),
+      Math.floor,
+    ),
+    light: hexOf(
+      rgb.map((v) => v + 0.5),
+      Math.ceil,
+    ),
+  };
+}
+
+/** A colour element read as far as it can be COMPUTED: its base colour, any
+ *  lumMod / lumOff applied, and — only as the last modifier, the form
+ *  PowerPoint writes — an opacity returned for the caller to blend. Any
+ *  other modifier (tint, shade, satMod, hueMod …) is not guessed at: null. */
+function colourOf(
+  el: PONode | undefined,
+  scheme: Map<string, string>,
+  phClr: string | null = null,
+): { color: string; alpha: number | null } | null {
+  if (!el) return null;
+  const base = baseColor(el, scheme, phClr);
+  if (!base) return null;
+  const steps: Array<{ kind: "lumMod" | "lumOff"; value: number }> = [];
+  let alpha: number | null = null;
+  for (const mod of childrenOf(el)) {
+    const tag = tagOf(mod);
+    if (tag === "#text") continue;
+    if (alpha !== null) return null; // nothing may follow the opacity
+    const value = fractionOf(attrOf(mod, "val"));
+    if (value === null) return null;
+    if (tag === "lumMod" || tag === "lumOff") steps.push({ kind: tag, value });
+    else if (tag === "alpha" && value <= 1) alpha = value;
+    else return null;
+  }
+  if (steps.length === 0) return { color: base, alpha };
+  const shaded = shadeColour(base, steps);
+  rememberRange(shaded.color, shaded);
+  return { color: shaded.color, alpha };
+}
+
+/** One colour element resolved to ONE opaque colour, or null. A plain colour
+ *  is itself; a shaded one (lumMod / lumOff) is computed; a see-through one,
+ *  or one carrying any other modifier, is not guessed at. phClr is the
+ *  colour a style reference supplies. */
 function strictColor(
   el: PONode | undefined,
   scheme: Map<string, string>,
   phClr: string | null = null,
 ): string | null {
-  if (!el || childrenOf(el).some((c) => tagOf(c) !== "#text")) return null;
-  return baseColor(el, scheme, phClr);
+  const colour = colourOf(el, scheme, phClr);
+  return colour && colour.alpha === null ? colour.color : null;
 }
 
 /** The colour an element names, before any modifier it carries. */
@@ -863,7 +997,12 @@ function tableLooksBare(tbl: PONode, tblPr: PONode | undefined): boolean {
   return true;
 }
 
-export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
+export function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
+  // One store of computed colours per analysis (see ColourRange).
+  return computedColours.run(new Map(), () => analyzePptxPackage(buffer));
+}
+
+async function analyzePptxPackage(buffer: Buffer): Promise<PptxAnalysis> {
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(buffer);
@@ -1777,52 +1916,32 @@ function seeThroughFill(
   if (xsdBoolean(attrOf(sp, "useBgFill")) === true) return null;
   const spPr = firstChild(sp, "spPr");
   const solid = spPr ? firstChild(spPr, "solidFill") : undefined;
-  const el = solid ? firstColor(solid) : undefined;
-  if (!el) return null;
-  const modifiers = childrenOf(el).filter((c) => tagOf(c) !== "#text");
-  if (modifiers.length !== 1 || tagOf(modifiers[0]) !== "alpha") return null;
-  // "20000" (thousandths of a percent) or "20%" (Strict). 0 is legal: the
-  // fill is then invisible and what lies beneath shows unchanged.
-  const raw = (attrOf(modifiers[0], "val") ?? "").trim();
-  const alpha = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw) / 100000;
-  if (raw === "" || !Number.isFinite(alpha) || alpha < 0 || alpha > 1) return null;
-  const color = baseColor(el, scheme);
-  return color ? { color, alpha } : null;
+  // The colour may be shaded first ("Accent 1, Darker 25%" at 20% opacity);
+  // the opacity is the last modifier, and 0 is legal — the fill is then
+  // invisible and what lies beneath shows unchanged.
+  const colour = solid ? colourOf(firstColor(solid), scheme) : null;
+  return colour && colour.alpha !== null ? { color: colour.color, alpha: colour.alpha } : null;
 }
 
 /** A colour drawn at `alpha` over another: each channel is top·α +
  *  under·(1−α). The result rarely lands on a whole number, and programs
  *  round differently (50% black over white is #7F7F7F in one and #808080 in
- *  another), so the darkest and lightest it can honestly be travel with it:
- *  a verdict that differs between them is not known. */
-interface Blend {
-  color: string;
-  dark: string;
-  light: string;
-}
-function blendOver(
-  top: string,
-  alpha: number,
-  under: string,
-  underDark: string = under,
-  underLight: string = under,
-): Blend {
-  const channel = (hex: string, i: number) => parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  const mix = (u: string, round: (n: number) => number) =>
-    [0, 1, 2]
-      .map((i) => {
-        // Six decimals: 208.20000000000002 is 208.2, and 127.99999999 is 128.
-        const v = Number((channel(top, i) * alpha + channel(u, i) * (1 - alpha)).toFixed(6));
-        return Math.min(255, Math.max(0, round(v)))
-          .toString(16)
-          .padStart(2, "0")
-          .toUpperCase();
-      })
-      .join("");
+ *  another), so the darkest and lightest it can honestly be travel with it
+ *  (see ColourRange): a verdict that differs between them is not known. */
+function blendOver(top: string, alpha: number, under: string): { color: string } & ColourRange {
+  const mix = (t: string, u: string, round: (n: number) => number) =>
+    hexOf(
+      channelsOf(t).map((v, i) => v * alpha + (channelsOf(u)[i] ?? 0) * (1 - alpha)),
+      round,
+    );
+  // Either colour may itself be computed: the darkest blend is the darkest
+  // of each, rounded down, and the lightest the lightest, rounded up.
+  const topRange = rangeOf(top);
+  const underRange = rangeOf(under);
   return {
-    color: mix(under, Math.round),
-    dark: mix(underDark, Math.floor),
-    light: mix(underLight, Math.ceil),
+    color: mix(top, under, Math.round),
+    dark: mix(topRange?.dark ?? top, underRange?.dark ?? under, Math.floor),
+    light: mix(topRange?.light ?? top, underRange?.light ?? under, Math.ceil),
   };
 }
 
@@ -1888,9 +2007,6 @@ function collectSlideContrast(
   if (!spTree) return;
   // What the master and layout paint lies beneath everything on the slide.
   const beneath: Painter[] = [...ctx.inherited];
-  // Colours this slide computed by blending a see-through fill, with the
-  // darkest and lightest each may be drawn as (see blendOver).
-  const blends = new Map<string, { dark: string; light: string }>();
   for (const sp of contentShapes(spTree)) {
     if (tagOf(sp) !== "sp") {
       const painter = painterOf(sp, ctx.scheme, ctx.theme, slideBg);
@@ -1921,12 +2037,9 @@ function collectSlideContrast(
       const glass = seeThroughFill(sp, ctx.scheme);
       const under = glass ? stackedBackground(bounds, beneath, slideBg) : null;
       if (glass && under) {
-        const range = blends.get(under);
-        const blend = blendOver(glass.color, glass.alpha, under, range?.dark, range?.light);
+        const blend = blendOver(glass.color, glass.alpha, under);
         fill = blend.color;
-        if (blend.dark !== blend.color || blend.light !== blend.color) {
-          blends.set(blend.color, { dark: blend.dark, light: blend.light });
-        }
+        rememberRange(blend.color, blend);
       }
     }
     const shapeBg: string | null =
@@ -1960,10 +2073,7 @@ function collectSlideContrast(
         // A link that may be drawn in either of two colours is judged in both.
         const drawnAs = link ? linkFill(link, look.fill, ctx.scheme) : null;
         if (drawnAs) look.fill = drawnAs.fill;
-        judgeRun(analysis, text, look, shapeBg, scale, {
-          otherForeground: drawnAs?.other,
-          backgroundRange: shapeBg ? blends.get(shapeBg) : undefined,
-        });
+        judgeRun(analysis, text, look, shapeBg, scale, drawnAs?.other);
       }
     }
   }
@@ -1990,21 +2100,22 @@ function linkFill(
 
 /** One run against what is behind it — its highlight, else its shape's.
  *
- *  `also` carries the other colours the pair may honestly be drawn in: a
- *  link's second colour, and the darkest and lightest a blended background
- *  can round to. The run is judged in every combination, and counted only
- *  when they all agree — pass in all, or fail in all. */
+ *  A pair may honestly be drawn in more than one way: a link has a second
+ *  colour (`otherForeground`), and a computed colour — shaded, or blended
+ *  through a see-through fill — has a darkest and a lightest (rangeOf). The
+ *  run is judged in every combination, and counted only when they all
+ *  agree: pass in all, or fail in all. */
 function judgeRun(
   analysis: PptxAnalysis,
   text: string,
   look: RunLook,
   shapeBg: string | null,
   scale: number | null,
-  also: { otherForeground?: string; backgroundRange?: { dark: string; light: string } } = {},
+  otherForeground?: string,
 ): void {
   const fg = look.fill;
-  const highlighted = look.highlight !== undefined;
-  const bg = !highlighted ? shapeBg : look.highlight === "unknown" ? null : look.highlight;
+  const bg =
+    look.highlight === undefined ? shapeBg : look.highlight === "unknown" ? null : look.highlight;
   if (fg === undefined || fg === "unknown" || !bg) {
     analysis.contrast.unresolvedRuns++;
     return;
@@ -2032,9 +2143,12 @@ function judgeRun(
     if (large === null && r >= CONTRAST_MIN_LARGE && r < CONTRAST_MIN_NORMAL) return "unknown";
     return r < min ? "fail" : "pass";
   };
-  const foregrounds = also.otherForeground ? [fg, also.otherForeground] : [fg];
-  const range = highlighted ? undefined : also.backgroundRange;
-  const backgrounds = range ? [bg, range.dark, range.light] : [bg];
+  const withRange = (hex: string): string[] => {
+    const range = rangeOf(hex);
+    return range ? [hex, range.dark, range.light] : [hex];
+  };
+  const foregrounds = [...withRange(fg), ...(otherForeground ? withRange(otherForeground) : [])];
+  const backgrounds = withRange(bg);
   const verdict = verdictOf(fg, bg);
   const agreed = foregrounds.every((f) => backgrounds.every((b) => verdictOf(f, b) === verdict));
   if (verdict === "unknown" || !agreed) {

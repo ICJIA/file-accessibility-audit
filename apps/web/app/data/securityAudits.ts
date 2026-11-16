@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.0",
+    meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: how lighter and darker shades of a colour are read in PowerPoint files.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. The checker reads the same information from a document as before and now works out one more thing from it. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Lighter and darker shades are now worked out.</strong> PowerPoint lets an author pick a lighter or darker shade of a theme colour. The checker used to skip any text in such a shade, or on a background in one, because it would not guess at the colour. The shade can be calculated, so that text is now checked. The result was compared with the shades PowerPoint itself shows.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One real document changed, correctly.</strong> A slide in one test presentation has red text on a dark navy background, which is hard to read. The checker could not see this before and now reports it. That presentation&rsquo;s letter grade did not change. No other real document changed.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every test document was run again. The slide that changed was rendered and looked at. Three new test documents pin the change, including one that must <em>not</em> be marked down and one that must stay unchecked, and each was shown to fail when the correction is removed. Every self-check and every scoring gate passed. The check of third-party software used by the public site reports no warnings.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.172.2",
     meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: an update of third-party software.",
     body: [

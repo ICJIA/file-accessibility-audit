@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "powerpoint-shades-2026-11-16",
+    badge: "Scoring",
+    text: 'In PowerPoint, text in a lighter or darker shade of a color, or sitting on a background in one, is now checked for contrast. PowerPoint lets you pick shades such as "Darker 25%" of a theme color, and the checker used to skip that text because it would not guess at the color. The shade can be calculated exactly enough to judge, and the result was compared with the shades PowerPoint itself shows. Some presentations will now report contrast problems that were always there: in our test set, one slide with red text on a dark navy background is now flagged. That presentation\'s letter grade did not change, and no other real document changed. Text on a picture or a gradient is still left for you to check by eye, and the report says how much.',
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 16, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "dependency-release-2026-11-16",
     badge: "Security",
     text: "A routine update of third-party software. It closes the one remaining warning from our regular check, which concerned a tool used only while the software is being developed on a developer's own computer. The public site does not run that tool and was never affected. Nothing about how your files are checked or handled has changed, and no score changes.",
