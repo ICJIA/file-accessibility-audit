@@ -8,7 +8,7 @@
  * panel). One builder feeding both surfaces means their field inventories
  * cannot drift apart.
  */
-import { isInDesignCreator } from "~/utils/actionPlan";
+import { isInDesignCreator, pdfSourceApp } from "~/utils/actionPlan";
 
 export interface MetadataItem {
   label: string;
@@ -110,6 +110,13 @@ export function sourceTieInLine(result: Record<string, any> | null | undefined):
   const creator = result?.pdfMetadata?.creator;
   if (isInDesignCreator(creator))
     return "The fix steps in this report are written for Adobe InDesign because this document records it as its source application.";
+  // PowerPoint and Excel (2026-11-16): the plan swaps to their steps, so the
+  // card must not still say "written for Microsoft Word".
+  const app = pdfSourceApp(creator);
+  if (app === "powerpoint" || app === "excel") {
+    const name = app === "powerpoint" ? "PowerPoint" : "Excel";
+    return `The fix steps in this report are written for ${name} where it has its own steps, because this document records it as its source application.`;
+  }
   // \bword\b: matches "Microsoft® Word for Microsoft 365" but not
   // "WordPerfect" — a claim of "records it as its source" must be literal.
   if (typeof creator === "string" && /\bword\b/i.test(creator))

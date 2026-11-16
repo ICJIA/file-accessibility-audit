@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.172.1",
+    meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: which fix steps a PDF report shows.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. This update changes which ready-written instructions a report displays. It uses information the report already had. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The right problem, the wrong instructions.</strong> A PDF can have a title and still be set to show its file name. The checker found this correctly, but the report then told the author to give the document a title and set its language, which were both already done, and suggested a fix that would have changed nothing. The report now gives the one setting that fixes it.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Instructions for the program the PDF came from.</strong> Reports on PDFs gave instructions for Microsoft Word even when the PDF records that it was made from PowerPoint or Excel. They now give the instructions for that program.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Until now the automatic checks looked at what the checker found, not at the instructions built from it, which is how this went unnoticed. Two new test documents check the instructions themselves, and both fail on the previous version, as they should. No score changed. Every self-check and every scoring gate passed. The check of third-party software now reports one warning where it reported two: the older of the two is no longer listed by the public registry, though nothing in this software changed. The one that remains concerns a tool used only on a developer&rsquo;s own computer and does not affect the public site.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.172.0",
     meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: how Word headings typed by hand are recognised, and how text on a see-through panel in PowerPoint is checked.",
     body: [

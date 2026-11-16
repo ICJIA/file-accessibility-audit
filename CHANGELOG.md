@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.172.1] - 2026-11-16
+
+A PDF report with the right finding and the wrong fix. The flyer's PDF, exported from PowerPoint, failed one thing: its title is set, but the PDF is told to show the file name. The to-do list built from that finding was wrong three ways.
+
+### Fixed — the report's to-do list (no score moves)
+
+- **A title that is set but not displayed has its own step.** No step covered it, so the combined default fired: "Give the document a title and set its language", on a file with both. Its "Easiest" route said to set the title in the source and re-export, which changes nothing, and the one setting that fixes it was fourth of six in the fallback route. The step is now "Tell the PDF to show its title": one route, in Acrobat, naming the Initial View setting, with a reminder to check it after any later export. An InDesign file keeps its export setting as the source route. No other source route is offered, because only InDesign's export is known to set the flag.
+- **A PDF from PowerPoint or Excel gets that program's steps.** Every PDF that did not come from InDesign was sent to Word's menus ("In Word: File → Info → set Title"). The PDF's Creator already says where it came from ("Acrobat PDFMaker 11 for PowerPoint", "Microsoft® Excel® for Microsoft 365"). When it names PowerPoint or Excel, the source route now uses the steps an uploaded `.pptx` or `.xlsx` gets, ends with exporting the PDF again, and is labelled for that program; a PDF's headings map to slide titles. Where the dictionary has no steps for the program (bookmarks, real text), the Word steps still show under a label that says they are Word's. Word, unknown and missing creators keep today's steps exactly.
+- The document-details card names the same program the steps do.
+
+### Notes
+
+- **Two trap documents now check the to-do list end to end.** The trap battery could only see the analyzer's findings, so a right finding with wrong fix steps passed every gate. Traps 245 (title set, not displayed, from PowerPoint) and 246 (an undescribed picture, from PowerPoint) build the plan the page builds and assert it. Both fail on the previous code. Traps 246: 135 PDF + 111 Office.
+- **Still true, and unchanged:** contrast inside a PDF is not measured, so the flyer's faint link appears only in the PowerPoint report. The report says contrast was not assessed.
+- No analyzer or scoring code changed. Ledger 366 (two new rows). Tests 4,670 across 258 files (API 2,535 · Web 2,038 · CLI 97).
+- `pnpm audit --prod`: **1** (was 2). No dependency changed in this release: the registry no longer reports the `deepmerge` advisory (GHSA-gcqx-w48m-w2h4) that was accepted in v1.168.2. What remains is the development-server advisory in `@nuxt/schema` (GHSA-mjrq-cffv-q4qc), not reachable in production and still to be closed in a dependency release.
+
 ## [1.172.0] - 2026-11-16
 
 The two decisions left open by v1.171.0, both taken the same day: Word gets PowerPoint's bold-start rule, and PowerPoint text on a see-through fill is measured instead of skipped. With them the flyer that started this reports its third real failure, a link at 3.77:1.

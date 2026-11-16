@@ -70,6 +70,16 @@ interface PlanCopyEntry {
    *  decorative one does need marking) while making sure the caveat is read
    *  first. */
   acrobatLead?: string[];
+  /** True when `acrobat` is the whole answer and must REPLACE the report's
+   *  per-document Acrobat block (2026-11-16). That block is written per
+   *  category, not per defect: for a title that is set but not displayed it
+   *  lists six steps — run the checker, type a title, pick a language — of
+   *  which one applies. */
+  acrobatReplacesReport?: boolean;
+  /** Label for the Acrobat route when it is the first answer and not the
+   *  fallback: "No source file? …" is the wrong question when the fix lives
+   *  in the PDF. */
+  acrobatLabel?: string;
 }
 
 const SOURCE_LABEL_PDF = "Easiest — fix the source document, then re-export";
@@ -83,6 +93,23 @@ const SOURCE_LABEL: Record<PlanFileType, string> = {
  *  came from InDesign — the label names the app so the reader knows why these
  *  steps differ from a colleague's Word-centric card. */
 const SOURCE_LABEL_INDESIGN = "Easiest — fix the InDesign file, then re-export";
+/** A PDF whose Creator names PowerPoint or Excel (2026-11-16): the same
+ *  swap InDesign has had, for the two Office programs whose steps the
+ *  dictionary already carries for uploaded .pptx and .xlsx files. */
+const SOURCE_APP_NAME = { powerpoint: "PowerPoint", excel: "Excel" } as const;
+const SOURCE_APP_KEY = { powerpoint: "pptx", excel: "xlsx" } as const;
+const sourceLabelFor = (app: keyof typeof SOURCE_APP_NAME) =>
+  `Easiest — fix the ${SOURCE_APP_NAME[app]} file, then re-export`;
+/** Where the dictionary has no steps for that program (bookmarks, real
+ *  text), the Word steps still show — under a label that says whose they
+ *  are, so nobody hunts PowerPoint for Word's menus. */
+const sourceLabelWordSteps = (app: keyof typeof SOURCE_APP_NAME) =>
+  `Fix the source file, then re-export — these steps are written for Word; this PDF came from ${SOURCE_APP_NAME[app]}, where the menus differ`;
+/** Closes a PowerPoint or Excel source route: the upload-format steps end at
+ *  the fix, and a PDF needs making again. Worded for either way of making
+ *  one (Save As, or Acrobat's add-in). */
+const RE_EXPORT_STEP =
+  "Export the PDF again the same way you made it, with accessibility tags switched on";
 const ACROBAT_LABEL = "No source file? Fix the PDF in Acrobat Pro";
 /** Swapped in for ACROBAT_LABEL when a category has no PDF-only remedy — the
  *  dictionary's "acrobat" steps just explain that this one has to go back to
@@ -737,6 +764,10 @@ const TITLE_PROBLEM = (f: string): boolean =>
   /No document title found|No (?:document|presentation|workbook) title is set|(?:looks like|is) a filename or tool-generated string/.test(
     f,
   );
+/** The title exists and the PDF is told not to show it — scoring/pdf.ts's
+ *  line, in both wordings it has carried. */
+const TITLE_NOT_DISPLAYED = (f: string): boolean =>
+  /DisplayDocTitle viewer preference is (?:off|NOT)/i.test(f);
 /** The language half is demonstrably fine — the line each format writes when
  *  a language is declared. */
 const LANGUAGE_SET = (f: string): boolean =>
@@ -760,6 +791,33 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
   matches: (findings: string[]) => boolean;
   entry: PlanCopyEntry;
 }> = [
+  {
+    // The title is SET and the PDF is told to show the file name instead
+    // (2026-11-16). Nothing matched this, so the combined default fired on a
+    // flyer whose title and language were both fine: "Give the document a
+    // title and set its language", an "Easiest" route (set the title,
+    // re-export) that changes nothing, and the one setting that fixes it
+    // fourth of six in the fallback route. The fix lives in the PDF: only
+    // InDesign's export is known to set it, so no other source route is
+    // offered — a route that does not work is worse than none.
+    matches: (strs) =>
+      strs.some(TITLE_NOT_DISPLAYED) && !strs.some(TITLE_PROBLEM) && !strs.some(LANG_PROBLEM),
+    entry: {
+      title: "Tell the PDF to show its title",
+      why: "This document already has a title, but the PDF is set to show its file name instead — so the file name is what a screen reader announces when it opens. (The title and the language are both set; there is nothing to retype.)",
+      source: {},
+      sourceInDesign: [
+        'When exporting (File → Export → Adobe PDF (Print)): on the Advanced tab, set Display Title to "Document Title"',
+      ],
+      acrobat: [
+        "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties)",
+        "Initial View tab → set Show: Document Title, then save the PDF",
+        "If you export this PDF again later, check the setting again — the export may not carry it over",
+      ],
+      acrobatReplacesReport: true,
+      acrobatLabel: "Change one setting in Acrobat Pro",
+    },
+  },
   {
     // Excel (2026-10-05): a workbook has a title to fix and no language to
     // set — the combined default would ask for a setting Excel lacks, and
@@ -900,6 +958,20 @@ export function isInDesignCreator(creator?: string | null): boolean {
   return typeof creator === "string" && /indesign/i.test(creator);
 }
 
+/** The program a PDF's Creator metadata says made it, where the plan has
+ *  steps for that program; null for everything else — Word, a scanner, a
+ *  missing value — which keeps the Word-worded steps exactly as they were.
+ *  Whole words only: "Excellence Suite" is not Excel. Acrobat's add-in
+ *  stamps "Acrobat PDFMaker 11 for PowerPoint"; the programs' own exports
+ *  stamp "Microsoft® PowerPoint® for Microsoft 365". */
+export function pdfSourceApp(creator?: string | null): "indesign" | "powerpoint" | "excel" | null {
+  if (typeof creator !== "string") return null;
+  if (isInDesignCreator(creator)) return "indesign";
+  if (/\bpowerpoint\b/i.test(creator)) return "powerpoint";
+  if (/\bexcel\b/i.test(creator)) return "excel";
+  return null;
+}
+
 const SEVERITY_ORDER: Record<PlanSeverity, number> = { Critical: 0, Moderate: 1, Minor: 2 };
 
 function isPlanSeverity(s: unknown): s is PlanSeverity {
@@ -963,6 +1035,8 @@ export function buildActionPlan(
   if (!Array.isArray(categories)) return [];
   const ft = normalizeFileType(fileType);
   const fromInDesign = ft === "pdf" && isInDesignCreator(creator);
+  const sourceApp = ft === "pdf" ? pdfSourceApp(creator) : null;
+  const officeApp = sourceApp === "powerpoint" || sourceApp === "excel" ? sourceApp : null;
 
   // Failing criteria per category, deduplicated by SC, order preserved.
   const failingRefs = new Map<string, { sc: string; name: string }[]>();
@@ -996,7 +1070,9 @@ export function buildActionPlan(
 
     // Per-document Acrobat steps beat the dictionary default — they're
     // specific to what the analyzer actually saw in this file.
-    const reportAcrobat = partitionCardFindings(findings).acrobat;
+    const reportAcrobat = entry?.acrobatReplacesReport
+      ? []
+      : partitionCardFindings(findings).acrobat;
     const usesDictionaryAcrobat = !reportAcrobat.length;
     const acrobatBody = reportAcrobat.length ? reportAcrobat : (entry?.acrobat ?? []);
     // A variant's lead-in goes first even ahead of a per-document block — see
@@ -1011,16 +1087,35 @@ export function buildActionPlan(
     // "you have to go back to the source" dead end, so acrobatIsSourceOnly
     // only swaps the label when we're actually using that default.
     const acrobatLabel =
-      usesDictionaryAcrobat && entry?.acrobatIsSourceOnly ? SOURCE_ONLY_LABEL : ACROBAT_LABEL;
+      usesDictionaryAcrobat && entry?.acrobatIsSourceOnly
+        ? SOURCE_ONLY_LABEL
+        : (entry?.acrobatLabel ?? ACROBAT_LABEL);
 
     const routes: FixRoute[] = [];
     if (ft === "pdf") {
       const inDesignSteps = fromInDesign ? entry?.sourceInDesign : undefined;
-      const sourceSteps = inDesignSteps ?? entry?.source.pdf ?? [];
+      // A PDF from PowerPoint or Excel: that program's own steps (the ones an
+      // uploaded .pptx/.xlsx gets), then a re-export. A PDF's headings are a
+      // deck's slide titles, which the dictionary files under their own id.
+      const officeSteps = officeApp
+        ? (entry?.source[SOURCE_APP_KEY[officeApp]] ??
+          (id === "heading_structure" && officeApp === "powerpoint"
+            ? PLAN_COPY.slide_titles?.source.pptx
+            : undefined))
+        : undefined;
+      const sourceSteps =
+        inDesignSteps ??
+        (officeSteps ? [...officeSteps, RE_EXPORT_STEP] : (entry?.source.pdf ?? []));
       if (sourceSteps.length)
         routes.push({
           tool: "source",
-          label: inDesignSteps ? SOURCE_LABEL_INDESIGN : SOURCE_LABEL.pdf,
+          label: inDesignSteps
+            ? SOURCE_LABEL_INDESIGN
+            : officeApp
+              ? officeSteps
+                ? sourceLabelFor(officeApp)
+                : sourceLabelWordSteps(officeApp)
+              : SOURCE_LABEL.pdf,
           steps: sourceSteps,
         });
       if (acrobatSteps.length)

@@ -29,6 +29,10 @@ import { analyzePDF } from "../apps/api/src/services/pdfAnalyzer.js";
 import { twinViolations } from "./gateLogic.mjs";
 import { UNHEADERED_DATA_TABLE_SCORE } from "@file-audit/shared";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
+// The report's plain-language to-do list. Two traps (2026-11-16) assert it
+// end to end: a right finding with the wrong fix steps is still a wrong
+// report, and nothing in this battery could see one.
+import { buildActionPlan } from "~/utils/actionPlan";
 
 // Directly in controls/ with a "synthetic-" prefix (user request): the files
 // sit beside the real corpus so each can also be uploaded by hand to
@@ -365,6 +369,14 @@ interface Sample {
 
 const cat = (id: string) => (r: AnalysisResult) => r.categories.find((c) => c.id === id);
 const allFindings = (r: AnalysisResult) => r.categories.flatMap((c) => c.findings).join("\n");
+/** The to-do list the report builds from an audit, exactly as the page does. */
+const planOf = (r: AnalysisResult) =>
+  buildActionPlan(
+    r.categories,
+    "pdf",
+    (r as unknown as { pdfMetadata?: { creator?: string | null } }).pdfMetadata?.creator,
+    (r as unknown as { conformance?: { status?: unknown; failures?: unknown } }).conformance,
+  );
 
 /** The table-header parity truth, the PDF side (2026-10-05): a lone data
  *  table with no <TH> must score exactly UNHEADERED_DATA_TABLE_SCORE — the
@@ -4971,6 +4983,86 @@ const SAMPLES: Sample[] = [
       return r.overallScore === 100 ? null : `the report scored ${r.overallScore}/${r.grade}`;
     },
   },
+  {
+    file: "synthetic-245-powerpoint-pdf-title-not-displayed.pdf",
+    truth:
+      "Trap 23's defect — a good title the PDF is told not to display — in a file whose Creator says it was exported from PowerPoint (\"Acrobat PDFMaker 11 for PowerPoint\"), as a real flyer was on 2026-11-16. The finding was always right. The report's to-do list was not: no step covered 'title set, not displayed', so it said 'Give the document a title and set its language' — both already set — offered an 'Easiest' route (set the title in Word, re-export) that changes nothing, and left the one setting that fixes it fourth of six in the fallback route. title_language must be 75 with 2.4.2 named, and the plan's step must be about showing the title: one route, in Acrobat, naming the Initial View setting, with no instruction to set a title and no mention of Word.",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Display off")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Study Recruitment Flyer) /Creator (Acrobat PDFMaker 11 for PowerPoint) /Producer (Adobe PDF Library 11.0) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("title_language")(r);
+      if (!c || c.score !== 75) return `title set + flag off scored ${c?.score}, not 75`;
+      if (!namesCriterion(r, "2.4.2", "title_language")) return "2.4.2 was not named";
+      const step = planOf(r).find((s) => s.categoryId === "title_language");
+      if (!step) return "the to-do list has no step for the title";
+      if (step.title !== "Tell the PDF to show its title")
+        return `the step is titled "${step.title}" — the title and language are already set`;
+      const steps = step.routes.flatMap((x) => x.steps).join(" ");
+      if (step.routes.length !== 1 || step.routes[0]?.tool !== "acrobat")
+        return "the fix is one setting in the PDF, and the plan offers something else first";
+      if (!/Initial View tab → set Show: Document Title/.test(steps))
+        return "the plan does not name the setting that fixes it";
+      return /\bWord\b|set Title/.test(steps)
+        ? "the plan still sends the reader to set a title in Word"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-246-powerpoint-pdf-picture-undescribed.pdf",
+    truth:
+      "A tagged PDF with one picture that has no description, whose Creator says PowerPoint made it. The finding (1.1.1) is right in any program; the to-do list told the author to fix it 'In Word', as it did for every PDF that did not come from InDesign. A PDF that names PowerPoint or Excel as its source now gets that program's own steps and a label that says so. alt_text must fail with 1.1.1 named, and the plan's source route must be labelled for PowerPoint, end with exporting the PDF again, and never mention Word.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Body text")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 200 0 0 150 72 500 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> /XObject << /Im1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [11 0 R 7 0 R] >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Nums [0 [11 0 R 7 0 R]] >>",
+          FONT,
+          GRAY_IMG(10),
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Quarterly Program Update) /Creator (Acrobat PDFMaker 24 for PowerPoint) /Producer (Adobe PDF Library 24.0) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("alt_text")(r);
+      if (!c || c.score === null || c.score >= 100)
+        return `alt_text ${c?.score} — the undescribed picture was not counted`;
+      if (!namesCriterion(r, "1.1.1", "alt_text")) return "1.1.1 was not named";
+      const step = planOf(r).find((s) => s.categoryId === "alt_text");
+      const source = step?.routes.find((x) => x.tool === "source");
+      if (!source) return "the to-do list has no source route for the picture";
+      if (source.label !== "Easiest — fix the PowerPoint file, then re-export")
+        return `the source route is labelled "${source.label}"`;
+      if (/\bWord\b/.test(source.steps.join(" ")))
+        return "a PDF from PowerPoint is still sent to Word's menus";
+      return /Export the PDF again/.test(source.steps.at(-1) ?? "")
+        ? null
+        : "the source route does not end with exporting the PDF again";
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -5037,6 +5129,14 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-236-bold-names-and-labels-not-headings.pdf": {
     label: "Bold author names, a bulleted roster and bold labels — none of them a heading",
     chip: "held",
+  },
+  "synthetic-245-powerpoint-pdf-title-not-displayed.pdf": {
+    label: "A PowerPoint export whose title is set but not shown — and what the report says to do",
+    chip: "bug",
+  },
+  "synthetic-246-powerpoint-pdf-picture-undescribed.pdf": {
+    label: "A PowerPoint export with an undescribed picture — fix steps for PowerPoint, not Word",
+    chip: "bug",
   },
   "synthetic-229-cover-heading-over-unmarked-sections.pdf": {
     label: "One real heading on the cover, twelve section titles tagged as paragraphs",

@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "pdf-fix-steps-for-the-right-program-2026-11-16",
+    badge: "Fixed",
+    text: "Two corrections to the fix steps a PDF report gives. First, a PDF can have a title and still be set to show its file name, so the file name is what a screen reader announces. The checker found this correctly, but the report then told you to give the document a title and set its language, both already done, and suggested a fix that would have changed nothing. It now gives the one setting that fixes it. Second, reports on PDFs gave instructions for Microsoft Word even when the PDF records that it was made from PowerPoint or Excel; they now give that program's steps. No score changes because of either.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 16, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "see-through-panels-and-word-bold-starts-2026-11-16",
     badge: "Scoring",
     text: "Two changes to what the checker measures. First, in PowerPoint, text sitting on a see-through panel is now checked for contrast. Designers often put text on a lightly tinted box, and the checker used to skip that text because the box is partly transparent. Where the box sits on one plain color, the color a reader actually sees can be worked out exactly, so the text is checked against it; a link on a tinted panel on a real flyer turned out to be too faint to read comfortably, and is now reported. Where the box sits on a picture or a gradient, the text is still left for you to check by eye, and the report says how much. Second, in Word, a sentence that begins with a few bold words is no longer mistaken for a heading made by hand. The whole line has to be bold, the same correction PowerPoint received earlier today. In our test set no real document's score or letter grade changed.",

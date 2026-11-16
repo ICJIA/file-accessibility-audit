@@ -1,5 +1,5 @@
 {
-  "count": 133,
+  "count": 135,
   "generated": "2026-11-16",
   "items": [
     {
@@ -673,6 +673,16 @@
       "file": "synthetic-236-bold-names-and-labels-not-headings.pdf",
       "label": "Bold author names, a bulleted roster and bold labels — none of them a heading",
       "chip": "held"
+    },
+    {
+      "file": "synthetic-245-powerpoint-pdf-title-not-displayed.pdf",
+      "label": "A PowerPoint export whose title is set but not shown — and what the report says to do",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-246-powerpoint-pdf-picture-undescribed.pdf",
+      "label": "A PowerPoint export with an undescribed picture — fix steps for PowerPoint, not Word",
+      "chip": "bug"
     }
   ]
 }

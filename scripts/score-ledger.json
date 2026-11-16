@@ -4566,6 +4566,38 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-245-powerpoint-pdf-title-not-displayed.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "75|Minor",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No scored issues",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-246-powerpoint-pdf-picture-undescribed.pdf": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "0|Critical",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-25-fake-bullet-list.pdf": {
       "score": 100,
       "grade": "A",
