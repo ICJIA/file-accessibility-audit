@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "report-marks-2026-11-17",
+    badge: "Fixed",
+    text: 'A correction to the report you can download as a web page. It chose the tick or cross beside each line by looking for words such as "found" or "all", so some lines describing real problems were shown with a green tick. It now marks every line the same way the report on screen does. On screen, a line counting the headings a document does have is no longer shown with a cross. No score or grade changes.',
+    linkText: "",
+    linkTo: "",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 17, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "powerpoint-shades-2026-11-16",
     badge: "Scoring",
     text: 'In PowerPoint, text in a lighter or darker shade of a color, or sitting on a background in one, is now checked for contrast. PowerPoint lets you pick shades such as "Darker 25%" of a theme color, and the checker used to skip that text because it would not guess at the color. The shade can be calculated exactly enough to judge, and the result was compared with the shades PowerPoint itself shows. Some presentations will now report contrast problems that were always there: in our test set, one slide with red text on a dark navy background is now flagged. That presentation\'s letter grade did not change, and no other real document changed. Text on a picture or a gradient is still left for you to check by eye, and the report says how much.',

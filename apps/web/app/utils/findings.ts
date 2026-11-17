@@ -28,6 +28,13 @@ export function isNeutralFinding(finding: string): boolean {
   // Census lines that count what exists rather than what is wrong.
   if (/^(language declared|author):/i.test(f)) return true;
   if (/^extracted [\d,]+ characters/i.test(f)) return true;
+  // Heading census (PDF: scoring/pdf.ts; Word: scoring/docx.ts). Both lines
+  // sit on a heading card that can fail for an UNRELATED reason (lines that
+  // look like headings but are tagged <P>), and the card's ✗ on "Found 26
+  // heading tags…" read as a second failure (2026-11-17). Wording is
+  // load-bearing for bestPractices/*, so match it here, don't reword it.
+  if (/^found [\d,]+ heading tags with logical hierarchy$/i.test(f)) return true;
+  if (/^[\d,]+ real heading\(s\) found\.?$/i.test(f)) return true;
   // Methodology and self-caveat prose — the card explaining how it measured,
   // or explicitly saying the measurement is not a verdict.
   if (/^compared the /i.test(f)) return true;
@@ -74,6 +81,51 @@ export function isGuidanceFinding(finding: string): boolean {
     f.startsWith("note:") ||
     f.startsWith("review these")
   );
+}
+
+/** The tone a finding line is drawn in. The live card maps each to a
+ *  `--icon-*` CSS token; the HTML export maps each to a fixed hex. */
+export type FindingTone = "pass" | "info" | "na" | "fail" | "guidance" | "plain";
+
+/** The mark a CATEGORY's ordinary findings wear, from its score alone.
+ *  Shared by the live card (ReportContent.vue) and the HTML export so the
+ *  two can never disagree about a line again. */
+export function categoryMark(score: number | null): { icon: string; tone: FindingTone } {
+  if (score === null) return { icon: "–", tone: "na" };
+  if (score >= 90) return { icon: "✓", tone: "pass" };
+  if (score >= 70) return { icon: "•", tone: "info" };
+  if (score >= 40) return { icon: "✗", tone: "na" };
+  return { icon: "✗", tone: "fail" };
+}
+
+/**
+ * The mark for ONE finding line, read the way the live card reads it:
+ * guidance → ▸, a neutral measurement or a not-scored note → •, a technical
+ * signal (indented) or a `---` divider → a plain ·, anything else → the
+ * category's mark.
+ *
+ * The HTML export used to guess per line from keywords ("found", "all ",
+ * "present" → green ✓), which put a green tick on real failures — "All N
+ * characters of text sit outside the structure tree", "Only N characters of
+ * extractable text were found", "Language declared as "xx" — this is not a
+ * usable language code" — and a grey dot on the one failure that capped a
+ * report at C (2026-11-17).
+ */
+export function findingMark(
+  finding: string,
+  score: number | null,
+): { icon: string; tone: FindingTone } {
+  if (typeof finding !== "string") return { icon: "·", tone: "plain" };
+  if (finding.startsWith("  ") || finding.startsWith("---")) {
+    return { icon: "·", tone: "plain" };
+  }
+  if (isGuidanceFinding(finding) || /^how to fix \(optional\)/i.test(finding)) {
+    return { icon: "▸", tone: "guidance" };
+  }
+  if (isNotScoredFinding(finding) || isNeutralFinding(finding)) {
+    return { icon: "•", tone: "info" };
+  }
+  return categoryMark(score);
 }
 
 export function firstActionableFinding(findings: string[] | undefined | null): string {

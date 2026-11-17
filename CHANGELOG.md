@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.2] - 2026-11-17
+
+The icons beside each finding. A user checking a 79/C report asked whether a report line had been marked as a second failure; it had not, but the question led to a real defect in the downloadable HTML report.
+
+### Fixed — the HTML export's finding marks
+
+- **The HTML export no longer puts a green tick on a failure.** It chose each line's mark by guessing from words in the line: "found", "present", "all " or "declared" gave a green ✓, and "no ", "missing" or "not found" gave a red ✗. The analyzer's own failure sentences tripped it. "All N characters of text sit outside the structure tree" (a critical failure) and "Only N characters of extractable text were found" got green ticks, as did "Language declared as "xx" — this is not a usable language code" and "MarkInfo present but /Marked is not true". The one failure that held a Word-made report at C ("7 line(s) are formatted to look like headings … but are tagged as ordinary paragraphs") got a grey dot. The export now uses the live report's rule, from one shared function (`findingMark` in `utils/findings.ts`): fix steps get ▸, measurements and not-scored notes get •, technical signals get a plain ·, and every other line gets its category's mark. The live card's category mark (`categoryMark`) moved into the same file so the two cannot drift apart.
+
+### Fixed — the live report
+
+- **"Found 26 heading tags with logical hierarchy" no longer wears a ✗.** The heading card marks its lines from the category score, so a card held at 60 by untagged look-alike headings also put a ✗ beside the count of the headings that *are* tagged, which reads as a second failure. That count (PDF) and Word's "N real heading(s) found." are now neutral measurement lines. Their wording is unchanged: the best-practices rows match it word for word.
+
+### Notes
+
+- **No score, grade or finding changed.** Only marks beside lines. No analyzer code changed, so the accuracy gates were not re-run for this release; ledger 369 and traps 249 are unchanged.
+- Tests 4,693 across 259 files (API 2,552 · Web 2,044 · CLI 97). The new export test fails on v1.173.1's code.
+- `pnpm audit --prod`: **3 high**, all one advisory, GHSA-fc5q-39xc-vjpf (`picomatch` ≤ 4.0.7, ReDoS through repeated extglobs). GitHub widened its range on 2026-11-17 and **no fixed version exists**. `picomatch` comes in through Nuxt's build tools (`vite`, `vue-tsc`, `unstorage`'s `anymatch`) and matches patterns the project's own config writes. It is not in the built server (`apps/web/.output` contains no copy) and the API does not depend on it. Accepted until a fix is published. `pnpm audit` (full): the same 3.
+
 ## [1.173.1] - 2026-11-16
 
 Dependency release for the build and test tools. `pnpm audit --prod` has read 0 since v1.172.2; the full audit, which also covers tools that never ship, read 31. It now reads 0 as well.

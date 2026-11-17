@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.2",
+    meta: "Reviewed <strong>2026-11-17</strong> &middot; scope: the small marks shown beside each line of a report.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. This update changes only which small mark (a tick, a cross or a dot) appears beside each line of a report. Nothing about how files are received, checked, stored or deleted changed, no score changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The downloadable report no longer shows a green tick beside a problem.</strong> The report you can save as a web page chose each line&rsquo;s mark by looking for words such as &ldquo;found&rdquo; or &ldquo;all&rdquo;, so some lines describing real problems were shown with a green tick. It now uses the same rule as the report on screen.",
+          },
+          {
+            badge: "UX",
+            html: "<strong>A count of headings is no longer marked with a cross.</strong> On screen, a line counting the headings a document <em>does</em> have was shown with a cross when the heading section had a problem elsewhere, which looked like a second problem. It is now shown as a plain measurement.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One warning in a build tool has no fix yet.</strong> The regular check of third-party software reports one warning, rated high, in a small tool used only while the site is being built. No corrected version has been published. The tool is not part of the running site and never sees uploaded files, so the site is not affected. It will be updated when a fix is released.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> A new self-check builds a downloadable report and confirms no problem is shown with a green tick; it fails on the previous version. Every self-check passed. The parts of the software that read documents did not change, so no score can have changed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.173.1",
     meta: "Reviewed <strong>2026-11-16</strong> &middot; scope: an update of the tools used to build and test the software.",
     body: [

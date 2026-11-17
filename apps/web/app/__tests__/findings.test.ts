@@ -5,6 +5,8 @@ import {
   isNotScoredFinding,
   firstActionableFinding,
   partitionCardFindings,
+  findingMark,
+  categoryMark,
 } from "../utils/findings";
 
 describe("isGuidanceFinding", () => {
@@ -246,6 +248,22 @@ describe("isNeutralFinding — a measurement is not a failure", () => {
     expect(isNeutralFinding("4 <TH> cell(s) missing Scope attribute")).toBe(false);
   });
 
+  it("neutralises the heading census line — counting headings is not a heading fault", () => {
+    // 2026-11-17: a Word-made PDF scored Heading Structure 60 for seven bold
+    // lines tagged <P>; the card then stamped ✗ on "Found 26 heading tags
+    // with logical hierarchy" too, which a reader took as a second failure.
+    expect(isNeutralFinding("Found 26 heading tags with logical hierarchy")).toBe(true);
+    expect(isNeutralFinding("Found 1,204 heading tags with logical hierarchy")).toBe(true);
+    expect(isNeutralFinding("12 real heading(s) found.")).toBe(true);
+    // ...but the faults next to them keep their mark.
+    expect(
+      isNeutralFinding(
+        "7 line(s) are formatted to look like headings (larger or bold text standing over a section) but are tagged as ordinary paragraphs, not headings",
+      ),
+    ).toBe(false);
+    expect(isNeutralFinding("0 real heading(s) found.")).toBe(true);
+  });
+
   it("survives empty and whitespace input", () => {
     expect(isNeutralFinding("")).toBe(false);
     expect(isNeutralFinding("   ")).toBe(false);
@@ -334,5 +352,50 @@ describe("isNotScoredFinding — the analyzer's prefix contract", () => {
     expect(isNotScoredFinding("Note - not scored: x")).toBe(false);
     expect(isNotScoredFinding("PDF/UA only - not scored: x")).toBe(false);
     expect(isNotScoredFinding("Advisory - not scored: x")).toBe(false);
+  });
+});
+
+describe("findingMark — one rule for the live card and the HTML export", () => {
+  // The HTML export guessed per line from keywords and put a green ✓ on real
+  // failures (2026-11-17). These are the analyzer's own sentences.
+  it("never puts a pass mark on a real failure in a failing category", () => {
+    const failures = [
+      "All 12,400 characters of text sit outside the structure tree, so a screen reader following the tags receives nothing",
+      "Only 40 characters of extractable text were found",
+      'Language declared as "xx" — this is not a usable language code, so screen readers may ignore it',
+      "7 line(s) are formatted to look like headings (larger or bold text standing over a section) but are tagged as ordinary paragraphs, not headings",
+    ];
+    for (const f of failures) {
+      expect(findingMark(f, 60)).toEqual({ icon: "✗", tone: "na" });
+      expect(findingMark(f, 20)).toEqual({ icon: "✗", tone: "fail" });
+    }
+  });
+
+  it("marks census, not-scored and guidance lines by what they are", () => {
+    expect(findingMark("Found 26 heading tags with logical hierarchy", 60).tone).toBe("info");
+    expect(
+      findingMark(
+        "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps",
+        60,
+      ).tone,
+    ).toBe("info");
+    expect(findingMark("How to fix: retag each line", 60).tone).toBe("guidance");
+    expect(findingMark("How to fix (optional): renumber the heading tags", 100).tone).toBe(
+      "guidance",
+    );
+    expect(findingMark("  Tab order is set on all 3 page(s)", 60).tone).toBe("plain");
+    expect(findingMark("--- Font Embedding ---", 60).tone).toBe("plain");
+  });
+
+  it("matches the category mark for ordinary lines", () => {
+    expect(findingMark("Document is tagged (StructTreeRoot present)", 100)).toEqual(
+      categoryMark(100),
+    );
+    expect(categoryMark(null)).toEqual({ icon: "–", tone: "na" });
+    expect(categoryMark(75)).toEqual({ icon: "•", tone: "info" });
+  });
+
+  it("does not throw on a non-string entry from a corrupted stored report", () => {
+    expect(() => findingMark(42 as unknown as string, 60)).not.toThrow();
   });
 });

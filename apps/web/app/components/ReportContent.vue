@@ -617,7 +617,12 @@ import {
 } from "@file-audit/shared";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
-import { partitionCardFindings, isGuidanceFinding, isNeutralFinding } from "~/utils/findings";
+import {
+  partitionCardFindings,
+  isGuidanceFinding,
+  isNeutralFinding,
+  categoryMark,
+} from "~/utils/findings";
 import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
 import type { PdfUaVerdict } from "@file-audit/shared";
 import { pdfUaFailuresByCategory } from "./pdfUaCategory";
@@ -774,17 +779,10 @@ function lostPoints(cat: CategoryResult): boolean {
 }
 
 function findingIcon(cat: { score: number | null }): string {
-  if (cat.score === null) return "\u2013";
-  if (cat.score >= 90) return "\u2713";
-  if (cat.score >= 70) return "\u2022";
-  return "\u2717";
+  return categoryMark(cat.score).icon;
 }
 
 function findingIconStyle(cat: { score: number | null }): Record<string, string> {
-  if (cat.score === null) return { color: "var(--icon-na)" };
-  if (cat.score >= 90) return { color: "var(--icon-pass)" };
-  if (cat.score >= 70) return { color: "var(--icon-info)" };
-  if (cat.score >= 40) return { color: "var(--icon-na)" };
-  return { color: "var(--icon-fail)" };
+  return { color: `var(--icon-${categoryMark(cat.score).tone})` };
 }
 </script>

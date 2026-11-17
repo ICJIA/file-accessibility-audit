@@ -24,6 +24,18 @@ import {
   timestamp,
   profileLabel,
 } from "./shared";
+import { findingMark, type FindingTone } from "~/utils/findings";
+
+// The export is a dark page, so these are main.css's dark-theme `--icon-*`
+// values (plus the card's amber guidance arrow and a muted grey for signals).
+const EXPORT_TONE_HEX: Record<FindingTone, string> = {
+  pass: "#22c55e",
+  fail: "#ef4444",
+  na: "#eab308",
+  info: "#60a5fa",
+  guidance: "#fbbf24",
+  plain: "#999",
+};
 
 // Renders the conformance verdict as a self-contained HTML block, mirroring
 // the on-screen gate. Every WCAG criterion links to its W3C "Understanding"
@@ -108,26 +120,10 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
 
       const findingsHtml = cat.findings
         .map((f) => {
-          const isFail =
-            cat.score !== null &&
-            (f.toLowerCase().includes("not found") ||
-              f.toLowerCase().includes("no ") ||
-              f.toLowerCase().includes("missing") ||
-              f.toLowerCase().includes("not tagged") ||
-              f.toLowerCase().includes("unlabeled"));
-          const isOk =
-            f.toLowerCase().includes("found") ||
-            f.toLowerCase().includes("present") ||
-            f.toLowerCase().includes("all ") ||
-            f.toLowerCase().includes("declared");
-          const icon = isFail ? "✗" : isOk ? "✓" : cat.score === null ? "–" : "•";
-          const color = isFail
-            ? "#ef4444"
-            : isOk
-              ? "#22c55e"
-              : cat.score === null
-                ? "#eab308"
-                : "#999";
+          // Same mark the live card draws (findingMark) — never a per-line
+          // keyword guess, which put green ticks on real failures.
+          const { icon, tone } = findingMark(f, cat.score);
+          const color = EXPORT_TONE_HEX[tone];
           return `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:14px;color:#ccc">
         <span style="color:${color};font-weight:bold;flex-shrink:0">${icon}</span>
         <span>${escapeHtml(f)}</span>

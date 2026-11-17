@@ -164,3 +164,35 @@ describe("buildHtml — action plan section", () => {
     expect(html).not.toContain("Your Action Plan");
   });
 });
+
+describe("buildHtml — finding marks match the live card", () => {
+  // 2026-11-17: the export guessed each line's mark from keywords, so "found"
+  // and "all " put a green ✓ on real failures in a failing category.
+  it("never puts a green tick on a failing category's failure lines", () => {
+    const r = result();
+    r.categories = [
+      {
+        id: "text_extractability",
+        label: "Text Extractability",
+        score: 20,
+        grade: "F",
+        severity: "Critical",
+        findings: [
+          "Only 40 characters of extractable text were found",
+          "All 12,400 characters of text sit outside the structure tree",
+        ],
+      },
+    ];
+    const html = buildHtml(r, branding);
+    for (const line of [
+      "Only 40 characters of extractable text were found",
+      "All 12,400 characters of text sit outside the structure tree",
+    ]) {
+      const at = html.indexOf(`<span>${line}</span>`);
+      expect(at).toBeGreaterThan(-1);
+      const mark = html.slice(Math.max(0, at - 120), at);
+      expect(mark).toContain("✗");
+      expect(mark).not.toContain("#22c55e");
+    }
+  });
+});
