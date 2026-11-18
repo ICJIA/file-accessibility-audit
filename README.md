@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.175.4-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4832%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.175.5-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4833%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,832 tests** across 274 test files (API 2,655 · Web 2,080 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,833 tests** across 274 test files (API 2,655 · Web 2,081 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1175,7 +1175,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `publicRoutes.test.ts` | 6 | Public-route render smoke (v1.125.0): every route the sitemap invites crawlers to must MOUNT — a broken import, renamed composable, or undefined auto-import fails here, not in a visitor's browser. |
 | `reportPageWiring.test.ts` | 4 | `pages/report/[id].vue` real-mount prop wiring: the stored payload actually reaches the Visual view's components — closing the gap `reportSectionOrder.test.ts` left by pinning order alone. |
 | `seo.test.ts` | 5 | Sitemap + robots.txt coherence: robots points at the sitemap, nothing robots disallows is listed in it, and `<lastmod>` stays honest because `pnpm build-brief` regenerates it. |
-| `technicalDetailsSync.test.ts` | 5 | /technical-details and the audit page's Technical Details collapsible are the SAME `<TechnicalExplainer />` by construction (v1.98.0 user decision) — re-adding page-local copy fails here. |
+| `technicalDetailsSync.test.ts` | 6 | /technical-details and the audit page's Technical Details collapsible are the SAME `<TechnicalExplainer />` by construction (v1.98.0 user decision) — re-adding page-local copy fails here. The standalone page opens it expanded; the audit page's stays closed (2026-11-18). |
 | `trustPage.test.ts` | 12 | The /trust route: the GENERATED brief body renders inside the app shell, every template CSS class has its `.trust-page` twin, and the page's stats match the brief's. |
 | `twoStandardsStrip.test.ts` | 20 | The two-standard strip (v1.131.0): the legal WCAG 2.1 verdict beside the reported-not-scored PDF/UA verdict — distinct-criteria counting, the error-state "Could not be checked on this document", overlap copy, and the era gate for stored reports. |
 | `wcagMachineChecks.test.ts` | 12 | veraPDF's machine-testable WCAG second opinion (v1.97.0): an ABSENT verdict renders NOTHING (older stored reports, feature off), "Did not run" is disclosed rather than implied as a pass, and rule failures map to their criteria. |
@@ -1475,6 +1475,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.175.5 — 2026-11-18 · /technical-details opens expanded (no new attack surface)
+
+No new attack surface: one display default (a `<details>` element's initial `open` state on one page); no route, input, storage, scoring or dependency changed. `pnpm audit --prod`: unchanged. Tests 4,833 green; lint, format, typecheck, build green.
 
 ### v1.175.4 — 2026-11-18 · Banner wording only (no new attack surface)
 

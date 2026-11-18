@@ -88,8 +88,9 @@ function goBack(): void {
     </header>
 
     <!-- THE content — the single source shared with the audit page's
-         collapsible. All section prose lives in TechnicalExplainer.vue. -->
-    <TechnicalExplainer />
+         collapsible. All section prose lives in TechnicalExplainer.vue.
+         Expanded here (and only here) so a visitor sees it at once. -->
+    <TechnicalExplainer open />
 
     <!-- Related documents (page chrome, not shared content — the audit
          page's collapsible has its own surroundings). -->

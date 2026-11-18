@@ -32,8 +32,17 @@ describe("technical-details ⇄ audit-page collapsible: one content source", () 
   });
 
   it("the standalone page renders <TechnicalExplainer /> — the same component the audit page's collapsible renders", () => {
-    expect(page).toMatch(/<TechnicalExplainer\s*\/>/);
+    expect(page).toMatch(/<TechnicalExplainer\s+open\s*\/>/);
     expect(index).toMatch(/<LazyTechnicalExplainer[\s>]/);
+  });
+
+  it("open by default on the standalone page only (user request 2026-11-18)", () => {
+    // The page exists to be read, so it opens expanded; the audit page keeps
+    // the collapsible closed below the tool.
+    const explainer = readFileSync(resolve(WEB, "components/TechnicalExplainer.vue"), "utf8");
+    expect(explainer).toMatch(/<details[^>]*:open="open \|\| undefined"/);
+    expect(page).toMatch(/<TechnicalExplainer\s+open\s*\/>/);
+    expect(index).not.toMatch(/<LazyTechnicalExplainer[^>]*\bopen\b/);
   });
 
   it("the page carries NO section prose of its own — chrome only (header, nav, related docs)", () => {

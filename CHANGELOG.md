@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.5] - 2026-11-18
+
+### Changed
+
+- **/technical-details opens expanded.** The page exists to be read, but its content sat inside a closed "Technical Details" section, so a visitor saw only a one-line heading. `TechnicalExplainer` takes an `open` prop; the standalone page passes it, and the audit page's copy below the tool stays closed. A reader can still close it. Pinned in `technicalDetailsSync.test.ts`.
+
+### Notes
+
+- No scoring or security change. Tests 4,833 across 274 files (API 2,655 · Web 2,081 · CLI 97).
+
 ## [1.175.4] - 2026-11-18
 
 Landing-page banner only.

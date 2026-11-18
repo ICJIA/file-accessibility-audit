@@ -2,6 +2,7 @@
   <!-- Technical Details (always visible, expandable) -->
   <details
     class="mt-12 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden group technical-details"
+    :open="open || undefined"
   >
     <summary
       class="px-3 sm:px-6 py-4 cursor-pointer text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors select-none flex items-center gap-2"
@@ -2721,6 +2722,12 @@ pm2 restart ecosystem.config.cjs</pre>
 </template>
 
 <script setup lang="ts">
+// `open` (2026-11-18, user request): the standalone /technical-details page
+// renders this expanded, so a visitor sees the content at once; the audit
+// page keeps it collapsed below the tool. Only the initial state — a reader
+// can still close it.
+defineProps<{ open?: boolean }>();
+
 // Static content extracted verbatim from pages/index.vue (Phase F, task F1:
 // perf(web) lazy technical-explainer extraction). The only component
 // referenced, <DiagramFigure>, is auto-imported globally the same way it was
