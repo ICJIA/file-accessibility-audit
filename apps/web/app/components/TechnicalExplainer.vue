@@ -894,7 +894,7 @@
                 <th scope="col" class="text-left px-3 py-2 font-medium">Category</th>
                 <th scope="col" class="text-right px-3 py-2 font-medium">
                   Weight
-                  <span class="block text-[9px] normal-case text-emerald-300 font-normal"
+                  <span class="block text-xs normal-case text-emerald-300 font-normal"
                     >WCAG + IITAA §E205.4</span
                   >
                 </th>

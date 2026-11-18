@@ -455,3 +455,21 @@ html.light .from-red-950\/30 {
 html.light .to-red-950\/10 {
   --tw-gradient-to: #fef2f2;
 }
+
+/* Larger reading text on the long-form reference pages (/data-retention,
+   /technical-details) — 2026-11-18, after several readers said the text was
+   too small. Tailwind v4 sizes text through these theme variables
+   (.text-sm { font-size: var(--text-sm) }), so redefining them on the page
+   wrapper scales every xs/sm/base line on that page, and only that page;
+   line heights are ratios and follow. xs 12→14px, sm 14→16px, base 16→18px.
+   Pinned by readingPageFontSize.test.ts. */
+.reading-page {
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+  --text-base: 1.125rem;
+}
+/* Long file names and identifiers in inline code would otherwise push the
+   page wider than a phone screen at the larger size. */
+.reading-page code {
+  overflow-wrap: anywhere;
+}

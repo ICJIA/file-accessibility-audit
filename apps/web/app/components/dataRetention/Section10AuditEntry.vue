@@ -70,6 +70,6 @@ const BADGE_TONE: Record<AuditBadge, string> = {
 };
 
 function badgeClass(badge: AuditBadge): string {
-  return `inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase mr-2 ${BADGE_TONE[badge]}`;
+  return `inline-block px-1.5 py-0.5 rounded text-xs font-mono uppercase mr-2 ${BADGE_TONE[badge]}`;
 }
 </script>

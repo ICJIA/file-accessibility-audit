@@ -41,7 +41,7 @@ function goBack(): void {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto px-4 py-10 space-y-10">
+  <div class="reading-page max-w-4xl mx-auto px-4 py-10 space-y-10">
     <!-- Back nav. mb-6, not -mb-4: under Tailwind v4, space-y-* sets this
          element's own margin-bottom via a zero-specificity :where(), so a
          negative margin class replaces it (pulling the header over the

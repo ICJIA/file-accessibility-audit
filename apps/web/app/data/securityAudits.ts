@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.175.6",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: text size on the data-retention and technical-details pages.",
+    body: [
+      {
+        kind: "p",
+        html: "No new findings. The text on this page and on the Technical Details page is larger, after several readers said it was hard to read. Nothing about how files are received, checked, stored or deleted changed.",
+      },
+    ],
+  },
+  {
     version: "v1.175.5",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: how the Technical Details page first appears.",
     body: [

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.6] - 2026-11-18
+
+### Changed
+
+- **Larger text on /data-retention and /technical-details.** Several readers said these pages were very small and hard to read. Both pages now set their small text larger: 12 → 14 px, 14 → 16 px (most body text), 16 → 18 px. Tailwind sizes text through theme variables, so a `.reading-page` wrapper on each page redefines them for that page only; the audit page and reports are unchanged. Fixed pixel sizes that would have escaped the wrapper (11 px table labels and key-fact captions, 10 px § 10 badges, one 9 px diagram label) now use the scaled size. Long inline code names wrap instead of pushing the page wider than a phone screen. Checked at 375 px and 1280 px. Pinned in `readingPageFontSize.test.ts`.
+
+### Notes
+
+- No scoring or security change. Tests 4,837 across 275 files (API 2,655 · Web 2,085 · CLI 97).
+
 ## [1.175.5] - 2026-11-18
 
 ### Changed

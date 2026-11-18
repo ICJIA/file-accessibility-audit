@@ -56,7 +56,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto px-4 py-10 space-y-10">
+  <div class="reading-page max-w-4xl mx-auto px-4 py-10 space-y-10">
     <!-- Back navigation (works whether user opened in a new tab from
          the footer, navigated here directly, or arrived via a shared
          link). When history exists we use it; otherwise we land them
@@ -155,7 +155,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             0
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">
+          <p class="text-xs text-[var(--text-muted)] leading-tight">
             Files retained after processing
           </p>
         </div>
@@ -163,7 +163,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             ≤30 min
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">
+          <p class="text-xs text-[var(--text-muted)] leading-tight">
             Maximum remediation-output retention
           </p>
         </div>
@@ -171,13 +171,13 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             0
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">AI services contacted</p>
+          <p class="text-xs text-[var(--text-muted)] leading-tight">AI services contacted</p>
         </div>
         <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4">
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             0
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">
+          <p class="text-xs text-[var(--text-muted)] leading-tight">
             Third-party data transmissions
           </p>
         </div>
@@ -185,7 +185,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             100%
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">
+          <p class="text-xs text-[var(--text-muted)] leading-tight">
             Deletion verified via fs.stat
           </p>
         </div>
@@ -193,7 +193,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             7 yr
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">
+          <p class="text-xs text-[var(--text-muted)] leading-tight">
             Remediation audit-trail retention (configurable)
           </p>
         </div>
@@ -201,13 +201,13 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             100%
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">Open-source toolchain</p>
+          <p class="text-xs text-[var(--text-muted)] leading-tight">Open-source toolchain</p>
         </div>
         <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4">
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
             6
           </div>
-          <p class="text-[11px] text-[var(--text-muted)] leading-tight">
+          <p class="text-xs text-[var(--text-muted)] leading-tight">
             Open-source tools (qpdf · pdfjs · JSZip · fast-xml-parser · ODL · veraPDF)
           </p>
         </div>

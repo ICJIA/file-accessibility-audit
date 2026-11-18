@@ -52,7 +52,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >Seconds</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -68,7 +68,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >Seconds</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -84,7 +84,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >Seconds</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -100,7 +100,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >≤ 30 min</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -147,7 +147,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >30 days</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]">After completion</span>
@@ -165,7 +165,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >7 years</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]">(default)</span>
@@ -182,7 +182,7 @@
               <td class="px-4 py-3">SQLite, <code class="font-mono">audit_log</code> table</td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >365 days</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]">(default)</span>
@@ -204,7 +204,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >365 days</span
                 >
                 <span class="mt-1 text-[var(--text-muted)]">— the usage log's window</span>
@@ -226,7 +226,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >30 days</span
                 >
               </td>
@@ -245,7 +245,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >5 newest</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -265,7 +265,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >≈395 days</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -317,7 +317,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-emerald-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
                   >≈52 days</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
@@ -341,7 +341,7 @@
               </td>
               <td class="px-4 py-3">
                 <span
-                  class="inline-block whitespace-nowrap rounded-full border border-amber-700/50 bg-amber-950/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-amber-300"
+                  class="inline-block whitespace-nowrap rounded-full border border-amber-700/50 bg-amber-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-amber-300"
                   >No auto-purge</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
