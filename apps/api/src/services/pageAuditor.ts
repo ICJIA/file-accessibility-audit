@@ -415,15 +415,13 @@ export const PAGE_HARDENING_SOURCE = `(() => {
  * Close the request-interception gaps for one audited page (review
  * 2026-11-12). Must run BEFORE navigation.
  *
- * RESIDUAL GAPS — known, not closed here:
- *   1. Sub-resource DNS. Only the DOCUMENT host is pinned into Chromium's
- *      resolver (chromiumLaunchArgs). A sub-resource host is resolved in Node
- *      for the private-address check and then resolved AGAIN by Chromium when
- *      it connects, so a name that answers public to the first lookup and
- *      private to the second (TTL-0 rebinding) can still be reached. The
- *      resolver pin is a launch flag and sub-resource hosts are not known at
- *      launch; closing this fully needs all browser traffic routed through a
- *      resolve-then-dial proxy in this process.
+ * RESIDUAL GAPS — each with what limits it:
+ *   1. Sub-resource DNS — FIXED in v1.174.0. Was: a sub-resource host was
+ *      resolved in Node for the private-address check and again by Chromium
+ *      when it connected (TTL-0 rebinding). Now Chromium resolves only the
+ *      pinned document host; every other host is fetched by safeFetch, pinned
+ *      to the address it checked, and answered with request.respond() — see
+ *      createRequestHandler and OffHostBudget.
  *   2. Dedicated Workers (`new Worker(...)`) keep their own global scope, so
  *      the WebSocket removal above does not reach inside one. Blocking
  *      workers outright would change what legitimate pages render, and
@@ -434,7 +432,8 @@ export const PAGE_HARDENING_SOURCE = `(() => {
  *      it is defence by script, not by network policy.
  *   4. A popup opened by means other than window.open exists for a moment
  *      before denyPopups guards and closes it; a request issued in that
- *      moment is not intercepted.
+ *      moment is not intercepted. (axe's own blank page is guarded but left
+ *      open — see denyPopups.)
  *   The audited page's own HTML is fetched only from an allowlisted (or, for
  *   the privileged tier, operator-chosen) host, which is what keeps these
  *   residual paths hard to reach: the attacker must first control content on
@@ -457,25 +456,62 @@ export async function hardenPage(page: import("puppeteer").Page): Promise<void> 
  *
  * `guard` installs interception on a page (installRequestGuard in
  * production); injectable for tests.
+ *
+ * THE ONE EXCEPTION — axe's own page (fixed 2026-11-18). axe-core/puppeteer
+ * finishes every scan in a blank page it opens itself (`finishRun` →
+ * `browser.newPage()`). From v1.168.0 this guard closed that page too, so
+ * EVERY fresh page audit failed with "Target closed" and only reports saved
+ * before v1.168.0 were ever served. `allowOwnPage()` opens a window, for the
+ * axe call only, in which ONE page with no opener — a page our own code
+ * opened, not one the audited site opened — is guarded but left open. A page
+ * that has an opener is always closed. If the audited site somehow took the
+ * allowance first, axe's page would be closed and the audit would fail:
+ * the error is a failed audit, never an unguarded page.
  */
+export interface PopupPolicy {
+  /** Allow one opener-less page until the returned function is called. */
+  allowOwnPage(): () => void;
+}
+
 export function denyPopups(
   browser: Browser,
   audited: import("puppeteer").Page,
   guard: (page: import("puppeteer").Page) => Promise<void>,
-): void {
+): PopupPolicy {
+  let allowance = 0;
   browser.on("targetcreated", (target) => {
+    // Decide synchronously, before any await, so the allowance is claimed in
+    // the order targets appear.
+    let ours = false;
+    try {
+      if (String(target.type()) !== "page") return;
+      const hasOpener = typeof target.opener === "function" && !!target.opener();
+      if (!hasOpener && allowance > 0) {
+        allowance--;
+        ours = true;
+      }
+    } catch {
+      return; // best effort
+    }
     void (async () => {
       try {
-        if (String(target.type()) !== "page") return;
         const popup = await target.page();
         if (!popup || popup === audited) return;
         await guard(popup).catch(() => {});
-        await popup.close().catch(() => {});
+        if (!ours) await popup.close().catch(() => {});
       } catch {
         // best effort
       }
     })();
   });
+  return {
+    allowOwnPage() {
+      allowance = 1;
+      return () => {
+        allowance = 0;
+      };
+    },
+  };
 }
 
 /** Target types whose network activity the page interceptor cannot see. */
@@ -573,7 +609,9 @@ export async function auditPage(
     // ONE budget for the whole audit, popups included.
     const budget = new OffHostBudget();
     await installRequestGuard(page, isUrlAllowed, host, budget);
-    denyPopups(browser, page, (popup) => installRequestGuard(popup, isUrlAllowed, host, budget));
+    const popups = denyPopups(browser, page, (popup) =>
+      installRequestGuard(popup, isUrlAllowed, host, budget),
+    );
     await page.setUserAgent("Mozilla/5.0 (compatible; ICJIA-File-Audit/audit.icjia.app)");
     await page.goto(url, {
       waitUntil: "networkidle2",
@@ -585,7 +623,14 @@ export async function auditPage(
     await new Promise((r) => setTimeout(r, HYDRATION_WAIT_MS));
 
     const pageTitle = await page.title().catch(() => null);
-    const results = await new AxePuppeteer(page).analyze();
+    // axe finishes in a blank page of its own — let that one page live.
+    const closeWindow = popups.allowOwnPage();
+    let results;
+    try {
+      results = await new AxePuppeteer(page).analyze();
+    } finally {
+      closeWindow();
+    }
 
     const { score, bySeverity } = computeScore(results.violations);
     const grade = gradeFromScore(score);

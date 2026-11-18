@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.175.1",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: web-page checks, which had stopped working.",
+    body: [
+      {
+        kind: "p",
+        html: "Fixes web-page checks. Nothing about what is collected, kept or deleted changed, and every other safeguard on web-page checks is unchanged.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> since v1.168.0, every new web-page check failed. A safeguard added then closes any extra browser tab, so a checked page cannot open windows of its own, but the accessibility scanner needs one blank tab of its own to finish, and the safeguard closed that too. Only page reports saved before v1.168.0 could be shown. <strong>Fix:</strong> while the scanner runs, exactly one tab opened by the checker itself is allowed to stay open; a tab opened by the page being checked is still always closed. If anything ever went wrong with that exception, the check would fail rather than leave a tab unguarded.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> A new test runs a real browser and the real scanner, and fails on the previous version. A real check of the ICJIA home page completes again.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.175.0",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: changes to how documents are scored and labelled.",
     body: [

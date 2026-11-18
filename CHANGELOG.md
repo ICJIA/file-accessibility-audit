@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.1] - 2026-11-18
+
+Page audits work again. **Deploy this.**
+
+### Fixed (finding with its fix)
+
+- **Every fresh web-page audit failed (since v1.168.0).** Finding: the popup guard added in v1.168.0 closes any new browser tab that is not the audited page. axe-core finishes every scan in a blank tab it opens itself, so the guard closed that tab too and the audit failed with "Target closed" (the API answered 502 "Page audit failed"). Only page reports saved before v1.168.0 were ever served. Found on the live server today by forcing a fresh audit of icjia.illinois.gov; earlier I had wrongly put the same local failure down to this Mac's Chromium. Fix: during the axe call only, one tab with no opener (a tab our code opened, not one the page opened) is guarded but left open. A tab the audited page opens is still always closed. If a page ever claimed that allowance first, axe's tab would be closed and the audit would fail, so the result is a failed audit, never an unguarded tab.
+- **Why the tests missed it.** The page-audit wiring test replaced axe with a fake. The new `pageAuditAxeOwnPage.test.ts` runs a real Chromium and the real axe scanner (no network), and fails on v1.175.0.
+- Two outdated notes now name their fix: the code comment and the v1.168.0 README entry still listed second-hostname DNS re-resolution as open; v1.174.0 fixed it.
+
+### Notes
+
+- Tests 4,822 across 273 files (API 2,645 · Web 2,080 · CLI 97). No scoring change; every gate green.
+
 ## [1.175.0] - 2026-11-18
 
 Decisions 2, 3, 4 and 9 from the 2026-11-18 review.

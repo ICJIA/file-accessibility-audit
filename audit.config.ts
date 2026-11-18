@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "page-audits-restored-2026-11-18",
+    badge: "Fixed",
+    text: "Web-page checks work again. For about a week, checking a web page failed every time, because a safety measure that stops checked pages from opening extra browser windows also closed the one the accessibility scanner needs. The scanner's own window is now allowed, and pages still cannot open windows of their own. File checks (PDF, Word, PowerPoint, Excel) were never affected.",
+    linkText: "Security and data history",
+    linkTo: "/data-retention",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 18, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "scoring-honesty-2026-11-18",
     badge: "Scoring",
     text: 'Three scoring changes. A PDF that hides all its pictures as decoration, in a document whose tags hold no content, no longer scores better than one left untagged; the report explains why. Two Excel checks that gave full marks without checking anything (sheet names, and data kept in plain cells) are now reported but not counted. And problems the checker finds from how text looks, such as bold lines that look like headings, are now marked "Likely, please verify" so a person can confirm them. A few scores change; most do not.',
