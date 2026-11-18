@@ -9,7 +9,7 @@
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
         <strong
           >Audited 2026-08-05, against the source code at tool v1.49.0; re-verified 2026-08-09
-          against tool v1.68.0</strong
+          against tool v1.68.0; re-verified 2026-11-18 against tool v1.173.4</strong
         >
         after the identifier-removal release (accounts, sign-in, and every email / IP-address /
         user-agent column removed; migration 11 dropped the columns and their existing data from the
@@ -49,6 +49,10 @@
       also <strong>no identity anywhere</strong>: since tool v1.68.0 there are no accounts and no
       sign-in, and no table has a column for an email address, an IP address, or a browser
       user-agent — the columns were removed from the schema itself, not merely left unwritten.
+      Re-checked 2026-11-18: the migrations added since (14 through 18) add one index and three
+      operational columns — when a remediation job started, its worker's process number, and the
+      audit-engine version a shared report was made with — and nothing that can hold document
+      content or identify anyone.
     </p>
     <div class="overflow-x-auto mb-4" tabindex="0">
       <table class="w-full text-sm">
@@ -142,12 +146,16 @@ const storage = multer.memoryStorage();
 ...
 export const uploadMiddleware = multer({
   storage,
-  limits: { fileSize: ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024, files: 1 },</pre>
+  limits: uploadLimits,   // fileSize: ANALYSIS.MAX_FILE_SIZE_MB MB, files: 1</pre>
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
-      An exhaustive search for filesystem writes across the whole API produces
-      <strong>eight sites, all accounted for</strong>: the database directory itself, the
-      remediation pipeline's working files (§ 3 — deleted mid-job with deletion verified), the two
-      short-lived analysis temp copies below, and the cleanup sweep's own deletions. There is no
+      An exhaustive search for filesystem writes across the whole API (re-run 2026-11-18) finds
+      <strong>every site accounted for</strong>: the database directory itself; the remediation
+      pipeline's working files (§ 3 — deleted mid-job with deletion verified); the short-lived
+      analysis temp copies below; the cleanup sweep's own deletions; and three files added since the
+      first audit, none of which holds document content — the daily activity file and the
+      application error log (both tool v1.88.0, described with their retention in § 7), and, since
+      tool v1.168.0, a one-time file holding the random secret key that seals shared reports (mode
+      0600, no user data). There is no
       <code class="text-xs font-mono">createWriteStream</code> anywhere in the server code, no
       cache, and no other write. The two analysis tools that need a file path get a temp copy under
       a <em>random name</em> (the user's filename never appears on disk), deleted in a
@@ -162,8 +170,8 @@ export const uploadMiddleware = multer({
     >
 const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
 try {
-  fs.writeFileSync(tmpPath, buffer);
-  const stdout = await execQpdfAsync(tmpPath);
+  fs.writeFileSync(tmpPath, buffer, { mode: 0o600 });
+  const stdout = execFileSync(QPDF_BIN, ["--json", tmpPath], { … });
   ...
 } finally {
   try { fs.unlinkSync(tmpPath); } catch {}
@@ -190,13 +198,14 @@ try {
         <strong>findings can quote short strings copied from inside the document</strong>, because
         naming the problem requires showing it. Specifically: the document's own metadata (title,
         author, subject, keywords, creator/producer), image alt-text values, link text and link
-        destinations with their page numbers, heading text, bookmark titles, form-field
-        <em>names</em>, font names, and — since v1.83.0 — an excerpt of up to 80 characters from
-        each box of text the document tags as an image, so the report can point at the right box
-        instead of telling an author to describe it. For example, the alt-text check quotes each
-        image's alt text so a reader can judge it (<code class="text-xs font-mono"
-          >packages/analyzer/src/scoring/pdf.ts</code
-        >):
+        destinations with their page numbers, heading text (an outline of up to 40 headings, each
+        cut at 80 characters), slide titles, worksheet and table names, bookmark titles, form-field
+        <em>names</em>, font names, up to five short lines (80 characters or fewer) that are styled
+        to look like headings but are not marked as headings — so the report can name them — and —
+        since v1.83.0 — an excerpt of up to 80 characters from each box of text the document tags as
+        an image, so the report can point at the right box instead of telling an author to describe
+        it. For example, the alt-text check quotes each image's alt text so a reader can judge it
+        (<code class="text-xs font-mono">packages/analyzer/src/scoring/pdf.ts</code>):
       </p>
       <pre
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border)] px-4 py-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto mb-3"
@@ -208,10 +217,11 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
         What is <strong>never</strong> in a stored report, verified against every finding the
         scorers can produce: page or paragraph text, images, form-field <em>values</em>, or any raw
-        file bytes. Headings are recorded as levels (H1, H2 …), not their text — except where a
-        heading also appears as a bookmark title. Web-page audit reports store CSS selectors for
-        failing elements, never page HTML (the code deliberately drops the HTML snippet field the
-        underlying engine offers).
+        file bytes. (An earlier version of this sentence said headings are recorded as levels only;
+        reports have quoted heading text since the heading outline was added, and § 8 listed it —
+        corrected 2026-11-18.) Web-page audit reports store CSS selectors for failing elements,
+        never page HTML (the code deliberately drops the HTML snippet field the underlying engine
+        offers).
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
         A shared report is retrievable by its unguessable 128-bit random ID, its link stops working
@@ -314,7 +324,7 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
             <td class="py-2.5 pr-4">
               No email, IP address, or user-agent is stored anywhere (§ 7a's claim)
             </td>
-            <td class="py-2.5 pr-4 text-emerald-300 font-semibold">Verified 2026-08-09</td>
+            <td class="py-2.5 pr-4 text-emerald-300 font-semibold">Verified 2026-11-18</td>
             <td class="py-2.5">
               true since tool v1.68.0 — migration 11 dropped the columns and their data; before that
               the usage log did store IP and user-agent (disclosed since policy v1.2, and still
@@ -351,10 +361,11 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
 
     <p class="text-sm text-[var(--text-muted)] leading-relaxed">
       <strong>Limitations.</strong> This verification is a statement about the code as of tool
-      v1.68.0, re-verified 2026-08-09 (first audited 2026-08-05 at v1.49.0), not a permanent
-      guarantee; it is re-verified when data handling changes, and any change would appear in § 14's
-      change log. The full technical evidence pack — every write site with file and line numbers —
-      is preserved in the project repository's history for this release.
+      v1.173.4, re-verified 2026-11-18 (first audited 2026-08-05 at v1.49.0; re-verified 2026-08-09
+      at v1.68.0), not a permanent guarantee; it is re-verified when data handling changes, and any
+      change would appear in § 14's change log. The full technical evidence pack — every write site
+      with file and line numbers — is preserved in the project repository's history for this
+      release.
     </p>
   </section>
 </template>

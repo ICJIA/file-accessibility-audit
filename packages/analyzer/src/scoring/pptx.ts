@@ -302,7 +302,7 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     findings.push(
       `Advisory — not scored: slide${untitled.length > 1 ? "s" : ""} ${nums} ${
         untitled.length > 1 ? "have" : "has"
-      } no slide title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. This is the slide's own title, not the presentation's title in the file's properties, which is scored under Title & Language. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.`,
+      } no slide title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. This is the slide's own title, not the presentation's title in the file's properties, which is scored under Title & Language. In PowerPoint: use the Outline view (View → Outline View) or a layout with a title placeholder.`,
     );
   }
 

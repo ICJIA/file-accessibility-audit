@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.4] - 2026-11-18
+
+Today's review, second half: the data-retention policy checked against the code, and every "reviewed on" date brought current.
+
+### Fixed — the data-retention policy (v1.17 → v1.18)
+
+- **§ 8a said saved reports record headings as levels only.** They quote heading text (an outline of up to 40 headings, 80 characters each), which § 8 already listed. § 8 and § 8a now also name the other short strings a saved report can quote: slide titles, worksheet and table names, and up to five short lines styled to look like headings.
+- **§ 8a's list of files the server writes** predated three: the daily activity file and the error log (v1.88.0, both already in § 7 with their retention) and the secret key that seals shared reports (v1.168.0). None holds document content.
+- **§ 3 did not describe the remediation queue** (v1.168.0). When both slots are busy an upload waits on disk for its turn, at most 10 minutes, then the sweep fails the job and deletes and verifies the file — still inside the 30-minute limit.
+- **Dates:** "Last updated" 2026-11-18; § 8a "re-verified 2026-11-18 against tool v1.173.4"; the § 7a verdict re-dated after checking migrations 14–18 add no identity column; § 14 gains the v1.18 entry saying exactly which sections were checked.
+
+### Changed
+
+- The PowerPoint "no slide title" advisory said "View → Outline"; it is "Outline View" (missed in v1.173.3).
+- **What's New:** today's entry now covers both reviews, the fix steps and the policy, and links to the policy's change log.
+
+### Notes
+
+- Nothing new is collected or kept, and no retention period changes. Every period in § 7 and every limit in §§ 2 and 9 was checked against `audit.config.ts`.
+- No score changed (gates re-run). Tests 4,707 across 261 files (API 2,552 · Web 2,058 · CLI 97); five of the new file's seven tests fail on policy v1.17.
+- `pnpm audit --prod` (2026-11-18): 3 high, the same unpatched `picomatch` advisory.
+
 ## [1.173.3] - 2026-11-18
 
 The fix steps, re-checked. The last check of the menu paths in the fix steps was in August, and it covered Word and Acrobat only. Every Microsoft and Adobe menu path was checked again on 2026-11-18 against the vendors' own help pages.

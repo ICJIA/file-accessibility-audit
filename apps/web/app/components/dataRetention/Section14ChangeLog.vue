@@ -6,6 +6,23 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.18 · 2026-11-18</strong> — A re-check of this policy against the code (tool
+        v1.173.4): §§ 3, 7, 8 and 8a in detail, and every size, time and page limit in §§ 2 and 9.
+        Nothing new is collected, no new kind of data is stored, and no retention period changes.
+        Two corrections to the description, both now matching what the software has done for some
+        time: § 8a said reports record headings as levels only, but saved reports quote heading text
+        (§ 8 already listed it); and § 8 and § 8a now also name the other short strings a saved
+        report can quote — slide titles, worksheet and table names, and up to five short lines
+        styled to look like headings. § 8a's list of files the server writes now includes the three
+        added since its first audit (the daily activity file and the error log, both already in § 7,
+        and the secret key that seals shared reports), and its dates are brought up to 2026-11-18. §
+        3 now describes the remediation queue added in tool v1.168.0: when both remediation slots
+        are busy, an uploaded PDF waits on disk for its turn, for at most 10 minutes, and is deleted
+        and verified if it never starts — still inside the 30-minute limit the policy states. Every
+        retention period in § 7 and every limit in §§ 2 and 9 was checked against the configuration
+        and is unchanged.
+      </li>
+      <li>
         <strong>v1.17 · 2026-08-26</strong> — Nothing new is collected, no new kind of data is
         stored, and no retention period changes. Description update for a processing variant: the
         web page now usually runs an audit through progress endpoints that report per-step status

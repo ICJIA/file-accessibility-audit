@@ -30,6 +30,12 @@ Client → HTTPS multipart upload (re-upload required by design)
 [write input → data/remediation/&lt;jobId&gt;/work/input.pdf] (mode 0600)
   │
   ▼
+[queue, tool v1.168.0+: when both worker slots are busy the job waits its turn
+   (at most 10 waiting; input.pdf stays on disk, mode 0600). A job still
+   waiting after 10 minutes is failed by the cleanup sweep, and its
+   directory is deleted + fs.stat-verified]
+    │
+    ▼
 [spawn detached worker: tsx src/jobs/remediate.ts &lt;jobId&gt;]
   │
   ▼
@@ -95,6 +101,13 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</pre>
       <strong>Key invariants of the remediation pipeline:</strong>
     </p>
     <ul class="text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 space-y-1.5">
+      <li>
+        <strong>A queued upload waits at most 10 minutes</strong> (tool v1.168.0+). When both
+        remediation slots are busy, a new job's uploaded PDF waits on disk for its turn; if no slot
+        frees within 10 minutes, the cleanup sweep fails the job and deletes and verifies the file.
+        The queue wait, a stuck worker's 10-minute window and the sweep interval are held together
+        under the 30-minute limit, so no document stays on disk longer than that.
+      </li>
       <li>
         At any instant during the pipeline,
         <strong>at most one copy of the PDF exists on disk</strong>. The input is deleted before the

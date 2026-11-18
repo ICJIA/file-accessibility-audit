@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.173.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.173.4-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,700 tests** across 260 test files (API 2,552 · Web 2,051 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,707 tests** across 261 test files (API 2,552 · Web 2,058 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1171,6 +1171,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `fixTime.test.ts` | 19 | Fix-time estimates (v1.154.0): per-item rates times the document's own counts, rounded up to a floor; apply-only alt text never totals; PDF limited to its mechanical Acrobat steps; a reworded finding yields no estimate rather than a wrong one. |
 | `actionPlanSourceApp.test.ts` | 25 | The to-do list for PDFs (v1.172.1): a title that is set but not displayed gets its own one-route step; `pdfSourceApp` reads PowerPoint, Excel or InDesign from the Creator; PowerPoint and Excel PDFs get that program's steps, and the metadata card names the same program. |
 | `fixStepAccuracy2026_11.test.ts` | 7 | The November 2026 fix-step check (v1.173.3): every string found wrong against Microsoft's and Adobe's own help pages is pinned — no Excel step offers Set Proofing Language (Excel has none) and a PDF from Excel with only a language problem is sent to Acrobat alone; PowerPoint's Selection Pane is described as listing in reverse; slide titles name Outline View and Set as Slide Title; no PDF/UA hint gives a classic-only `File → Properties` or `Print Production` path; the fonts step names the installed-font condition; the version note covers PowerPoint and Excel and is dated November 2026. Each test fails on v1.173.2's strings. |
+| `dataRetentionReverify2026_11.test.ts` | 7 | Policy v1.18, the 2026-11-18 re-check (v1.173.4): § 8 and § 8a name every kind of short string a saved report quotes (heading text, slide titles, worksheet and table names, heading-styled lines) and § 8a no longer says headings are stored as levels only; § 3 describes the remediation queue, and the queue wait + stuck-worker window + sweep interval stay inside the 30-minute limit (read from the config); every API/analyzer module that writes a file must be named in § 8a, so a new writer fails here until the policy accounts for it. Five of the seven fail on policy v1.17's text. |
 | `analyzeJobRetry.test.ts` | 18 | Job polling tolerates transient failures, stops when the page abandons it, and never shows an empty error box. |
 | `batchProgressA11y.test.ts` | 5 | Batch progress gives every state in words, and drop-zone validation errors announce themselves. |
 | `batchRun.test.ts` | 3 | `runBatch`: every file runs, two at a time, with results and errors recorded; cancel stops new work and marks the rest cancelled; a stale run never touches a newer one. |
@@ -1461,6 +1462,16 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.173.4 — 2026-11-18 · Data-retention policy re-checked against the code; review dates brought current (no new attack surface)
+
+No new attack surface. Copy only: the data-retention policy (v1.17 → v1.18), one PowerPoint finding's menu wording, and a code comment. No route, storage, retention period or data practice changed.
+
+**Fixed (accuracy of the policy, P2).** §§ 3, 7, 8 and 8a were re-checked against the code at v1.173.4, and every size, time and page limit in §§ 2 and 9 against `audit.config.ts`. Three descriptions had fallen behind behaviour that shipped earlier: § 8a said saved reports record headings as levels only, but findings quote heading text (an outline of up to 40, 80 characters each — § 8 already listed it), slide titles, worksheet and table names, and up to five heading-styled lines; § 8a's inventory of file writes predated the v1.88.0 error log and activity file (both already in § 7) and the v1.168.0 report-seal key; § 3 did not describe the v1.168.0 remediation queue, during which an upload waits on disk (≤ 10 min, then fail + delete-and-verify; 10 + 10 + 5 min < the 30-min bound). All retention periods in § 7 match the config. § 8a's re-verification date is now 2026-11-18.
+
+**Verified rather than assumed.**
+- New `dataRetentionReverify2026_11.test.ts` (7 tests): five fail on policy v1.17's text; one scans every API/analyzer source file for file writes and fails if a writer is not named in § 8a. Tests 4,707 green; typecheck, lint, format and build green. Analyzer change is one menu name in a finding; gates re-run: no score moved.
+- `pnpm audit --prod` (2026-11-18): 3 high, the same unpatched `picomatch` advisory (GHSA-fc5q-39xc-vjpf) accepted in v1.173.2/v1.173.3.
 
 ### v1.173.3 — 2026-11-18 · Fix steps re-checked against today's Word, PowerPoint, Excel, Acrobat and InDesign (no new attack surface)
 

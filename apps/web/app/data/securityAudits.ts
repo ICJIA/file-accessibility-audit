@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.4",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: this data retention policy, checked against the software.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface, and nothing new is collected or kept. This update corrects how this policy describes what the software already does, after checking the policy against the software itself.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>What a saved report can quote is now listed in full.</strong> Section 8a said a saved report records headings only as levels. In fact it quotes heading text, as Section 8 already said, and also slide titles, sheet and table names, and a few short lines styled to look like headings. Both sections now say so.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>The automatic-repair queue is described.</strong> When both repair slots are busy, an uploaded file waits on the server for its turn, for at most 10 minutes, and is deleted (and the deletion checked) if it never starts. This is still inside the 30-minute limit the policy states. Section 3 now says so.",
+          },
+          {
+            badge: "UX",
+            html: "<strong>Every date on this page reflects today&rsquo;s check.</strong> The list of files the server writes now includes three added since the first check, none of which holds document content. Every retention period in Section 7 was compared with the software&rsquo;s settings and is unchanged.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> New self-checks fail on the policy as it was before. One of them now fails automatically if a future change makes the software write a new kind of file that Section 8a does not list.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.173.3",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: the wording of the fix steps shown in reports.",
     body: [

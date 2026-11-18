@@ -52,8 +52,9 @@
           <li>
             For a shared report or remediation job only: document metadata (title, author, subject,
             keywords), image alt-text values, link text and destinations (with page numbers),
-            heading text, bookmark titles, form-field names, and — for a box of text that the
-            document tags as an image — an excerpt of up to 80 characters of that text, quoted
+            heading text, slide titles, worksheet and table names, bookmark titles, form-field
+            names, up to five short lines styled to look like headings, and — for a box of text that
+            the document tags as an image — an excerpt of up to 80 characters of that text, quoted
             inside the findings (§ 8a)
           </li>
           <li>Server-side timestamps for every lifecycle event</li>

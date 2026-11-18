@@ -263,11 +263,11 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
-    id: "fix-steps-rechecked-2026-11-18",
+    id: "review-2026-11-18",
     badge: "Fixed",
-    text: "Every menu path in the fix steps has been checked again against Microsoft's and Adobe's own help pages, as of November 18. Some steps were wrong and are corrected. Excel was told to use a language setting it does not have. PowerPoint's advice on reading order would have made a slide's title read last instead of first, because PowerPoint's Selection Pane lists shapes in reverse. A few Acrobat steps gave only the menus of the older Acrobat design. The note on each set of steps now covers PowerPoint and Excel as well as Word and Acrobat, and says where a Mac differs. No score or grade changes.",
-    linkText: "How the audit works",
-    linkTo: "/technical-details",
+    text: "Today's review of the tool. Every menu path in the fix steps was checked again against Microsoft's and Adobe's own help pages, and the wrong ones are corrected: Excel was told to use a language setting it does not have, and PowerPoint's advice on reading order would have made a slide's title read last instead of first. A few Acrobat steps gave only the older Acrobat's menus. The note on each set of steps now covers PowerPoint and Excel and says where a Mac differs. The data retention policy was also checked against the software and brought up to date: it now says that a saved report can quote slide titles, sheet names and heading text, and how long a file can wait in the queue for automatic repair. Nothing new is collected or kept, and no score or grade changes.",
+    linkText: "Read the policy's change log",
+    linkTo: "/data-retention#change-log",
     /** In-app route — an ordinary router link. */
     linkExternal: false,
     wcagRefs: [],

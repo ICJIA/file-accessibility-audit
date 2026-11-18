@@ -146,7 +146,7 @@ function dispositionLabel(o: CategoryOutcome): string {
 // pre-redesign path in parentheses wherever the two differ sharply —
 // the agency runs a mix of both, and steps for one read as wrong on the
 // other (a real user couldn't find "Tools → Accessibility" on the new
-// UI). Verified against Adobe's own tool docs 2026-08-11; see
+// UI). Verified against Adobe's own tool docs 2026-08-11, re-verified 2026-11-18; see
 // docs/fix-step-accuracy-2026-08.md. Generic fallback at the end for
 // categories not specifically mapped.
 const acrobatStepsByCategory: Record<string, string> = {

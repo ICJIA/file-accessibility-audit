@@ -43,11 +43,11 @@ useHead({
   ],
 });
 
-const POLICY_VERSION = "1.17";
+const POLICY_VERSION = "1.18";
 const POLICY_EFFECTIVE = "2026-08-09";
 // Must equal the date on § 14's newest entry — dataRetentionVersion.test.ts
 // holds both this and POLICY_VERSION to that entry.
-const POLICY_UPDATED = "2026-08-26";
+const POLICY_UPDATED = "2026-11-18";
 const TOOL_VERSION = runtimeConfig.public.appVersion;
 
 // Mermaid diagram sources. Deliberately simple — flowchart TD only,
@@ -268,7 +268,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
         </li>
         <li>
           <a href="#storage-verification" class="text-[var(--link)] hover:text-[var(--link-hover)]"
-            >8a. Storage verification — the evidence for § 8 (re-verified 2026-08-09)</a
+            >8a. Storage verification — the evidence for § 8 (re-verified 2026-11-18)</a
           >
         </li>
         <li>
