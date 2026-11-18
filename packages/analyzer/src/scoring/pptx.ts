@@ -282,7 +282,7 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     findings.push(
       `Slide${fakeHeadings.length > 1 ? "s" : ""} ${nums} ${
         fakeHeadings.length > 1 ? "have" : "has"
-      } a heading typed into an ordinary text box instead of the slide's title placeholder — it looks like a heading and is not one, so assistive technology cannot announce it as the slide's title or navigate to it. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder (or View → Outline and type it there).`,
+      } a heading typed into an ordinary text box instead of the slide's title placeholder — it looks like a heading and is not one, so assistive technology cannot announce it as the slide's title or navigate to it. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder (or View → Outline View and type it there). Quicker: select the text box, then Review → Check Accessibility → Slide Title ▾ → Set as Slide Title.`,
     );
     if (headingsOverwhelmed(titledSlides, fakeHeadings.length)) {
       findings.push(
@@ -336,7 +336,7 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     // Nothing but hidden slides (2026-11-12): they are the whole deck, so
     // they were checked — see pptxService.
     findings.push(
-      `All ${a.slides.length} slide(s) in this presentation are hidden. With no visible slide to judge, the hidden slides were checked as they are — unhide the slides that will be presented (right-click the slide → Hide Slide) and check the presentation again.`,
+      `All ${a.slides.length} slide(s) in this presentation are hidden. With no visible slide to judge, the hidden slides were checked as they are — unhide the slides that will be presented (right-click the slide → Unhide Slide) and check the presentation again.`,
     );
   }
 
@@ -419,7 +419,7 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.reading_order,
       null,
       [
-        "No titled slides to order-check — reading order was not assessed. Verify manually with the Tab key or the Selection Pane.",
+        "No titled slides to order-check — reading order was not assessed. Verify manually with the Tab key or the Selection Pane (which lists shapes in reverse reading order).",
       ],
       "Reading order determines the sequence assistive technology announces a slide's content. A slide's title should read first, orienting the listener before the body content.",
       [PPTX_HELP.overview],
@@ -454,7 +454,7 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
     findings.push(
       `Advisory — not scored: slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
         titledOutOfOrder.length > 1 ? "have" : "has"
-      } a title that is not the first shape in reading order. A listener hears the body text before the heading that was meant to orient them. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) and reorder shapes so the title reads first.`,
+      } a title that is not the first shape in reading order. A listener hears the body text before the heading that was meant to orient them. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) — it lists shapes in reverse reading order, so drag the title to the BOTTOM of the list to make it read first. (On Windows, the Reading Order pane lists them top-down: Review → Check Accessibility → Check reading order → Verify object order.)`,
     );
   }
 
@@ -463,7 +463,7 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
     findings.push(
       `Slide${denseSlides.length > 1 ? "s" : ""} ${nums} ${
         denseSlides.length > 1 ? "have" : "has"
-      } more than 10 shapes. Dense slides are hard to verify automatically — check the reading order manually with the Tab key or the Selection Pane.`,
+      } more than 10 shapes. Dense slides are hard to verify automatically — check the reading order manually with the Tab key or the Selection Pane (which lists shapes in reverse reading order).`,
     );
   }
 
@@ -526,7 +526,7 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
   const findings = [`${a.tables.length} table(s) found.`];
   if (dataTablesNoHeader.length > 0) {
     findings.push(
-      `${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: select the table → Table Design → check "Header Row", and mark the top row's cells as headers.`,
+      `${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: click in the table → Table Design → Table Style Options → check "Header Row", and type the column headings in that top row.`,
     );
   }
   // Headers that label nothing (2026-10-06, user decision: reported, never

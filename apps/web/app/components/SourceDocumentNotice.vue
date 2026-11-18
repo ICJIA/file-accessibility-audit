@@ -94,8 +94,11 @@ const isXlsx = computed(() => props.fileType === "xlsx");
             </li>
             <li>
               <strong class="text-[var(--text)]">Reading order:</strong> open
-              <em>Review → Check Accessibility → Reading Order pane</em> — screen readers follow the
-              shape order, not the visual layout, and the slide title should come first.
+              <em>Home → Arrange → Selection Pane</em> — screen readers follow the shape order, not
+              the visual layout, and the slide title should come first. The pane lists shapes in
+              reverse, so the title belongs at the bottom of the list. (On Windows, the Reading
+              Order pane lists them top-down:
+              <em>Review → Check Accessibility → Check reading order → Verify object order</em>.)
             </li>
             <li>
               <strong class="text-[var(--text)]">Tables:</strong> use <em>Insert → Table</em> (not

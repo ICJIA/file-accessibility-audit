@@ -152,7 +152,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "File → Info → set Title",
         "Select the text (View → Outline View, then Ctrl+A), then Review → Language → Set Proofing Language",
       ],
-      xlsx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
+      // Excel has no document-language setting (no Set Proofing Language
+      // command either), so the workbook route is the title alone; a PDF
+      // made from Excel gets its language in Acrobat (route below).
+      xlsx: ["File → Info → set Title"],
     },
     sourceInDesign: [
       "In InDesign: File → File Info → enter a descriptive Document Title",
@@ -204,7 +207,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Right-click each picture → View Alt Text (some versions call it Edit Alt Text) → write a short description (or mark it decorative)",
       ],
       xlsx: [
-        "Right-click each chart/image → View Alt Text (some versions call it Edit Alt Text) → write a short description",
+        "Right-click each chart/image → View Alt Text (some versions call it Edit Alt Text) → write a short description (or mark it decorative)",
       ],
     },
     sourceInDesign: [
@@ -284,6 +287,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     sourceInDesign: [
       "Build tables with InDesign's table tool (Table → Insert Table), never tabs or spaces",
       "Click in the header row → Table → Convert Rows → To Header",
+      "If the left-hand column holds row labels: select it → Table → Convert Rows → Convert to Header Columns (InDesign 21.5 and later)",
       'Re-export with "Create Tagged PDF" checked',
     ],
     acrobat: [
@@ -346,7 +350,8 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Avoid floating text boxes; use a simple top-to-bottom flow or real columns (Layout → Columns)",
       ],
       pptx: [
-        "On each slide: Home → Arrange → Selection Pane, and order objects bottom-to-top in reading order",
+        "On Windows: Review → Check Accessibility → under Warnings, Check reading order → point at the slide → ▾ → Verify object order; in the Reading Order pane that opens, drag objects into the order they should be read (top = read first)",
+        "Or, on any slide (and on a Mac): Home → Arrange → Selection Pane — it lists objects in REVERSE reading order, so the object read first goes at the BOTTOM of the list",
       ],
     },
     sourceInDesign: [
@@ -385,8 +390,9 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     why: "Slide titles are how screen-reader users know where they are in the deck.",
     source: {
       pptx: [
-        "Use each slide's built-in Title placeholder (if a layout has none: View → Outline and type the title there)",
-        "View → Outline to spot untitled slides quickly",
+        "Use each slide's built-in Title placeholder (if a layout has none: View → Outline View and type the title there)",
+        "If a heading was typed into an ordinary text box, select that box, then Review → Check Accessibility → on the Accessibility ribbon, Slide Title ▾ → Set as Slide Title",
+        "View → Outline View to spot untitled slides quickly",
         "Make every title unique",
       ],
     },
@@ -547,7 +553,7 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
       ],
       acrobat: [
         "Check which fonts are affected: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status",
-        "Use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts",
+        "If the font is installed on this computer: All tools → Use print production → Preflight (classic UI: Tools → Print Production → Preflight) → run the “Embed missing fonts” fixup; otherwise re-export from the source with font embedding on",
       ],
     },
   },
@@ -729,6 +735,7 @@ const TABLE_MARKUP_VARIANTS: Array<{
       },
       sourceInDesign: [
         "Select the header row → Table → Convert Rows → To Header, so the row is exported as a real header row",
+        "If the left-hand column holds row labels: select it → Table → Convert Rows → Convert to Header Columns (InDesign 21.5 and later)",
         'Re-export with "Create Tagged PDF" checked',
       ],
       acrobat: [
@@ -872,7 +879,10 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
           "Select the text (View → Outline View, then Ctrl+A)",
           "Review → Language → Set Proofing Language → choose the language",
         ],
-        xlsx: ["Review → Language → Set Proofing Language"],
+        // Excel has no document-language setting, so there is nothing to
+        // change in the workbook: an empty list means "no source route" and
+        // the Acrobat route below carries the fix on its own.
+        xlsx: [],
       },
       sourceInDesign: [
         "When exporting (File → Export → Adobe PDF (Print)): on the Advanced tab, set the document's Language",
@@ -1105,7 +1115,13 @@ export function buildActionPlan(
         : undefined;
       const sourceSteps =
         inDesignSteps ??
-        (officeSteps ? [...officeSteps, RE_EXPORT_STEP] : (entry?.source.pdf ?? []));
+        (officeSteps
+          ? // An empty list: the program has nothing to set (Excel stores no
+            // language) — no source route, the Acrobat route stands alone.
+            officeSteps.length
+            ? [...officeSteps, RE_EXPORT_STEP]
+            : []
+          : (entry?.source.pdf ?? []));
       if (sourceSteps.length)
         routes.push({
           tool: "source",

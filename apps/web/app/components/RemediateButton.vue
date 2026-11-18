@@ -204,8 +204,9 @@ onBeforeUnmount(() => {
       class="text-sm text-[var(--text-muted)] mt-3 max-w-lg mx-auto"
     >
       This PDF already scored {{ props.inputScore }} on the audit and won't benefit from additional
-      automated remediation. We still recommend a manual review pass in Adobe Acrobat (Accessibility
-      → Accessibility Checker) to verify alt text, reading order, and table semantics.
+      automated remediation. We still recommend a manual review pass in Adobe Acrobat (All tools →
+      Prepare for accessibility → Check for accessibility) to verify alt text, reading order, and
+      table semantics.
     </p>
     <div
       v-else-if="!busy"

@@ -916,7 +916,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           fix: {
             source:
               "In the source application (Word, InDesign), enable font embedding before exporting to PDF.",
-            app: "In Acrobat, check Document properties → Fonts tab for embedding status, then re-export from the source with embedding turned on — fonts cannot be embedded after the fact in Acrobat alone.",
+            app: "In Acrobat, check Document properties → Fonts tab for embedding status, then re-export from the source with embedding turned on. Acrobat can embed a font after the fact only if that font is installed on your computer (Preflight's “Embed missing fonts” fixup).",
           },
         };
       }

@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.3",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: the wording of the fix steps shown in reports.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. This update changes only the wording of the step-by-step fix instructions a report shows. Nothing about how files are received, checked, stored or deleted changed, no score changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Fix steps re-checked against today&rsquo;s software.</strong> Every menu path for Word, PowerPoint, Excel, Acrobat and InDesign was checked again against Microsoft&rsquo;s and Adobe&rsquo;s own help pages on November 18, 2026. The previous check, in August, covered Word and Acrobat only. Steps that were wrong are corrected: Excel was sent to a language setting it does not have, and PowerPoint&rsquo;s reading-order advice would have made a slide&rsquo;s title read last.",
+          },
+          {
+            badge: "UX",
+            html: "<strong>The note on each set of steps is current.</strong> It now names PowerPoint and Excel, gives the November 2026 versions, and says the Office steps are written for Windows, with the main Mac differences.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One warning in a build tool still has no fix.</strong> The regular check of third-party software, run again for this update, reports the same single warning as the last update, in a tool used only while the site is being built. No corrected version has been published. The tool is not part of the running site and never sees uploaded files.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> New self-checks fail on every corrected instruction as it was before. Every self-check passed, and every accuracy check on the test documents was run again: no score moved.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.173.2",
     meta: "Reviewed <strong>2026-11-17</strong> &middot; scope: the small marks shown beside each line of a report.",
     body: [

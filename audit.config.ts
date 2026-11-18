@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "fix-steps-rechecked-2026-11-18",
+    badge: "Fixed",
+    text: "Every menu path in the fix steps has been checked again against Microsoft's and Adobe's own help pages, as of November 18. Some steps were wrong and are corrected. Excel was told to use a language setting it does not have. PowerPoint's advice on reading order would have made a slide's title read last instead of first, because PowerPoint's Selection Pane lists shapes in reverse. A few Acrobat steps gave only the menus of the older Acrobat design. The note on each set of steps now covers PowerPoint and Excel as well as Word and Acrobat, and says where a Mac differs. No score or grade changes.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 18, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "report-marks-2026-11-17",
     badge: "Fixed",
     text: 'A correction to the report you can download as a web page. It chose the tick or cross beside each line by looking for words such as "found" or "all", so some lines describing real problems were shown with a green tick. It now marks every line the same way the report on screen does. On screen, a line counting the headings a document does have is no longer shown with a cross. No score or grade changes.',

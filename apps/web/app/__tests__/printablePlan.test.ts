@@ -55,7 +55,7 @@ describe("buildPrintablePlan", () => {
     // person who generated it.
     const html = buildPrintablePlan({ filename: "a.pdf", steps: [step()], generatedAt: AT });
     expect(html).toContain("contact IDS at ICJIA");
-    expect(html).toContain("August 2026");
+    expect(html).toContain("November 2026");
   });
 
   it("omits the version note when there is nothing to fix", () => {

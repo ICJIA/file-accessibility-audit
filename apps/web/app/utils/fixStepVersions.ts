@@ -1,6 +1,7 @@
 /**
- * The one place that says WHICH versions of Word, Acrobat, and InDesign the
- * fix steps are written for, and who to call when the menus don't match.
+ * The one place that says WHICH versions of Word, PowerPoint, Excel, Acrobat,
+ * and InDesign the fix steps are written for, and who to call when the menus
+ * don't match.
  *
  * WHY THIS EXISTS. A user followed a fix card and couldn't find the menu
  * items — they were on an older Acrobat, whose interface (the pre-2023
@@ -26,10 +27,13 @@
 
 /** Which app versions the fix steps target. */
 export const FIX_STEPS_WRITTEN_FOR =
-  "Fix steps were verified in August 2026 against the current versions of these apps: " +
-  "Microsoft Word for Microsoft 365 (Windows Version 2607; Mac 16.111), Adobe Acrobat Pro " +
-  "(version 26 — the redesigned interface with an “All tools” panel that Adobe rolled out through 2023), " +
-  "and — for PDFs that were laid out in it — Adobe InDesign 2026 (version 21). " +
+  "Fix steps were verified in November 2026 against the current versions of these apps: " +
+  "Microsoft Word, PowerPoint, and Excel for Microsoft 365 (Windows Version 2611; Mac 16.115), " +
+  "Adobe Acrobat Pro (version 26 — the redesigned interface with an “All tools” panel that Adobe " +
+  "rolled out through 2023), and — for PDFs that were laid out in it — Adobe InDesign 2026–2027 " +
+  "(versions 21–22). Office menu paths are written for Windows; where a Mac differs, the step says so " +
+  "(the two that differ most: on a Mac the document title is under File → Properties, and the " +
+  "language command is Review → Language). " +
   "Not sure which Acrobat you have? If it shows a ☰ menu button and an “All tools” panel on the left, " +
   "follow the main steps; if it has a Tools tab with an Accessibility toolset instead, you're on the " +
   "older “classic” design — use the classic paths given in parentheses.";
@@ -37,7 +41,8 @@ export const FIX_STEPS_WRITTEN_FOR =
 /** Who to contact when the menus on screen don't match the steps. */
 export const FIX_STEPS_SUPPORT_LINE =
   "If you don't see these menu items — or can't find them — please contact IDS at ICJIA " +
-  "to make sure you have the most recent versions of Word and Acrobat installed.";
+  "to make sure you have the most recent versions of Microsoft 365 (Word, PowerPoint, Excel) " +
+  "and Acrobat installed.";
 
 /** The full note, as rendered on every fix-step card. */
 export const FIX_STEPS_VERSION_NOTE = `${FIX_STEPS_WRITTEN_FOR} ${FIX_STEPS_SUPPORT_LINE}`;

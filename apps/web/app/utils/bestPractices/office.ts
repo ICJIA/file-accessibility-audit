@@ -878,7 +878,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           ],
           fix: {
             source:
-              "In PowerPoint, use the Outline view (View → Outline) or choose a slide layout with a title placeholder, then add a title to each flagged slide.",
+              "In PowerPoint, use the Outline view (View → Outline View) or choose a slide layout with a title placeholder, then add a title to each flagged slide.",
             app: OFFICE_FIX_APP,
           },
         };

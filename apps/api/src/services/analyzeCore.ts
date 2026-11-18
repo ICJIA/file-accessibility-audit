@@ -242,7 +242,7 @@ export function mapAnalyzeError(
       body: {
         error: "This PDF is password-protected.",
         details:
-          "Screen readers and accessibility tools also cannot access password-protected content. Please remove the password protection in Adobe Acrobat (File → Properties → Security → No Security) and re-upload.",
+          "Screen readers and accessibility tools also cannot access password-protected content. Please remove the password protection in Adobe Acrobat (Document properties — ☰ Menu on Windows, File menu on Mac → Security tab → Security Method: No Security) and re-upload.",
       },
     };
   }

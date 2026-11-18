@@ -170,7 +170,7 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
       titleShown
         ? `Title metadata present and DisplayDocTitle is set: "${pdfjs.title}"`
         : hasInfoTitle
-          ? `Title metadata present ("${pdfjs.title}") but ViewerPreferences/DisplayDocTitle is not set — viewers show the filename in the title bar. Fix in Acrobat: File → Properties → Initial View → Show: Document Title.`
+          ? `Title metadata present ("${pdfjs.title}") but ViewerPreferences/DisplayDocTitle is not set — viewers show the filename in the title bar. Fix in Acrobat: Document properties (☰ Menu on Windows, File menu on Mac; classic UI: File → Properties) → Initial View tab → Show: Document Title.`
           : "No /Info/Title string found — screen readers announce the filename instead.",
     ),
   );

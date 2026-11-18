@@ -1,5 +1,7 @@
 # Fix-step accuracy pass — Word and Acrobat menu paths (August 2026)
 
+> **Superseded in part by [the November 2026 pass](fix-step-accuracy-2026-11.md)** (re-verified 2026-11-18; added PowerPoint, Excel and InDesign 2027). The canonical Acrobat table below still holds — every path in it was re-confirmed word for word.
+
 **Trigger:** a user followed the report's fix steps and could not find the menu items in
 Word or Acrobat. Root cause: several fix strings — worst of all the remediation page's
 per-category Acrobat hints — still described Adobe Acrobat's **pre-redesign "classic"

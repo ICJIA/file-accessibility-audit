@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.3] - 2026-11-18
+
+The fix steps, re-checked. The last check of the menu paths in the fix steps was in August, and it covered Word and Acrobat only. Every Microsoft and Adobe menu path was checked again on 2026-11-18 against the vendors' own help pages.
+
+### What changed at Microsoft and Adobe since August
+
+- **Very little.** Microsoft 365 (now Version 2611 on Windows, 16.115 on Mac) and Acrobat (now 26.003.22110) shipped bug fixes only; Adobe's accessibility help pages are unchanged since February. **InDesign 2027 (v22.0)** shipped in November, and InDesign 21.5 (July) added header *columns* for tables.
+- Office LTSC 2021 support ended on 2026-10-13, so Office 2024 is the only supported version that still says "Edit Alt Text".
+
+### Fixed — wrong steps
+
+- **Excel was told to use Review → Language → Set Proofing Language.** Excel has no such command and stores no language. The workbook steps now ask for the title only, and a PDF made from Excel whose only problem is its language gets the Acrobat route alone (an empty source list now means "no source route").
+- **Unhiding a slide said "right-click the slide → Hide Slide".** It is Unhide Slide.
+- **The PowerPoint Selection Pane advice made the title read last.** The pane lists shapes in reverse reading order, so "reorder so the title reads first" sent people to drag it to the top. Every surface now says to drag the title to the bottom, and names the Windows Reading Order pane (top-down) as the other route.
+- **PowerPoint tables: "mark the top row's cells as headers"** pointed at a control that does not exist; the Header Row checkbox is the whole fix.
+- **Acrobat's "File → Organize Pages → Split"** (too-large error) is wrong in both interfaces: now All tools → Organize pages → Split, and Save as Other names the ☰ Menu on Windows.
+- **The remediation result page named "Accessibility → Accessibility Checker"**, which is neither interface's path.
+- **"PowerPoint uses its presentation-wide default language setting"** described no real menu; it now gives Outline View + Set Proofing Language.
+
+### Changed — stale or contradictory steps
+
+- Classic-only Acrobat paths gained the current path: `File → Properties` (seven PDF/UA hints, the DisplayDocTitle finding, the password message) and `Print Production → Preflight` (six hints). The PDF/UA tab-order hint named a "Make accessible workflow" that Adobe's pages do not document; it now gives the checker's Tab order → Fix and the Page Properties route.
+- **Fonts no longer contradict each other.** One card said fonts "cannot be embedded after the fact in Acrobat"; five others offered Preflight's "Embed missing fonts". Both now say: Preflight can embed a font that is installed on your computer; otherwise re-export with embedding on. The non-existent "→ Fix →" step is gone.
+- Table Scope: the remediation page and the "Table editor shortcut" line now reach the Table Editor through the Reading Order tool, as Adobe documents. Page Thumbnails panel path names the ☰ Menu on Windows.
+- PowerPoint: "View → Outline" → "View → Outline View"; slide-title steps add the Accessibility ribbon's **Set as Slide Title**. Excel alt text adds "(or mark it decorative)". Links: "Edit Hyperlink" in Word, "Edit Link" in PowerPoint and Excel.
+- InDesign table steps add **Convert to Header Columns** (21.5+) for row labels.
+- **The version note on every fix card** now names Word, PowerPoint and Excel (Windows Version 2611; Mac 16.115), Acrobat 26 and InDesign 2026–2027; says Office paths are written for Windows and gives the two Mac differences; and the support line asks for current Microsoft 365, not just "Word and Acrobat".
+
+### Notes
+
+- Analyzer finding sentences are frozen into stored reports at audit time, so reports saved before this release keep the old wording until the file is audited again. The version note is drawn live, so it updates everywhere.
+- **No score changed.** All eight accuracy gates re-run (analyzer text changed): no score moved; ledger 369, traps 249 unchanged.
+- Tests 4,700 across 260 files (API 2,552 · Web 2,051 · CLI 97). The new `fixStepAccuracy2026_11.test.ts` fails on v1.173.2's strings.
+- `pnpm audit --prod` (2026-11-18): 3 high, the same unpatched `picomatch` advisory accepted in v1.173.2.
+- Full record: `docs/fix-step-accuracy-2026-11.md`.
+
 ## [1.173.2] - 2026-11-17
 
 The icons beside each finding. A user checking a 79/C report asked whether a report line had been marked as a second failure; it had not, but the question led to a real defect in the downloadable HTML report.

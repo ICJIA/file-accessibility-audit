@@ -157,7 +157,7 @@ const acrobatStepsByCategory: Record<string, string> = {
   heading_structure:
     "Open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags). Verify <H1>, <H2>, etc. are present and nested correctly.",
   table_markup:
-    "In the Tags panel, expand each <Table> and confirm <TH> cells have a Scope attribute (Row or Column). Add via right-click → Properties → Tag.",
+    "In the Tags panel, expand each <Table> and confirm <TH> cells have a Scope attribute (Row or Column). Set it in the Table Editor: All tools → Prepare for accessibility → Fix reading order → right-click the table → Table Editor → right-click a header cell → Table Cell Properties → Scope.",
   title_language:
     "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac) → Description tab (Title field). For language: the Advanced tab → Reading Options → Language.",
   bookmarks:
@@ -169,7 +169,7 @@ const acrobatStepsByCategory: Record<string, string> = {
   link_quality:
     'Fix the visible text in the source document and re-export, or retype it with Acrobat\'s Edit tool (All tools → Edit a PDF). Use text that says where the link goes rather than "click here".',
   text_extractability:
-    "If the file is scanned: All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR). If fonts are flagged as not embedded: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows which — re-export from the source application with font embedding enabled, or use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts. Otherwise verify selectable text is correct.",
+    "If the file is scanned: All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR). If fonts are flagged as not embedded: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows which — re-export from the source application with font embedding enabled, or, if the font is installed on this computer, run the “Embed missing fonts” fixup in All tools → Use print production → Preflight (classic UI: Tools → Print Production → Preflight). Otherwise verify selectable text is correct.",
   color_contrast:
     "Adobe Acrobat does not enforce contrast directly. Use the original authoring tool (Word, InDesign) to adjust colors, or fix via a third-party color contrast checker.",
 };

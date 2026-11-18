@@ -67,13 +67,13 @@ const HINTS = {
   headings:
     "Tag headings with the correct level (H1–H6) without skipping levels (Acrobat: Tags panel / Reading Order).",
   fontEmbed:
-    "Embed the fonts: re-export with font embedding on (Word: File → Options → Save → “Embed fonts in the file”), or use Acrobat's Print Production → Preflight “Embed missing fonts” fix-up.",
+    "Embed the fonts: re-export with font embedding on (Word: File → Options → Save → “Embed fonts in the file”), or, if the font is installed on this computer, use Acrobat's All tools → Use print production → Preflight “Embed missing fonts” fix-up.",
   toUnicode:
     "Fix the character-to-Unicode mapping — without it, copy/paste and screen readers can receive the wrong characters even though the page looks right. Re-export from the source with a current exporter, or use Preflight's font fix-ups; avoid Print-to-PDF / re-distilling, which strips the tag tree.",
   cidSet:
     "A CIDSet/CharSet technicality of the embedded font (often a Word/Office export artifact). To repair it while keeping your tags, use Acrobat's Preflight font fix-ups or a PDF/UA tool like axesPDF — avoid Print-to-PDF / re-distilling, which strips the tag tree.",
   fontProgram:
-    "A font-program technicality (encoding, CMap, glyph or width data). Re-export from a current version of the source application, or use Acrobat's Print Production → Preflight font fix-ups.",
+    "A font-program technicality (encoding, CMap, glyph or width data). Re-export from a current version of the source application, or use Acrobat's Preflight font fix-ups (All tools → Use print production → Preflight).",
   notes:
     "Give each Note tag a unique ID — footnote/endnote exports from current Word versions write these; Acrobat's Preflight can repair them.",
   encryption:
@@ -250,27 +250,27 @@ const ROUTES = {
   tabs: {
     source:
       "Re-exporting from a current version of Word or InDesign writes this page setting correctly — it is stamped at export time, not something you author.",
-    pdf: "Run Acrobat's accessibility fix-ups (Prepare for accessibility → the Make accessible workflow) — they set every page's tab order to follow the document structure. One setting per page, fixed in bulk.",
+    pdf: "In Acrobat, run All tools → Prepare for accessibility → Check for accessibility, then in the results right-click Tab order → Fix — it sets every page's tab order to follow the document structure. (Or per page: Page Thumbnails → right-click a page → Page Properties → Tab Order → Use Document Structure.)",
   },
   language: {
     source:
       "Set the document language in the source (Word: Review → Language → Set Proofing Language) and re-export.",
-    pdf: "Acrobat: File → Properties → Advanced → Reading Options → Language.",
+    pdf: "Acrobat: Document properties (☰ Menu on Windows, File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → Language.",
   },
   displayDocTitle: {
     source:
       "Re-export from a current Office or InDesign version — recent exporters set “show document title” automatically when the file has a title.",
-    pdf: "Acrobat: File → Properties → Initial View → Show: Document Title, then save. One checkbox.",
+    pdf: "Acrobat: Document properties (☰ Menu on Windows, File menu on Mac; classic UI: File → Properties) → Initial View tab → Show: Document Title, then save. One setting.",
   },
   dcTitle: {
     source:
       "Set the document's Title in the source (Word: File → Info → Title; InDesign: File → File Info) and re-export — the exporter writes it into the PDF's metadata for you.",
-    pdf: "Acrobat: File → Properties → Description → Title, then save — Acrobat writes the matching metadata entry. The accessibility fix-ups repair it too.",
+    pdf: "Acrobat: Document properties (☰ Menu on Windows, File menu on Mac; classic UI: File → Properties) → Description tab → Title, then save — Acrobat writes the matching metadata entry. The accessibility fix-ups repair it too.",
   },
   xmpMetadata: {
     source:
       "Set the document's properties in the source (Word: File → Info) and re-export — the exporter writes the metadata stream.",
-    pdf: "Run Acrobat's accessibility fix-ups, or set File → Properties → Description fields — Acrobat writes the XMP metadata stream for you.",
+    pdf: "Run Acrobat's accessibility fix-ups, or set the Description fields in Document properties (☰ Menu on Windows, File menu on Mac; classic UI: File → Properties) — Acrobat writes the XMP metadata stream for you.",
   },
   identifier: {
     source:
@@ -290,22 +290,22 @@ const ROUTES = {
   fontEmbed: {
     source:
       "Turn on font embedding before exporting (Word: File → Options → Save → “Embed fonts in the file”; InDesign embeds automatically), then re-export.",
-    pdf: "Acrobat: Print Production → Preflight → the “Embed missing fonts” fix-up. Embedding protects how the page renders on machines without the font.",
+    pdf: "If the font is installed on this computer: Acrobat All tools → Use print production → Preflight → the “Embed missing fonts” fix-up; otherwise re-export from the source with font embedding on. Embedding protects how the page renders on machines without the font.",
   },
   toUnicode: {
     source:
       "An export artifact — re-export from a current version of the source application, which writes the character-to-Unicode maps screen readers and copy/paste depend on.",
-    pdf: "Use Acrobat's Print Production → Preflight font fix-ups to add ToUnicode maps. Avoid Print-to-PDF or re-distilling — both strip the tag tree.",
+    pdf: "Use Acrobat's Preflight font fix-ups (All tools → Use print production → Preflight) to add ToUnicode maps. Avoid Print-to-PDF or re-distilling — both strip the tag tree.",
   },
   cidSet: {
     source:
       "An export artifact, not something you authored — re-exporting from a current version of Word or InDesign usually regenerates the font correctly.",
-    pdf: "Use Acrobat's Print Production → Preflight font fix-ups (or a PDF/UA tool such as axesPDF) to repair the embedded font's CIDSet. Avoid Print-to-PDF or re-distilling — both strip the tag tree.",
+    pdf: "Use Acrobat's Preflight font fix-ups (All tools → Use print production → Preflight) (or a PDF/UA tool such as axesPDF) to repair the embedded font's CIDSet. Avoid Print-to-PDF or re-distilling — both strip the tag tree.",
   },
   fontProgram: {
     source:
       "A font-program technicality from the exporter — re-export from a current version of the source application, or substitute a mainstream font.",
-    pdf: "Use Acrobat's Print Production → Preflight font fix-ups; a PDF/UA tool such as axesPDF repairs these while keeping the tag tree.",
+    pdf: "Use Acrobat's Preflight font fix-ups (All tools → Use print production → Preflight); a PDF/UA tool such as axesPDF repairs these while keeping the tag tree.",
   },
   notes: {
     source:
@@ -315,7 +315,7 @@ const ROUTES = {
   encryption: {
     source:
       "Publish without restrictive security, or grant accessibility permission when applying it.",
-    pdf: "Acrobat: File → Properties → Security — allow content extraction for accessibility, or remove the security settings.",
+    pdf: "Acrobat: Document properties (☰ Menu on Windows, File menu on Mac; classic UI: File → Properties) → Security tab — allow content extraction for accessibility, or remove the security settings.",
   },
   xfa: {
     source:

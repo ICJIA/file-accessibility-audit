@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.173.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.173.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,693 tests** across 259 test files (API 2,552 · Web 2,044 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,700 tests** across 260 test files (API 2,552 · Web 2,051 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1170,6 +1170,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `remediationVeraBadge.test.ts` | 7 | The compact PDF/UA-1 badge on the remediation page: not-run, passed, failed with the real count, and ERROR ("could not be checked", never "0 rule failures"); the page wires it and names `verapdf_error`. |
 | `fixTime.test.ts` | 19 | Fix-time estimates (v1.154.0): per-item rates times the document's own counts, rounded up to a floor; apply-only alt text never totals; PDF limited to its mechanical Acrobat steps; a reworded finding yields no estimate rather than a wrong one. |
 | `actionPlanSourceApp.test.ts` | 25 | The to-do list for PDFs (v1.172.1): a title that is set but not displayed gets its own one-route step; `pdfSourceApp` reads PowerPoint, Excel or InDesign from the Creator; PowerPoint and Excel PDFs get that program's steps, and the metadata card names the same program. |
+| `fixStepAccuracy2026_11.test.ts` | 7 | The November 2026 fix-step check (v1.173.3): every string found wrong against Microsoft's and Adobe's own help pages is pinned — no Excel step offers Set Proofing Language (Excel has none) and a PDF from Excel with only a language problem is sent to Acrobat alone; PowerPoint's Selection Pane is described as listing in reverse; slide titles name Outline View and Set as Slide Title; no PDF/UA hint gives a classic-only `File → Properties` or `Print Production` path; the fonts step names the installed-font condition; the version note covers PowerPoint and Excel and is dated November 2026. Each test fails on v1.173.2's strings. |
 | `analyzeJobRetry.test.ts` | 18 | Job polling tolerates transient failures, stops when the page abandons it, and never shows an empty error box. |
 | `batchProgressA11y.test.ts` | 5 | Batch progress gives every state in words, and drop-zone validation errors announce themselves. |
 | `batchRun.test.ts` | 3 | `runBatch`: every file runs, two at a time, with results and errors recorded; cancel stops new work and marks the rest cancelled; a stale run never touches a newer one. |
@@ -1460,6 +1461,16 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.173.3 — 2026-11-18 · Fix steps re-checked against today's Word, PowerPoint, Excel, Acrobat and InDesign (no new attack surface)
+
+No new attack surface. The change is the wording of pre-written fix steps (menu paths) in the web app, the analyzer's finding sentences, and two API error messages. No route, parameter, storage, dependency or parsing code changed; every string is static and rendered through the same escaped paths as before.
+
+**Fixed (accuracy of fix steps, P2).** Every menu path was re-checked against the vendors' live help pages on 2026-11-18 (Microsoft 365 Version 2611 / Mac 16.115; Acrobat 26.003.22110; InDesign 2027, v22.0). The August pass had covered only Word and Acrobat. Wrong strings corrected: Excel was told to use Set Proofing Language (Excel has no such command); unhiding a slide said "Hide Slide"; PowerPoint's Selection Pane advice put the title at the top of a list that reads in reverse, so following it made the title read last; PowerPoint was told to "mark the top row's cells as headers" (no such control). Classic-only Acrobat paths (`File → Properties`, `Print Production → Preflight`, `File → Organize Pages`) gained the current interface's path; the fonts guidance no longer contradicts itself. The version note now names PowerPoint and Excel, says the Office paths are for Windows, and is dated November 2026. Details: `docs/fix-step-accuracy-2026-11.md`.
+
+**Verified rather than assumed.**
+- New test file (7 tests) fails on every one of v1.173.2's corrected strings. Tests 4,700 green; typecheck, lint, format and build green. All eight accuracy gates re-run because analyzer sentences changed: **no score moved**, ledger 369 and traps 249 unchanged.
+- `pnpm audit --prod` (run 2026-11-18): **3 high**, one advisory, GHSA-fc5q-39xc-vjpf (`picomatch` ≤ 4.0.7), still **no patched version published**; build-time only and absent from the built server, as recorded for v1.173.2. **Accepted.**
 
 ### v1.173.2 — 2026-11-17 · The marks beside each finding: the HTML export no longer ticks failures (no new attack surface)
 

@@ -779,6 +779,18 @@
           detailed view and know where the toggle is.
         </p>
         <p class="text-[var(--text-muted)] mb-3">
+          <strong
+            >The menu paths in those instructions are checked against the vendors&rsquo; own help
+            pages</strong
+          >, because Microsoft and Adobe move menus. The last check was on November 18, 2026,
+          against Microsoft 365 (Word, PowerPoint and Excel, Windows Version 2611 and Mac 16.115),
+          Adobe Acrobat Pro 26 and Adobe InDesign 2026&ndash;2027. Office paths are written for
+          Windows, and a step says so where a Mac differs. Acrobat steps give the current interface
+          (a &#9776; menu and an &ldquo;All tools&rdquo; panel) first and the older
+          &ldquo;classic&rdquo; design&rsquo;s path in parentheses. Every set of steps carries a
+          note saying which versions it was checked against.
+        </p>
+        <p class="text-[var(--text-muted)] mb-3">
           Between the action plan and &ldquo;Above and beyond&rdquo; sits a
           <strong>Best practices</strong> section &mdash; {{ bpTotal }} non-scored practices in all,
           {{ bpPdf }} for PDF and {{ bpOffice }} across Word, PowerPoint and Excel. Each row shows

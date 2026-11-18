@@ -61,7 +61,7 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
     res.status(413).json({
       error: `This file is too large. The maximum upload size is ${ANALYSIS.MAX_FILE_SIZE_MB} MB.`,
       details:
-        "Large PDFs are often inflated by uncompressed images. To reduce file size: (1) In Adobe Acrobat, use File → Save As Other → Reduced Size PDF; (2) Use File → Save As Other → Optimized PDF to downsample images; (3) Split the document into smaller sections (File → Organize Pages → Split) and analyze each part separately.",
+        "Large PDFs are often inflated by uncompressed images. To reduce file size: (1) In Adobe Acrobat, use ☰ Menu (Windows) or File menu (Mac) → Save as Other → Reduced Size PDF; (2) use Save as Other → Optimized PDF to downsample images; (3) split the document into smaller sections (All tools → Organize pages → Split) and analyze each part separately.",
     });
     return;
   }

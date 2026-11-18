@@ -97,7 +97,7 @@ const acrobatGuide: Record<string, string[]> = {
     "If text is unreadable (scanned): All tools → Scan & OCR → Recognize Text → In this file (runs OCR)",
     "Then: All tools → Prepare for accessibility → Fix reading order → verify content tags are correct (classic UI: Tools → Accessibility → Reading Order)",
     'Check font embedding: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab — all fonts should say "(Embedded)" or "(Embedded Subset)"',
-    "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts",
+    "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or, if the font is installed on this computer, run the “Embed missing fonts” fixup in All tools → Use print production → Preflight (classic UI: Tools → Print Production → Preflight)",
     "Menu path: Acrobat Pro → All tools → Prepare for accessibility",
   ],
   title_language: [
@@ -142,7 +142,7 @@ const acrobatGuide: Record<string, string[]> = {
     'To add header cells: right-click a <TD> tag → Properties → Type → change to "Table Header Cell (TH)"',
     'To set scope: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type "Header Cell" + Scope "Column", "Row", or "Both" (Both is for a corner cell that labels its row and its column at once)',
     "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
-    "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)",
+    "The Table Editor opens from inside the Reading Order tool: with Fix reading order open, right-click the table → Table Editor (Acrobat Pro)",
   ],
   link_quality: [
     "--- Adobe Acrobat: How to Fix ---",
@@ -166,7 +166,7 @@ const acrobatGuide: Record<string, string[]> = {
     "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order)",
     "The Reading Order tool shows numbered regions — verify the sequence matches how a human would read the page",
     "To reorder: drag items in the Tags panel, or use the Order panel (open it from the Reading Order dialog via Show Order Panel)",
-    'Set tab order on all pages: open the Pages panel (View → Show/Hide → Side panels → Page; classic UI: Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+    'Set tab order on all pages: open the Page Thumbnails panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Page Thumbnails; classic UI: View → Show/Hide → Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
   ],
 };
 
@@ -415,7 +415,7 @@ export function appendSupplementaryFindings(
           "  No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order",
         );
         readingCat.findings.push(
-          '  Fix: In Adobe Acrobat, open the Pages panel (View → Show/Hide → Side panels → Page; classic UI: Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+          '  Fix: In Adobe Acrobat, open the Page Thumbnails panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Page Thumbnails; classic UI: View → Show/Hide → Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
         );
       }
     }

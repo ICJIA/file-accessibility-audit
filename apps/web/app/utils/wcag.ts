@@ -51,7 +51,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable / Understandable",
     remediation:
-      "In Acrobat: open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties), set the title on the Description tab and the language on the Advanced tab under Reading Options. In Word, PowerPoint, or Excel: set the title in File → Info → Properties → Title. In Word, set the language via Review → Language → Set Proofing Language; PowerPoint uses its presentation-wide default language setting. Excel workbooks do not store a document language.",
+      "In Acrobat: open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties), set the title on the Description tab and the language on the Advanced tab under Reading Options. In Word, PowerPoint, or Excel: set the title in File → Info → Properties → Title. Set the language via Review → Language → Set Proofing Language — in Word, select all the text first (Ctrl+A); in PowerPoint, select the text in View → Outline View first (text boxes are selected slide by slide). On a Mac the command is Review → Language. Excel workbooks do not store a document language.",
   },
   heading_structure: {
     // 2.4.6 removed 2026-09-02: no gate asserts it (Understanding 2.4.6 "does
@@ -145,7 +145,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable",
     remediation:
-      'Replace raw URLs and vague phrases like "click here" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click the link → Edit Hyperlink). For a PDF, fix the link text in the source document before export, or edit the text directly in Acrobat (All tools → Edit a PDF).',
+      'Replace raw URLs and vague phrases like "click here" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click the link → Edit Hyperlink in Word; Edit Link in PowerPoint and Excel). For a PDF, fix the link text in the source document before export, or edit the text directly in Acrobat (All tools → Edit a PDF).',
   },
   form_accessibility: {
     criteria: [
@@ -188,7 +188,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "In Acrobat: use the Reading Order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow. In PowerPoint: use the Selection Pane (Home → Arrange → Selection Pane) to reorder shapes so each slide's title reads first. In Word, reading order generally follows the document's linear flow — check floating objects, text boxes, and wrapped images manually.",
+      "In Acrobat: use the Reading Order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow. In PowerPoint: use the Selection Pane (Home → Arrange → Selection Pane), which lists shapes in reverse reading order — drag each slide's title to the BOTTOM of the list so it reads first. On Windows, the Reading Order pane lists them top-down (Review → Check Accessibility → Check reading order → Verify object order). In Word, reading order generally follows the document's linear flow — check floating objects, text boxes, and wrapped images manually.",
   },
 
   // Office-only categories (2026-09-02): these carried no entry, so their
@@ -217,7 +217,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "In PowerPoint: Home → Layout → choose a layout with a Title placeholder, then move the heading text into it. A heading typed into an ordinary text box is visible but not programmatically a heading; whether every slide has a title at all is WCAG 2.4.10 (Level AAA) and is reported, never scored.",
+      "In PowerPoint: Home → Layout → choose a layout with a Title placeholder, then move the heading text into it — or select the text box and use Review → Check Accessibility → Slide Title ▾ → Set as Slide Title. A heading typed into an ordinary text box is visible but not programmatically a heading; whether every slide has a title at all is WCAG 2.4.10 (Level AAA) and is reported, never scored.",
   },
   sheet_names: {
     // No criterion: default "Sheet1" tab names are an unscored advisory.
