@@ -42,6 +42,12 @@ import { qpdfNormalize } from "../services/qpdfNormalize.js";
 import { runVeraPdf } from "../services/veraPdf.js";
 import { veraPdfOutcome } from "./remediateVeraPdf.js";
 import { killWorkerGroup } from "../services/workerGroup.js";
+import {
+  applyPdfDocMetadata,
+  DOC_METADATA_FILE,
+  parseDocMetadataRequest,
+} from "../services/pdfDocMetadata.js";
+import { remediationRegressions } from "./remediationGuard.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -55,6 +61,8 @@ function jobPaths(jobId: string) {
     workDir,
     inputPath: join(workDir, "input.pdf"),
     normalizedPath: join(workDir, "normalized.pdf"),
+    metadataRequestPath: join(workDir, DOC_METADATA_FILE),
+    withMetadataPath: join(workDir, "with-metadata.pdf"),
     odlOutDir: join(workDir, "odl"),
     finalOutputPath: join(jobDir, "output.pdf"),
   };
@@ -267,7 +275,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       setFailed(jobId, "OpenDataLoader produced no output");
       return;
     }
-    const taggedPath = join(paths.odlOutDir, odlFiles[0]);
+    let taggedPath = join(paths.odlOutDir, odlFiles[0]!);
     recordEvent(jobId, "tagging_complete", {
       duration_ms: Date.now() - tagStart,
     });
@@ -277,6 +285,42 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     recordEvent(jobId, "intermediate_deleted", {
       stage: "after_tagging",
     });
+
+    // 2b. Metadata (user decision 2026-11-18): the title and language the
+    //     person supplied, plus "show the title". Auto-tagging never sets
+    //     these, and they are the most common failure. One copy on disk at a
+    //     time: the tagged file is deleted (and verified) once the copy with
+    //     metadata exists. A failure here fails the job — a step the person
+    //     asked for must not be skipped silently.
+    setStep(jobId, "tagging", 60);
+    try {
+      let request = { title: null as string | null, language: null as string | null };
+      if (existsSync(paths.metadataRequestPath)) {
+        const raw = JSON.parse(await fs.readFile(paths.metadataRequestPath, "utf8")) as {
+          title?: unknown;
+          language?: unknown;
+        };
+        const parsed = parseDocMetadataRequest(raw.title, raw.language);
+        if (!("error" in parsed)) request = parsed;
+        await fs.rm(paths.metadataRequestPath, { force: true });
+      }
+      const applied = await applyPdfDocMetadata(taggedPath, paths.withMetadataPath, request);
+      await deleteAndVerify(jobId, taggedPath, "cleanup");
+      taggedPath = paths.withMetadataPath;
+      recordEvent(jobId, "metadata_applied", {
+        title_set: applied.titleSet,
+        language_set: applied.languageSet,
+        display_doc_title_set: applied.displayDocTitleSet,
+        xmp_title_untouched: true,
+      });
+    } catch (e) {
+      recordEvent(jobId, "error", {
+        error_type: "metadata_failed",
+        message: (e as Error).message,
+      });
+      setFailed(jobId, "setting the title and language failed");
+      return;
+    }
 
     // 3. Validating: qpdf --check the output
     setStep(jobId, "validating", 70);
@@ -366,39 +410,18 @@ export async function runRemediationJob(jobId: string): Promise<void> {
 
     setScores(jobId, inputScore, outputScore, true);
 
-    // Regression guard. Strict is the canonical (and as of v1.21 the only)
-    // scoring profile, so we compare strict-to-strict and overall-to-overall.
-    // Net gains only — if either dips, reject the output and tell the user
-    // we couldn't help this file.
-    const inputAuditRaw = getJobAuditPair(jobId).inputAudit as {
-      scoreProfiles?: {
-        strict?: { overallScore?: number };
-      };
-      overallScore?: number;
-    } | null;
-    const inputStrict =
-      inputAuditRaw?.scoreProfiles?.strict?.overallScore ??
-      inputAuditRaw?.overallScore ??
-      inputScore;
-    const outputStrict = outputAudit.scoreProfiles?.strict?.overallScore ?? outputScore;
-
-    const strictDelta = outputStrict - inputStrict;
-    const overallDelta = outputScore - inputScore;
-
-    if (overallDelta < 0 || strictDelta < 0) {
-      const regressed: string[] = [];
-      if (overallDelta < 0) regressed.push(`overall ${overallDelta.toFixed(1)}`);
-      if (strictDelta < 0) regressed.push(`strict ${strictDelta.toFixed(1)}`);
+    // Regression guard (user decision 2026-11-18): every category, and
+    // every WCAG criterion — not only the total. See remediationGuard.ts.
+    const regressions = remediationRegressions(getJobAuditPair(jobId).inputAudit, outputAudit);
+    if (regressions.length > 0) {
       recordEvent(jobId, "validation_failed", {
-        reason: "score regressed after remediation",
+        reason: "remediation made something worse",
         input_overall: inputScore,
         output_overall: outputScore,
-        input_strict: inputStrict,
-        output_strict: outputStrict,
-        regressed_profiles: regressed,
+        regressions,
       });
       await deleteAndVerify(jobId, taggedPath, "cleanup");
-      setFailed(jobId, `auto-remediation regressed: ${regressed.join(", ")}`);
+      setFailed(jobId, `auto-remediation made something worse: ${regressions.join("; ")}`);
       return;
     }
 

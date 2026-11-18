@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "repair-title-and-grade-notes-2026-11-18",
+    badge: "Improved",
+    text: 'Three changes from today\'s review. Automatic repair now asks for the document\'s title and language and writes them into the repaired PDF, because a missing title or language is the most common problem we see, and it throws away any repair that makes even one part of the report worse. A B grade now reads "Almost there" instead of "Good", because every B still has at least one problem to fix before publishing. And each report says, under the grade, what that kind of file\'s grade includes: color contrast is checked in Word, PowerPoint and Excel files, but not in PDFs. No score changes.',
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 18, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "security-review-2026-11-18",
     badge: "Security",
     text: "A full security review of the tool, done the way an attacker would try to break it. It found no way to take over the server, see anyone else's files, or plant harmful content in a report. It did find ways someone could slow the service down or briefly interrupt it, for example with a specially built file. Those are fixed. Nothing about how your files are checked or handled has changed, and no score changes.",

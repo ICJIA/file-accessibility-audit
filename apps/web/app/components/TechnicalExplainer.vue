@@ -1654,7 +1654,7 @@
           class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
           tabindex="0"
         >
-POST /api/remediate (multipart PDF)
+POST /api/remediate (multipart PDF + optional title, language)
   → [magic-byte check] → [page count cap (500)] → [pre-flight audit]
   → [job row created, sha256 content_hash recorded]
   → [spawn detached child: tsx src/jobs/remediate.ts &lt;jobId&gt;]
@@ -1663,10 +1663,11 @@ POST /api/remediate (multipart PDF)
 <span class="text-sky-300">Worker pipeline:</span>
   <span class="text-sky-300">[Stage 1: preparing]</span>   <span class="text-emerald-300">qpdf</span> --object-streams=disable input → normalized
   <span class="text-sky-300">[Stage 2: tagging]</span>     <span class="text-emerald-300">OpenDataLoader</span> convert(normalized) → tagged-pdf
+  <span class="text-sky-300">[Stage 2b: metadata]</span>   <span class="text-emerald-300">qpdf</span> --update-from-json: title, /Lang, DisplayDocTitle
   <span class="text-sky-300">[Stage 3: validating]</span>  <span class="text-emerald-300">qpdf</span> --check tagged → validity verdict
                          <span class="text-emerald-300">verapdf</span> --flavour ua1 --format json tagged → conformance verdict
   <span class="text-sky-300">[Stage 4: comparing]</span>   re-audit tagged → output_audit
-                         <span class="text-amber-300">guard: reject if Overall|Strict regresses</span>
+                         <span class="text-amber-300">guard: reject if total, any category, or any WCAG criterion gets worse</span>
 
 Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
 
@@ -1674,7 +1675,7 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
           <DiagramFigure
             name="remediation-flow"
             title="Remediation pipeline — visual flow"
-            desc="The user re-uploads the PDF. qpdf normalizes it; original deleted with verification. OpenDataLoader adds structure tags; normalized intermediate deleted with verification. qpdf check + veraPDF validate the output. A re-audit confirms no score profile regressed. If all clear, output is held for 30 minutes; user downloads via single-use token; output deleted with verification."
+            desc="The user re-uploads the PDF. qpdf normalizes it; original deleted with verification. OpenDataLoader adds structure tags; normalized intermediate deleted with verification. qpdf check + veraPDF validate the output. qpdf writes the title and language the person gave and turns on “show the title”. A re-audit confirms no category got worse and no new WCAG failure appeared. If all clear, output is held for 30 minutes; user downloads via single-use token; output deleted with verification."
           />
         </div>
       </div>
@@ -2050,8 +2051,8 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
             itself fails (a timeout, no output) it records <em>verapdf_error</em> and stores no
             verdict at all — never a failure. veraPDF's verdict is
             <strong>informational, not blocking</strong>: even a PDF that veraPDF flags as
-            non-conformant is still served if the audit score didn't regress. The result page
-            surfaces this honestly in the IITAA compliance disclaimer.
+            non-conformant is still served if the guard below passes. The result page surfaces this
+            honestly in the IITAA compliance disclaimer.
           </li>
         </ul>
       </div>
@@ -2060,26 +2061,32 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
         <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">Regression Guards</h3>
         <p class="text-[var(--text-muted)] mb-3">
           After successful tagging + validation, the worker re-audits the output and compares
-          against the pre-flight audit stored at job creation time. Two independent comparisons run:
+          against the pre-flight audit stored at job creation time (<code class="font-mono"
+            >jobs/remediationGuard.ts</code
+          >, v1.174.0). The output is rejected on any of four conditions:
         </p>
         <pre
           class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
           tabindex="0"
         >
-<span class="text-sky-300">if</span> (output.overallScore &lt; input.overallScore ||
-    output.scoreProfiles.strict.overallScore &lt; input.scoreProfiles.strict.overallScore) {
-  <span class="text-emerald-300">recordEvent</span>(jobId, <span class="text-purple-300">'validation_failed'</span>, { regressed_profiles: [...] })
+<span class="text-muted">// each adds a reason; any reason rejects the output</span>
+output.overallScore &lt; input.overallScore
+category scored in input  →  scores lower in output
+category scored in input  →  not assessed in output   <span class="text-muted">// hiding, not fixing</span>
+WCAG criterion failing in output, not in input
+<span class="text-sky-300">if</span> (regressions.length) {
+  <span class="text-emerald-300">recordEvent</span>(jobId, <span class="text-purple-300">'validation_failed'</span>, { regressions })
   <span class="text-sky-300">await</span> <span class="text-amber-300">deleteAndVerify</span>(jobId, taggedPath, 'cleanup')
-  <span class="text-amber-300">setFailed</span>(jobId, `auto-remediation regressed: ${regressed.join(', ')}`)
-  <span class="text-sky-300">return</span>
+  <span class="text-amber-300">setFailed</span>(jobId, `auto-remediation made something worse: ...`)
 }</pre>
         <p class="text-[var(--text-muted)] mt-3">
-          <strong>Why both:</strong> the headline overall score can fall back to a stored value
-          while the strict profile is the canonical scoring methodology, so either could mask a
-          regression in the other. Checking both ensures the user never sees a metric that
-          decreased. The <code class="font-mono">validation_failed</code> event payload records the
-          input/output deltas plus the <code class="font-mono">regressed_profiles</code> array, so
-          any auditor query can identify exactly which comparison failed and by how much.
+          <strong>Why per category:</strong> until v1.174.0 the guard compared only totals, so an
+          output could trade one category for another — lose alt text, gain headings — and pass with
+          the total unchanged; marking every image decorative made alt text "not assessed" and could
+          even raise the total. The <code class="font-mono">validation_failed</code> event payload
+          records the input and output totals plus the
+          <code class="font-mono">regressions</code> list, so an auditor can see exactly what got
+          worse and by how much.
         </p>
       </div>
 

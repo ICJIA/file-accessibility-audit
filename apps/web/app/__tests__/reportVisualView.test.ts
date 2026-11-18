@@ -242,7 +242,7 @@ describe("ReportVisualView", () => {
       bySeverity: { critical: 2, serious: 4, moderate: 5, minor: 1 },
     };
     const w = mount(ReportVisualView, { props: { result: pageAudit } });
-    expect(w.text()).toContain("Good");
+    expect(w.text()).toContain("Almost there");
     expect(w.text()).toContain("74");
     expect(w.find("[data-testid='plan-pass-card']").exists()).toBe(false);
     expect(w.find("[data-testid^='severity-tile-']").exists()).toBe(false);

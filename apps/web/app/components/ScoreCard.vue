@@ -30,6 +30,14 @@
     >
       {{ gradeLabel }}
     </p>
+    <!-- Same note as the Visual view's hero (user decision 2026-11-18). -->
+    <p
+      v-if="scopeNote"
+      data-testid="format-scope-note"
+      class="mx-auto max-w-lg text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
+    >
+      {{ scopeNote }}
+    </p>
 
     <!-- Directly under the verdict, BEFORE the fix-progress meter — same
          interrupt-the-celebration placement as the Visual view's hero
@@ -217,6 +225,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatScopeNote } from "~/utils/formatScope";
 import {
   categoriesForScoringMode,
   type ScoreProfile,
@@ -313,6 +322,10 @@ const props = withDefaults(
     linkManualReview?: boolean;
   }>(),
   { showFilename: true, showPdfUaSignals: true, linkManualReview: false },
+);
+
+const scopeNote = computed(() =>
+  props.result.categories?.length ? formatScopeNote(props.result.fileType) : null,
 );
 
 /**

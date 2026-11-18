@@ -150,16 +150,17 @@ export const uploadMiddleware = multer({
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
       An exhaustive search for filesystem writes across the whole API (re-run 2026-11-18) finds
       <strong>every site accounted for</strong>: the database directory itself; the remediation
-      pipeline's working files (§ 3 — deleted mid-job with deletion verified); the short-lived
-      analysis temp copies below; the cleanup sweep's own deletions; and three files added since the
-      first audit, none of which holds document content — the daily activity file and the
-      application error log (both tool v1.88.0, described with their retention in § 7), and, since
-      tool v1.168.0, a one-time file holding the random secret key that seals shared reports (mode
-      0600, no user data). There is no
-      <code class="text-xs font-mono">createWriteStream</code> anywhere in the server code, no
-      cache, and no other write. The two analysis tools that need a file path get a temp copy under
-      a <em>random name</em> (the user's filename never appears on disk), deleted in a
-      <code class="text-xs font-mono">finally</code> block so failure cannot leak it — from
+      pipeline's working files (§ 3 — deleted mid-job with deletion verified; since tool v1.174.0
+      they include the title and language the person typed for the repaired PDF, and the qpdf
+      instructions that write them, both deleted within the job); the short-lived analysis temp
+      copies below; the cleanup sweep's own deletions; and three files added since the first audit,
+      none of which holds document content — the daily activity file and the application error log
+      (both tool v1.88.0, described with their retention in § 7), and, since tool v1.168.0, a
+      one-time file holding the random secret key that seals shared reports (mode 0600, no user
+      data). There is no <code class="text-xs font-mono">createWriteStream</code> anywhere in the
+      server code, no cache, and no other write. The two analysis tools that need a file path get a
+      temp copy under a <em>random name</em> (the user's filename never appears on disk), deleted in
+      a <code class="text-xs font-mono">finally</code> block so failure cannot leak it — from
       <code class="text-xs font-mono">packages/analyzer/src/qpdfService.ts</code> (veraPDF uses the
       identical pattern in
       <code class="text-xs font-mono">apps/api/src/services/veraPdfBuffer.ts</code>):

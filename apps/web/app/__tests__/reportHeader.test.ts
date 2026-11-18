@@ -47,7 +47,7 @@ describe("ReportGradeHero", () => {
     const w = mount(ReportGradeHero, {
       props: { grade: "B", overallScore: 85, categories: [sev("Moderate")] },
     });
-    expect(w.text()).toContain("Good — fix recommended before publishing");
+    expect(w.text()).toContain("Almost there — fix recommended before publishing");
   });
 
   it("clean report reads 'ready to publish'", () => {
@@ -64,7 +64,7 @@ describe("ReportGradeHero", () => {
     // document-level knowledge a page audit doesn't have). The whole-text
     // em-dash scan this used to be broke when the automation-limit band —
     // which legitimately uses em-dashes — joined the hero.
-    expect(w.find('[data-testid="grade-label"]').text()).toBe("Good");
+    expect(w.find('[data-testid="grade-label"]').text()).toBe("Almost there");
     expect(w.text()).not.toContain("publish");
   });
 });

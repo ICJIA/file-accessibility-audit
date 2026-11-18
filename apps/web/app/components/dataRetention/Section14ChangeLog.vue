@@ -6,6 +6,22 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.19 · 2026-11-18</strong> — Two changes, tool v1.174.0. Nothing new is kept beyond
+        a remediation job's own lifetime, and no retention period changes.
+        <em>Automatic repair</em> (§ 3): the repair form now asks for the document's title and
+        language (filled in from the PDF's own values) and writes them, with the setting that makes
+        viewers show the title, into the repaired PDF. What the person types is held in a small
+        owner-only file inside the job's working folder and deleted within the job, like every other
+        working file; the job's event log records only which of the three settings were made, never
+        the title itself. The finished report of the repaired PDF quotes its title, as every report
+        does (§ 8). A repair is now also thrown away if it makes any single category worse, stops a
+        scored category from being checked, or fails a WCAG rule the original passed — not only when
+        the total drops. <em>The status page's re-audit summary</em> (§ 14, v1.13) now counts a
+        document as re-checked only when the file itself changed between audits: the stored content
+        fingerprints are compared inside the database, and none is published. Uploading the
+        identical file again no longer counts.
+      </li>
+      <li>
         <strong>v1.18 · 2026-11-18</strong> — A re-check of this policy against the code (tool
         v1.173.4): §§ 3, 7, 8 and 8a in detail, and every size, time and page limit in §§ 2 and 9.
         Nothing new is collected, no new kind of data is stored, and no retention period changes.

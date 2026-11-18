@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.174.0] - 2026-11-18
+
+Decisions 5, 6, 8 and 11 from the 2026-11-18 review, and the last security finding closed.
+
+### Security (each finding with its fix)
+
+- **Page audit, second hostname — fixed.** A file a checked page loads from a second hostname was address-checked by the server, then looked up again by the browser, so a rebinding name could reach an internal address. **Fix:** the browser connects only to the page's own host; every other file is fetched by the server (`safeFetch`: every address checked, connection pinned, redirects re-validated, 10 MB cap, GET/HEAD only) and handed to the browser.
+- **IPv6 pin unreadable — fixed.** A page whose host resolved to IPv6 first failed to load. **Fix:** IPv6 addresses are bracketed in the browser's resolver rule.
+- **§ 10 severity legend** no longer describes P0 as "the system is broken right now"; each level now says how it is handled, and the v1.173.5/v1.173.6 entries pair every finding with its fix.
+
+### Changed — remediation (decision 5)
+
+- **Title and language step.** The repair form asks for the document title and language, prefilled from the PDF; qpdf writes them with "show the title" (DisplayDocTitle) into the repaired PDF. Title/language is the most common failure (56 of 80 failing files in the test set) and auto-tagging never set it. Checked with the real analyzer on a control: title/language goes to 100.
+- **Per-category guard.** A repair is thrown away if any category scores lower, a scored category can no longer be checked, or a WCAG criterion fails that the original passed — not only when the total drops.
+- **No more "F → A".** The landing tile now says "Auto-tag" and what the step can and cannot do.
+
+### Changed — reports
+
+- **B is "Almost there", not "Good"** (decision 6): every B has at least one WCAG failure, and its header already said "fix recommended before publishing". The HTML export's label now comes from the shared grade table.
+- **A note under the letter grade says what this format's grade covers** (decision 8): contrast is not in a PDF's grade and is in Word, PowerPoint and Excel grades; Excel's language half is not checked. Visual and Detailed views both.
+- **Status page re-audit summary counts only changed files** (decision 11): a document is re-checked only when its content fingerprint changed between audits.
+
+### Policy
+
+- Data retention policy v1.19 (§ 3 metadata step and guard, § 8a working files, § 9 guard, § 14 entry). The file-writer gate added in v1.173.4 caught the new step's working files on its first real use.
+
+### Notes
+
+- Tests 4,803 across 269 files (API 2,628 · Web 2,078 · CLI 97). No score changed; gates re-run.
+- `pnpm audit --prod`: unchanged (3 high, one unpatched build-time advisory, not shipped).
+
 ## [1.173.6] - 2026-11-18
 
 Completes v1.173.5's ZIP fix. **v1.173.5 was never deployed; deploy this instead.**
@@ -29,7 +60,7 @@ Security release from the 2026-11-18 adversarial review, plus three copy correct
 - **Ports (Low).** URL fetches accept only 80 and 443, and fetch errors no longer quote the raw connection message (which told an open port from a closed one).
 - **`/status` could be made to read "unknown" (Low).** One shared result for at most 5 seconds; concurrent requests share one probe.
 - **Reserved addresses (Info).** `isPrivateIP` parses IPv6 properly and covers CGNAT, documentation ranges, every IPv4-mapped spelling, IPv4-compatible, NAT64, 6to4, Teredo and site-local.
-- **Left open, decision pending:** the privileged-token page audit can still be steered through a second hostname (DNS rebinding). Anonymous audits are unaffected.
+- **Page audit, second hostname — fixed in v1.174.0.** A page's file on a second hostname was address-checked by the server and then looked up again by the browser, so a rebinding name could reach an internal address (needed control of a page on an allowed site, or the privileged token). Fix: the browser now connects only to the page's own host; every other file is fetched by the server and handed to the browser.
 
 ### Fixed — copy
 

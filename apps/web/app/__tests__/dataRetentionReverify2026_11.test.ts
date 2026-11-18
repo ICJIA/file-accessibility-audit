@@ -71,6 +71,7 @@ describe("§ 8a accounts for every module that writes a file", () => {
     "apps/api/src/services/activityExport.ts": /daily activity file/,
     "apps/api/src/services/errorLog.ts": /application error log/,
     "apps/api/src/services/reportSeal.ts": /seals shared reports/,
+    "apps/api/src/services/pdfDocMetadata.ts": /title and language the person typed/,
   };
   const WRITE = /\b(writeFile(Sync)?|appendFile(Sync)?|createWriteStream|rename(Sync)?)\s*\(/;
 

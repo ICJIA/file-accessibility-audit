@@ -58,6 +58,33 @@ export interface SafeFetchResult {
   finalUrl: string;
   /** Resolved IP that was actually dialed (last hop). For diagnostics. */
   resolvedIp: string;
+  /** The final response's Content-Type header, or null. */
+  contentType: string | null;
+  /** The final response's headers a browser needs to USE the body (type and
+   *  CORS), for the page audit, which hands Node-fetched responses to
+   *  Chromium. Never cookies or anything else. */
+  passHeaders: Record<string, string>;
+}
+
+/** Response headers safe and necessary to hand to Chromium with a body. */
+const PASS_HEADERS = [
+  "content-type",
+  "access-control-allow-origin",
+  "access-control-allow-credentials",
+  "access-control-allow-headers",
+  "access-control-allow-methods",
+  "access-control-expose-headers",
+  "timing-allow-origin",
+  "cross-origin-resource-policy",
+];
+
+function passHeadersOf(h: http.IncomingHttpHeaders): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of PASS_HEADERS) {
+    const v = h[k];
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
 }
 
 export class SafeFetchError extends Error {
@@ -526,6 +553,9 @@ export async function safeFetch(
       buffer: resp.body,
       finalUrl: currentUrl.toString(),
       resolvedIp,
+      contentType:
+        typeof resp.headers["content-type"] === "string" ? resp.headers["content-type"] : null,
+      passHeaders: passHeadersOf(resp.headers),
     };
   }
 

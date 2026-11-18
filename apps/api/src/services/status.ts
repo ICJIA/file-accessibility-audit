@@ -130,7 +130,10 @@ export interface DistinctDocumentCounts {
  *  list, or timestamp is ever serialized.
  *
  *    documents   distinct filenames with ≥1 completed, scored document audit
- *    reaudited   of those, audited 2+ times in the window
+ *    reaudited   of those, audited again AFTER THE FILE CHANGED: 2+ distinct
+ *                content hashes under the name in the window (v1.174.0 —
+ *                before, re-uploading the identical file counted, and those
+ *                runs pulled the median lift to 0 by construction)
  *    improvable  re-audited AND the first audit scored below an A
  *    improved    improvable AND the latest score beats the first
  *    reached_a   improvable AND the latest score is an A
@@ -570,9 +573,27 @@ const A_MIN = GRADE_THRESHOLDS.find((t) => t.grade === "A")?.min ?? 90;
  *  climb-from-migration behavior, as privileged_audits (v1.86.0). */
 function collectDocumentProgress(db: StatusDb, sinceMs: number): DocumentProgress {
   const inClause = placeholders(DOCUMENT_TYPES.length);
+  // `versions` = distinct content hashes per name, compared INSIDE SQLite
+  // (window functions cannot COUNT(DISTINCT), hence the grouped CTE); like
+  // the filename, no hash ever reaches the SELECT list. A document is
+  // re-checked only when its bytes changed between audits (user decision
+  // 2026-11-18): re-uploading the identical file is not a re-check.
   const sql = `
-    WITH runs AS (
+    WITH base AS (
+      SELECT id, filename, score, created_at, content_hash
+      FROM audit_log
+      WHERE event_type IN (${inClause})
+        AND score IS NOT NULL
+        AND privileged = 0
+        AND created_at > datetime(?, 'unixepoch')
+    ),
+    versions AS (
+      SELECT filename, COUNT(DISTINCT NULLIF(content_hash, '')) AS versions
+      FROM base GROUP BY filename
+    ),
+    runs AS (
       SELECT
+        filename,
         ROW_NUMBER() OVER (PARTITION BY filename ORDER BY created_at ASC, id ASC) AS rn,
         COUNT(*) OVER (PARTITION BY filename) AS n,
         FIRST_VALUE(score) OVER (
@@ -581,17 +602,16 @@ function collectDocumentProgress(db: StatusDb, sinceMs: number): DocumentProgres
         LAST_VALUE(score) OVER (
           PARTITION BY filename ORDER BY created_at ASC, id ASC
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_score
-      FROM audit_log
-      WHERE event_type IN (${inClause})
-        AND score IS NOT NULL
-        AND privileged = 0
-        AND created_at > datetime(?, 'unixepoch')
+      FROM base
     )
-    SELECT n, first_score, last_score FROM runs WHERE rn = 1`;
+    SELECT runs.n, runs.first_score, runs.last_score, versions.versions
+    FROM runs JOIN versions ON versions.filename = runs.filename
+    WHERE runs.rn = 1`;
   const rows = db.prepare(sql).all(...DOCUMENT_TYPES, Math.floor(sinceMs / 1000)) as Array<{
     n?: number;
     first_score?: number;
     last_score?: number;
+    versions?: number;
   }>;
 
   let documents = 0;
@@ -602,7 +622,7 @@ function collectDocumentProgress(db: StatusDb, sinceMs: number): DocumentProgres
   const lifts: number[] = [];
   for (const r of rows) {
     documents += 1;
-    if ((r.n ?? 0) < 2) continue;
+    if ((r.n ?? 0) < 2 || (r.versions ?? 0) < 2) continue;
     const first = r.first_score ?? 0;
     const last = r.last_score ?? 0;
     reaudited += 1;

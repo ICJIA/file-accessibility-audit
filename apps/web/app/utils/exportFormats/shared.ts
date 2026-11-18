@@ -6,7 +6,7 @@
  * markdown.ts / json.ts / text.ts / html.ts / aiAnalysis.ts.
  */
 
-import { wcagSlugFor } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, wcagSlugFor } from "@file-audit/shared";
 import { buildActionPlan, type PlanStep } from "~/utils/actionPlan";
 import {
   emptyPlanSentence,
@@ -183,15 +183,10 @@ export function baseFilename(result: ReportResult): string {
   return `${name}-accessibility-report-${date}`;
 }
 
+/** The grade's word, from the one published grade table — a second copy
+ *  here could (and once did) disagree with the live report. */
 export function gradeLabel(grade: string): string {
-  const map: Record<string, string> = {
-    A: "Excellent",
-    B: "Good",
-    C: "Needs Improvement",
-    D: "Poor",
-    F: "Failing",
-  };
-  return map[grade] || grade;
+  return GRADE_THRESHOLDS.find((t) => t.grade === grade)?.label ?? grade;
 }
 
 export function profileLabel(_mode: ScoringMode): string {

@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { DOC_METADATA_FILE, parseDocMetadataRequest } from "../services/pdfDocMetadata.js";
 import multer from "multer";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, promises as fs, existsSync, rmSync, statSync } from "node:fs";
@@ -100,6 +101,10 @@ const remediateLimits: MultipartLimits = {
   fileSize: REMEDIATION.MAX_FILE_SIZE_MB * 1024 * 1024,
   files: 1,
   fieldArrayIndexLimit: FIELD_ARRAY_INDEX_LIMIT,
+  // The form's two text fields (title, language), and nothing larger than a
+  // title: a field over 1 KB is refused by multer itself.
+  fields: 4,
+  fieldSize: 1024,
 };
 
 const remediateUpload = multer({
@@ -182,6 +187,15 @@ router.post(
       const file = req.file;
       if (!file) {
         res.status(400).json({ error: "No file uploaded" });
+        return;
+      }
+
+      // The title and language the person wants written into the repaired
+      // PDF (user decision 2026-11-18). Both optional; refused before
+      // anything is written if malformed.
+      const docMetadata = parseDocMetadataRequest(req.body?.title, req.body?.language);
+      if ("error" in docMetadata) {
+        res.status(400).json({ error: docMetadata.error });
         return;
       }
 
@@ -312,6 +326,11 @@ router.post(
       await fs.mkdir(workDir, { recursive: true, mode: 0o700 });
       const inputPath = path.join(workDir, "input.pdf");
       await fs.writeFile(inputPath, file.buffer, { mode: 0o600 });
+      // Beside the upload, owner-only, deleted with the job's scratch
+      // directory (every exit path already removes it) — no new column.
+      await fs.writeFile(path.join(workDir, DOC_METADATA_FILE), JSON.stringify(docMetadata), {
+        mode: 0o600,
+      });
 
       // ---- From here to dispatchQueuedJobs() there is NO await: the
       // capacity check, the daily-cap reservation, the row insert and the

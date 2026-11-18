@@ -190,7 +190,11 @@
                 class="mb-6 flex justify-center"
                 data-export-exclude
               >
-                <RemediateButton :file="activeFile" :input-score="result?.overallScore ?? null" />
+                <RemediateButton
+                  :file="activeFile"
+                  :input-score="result?.overallScore ?? null"
+                  :categories="result?.categories"
+                />
               </div>
             </template>
           </ReportVisualView>
@@ -289,7 +293,11 @@
               class="mb-6 flex justify-center"
               data-export-exclude
             >
-              <RemediateButton :file="activeFile" :input-score="result?.overallScore ?? null" />
+              <RemediateButton
+                :file="activeFile"
+                :input-score="result?.overallScore ?? null"
+                :categories="result?.categories"
+              />
             </div>
 
             <!-- Best path to a11y starts at the source document -->
@@ -715,13 +723,16 @@
       <!-- Auto-Remediate -->
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
         <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          F → A
+          <!-- Not "F → A" (user decision 2026-11-18): auto-tagging cannot
+               write image descriptions, and real files rarely reach an A from
+               it alone. The tile says what the step does. -->
+          Auto-tag
         </div>
         <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
           Auto-remediation (optional)
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Tag untagged PDFs in seconds with the qpdf →
+          Tags untagged PDFs and writes the title and language you give it, using the qpdf →
           <a
             href="https://github.com/opendataloader-project/opendataloader-pdf"
             target="_blank"
@@ -737,8 +748,9 @@
             class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >veraPDF</a
           >
-          pipeline. Output never regresses any score profile, and manual review is still recommended
-          for IITAA compliance.
+          pipeline. A result that makes any category worse, or fails a WCAG rule the original
+          passed, is thrown away. It cannot describe images, so most files still need a person to
+          finish them.
         </p>
       </div>
 

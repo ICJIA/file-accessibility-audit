@@ -18,7 +18,8 @@
 
 import puppeteer, { type Browser, type HTTPRequest } from "puppeteer";
 import { AxePuppeteer } from "@axe-core/puppeteer";
-import { resolvePublicIp } from "./safeFetch.js";
+import { resolvePublicIp, safeFetch, SafeFetchError } from "./safeFetch.js";
+import { isAllowedPort } from "./urlPolicy.js";
 import { shouldAllowPageRequest } from "./pageAuditGuard.js";
 import { buildChildSpawnEnv } from "./childSpawnEnv.js";
 
@@ -46,7 +47,11 @@ const BASE_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-sh
 export function chromiumLaunchArgs(pin?: { host: string; ip: string }): string[] {
   const args = [...BASE_ARGS];
   if (pin && pin.host && pin.ip) {
-    args.push(`--host-resolver-rules=MAP ${pin.host} ${pin.ip}`);
+    // An IPv6 address must be bracketed in a resolver rule, or Chromium
+    // cannot read it and every page on an IPv6-first host fails with
+    // ERR_NAME_NOT_RESOLVED (found 2026-11-18 on a dual-stack machine).
+    const ip = pin.ip.includes(":") ? `[${pin.ip}]` : pin.ip;
+    args.push(`--host-resolver-rules=MAP ${pin.host} ${ip}`);
   }
   return args;
 }
@@ -186,9 +191,34 @@ export class PageAuditBusyError extends Error {
  * window a DNS-rebinding attack needs (2026-09-02). `isPublicHost` is
  * injectable for tests; production passes resolvePublicIp (every record).
  */
+/**
+ * A request to any host OTHER than the pinned document host, fetched in Node
+ * and handed to Chromium — so Chromium never resolves a second hostname
+ * itself (security review 2026-11-18).
+ *
+ * WHY. The pin (`--host-resolver-rules=MAP host ip`) covers only the document
+ * host. For every other host the interceptor checked the address in Node and
+ * then let Chromium look the name up AGAIN on its own: a rebinding name could
+ * answer Node with a public address and Chromium with 127.0.0.1 or the cloud
+ * metadata address, and the page's own script could read the response. Now
+ * those requests are fulfilled from safeFetch, which resolves, checks every
+ * record, connects to the checked address and re-validates every redirect —
+ * the same path the document fetches use. Chromium only ever receives bytes.
+ *
+ * GET and HEAD only (a page audit has no reason to POST anywhere else);
+ * anything else to another host is refused. Bodies are capped.
+ */
+export type OffHostFetch = (
+  url: string,
+  isDocument: boolean,
+) => Promise<{ status: number; headers: Record<string, string>; body: Buffer } | null>;
+
+export const OFF_HOST_MAX_BYTES = 10 * 1024 * 1024;
+
 export function createRequestHandler(
   isUrlAllowed: (url: string) => boolean,
   isPublicHost: (host: string) => Promise<boolean>,
+  offHost?: { pinnedHost: string; fetch: OffHostFetch },
 ): (req: HTTPRequest) => Promise<void> {
   return async (req: HTTPRequest): Promise<void> => {
     try {
@@ -205,6 +235,30 @@ export function createRequestHandler(
       if (!decision.allow) {
         await req.abort("blockedbyclient").catch(() => {});
         return;
+      }
+      if (decision.needsIpCheck && offHost) {
+        const host = new URL(reqUrl).hostname;
+        if (host.toLowerCase() !== offHost.pinnedHost.toLowerCase()) {
+          const method = req.method().toUpperCase();
+          if (method !== "GET" && method !== "HEAD") {
+            await req.abort("blockedbyclient").catch(() => {});
+            return;
+          }
+          const got = await offHost.fetch(reqUrl, isDocument);
+          if (!got) {
+            await req.abort("blockedbyclient").catch(() => {});
+            return;
+          }
+          await req
+            .respond({
+              status: got.status,
+              headers: got.headers,
+              contentType: got.headers["content-type"],
+              body: method === "HEAD" ? Buffer.alloc(0) : got.body,
+            })
+            .catch(() => {});
+          return;
+        }
       }
       if (decision.needsIpCheck) {
         const host = new URL(reqUrl).hostname;
@@ -387,12 +441,40 @@ const isPublicHostViaNode = (host: string): Promise<boolean> =>
     () => false, // resolvePublicIp throws on private/reserved or DNS failure
   );
 
+/** The production OffHostFetch: safeFetch, which pins every connection to
+ *  the address it checked. A document (a navigation or a frame) must also
+ *  stay on the URL policy at every redirect hop; a sub-resource must use a
+ *  standard port. Any failure → null → the request is refused. */
+function offHostFetchFor(isUrlAllowed: (url: string) => boolean): OffHostFetch {
+  return async (url, isDocument) => {
+    try {
+      const r = await safeFetch(url, {
+        maxBytes: OFF_HOST_MAX_BYTES,
+        timeoutMs: 10_000,
+        totalTimeoutMs: 15_000,
+        validateUrl: (u) => {
+          if (!isAllowedPort(u) || (isDocument && !isUrlAllowed(u.toString()))) {
+            throw new SafeFetchError("malformed_url", "request not allowed");
+          }
+        },
+      });
+      return { status: r.status, headers: r.passHeaders, body: r.buffer };
+    } catch {
+      return null;
+    }
+  };
+}
+
 async function installRequestGuard(
   page: import("puppeteer").Page,
   isUrlAllowed: (url: string) => boolean,
+  pinnedHost: string,
 ): Promise<void> {
   await page.setRequestInterception(true);
-  const handler = createRequestHandler(isUrlAllowed, isPublicHostViaNode);
+  const handler = createRequestHandler(isUrlAllowed, isPublicHostViaNode, {
+    pinnedHost,
+    fetch: offHostFetchFor(isUrlAllowed),
+  });
   page.on("request", (req: HTTPRequest) => {
     void handler(req);
   });
@@ -419,8 +501,8 @@ export async function auditPage(
     // Before any navigation: remove the network APIs that bypass the
     // interceptor (WebSockets, service workers, …), then install it.
     await hardenPage(page);
-    await installRequestGuard(page, isUrlAllowed);
-    denyPopups(browser, page, (popup) => installRequestGuard(popup, isUrlAllowed));
+    await installRequestGuard(page, isUrlAllowed, host);
+    denyPopups(browser, page, (popup) => installRequestGuard(popup, isUrlAllowed, host));
     await page.setUserAgent("Mozilla/5.0 (compatible; ICJIA-File-Audit/audit.icjia.app)");
     await page.goto(url, {
       waitUntil: "networkidle2",

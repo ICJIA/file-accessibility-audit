@@ -318,7 +318,7 @@ export function generateHtml(rows: CachedRow[], generatedAt: Date, csvContent?: 
 <div class="legend">
   <strong>Grade:</strong>
   <span><span class="dot" style="background:${GRADE_COLORS.A}"></span> A = Excellent (90+)</span>
-  <span><span class="dot" style="background:${GRADE_COLORS.B}"></span> B = Good (80+)</span>
+  <span><span class="dot" style="background:${GRADE_COLORS.B}"></span> B = Almost there (80+)</span>
   <span><span class="dot" style="background:${GRADE_COLORS.C}"></span> C = Needs Improvement (70+)</span>
   <span><span class="dot" style="background:${GRADE_COLORS.D}"></span> D = Poor (60+)</span>
   <span><span class="dot" style="background:${GRADE_COLORS.F}"></span> F = Failing (&lt;60)</span>

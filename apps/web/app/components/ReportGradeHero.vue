@@ -22,6 +22,15 @@
     >
       {{ label }}
     </p>
+    <!-- What this format's grade covers (user decision 2026-11-18): the same
+         content can grade differently by format, so say why beside the letter. -->
+    <p
+      v-if="scopeNote"
+      data-testid="format-scope-note"
+      class="mt-2 mx-auto max-w-xl text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
+    >
+      {{ scopeNote }}
+    </p>
 
     <!-- Directly under the verdict, BEFORE the fix-progress meter (v1.74.1):
          non-technical managers stopped reading at "ready to publish", so the
@@ -69,6 +78,7 @@ import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
 import { scoreCapReason } from "@file-audit/shared";
 import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
+import { formatScopeNote } from "~/utils/formatScope";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
 const { gradeColor, severityColor, withAlpha } = useTokenColors();
 import { gradeLabel } from "~/utils/exportFormats/shared";
@@ -86,7 +96,15 @@ const props = defineProps<{
   /** Count of WCAG criteria the audit never machine-checked, for the
    *  automation-limit band. null/absent = unknown, the band omits the claim. */
   notAssessedCount?: number | null;
+  /** The document's format, for the format-scope note under the label. */
+  fileType?: string | null;
 }>();
+
+const scopeNote = computed(() =>
+  Array.isArray(props.categories) && props.categories.length > 0
+    ? formatScopeNote(props.fileType)
+    : null,
+);
 
 const color = computed(() => gradeColor(props.grade));
 

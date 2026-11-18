@@ -28,25 +28,27 @@
         and how to fix it.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        The output is a list of <strong>findings</strong>, each rated by severity:
+        The output is a list of <strong>findings</strong>, each rated by how serious it
+        <em>would be</em> if it were left unfixed — and each listed here beside the fix that closed
+        it:
       </p>
       <ul class="space-y-1.5 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-3">
         <li>
-          <strong>P0 — critical:</strong> the system is broken right now and users are exposed. Must
-          be fixed immediately, before any release.
+          <strong>P0 — critical:</strong> a problem that would expose users if it were released. It
+          is fixed before the release goes out, so the public site never runs with it.
         </li>
         <li>
-          <strong>P1 — serious:</strong> a real vulnerability that could be exploited. Must be fixed
-          before the upcoming release.
+          <strong>P1 — serious:</strong> a weakness someone could exploit. It is fixed in the
+          release that reports it, and the entry says how.
         </li>
         <li>
-          <strong>P2 — moderate:</strong> a real concern, but its impact is bounded by other
-          protections. Documented; sometimes accepted as a known limitation if mitigation is in
-          place.
+          <strong>P2 — moderate:</strong> a concern that other protections already contain. It is
+          fixed, or — where a fix is not possible — the protection that contains it is named in the
+          entry.
         </li>
         <li>
-          <strong>P3 — minor:</strong> a small concern or theoretical risk. Tracked; addressed when
-          convenient.
+          <strong>P3 — minor:</strong> a small or theoretical risk. The entry says how it was closed
+          or what keeps it harmless.
         </li>
       </ul>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -61,7 +63,7 @@
 
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
       Audit entries below are in reverse-chronological order (most recent first). Each entry lists
-      the findings discovered during that release's review and what was done about them. Every
+      the findings discovered during that release's review, each with the fix that closed it. Every
       release since v1.18.0 has an entry.
     </p>
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">

@@ -91,8 +91,10 @@
       </li>
       <li>
         <strong>Regression guard on remediation</strong>: the output PDF is rejected if its overall
-        or Strict (WCAG + IITAA §E205.4) score regresses relative to the input. The user never sees
-        an output that would make any visible metric worse.
+        score drops, if any single category scores lower, if a category that was scored can no
+        longer be checked, or if it fails a WCAG criterion the input passed (tool v1.174.0+; before
+        that, only the total was compared). The user never receives an output that is worse in any
+        measured way.
       </li>
     </ul>
   </section>

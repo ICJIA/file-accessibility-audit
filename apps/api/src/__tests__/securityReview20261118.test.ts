@@ -103,3 +103,77 @@ describe("isPrivateIP covers every spelling and reserved range", () => {
     "::ffff:93.184.216.34",
   ])("allows public %s", (ip) => expect(isPrivateIP(ip)).toBe(false));
 });
+
+/**
+ * Page audit, second hostname (closed 2026-11-18): Chromium resolves only
+ * the pinned document host. Every request to another host is fetched in Node
+ * (safeFetch: resolve, check every record, connect to the checked address)
+ * and handed to Chromium as bytes, so a rebinding name never reaches a
+ * browser lookup.
+ */
+describe("page audit: requests to other hosts are fetched by Node, never resolved by Chromium", () => {
+  async function run(
+    url: string,
+    method = "GET",
+    fetched: unknown = {
+      status: 200,
+      headers: { "content-type": "text/css" },
+      body: Buffer.from("a{}"),
+    },
+  ) {
+    const { createRequestHandler } = await import("../services/pageAuditor.js");
+    const calls: string[] = [];
+    let responded: any = null;
+    const req: any = {
+      url: () => url,
+      method: () => method,
+      resourceType: () => "stylesheet",
+      headers: () => ({}),
+      continue: async () => void calls.push("continue"),
+      abort: async () => void calls.push("abort"),
+      respond: async (r: unknown) => {
+        calls.push("respond");
+        responded = r;
+      },
+    };
+    const offFetch = vi.fn(async () => fetched as any);
+    const handler = createRequestHandler(
+      () => true,
+      async () => true,
+      { pinnedHost: "icjia.illinois.gov", fetch: offFetch },
+    );
+    await handler(req);
+    return { calls, responded, offFetch };
+  }
+
+  it("the pinned document host goes to Chromium (its address is pinned at launch)", async () => {
+    const { calls, offFetch } = await run("https://icjia.illinois.gov/style.css");
+    expect(calls).toEqual(["continue"]);
+    expect(offFetch).not.toHaveBeenCalled();
+  });
+
+  it("another host is fetched by Node and handed back — Chromium never continues it", async () => {
+    const { calls, responded, offFetch } = await run("https://rebind.attacker.example/x.css");
+    expect(offFetch).toHaveBeenCalledWith("https://rebind.attacker.example/x.css", false);
+    expect(calls).toEqual(["respond"]);
+    expect(responded.body.toString()).toBe("a{}");
+  });
+
+  it("a refused Node fetch (private address, bad port, too big) aborts the request", async () => {
+    const { calls } = await run("https://rebind.attacker.example/x.css", "GET", null);
+    expect(calls).toEqual(["abort"]);
+  });
+
+  it("anything but GET/HEAD to another host is refused", async () => {
+    const { calls, offFetch } = await run("https://other.example/api", "POST");
+    expect(calls).toEqual(["abort"]);
+    expect(offFetch).not.toHaveBeenCalled();
+  });
+
+  it("WIRING: auditPage installs the guard with the pinned host and a Node fetcher", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../services/pageAuditor.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/installRequestGuard\(page, isUrlAllowed, host\)/);
+    expect(src).toMatch(/fetch: offHostFetchFor\(isUrlAllowed\)/);
+  });
+});

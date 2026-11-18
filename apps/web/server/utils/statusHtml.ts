@@ -543,7 +543,7 @@ export function renderDocumentProgress(body: Record<string, unknown>): string {
 
   const rows: Array<[string, string, string]> = [
     ["Documents checked", num(documents), ""],
-    ["Re-checked (audited 2+ times)", num(reaudited), share(reaudited, documents)],
+    ["Re-checked after a change", num(reaudited), share(reaudited, documents)],
     ["Improved after a re-check", improvedCell, share(improved, improvable)],
     ["Median score change among re-checked", medianCell, ""],
   ];
@@ -584,8 +584,9 @@ export function renderDocumentProgress(body: Record<string, unknown>): string {
       `that date. Computed from stored audit records — the file name, score, and time of audit ` +
       `— grouped by file name inside the database. No file name, content hash, or individual ` +
       `score appears here; only these counts and one median are published. A document counts ` +
-      `as re-checked when the same file name was audited more than once; failed audits are not ` +
-      `counted at all.</p>` +
+      `as re-checked when the same file name was audited again after the file itself changed — ` +
+      `the stored content fingerprints are compared inside the database, and uploading the ` +
+      `identical file again does not count; failed audits are not counted at all.</p>` +
       `<div class="windows"><div class="win"><h3>Last 30 days</h3>${table}${flooredNote}</div></div>`,
   });
 }

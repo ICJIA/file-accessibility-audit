@@ -1372,6 +1372,11 @@ describe("distinct documents (by content hash)", () => {
 });
 
 describe("document_progress_30d (the remediation loop)", () => {
+  // Each seeded run is a CHANGED file unless a test says otherwise: since
+  // v1.174.0 a re-check needs 2+ distinct content hashes under the name.
+  let hashSeq = 0;
+  const changed = () => `hash-${++hashSeq}`;
+
   it("groups the last 30 days by filename: runs, improvability, improvement", async () => {
     const db = freshDb();
     // grant.pdf: 69 → 79 → 89 — re-audited, improvable, improved, not yet an A.
@@ -1380,6 +1385,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "grant.pdf",
       score: 69,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 25 * DAY,
     });
     seedAudit(db, {
@@ -1387,6 +1393,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "grant.pdf",
       score: 79,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 20 * DAY,
     });
     seedAudit(db, {
@@ -1394,6 +1401,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "grant.pdf",
       score: 89,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 2 * DAY,
     });
     // deck.pptx: started at an A — re-audited but not improvable.
@@ -1402,6 +1410,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "deck.pptx",
       score: 95,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 3 * DAY,
     });
     seedAudit(db, {
@@ -1409,6 +1418,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "deck.pptx",
       score: 100,
       privileged: 0,
+      contentHash: changed(),
       agoMs: DAY,
     });
     // solo.pdf: audited once.
@@ -1417,6 +1427,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "solo.pdf",
       score: 50,
       privileged: 0,
+      contentHash: changed(),
       agoMs: DAY,
     });
     // Entirely outside the window.
@@ -1425,6 +1436,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "old.pdf",
       score: 10,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 40 * DAY,
     });
     seedAudit(db, {
@@ -1432,6 +1444,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "old.pdf",
       score: 20,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 35 * DAY,
     });
     // A failed attempt writes no score and is not a run.
@@ -1440,6 +1453,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "grant.pdf",
       score: null,
       privileged: 0,
+      contentHash: changed(),
       grade: null,
       agoMs: DAY,
     });
@@ -1467,9 +1481,17 @@ describe("document_progress_30d (the remediation loop)", () => {
         filename: f,
         score: first,
         privileged: 0,
+        contentHash: changed(),
         agoMs: 5 * DAY,
       });
-      seedAudit(db, { eventType: "analyze", filename: f, score: last, privileged: 0, agoMs: DAY });
+      seedAudit(db, {
+        eventType: "analyze",
+        filename: f,
+        score: last,
+        privileged: 0,
+        contentHash: changed(),
+        agoMs: DAY,
+      });
     }
 
     const p = (await makeService(db).getStatus()).document_progress_30d;
@@ -1488,6 +1510,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "a.pdf",
       score: 50,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 2 * DAY,
     });
     seedAudit(db, {
@@ -1495,6 +1518,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "a.pdf",
       score: 90,
       privileged: 0,
+      contentHash: changed(),
       agoMs: DAY,
     });
 
@@ -1510,6 +1534,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "tie.pdf",
       score: 50,
       privileged: 0,
+      contentHash: changed(),
       agoMs: DAY,
     });
     seedAudit(db, {
@@ -1517,6 +1542,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "tie.pdf",
       score: 90,
       privileged: 0,
+      contentHash: changed(),
       agoMs: DAY,
     });
 
@@ -1542,6 +1568,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "pub.pdf",
       score: 92,
       privileged: 0,
+      contentHash: changed(),
       agoMs: 3 * DAY,
     });
     seedAudit(db, {
@@ -1549,6 +1576,7 @@ describe("document_progress_30d (the remediation loop)", () => {
       filename: "pub.pdf",
       score: 95,
       privileged: 0,
+      contentHash: changed(),
       agoMs: DAY,
     });
     // A document only the fleet ever touched contributes nothing at all.
@@ -1584,6 +1612,42 @@ describe("document_progress_30d (the remediation loop)", () => {
     const p = (await makeService(db).getStatus()).document_progress_30d;
     expect(p.documents).toBe(0);
     expect(p.reaudited).toBe(0);
+  });
+  it("re-uploading the IDENTICAL file is not a re-check (user decision 2026-11-18)", async () => {
+    const db = freshDb();
+    // same.pdf: the same bytes three times — no change, no re-check.
+    for (const ago of [5, 3, 1]) {
+      seedAudit(db, {
+        eventType: "analyze",
+        filename: "same.pdf",
+        score: 69,
+        privileged: 0,
+        contentHash: "identical",
+        agoMs: ago * DAY,
+      });
+    }
+    // fixed.pdf: changed once, then re-uploaded unchanged — one re-check,
+    // first 50, latest 90.
+    for (const [ago, score, hash] of [
+      [5, 50, "v1"],
+      [3, 90, "v2"],
+      [1, 90, "v2"],
+    ] as const) {
+      seedAudit(db, {
+        eventType: "analyze",
+        filename: "fixed.pdf",
+        score,
+        privileged: 0,
+        contentHash: hash,
+        agoMs: ago * DAY,
+      });
+    }
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.documents).toBe(2);
+    expect(p.reaudited).toBe(1);
+    expect(p.improvable).toBe(1);
+    expect(p.improved).toBe(1);
+    expect(p.reached_a).toBe(1);
   });
 });
 

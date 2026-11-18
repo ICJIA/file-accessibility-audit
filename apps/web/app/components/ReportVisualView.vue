@@ -6,6 +6,7 @@
       :categories="displayedCategories"
       :conformance="result.conformance"
       :not-assessed-count="notAssessedCount"
+      :file-type="result.fileType"
       class="mb-5"
     />
 

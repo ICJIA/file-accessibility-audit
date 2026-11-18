@@ -27,6 +27,7 @@ export type RemediationEvent =
   // exists, so neither "passed" nor "failed" may be recorded (2026-09-02).
   | "verapdf_error"
   | "verapdf_unavailable"
+  | "metadata_applied"
   | "output_ready"
   | "downloaded"
   | "output_deleted"

@@ -11,6 +11,8 @@ export default defineConfig({
       // import it explicitly resolve to an inert test stub instead.
       "vue-router": fileURLToPath(new URL("./app/__tests__/stubs/vue-router.ts", import.meta.url)),
       "@": fileURLToPath(new URL("./app", import.meta.url)),
+      // Nuxt's virtual "#app" module, for components that import it explicitly.
+      "#app": fileURLToPath(new URL("./app/__tests__/stubs/nuxt-app.ts", import.meta.url)),
     },
   },
   test: {

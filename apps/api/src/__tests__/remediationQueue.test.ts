@@ -25,6 +25,7 @@ import {
   rmSync,
   utimesSync,
   writeFileSync,
+  statSync,
 } from "node:fs";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
@@ -593,6 +594,38 @@ describe("POST /api/remediate — wiring over real HTTP (findings 1, 9a)", () =>
     expect(error).not.toHaveBeenCalled();
     expect(warn.mock.calls.flat().join(" ")).toMatch(/\[api\] 400 /);
     expect(jobs.countQueuedJobs() + jobs.countActiveJobs()).toBe(0);
+  });
+
+  // The repaired PDF's title and language (user decision 2026-11-18).
+  it("a malformed language is refused (400) before anything is written", async () => {
+    audited(PDF);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(PDF)], { type: "application/pdf" }), "r.pdf");
+    form.append("title", "Grant guidelines");
+    form.append("language", "english please");
+    const res = await fetch(`${baseUrl}/api/remediate`, { method: "POST", body: form });
+    warn.mockRestore();
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/language code/);
+    expect(jobs.countQueuedJobs() + jobs.countActiveJobs()).toBe(0);
+  });
+
+  it("WIRING: the title and language reach the job's working folder, owner-only", async () => {
+    audited(PDF);
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(PDF)], { type: "application/pdf" }), "r.pdf");
+    form.append("title", "  Grant   guidelines 2026 ");
+    form.append("language", "es-US");
+    const res = await fetch(`${baseUrl}/api/remediate`, { method: "POST", body: form });
+    expect(res.status).toBe(202);
+    const { jobId } = (await res.json()) as { jobId: string };
+    const file = join(outDir, jobId, "work", "doc-metadata.json");
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({
+      title: "Grant guidelines 2026",
+      language: "es-US",
+    });
+    expect(statSync(file).mode & 0o777).toBe(0o600);
   });
 
   it("runs 2 at once, queues 2, then answers 503 + Retry-After — and a refusal leaves nothing behind", async () => {

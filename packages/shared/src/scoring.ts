@@ -123,7 +123,11 @@ export const LEGAL_ONLY_SCORING_SINCE = "2026-08-29";
 
 export const GRADE_THRESHOLDS = [
   { min: 90, grade: "A" as const, color: "#22c55e", label: "Excellent" },
-  { min: 80, grade: "B" as const, color: "#14b8a6", label: "Good" },
+  // "Almost there", not "Good" (user decision 2026-11-18): every B carries
+  // at least one WCAG failure — a moderate failure caps the score at 89 — and
+  // the same header said "fix recommended before publishing", so "Good" read
+  // as permission to publish while the verdict beside it said not yet.
+  { min: 80, grade: "B" as const, color: "#14b8a6", label: "Almost there" },
   {
     min: 70,
     grade: "C" as const,

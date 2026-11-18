@@ -28,6 +28,8 @@ Client → HTTPS multipart upload (re-upload required by design)
   │
   ▼
 [write input → data/remediation/&lt;jobId&gt;/work/input.pdf] (mode 0600)
+[write the title + language the person typed (optional) →
+   work/doc-metadata.json] (mode 0600, tool v1.174.0+)
   │
   ▼
 [queue, tool v1.168.0+: when both worker slots are busy the job waits its turn
@@ -55,6 +57,14 @@ Client → HTTPS multipart upload (re-upload required by design)
     'verified_absent'
   │
   ▼
+[Stage 2b: title and language, tool v1.174.0+]
+  • qpdf writes the typed title + language and "show the title"
+    → with-metadata.pdf; DELETE doc-metadata.json
+  • DELETE tagged.pdf + fs.stat verify ENOENT
+  • Emit: 'metadata_applied' (which of the three were set — never
+    the title text itself)
+  │
+  ▼
 [Stage 3: validating]
   • qpdf --check tagged.pdf → must not report warnings
   • veraPDF --flavour ua1 tagged.pdf → conformance verdict (informational)
@@ -63,8 +73,10 @@ Client → HTTPS multipart upload (re-upload required by design)
   │
   ▼
 [Stage 4: comparing]
-  • Re-audit tagged.pdf → output score
-  • If Overall OR Strict score regresses: REJECT
+  • Re-audit the output → output score
+  • REJECT if the total drops, any category scores lower, a scored
+    category can no longer be checked, or a WCAG criterion fails
+    that the original passed (tool v1.174.0+)
   │
   ▼
 (success branch)

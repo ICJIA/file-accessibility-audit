@@ -1,17 +1,35 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
 import { navigateTo, useRuntimeConfig } from "#app";
+import { currentDocMetadata, REMEDIATION_LANGUAGES } from "~/utils/remediationMetadata";
 
 interface Props {
   /** The File that was uploaded for the audit; re-uploaded for remediation. */
   file?: File | null;
   /** Current audit score (used to suppress the button on already-A docs). */
   inputScore?: number | null;
+  /** The audit's categories — the title/language findings prefill the form. */
+  categories?: unknown;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   file: null,
   inputScore: null,
+  categories: undefined,
+});
+
+// Title and language written into the repaired PDF (user decision
+// 2026-11-18): auto-tagging cannot know a document's title, and a missing
+// title or language is the most common failure. Prefilled with the PDF's
+// own values; the person confirms or corrects them.
+const current = computed(() => currentDocMetadata(props.categories));
+const docTitle = ref(current.value.title ?? "");
+const docLanguage = ref(current.value.language ?? "en-US");
+const languageOptions = computed(() => {
+  const own = current.value.language;
+  return own && !REMEDIATION_LANGUAGES.some((l) => l.code.toLowerCase() === own.toLowerCase())
+    ? [{ code: own, name: `${own} (the document's current language)` }, ...REMEDIATION_LANGUAGES]
+    : REMEDIATION_LANGUAGES;
 });
 
 const config = useRuntimeConfig();
@@ -60,7 +78,7 @@ const phaseCopy = computed(() => {
 
 const buttonLabel = computed(() => {
   if (phase.value === "uploading") return "Starting remediation…";
-  if (phase.value === "finalizing") return "Almost there…";
+  if (phase.value === "finalizing") return "Opening…";
   return "Attempt remediation";
 });
 
@@ -82,6 +100,8 @@ async function startRemediation(file: File): Promise<void> {
   try {
     const fd = new FormData();
     fd.append("file", file);
+    if (docTitle.value.trim()) fd.append("title", docTitle.value.trim());
+    if (docLanguage.value) fd.append("language", docLanguage.value);
     const res = await $fetch<{
       jobId: string;
       downloadToken: string;
@@ -153,6 +173,36 @@ onBeforeUnmount(() => {
             : "Optional next step"
       }}
     </p>
+    <div
+      v-if="!alreadyAccessible && !busy"
+      class="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] text-left max-w-xl mx-auto"
+    >
+      <label class="block text-sm">
+        <span class="text-[var(--text-secondary)] font-medium">Document title</span>
+        <span class="block text-xs text-[var(--text-muted)]">
+          What a screen reader announces when the PDF opens. Leave blank to keep the current one.
+        </span>
+        <input
+          v-model="docTitle"
+          data-testid="remediate-title"
+          type="text"
+          maxlength="200"
+          class="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface-deep)] px-3 py-2 text-[var(--text)]"
+          placeholder="For example: Annual Report 2025"
+        />
+      </label>
+      <label class="block text-sm">
+        <span class="text-[var(--text-secondary)] font-medium">Language</span>
+        <span class="block text-xs text-[var(--text-muted)]">The language the text is in.</span>
+        <select
+          v-model="docLanguage"
+          data-testid="remediate-language"
+          class="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface-deep)] px-3 py-2 text-[var(--text)]"
+        >
+          <option v-for="l in languageOptions" :key="l.code" :value="l.code">{{ l.name }}</option>
+        </select>
+      </label>
+    </div>
     <UButton
       :color="alreadyAccessible ? 'neutral' : 'primary'"
       :variant="alreadyAccessible ? 'subtle' : 'solid'"

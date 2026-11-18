@@ -54,19 +54,58 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
-    version: "v1.173.6",
-    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s main fix.",
+    version: "v1.174.0",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: how the tool checks web pages, and the new title and language step in automatic repair.",
     body: [
       {
         kind: "p",
-        html: "A second, automatic review of the previous update found that its main fix could still be got around. This update completes it. The previous update never went live, so the public site was never running the incomplete version. Nothing about what is collected, kept or deleted changed.",
+        html: "This update closes the last finding from the review recorded under v1.173.5, and adds one new kind of input, which is checked before it is used. Every finding is listed with its fix. Nothing new is kept beyond a repair job&rsquo;s own lifetime.",
       },
       {
         kind: "findings",
         items: [
           {
             badge: "Fix",
-            html: "<strong>The check on specially built files is now complete.</strong> The previous update made the server count the parts of an Office file before opening it. A file built with extra data in particular places could still slip past that count. The count now reads the file exactly the way the program that opens it does, and anything it cannot read is refused.",
+            html: "<strong>Finding:</strong> when the tool checks a web page, a file that page loads from a second web address was looked up twice &mdash; once by the server, which checked it, and again by the checker&rsquo;s browser &mdash; so a specially set-up address could have sent the browser to the server&rsquo;s own internal addresses. <strong>Fix:</strong> the browser now connects only to the page&rsquo;s own website. Every file from any other address is fetched by the server itself, which checks the address, connects only to that address, and hands the browser the finished file. Tested on two live state websites: every page loaded completely.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> a web page whose address resolved in the newer internet address format could not be checked at all. <strong>Fix:</strong> the address is now passed to the browser in the form it expects.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>New input, checked first.</strong> The automatic-repair form now asks for the document&rsquo;s title and language. <strong>How it is protected:</strong> both are limited in size, the title may not contain hidden control characters, the language must be a language code, and anything else is refused before the file is stored. What is typed is kept in a private file inside the repair job and deleted with it; the job&rsquo;s log records only which settings were made, never the title.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> automatic repair rejected a result only when its total score dropped, so a repair could make one part worse while improving another. <strong>Fix:</strong> a result is now thrown away if any single part scores lower, stops being checkable, or fails a rule the original passed.",
+          },
+          {
+            badge: "UX",
+            html: "<strong>The severity explanation above is clearer.</strong> It used to describe the most serious level as &ldquo;the system is broken right now&rdquo;. It now says how each level is handled and fixed, and every entry lists each finding with its fix.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> New self-checks fail on the previous version. Every self-check passed and no score moved. The regular check of third-party software reports the same single warning as before, in a tool used only while the site is being built, which is never part of the running site.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    version: "v1.173.6",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s main fix.",
+    body: [
+      {
+        kind: "p",
+        html: "A second, automatic review checked the previous update&rsquo;s main fix and found a gap in it, fixed here. The previous update never went live, so the public site never ran with the gap. Nothing about what is collected, kept or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> the previous update made the server count the parts of an Office file before opening it, and a file built with extra data in particular places could slip past that count. <strong>Fix:</strong> the count now reads the file exactly the way the program that opens it does, and any file it cannot read is refused.",
           },
           {
             badge: "OPS",
@@ -82,26 +121,26 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     body: [
       {
         kind: "p",
-        html: "A full review of the tool, done the way an outsider trying to break it would. It found no way for anyone to take control of the server, read other people&rsquo;s files, or plant harmful content in a report. It did find ways someone could slow the service down or interrupt it, and a few smaller weaknesses. All of them except one are fixed in this update. Nothing about what is collected, kept or deleted changed.",
+        html: "A full review of the tool, done the way an outsider trying to break it would. It found no way for anyone to take control of the server, read other people&rsquo;s files, or plant harmful content in a report. It did find ways someone could slow the service down or interrupt it, and a few smaller weaknesses. Each is listed below with its fix. Nothing about what is collected, kept or deleted changed.",
       },
       {
         kind: "findings",
         items: [
           {
             badge: "Fix",
-            html: "<strong>A specially built file could restart the service.</strong> An Office file packed with hundreds of thousands of empty parts made the server use too much memory while checking it, so a few such uploads could restart the service and interrupt everyone&rsquo;s checks. The server now counts the parts before opening the file and refuses it straight away.",
+            html: "<strong>Finding:</strong> an Office file packed with hundreds of thousands of empty parts made the server use too much memory while checking it, so a few such uploads could restart the service. <strong>Fix:</strong> the server counts the parts before opening the file and refuses it straight away (completed in v1.173.6).",
           },
           {
             badge: "Fix",
-            html: "<strong>Uploads could be blocked for ten minutes.</strong> Someone sending many uploads and never collecting the results could fill the space that holds finished reports, so other visitors were turned away. Uncollected reports now make room for new visitors.",
+            html: "<strong>Finding:</strong> someone sending many uploads and never collecting the results could fill the space that holds finished reports, so other visitors were turned away for up to ten minutes. <strong>Fix:</strong> uncollected reports now make room for new visitors.",
           },
           {
             badge: "Fix",
-            html: "<strong>Smaller weaknesses, closed.</strong> The program that checks web pages no longer receives the server&rsquo;s private keys; the tool now fetches documents only from the standard web ports, and its error messages no longer reveal details about other servers; the public status page can no longer be made to report &ldquo;unknown&rdquo;; and the list of private network addresses the tool refuses to visit is complete.",
+            html: "<strong>Smaller findings, each fixed.</strong> The program that checks web pages received the server&rsquo;s private keys &mdash; <strong>fix:</strong> it no longer does. The tool would fetch from any port, and its error messages showed details about other servers &mdash; <strong>fix:</strong> standard web ports only, and plain error messages. The public status page could be made to report &ldquo;unknown&rdquo; &mdash; <strong>fix:</strong> it now shares one recent answer among all visitors. A few kinds of private network address were missing from the list the tool refuses to visit &mdash; <strong>fix:</strong> the list is complete.",
           },
           {
-            badge: "Note",
-            html: "<strong>One weakness is still open.</strong> It can only be used by a trusted tool that holds ICJIA&rsquo;s private access key, not by the public. The fix is being considered.",
+            badge: "Fix",
+            html: "<strong>Finding:</strong> when the tool checks a web page, a file that page loads from a second, specially set-up web address could have made the checker&rsquo;s browser contact the server&rsquo;s own internal addresses. Using it needed control over a page on an allowed state website, or ICJIA&rsquo;s private access key. <strong>Fix (v1.174.0):</strong> the checker&rsquo;s browser now connects only to the page&rsquo;s own website; every file from any other address is fetched by the server itself, which checks the address and connects only to it, and hands the browser the finished file.",
           },
           {
             badge: "OPS",

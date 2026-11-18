@@ -376,7 +376,7 @@ describe("ScoreCard", () => {
 
   it("renders the grade label text", () => {
     const wrapper = mount(ScoreCard, { props: { result: baseResult } });
-    expect(wrapper.text()).toContain("Good");
+    expect(wrapper.text()).toContain("Almost there");
   });
 
   it("does not render any score-profile toggle (single Strict view as of v1.21+)", () => {
@@ -441,7 +441,7 @@ describe("ScoreCard", () => {
 
   it.each([
     { grade: "A", expectedColor: "#22c55e", label: "Excellent" },
-    { grade: "B", expectedColor: "#14b8a6", label: "Good" },
+    { grade: "B", expectedColor: "#14b8a6", label: "Almost there" },
     { grade: "C", expectedColor: "#eab308", label: "Needs Improvement" },
     { grade: "D", expectedColor: "#f97316", label: "Poor" },
     { grade: "F", expectedColor: "#ef4444", label: "Failing" },
