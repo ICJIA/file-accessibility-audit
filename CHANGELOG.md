@@ -4,9 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.2] - 2026-11-18
+
+Completes v1.175.1. **v1.175.1 was never deployed; deploy this instead.**
+
+### Security (finding with its fix)
+
+- **P2 / fixed — the scanner's exemption could be imitated (found by an automated review of the v1.175.1 commit, before deployment).** Finding: v1.175.1 let the popup guard leave open "one tab with no opener" while axe ran. A checked page can open a no-opener tab with a scripted click on a `target="_blank" rel="noopener"` link; inside that window, its tab would have been left open with request filtering but without the in-page hardening, so it could have opened a WebSocket, which the request filter does not see. Fix: the exemption is now by identity. For the axe call only, `browser.newPage` is wrapped and the exact page it returns is recorded; every new page is guarded, then closed unless it IS that page and still at `about:blank`. Every other new page now also gets the in-page hardening (no WebSocket, service workers, …) as well as the request filter before it is closed.
+- New unit test: a blank, no-opener tab the site opens first, inside the window, is closed while axe's own page stays open. It fails on v1.175.1.
+
+### Notes
+
+- Tests 4,822 across 273 files. Real audit of icjia.illinois.gov completes locally (98/A).
+
 ## [1.175.1] - 2026-11-18
 
-Page audits work again. **Deploy this.**
+Page audits work again. Superseded by v1.175.2 before deployment.
 
 ### Fixed (finding with its fix)
 

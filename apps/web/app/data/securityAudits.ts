@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.175.2",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s web-page fix.",
+    body: [
+      {
+        kind: "p",
+        html: "A second, automatic review of the previous update found one thing to tighten, fixed here before that update went live. Nothing about what is collected, kept or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> the previous update let the scanner keep one extra browser tab open, and recognised it by a trait a checked web page could copy. A page built to abuse this could have kept a tab of its own open for a few seconds with fewer protections. <strong>Fix:</strong> the checker now records the exact tab it opens itself and exempts only that one. Any tab a checked page opens is fully protected and closed at once.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> A new test reproduces the trick and fails on the previous version. A real check of the ICJIA home page still completes.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.175.1",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: web-page checks, which had stopped working.",
     body: [

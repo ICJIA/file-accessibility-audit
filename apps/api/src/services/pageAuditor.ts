@@ -459,17 +459,21 @@ export async function hardenPage(page: import("puppeteer").Page): Promise<void> 
  *
  * THE ONE EXCEPTION — axe's own page (fixed 2026-11-18). axe-core/puppeteer
  * finishes every scan in a blank page it opens itself (`finishRun` →
- * `browser.newPage()`). From v1.168.0 this guard closed that page too, so
- * EVERY fresh page audit failed with "Target closed" and only reports saved
- * before v1.168.0 were ever served. `allowOwnPage()` opens a window, for the
- * axe call only, in which ONE page with no opener — a page our own code
- * opened, not one the audited site opened — is guarded but left open. A page
- * that has an opener is always closed. If the audited site somehow took the
- * allowance first, axe's page would be closed and the audit would fail:
- * the error is a failed audit, never an unguarded page.
+ * `page.browser().newPage()`). From v1.168.0 this guard closed that page too,
+ * so EVERY fresh page audit failed with "Target closed" and only reports
+ * saved before v1.168.0 were ever served.
+ *
+ * The exemption is by IDENTITY, not by a property the audited page could
+ * imitate: `allowOwnPage()` wraps `browser.newPage` for the axe call only and
+ * records the exact Page that call returns. Every new page — that one too —
+ * is guarded first; then it is closed unless it IS that recorded Page and is
+ * still at about:blank. (A first version exempted "one page with no opener";
+ * a page can open a no-opener tab by a scripted click, so that test could be
+ * imitated. Replaced before deployment.) A popup the audited page opens is
+ * therefore always closed, whatever it looks like.
  */
 export interface PopupPolicy {
-  /** Allow one opener-less page until the returned function is called. */
+  /** Exempt the one page our own code opens until the returned function runs. */
   allowOwnPage(): () => void;
 }
 
@@ -478,27 +482,27 @@ export function denyPopups(
   audited: import("puppeteer").Page,
   guard: (page: import("puppeteer").Page) => Promise<void>,
 ): PopupPolicy {
-  let allowance = 0;
+  // Settles to the Page our own newPage call created (null if it failed).
+  let ownPage: Promise<import("puppeteer").Page | null> | null = null;
   browser.on("targetcreated", (target) => {
-    // Decide synchronously, before any await, so the allowance is claimed in
-    // the order targets appear.
-    let ours = false;
     try {
       if (String(target.type()) !== "page") return;
-      const hasOpener = typeof target.opener === "function" && !!target.opener();
-      if (!hasOpener && allowance > 0) {
-        allowance--;
-        ours = true;
-      }
     } catch {
-      return; // best effort
+      return;
     }
+    // Captured synchronously: our wrapper sets ownPage before the call that
+    // creates the target, so the event always sees it.
+    const pendingOwn = ownPage;
     void (async () => {
       try {
         const popup = await target.page();
         if (!popup || popup === audited) return;
         await guard(popup).catch(() => {});
-        if (!ours) await popup.close().catch(() => {});
+        if (pendingOwn) {
+          const own = await pendingOwn;
+          if (own === popup && popup.url() === "about:blank") return;
+        }
+        await popup.close().catch(() => {});
       } catch {
         // best effort
       }
@@ -506,9 +510,19 @@ export function denyPopups(
   });
   return {
     allowOwnPage() {
-      allowance = 1;
+      const original = browser.newPage;
+      browser.newPage = ((...args: Parameters<Browser["newPage"]>) => {
+        // Publish the promise BEFORE the call, so a targetcreated event
+        // that fires during it still sees ours.
+        let settle!: (p: import("puppeteer").Page | null) => void;
+        ownPage = new Promise((r) => (settle = r));
+        const created = original.apply(browser, args);
+        created.then(settle, () => settle(null));
+        return created;
+      }) as Browser["newPage"];
       return () => {
-        allowance = 0;
+        browser.newPage = original;
+        ownPage = null;
       };
     },
   };
@@ -609,9 +623,12 @@ export async function auditPage(
     // ONE budget for the whole audit, popups included.
     const budget = new OffHostBudget();
     await installRequestGuard(page, isUrlAllowed, host, budget);
-    const popups = denyPopups(browser, page, (popup) =>
-      installRequestGuard(popup, isUrlAllowed, host, budget),
-    );
+    // Every other page gets the request guard AND the in-page hardening
+    // (no WebSocket / service worker / …) before anything else.
+    const popups = denyPopups(browser, page, async (popup) => {
+      await installRequestGuard(popup, isUrlAllowed, host, budget);
+      await hardenPage(popup);
+    });
     await page.setUserAgent("Mozilla/5.0 (compatible; ICJIA-File-Audit/audit.icjia.app)");
     await page.goto(url, {
       waitUntil: "networkidle2",

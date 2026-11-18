@@ -56,50 +56,56 @@ describe.skipIf(!chromiumAvailable)(
   },
 );
 
-describe("denyPopups allowance (unit)", () => {
+describe("denyPopups exemption is by identity (unit)", () => {
   function setup() {
     let listener: ((t: any) => void) | undefined;
-    const browser: any = { on: (_e: string, fn: (t: any) => void) => (listener = fn) };
+    const mkPage = (url = "about:blank"): any => ({ url: () => url, close: vi.fn(async () => {}) });
+    const browser: any = {
+      on: (_e: string, fn: (t: any) => void) => (listener = fn),
+      newPage: vi.fn(async () => {
+        const p = mkPage();
+        listener!({ type: () => "page", page: async () => p });
+        return p;
+      }),
+    };
     const audited: any = { close: vi.fn() };
     const policy = denyPopups(browser, audited, async () => {});
-    const open = (opener: boolean) => {
-      const p: any = { close: vi.fn(async () => {}) };
-      listener!({
-        type: () => "page",
-        opener: () => (opener ? {} : undefined),
-        page: async () => p,
-      });
+    const sitePopup = (url = "about:blank") => {
+      const p = mkPage(url);
+      listener!({ type: () => "page", page: async () => p });
       return p;
     };
-    return { policy, open };
+    return { browser, policy, sitePopup };
   }
-  const tick = () => new Promise((r) => setImmediate(r));
+  const settle = () => new Promise((r) => setTimeout(r, 5));
 
-  it("leaves exactly one opener-less page open inside the window", async () => {
-    const { policy, open } = setup();
+  it("the page our own newPage call created stays open inside the window", async () => {
+    const { browser, policy } = setup();
     const done = policy.allowOwnPage();
-    const ours = open(false);
-    const second = open(false);
-    await tick();
+    const ours = await browser.newPage();
+    await settle();
     expect(ours.close).not.toHaveBeenCalled();
-    expect(second.close).toHaveBeenCalled();
     done();
   });
 
-  it("a page the audited site opened (has an opener) is closed even inside the window", async () => {
-    const { policy, open } = setup();
+  it("a page the audited site opens is closed inside the window — even blank, even with no opener", async () => {
+    const { browser, policy, sitePopup } = setup();
     const done = policy.allowOwnPage();
-    const popup = open(true);
-    await tick();
-    expect(popup.close).toHaveBeenCalled();
+    const hostile = sitePopup(); // opened first, looks exactly like axe's page
+    const ours = await browser.newPage();
+    await settle();
+    expect(hostile.close).toHaveBeenCalled();
+    expect(ours.close).not.toHaveBeenCalled();
     done();
   });
 
-  it("outside the window every new page is closed", async () => {
-    const { policy, open } = setup();
+  it("outside the window every new page is closed, and newPage is restored", async () => {
+    const { browser, policy } = setup();
+    const original = browser.newPage;
     policy.allowOwnPage()();
-    const p = open(false);
-    await tick();
+    expect(browser.newPage).toBe(original);
+    const p = await browser.newPage();
+    await settle();
     expect(p.close).toHaveBeenCalled();
   });
 });
