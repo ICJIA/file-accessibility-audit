@@ -110,3 +110,39 @@ export async function resolveStatus(
     body: { ...api, status: api.status, web: "ok", api: "ok" },
   };
 }
+
+/**
+ * One shared, short-lived answer for every /status caller.
+ *
+ * Security review 2026-11-18 (Low): every visitor's /status probed the API
+ * over loopback, so they all shared ONE per-IP bucket (127.0.0.1, 120/min).
+ * 121 requests a minute exhausted it, the API answered 429, and /status
+ * reported "unknown" with HTTP 200 to everyone — hiding a real degradation
+ * from the keyword monitor. With a 5-second shared result and concurrent
+ * callers coalesced onto one in-flight probe, the API sees at most ~12
+ * probes a minute however many people (or bots) ask, and a monitor still
+ * gets an answer no more than 5 seconds old.
+ */
+export const STATUS_CACHE_MS = 5_000;
+
+export function createStatusCache(
+  resolve: () => Promise<StatusResult>,
+  ttlMs = STATUS_CACHE_MS,
+  now: () => number = Date.now,
+): () => Promise<StatusResult> {
+  let cached: { at: number; value: StatusResult } | null = null;
+  let inFlight: Promise<StatusResult> | null = null;
+  return () => {
+    if (cached && now() - cached.at < ttlMs) return Promise.resolve(cached.value);
+    if (inFlight) return inFlight;
+    inFlight = resolve()
+      .then((value) => {
+        cached = { at: now(), value };
+        return value;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+    return inFlight;
+  };
+}

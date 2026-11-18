@@ -83,7 +83,36 @@ function unfinishedJobs(): number {
   return n;
 }
 
+/**
+ * Make room for one more job by dropping the OLDEST finished jobs whose
+ * result was never collected.
+ *
+ * Security review 2026-11-18 (Medium): 100 tiny uploads that are never
+ * polled finish in milliseconds and then sat in the store for the full
+ * 10-minute TTL, so the store refused every visitor (503) for 10 minutes —
+ * about 600 requests an hour kept the site's upload down. A finished,
+ * uncollected job holds only its result JSON (the upload buffer is already
+ * released), and a page whose job is gone falls back to a plain re-upload,
+ * as it does after a restart. So under pressure those go first, oldest
+ * first. Unfinished jobs are never evicted: they are bounded separately by
+ * MAX_UNFINISHED_JOBS, and real visitors poll every second, so a real
+ * result is collected long before ~100 newer jobs could push it out (the
+ * upload rate limit stands in the way of that).
+ *
+ * Deliberately NOT a per-caller cap: progress jobs carry no owner identity
+ * (data-retention policy § 2), and this needs none.
+ */
+function evictFinishedForRoom(): void {
+  if (jobs.size + reservedUploads < MAX_JOBS) return;
+  // Map iteration is insertion order, i.e. oldest first.
+  for (const [id, job] of jobs) {
+    if (jobs.size + reservedUploads < MAX_JOBS) return;
+    if (job.status.done) jobs.delete(id);
+  }
+}
+
 function hasRoom(): boolean {
+  evictFinishedForRoom();
   return (
     jobs.size + reservedUploads < MAX_JOBS &&
     unfinishedJobs() + reservedUploads < ANALYZE_JOB.MAX_UNFINISHED_JOBS

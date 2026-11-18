@@ -20,6 +20,7 @@ import puppeteer, { type Browser, type HTTPRequest } from "puppeteer";
 import { AxePuppeteer } from "@axe-core/puppeteer";
 import { resolvePublicIp } from "./safeFetch.js";
 import { shouldAllowPageRequest } from "./pageAuditGuard.js";
+import { buildChildSpawnEnv } from "./childSpawnEnv.js";
 
 const BASE_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 
@@ -56,7 +57,15 @@ export function chromiumLaunchArgs(pin?: { host: string; ip: string }): string[]
 const activeBrowsers = new Set<Browser>();
 
 async function launchPinnedBrowser(pin?: { host: string; ip: string }): Promise<Browser> {
-  const browser = await puppeteer.launch({ headless: true, args: chromiumLaunchArgs(pin) });
+  // env: the one child that loads hostile web content (and runs without
+  // Chromium's sandbox) must not inherit the API's secrets — the privileged
+  // token, the report-seal secret. Every other spawn already strips them;
+  // this one did not (security review 2026-11-18).
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: chromiumLaunchArgs(pin),
+    env: buildChildSpawnEnv(),
+  });
   activeBrowsers.add(browser);
   return browser;
 }

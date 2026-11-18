@@ -9,7 +9,16 @@ import {
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { DEPLOY, SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
-import { isAllowedUrl } from "../services/urlPolicy.js";
+import { isAllowedPort, isAllowedUrl } from "../services/urlPolicy.js";
+
+/** The privileged page audit skips the host allowlist, never the port rule. */
+function isPublicPortUrl(raw: string): boolean {
+  try {
+    return isAllowedPort(new URL(raw));
+  } catch {
+    return false;
+  }
+}
 import { auditPage, type PageAuditResult } from "../services/pageAuditor.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
@@ -144,7 +153,10 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
     // request is checked for private/reserved-IP targets (SSRF block).
     let result: PageAuditResult;
     try {
-      result = await auditPage(url, privileged ? () => true : (u) => isAllowedUrl(u).ok);
+      result = await auditPage(
+        url,
+        privileged ? (u) => isPublicPortUrl(u) : (u) => isAllowedUrl(u).ok,
+      );
     } catch (err: any) {
       if (err?.status === 503) {
         setBusyRetryAfter(res);

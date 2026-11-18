@@ -59,6 +59,17 @@ function getAllowedHosts(): Set<string> {
   return new Set([...DEFAULT_ALLOWED_HOSTS, ...fromEnv]);
 }
 
+/**
+ * Only the standard web ports. Without this, an allowlisted host (or, with
+ * the privileged token, any public host) could be probed on any port, and
+ * the fetch error told open from closed — the service as a port scanner run
+ * from its own address (security review 2026-11-18). Documents are served
+ * on 80/443; nothing legitimate needs another port.
+ */
+export function isAllowedPort(u: URL): boolean {
+  return u.port === "" || u.port === "80" || u.port === "443";
+}
+
 export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; parsed?: URL } {
   let parsed: URL;
   try {
@@ -69,6 +80,10 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
 
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
     return { ok: false, reason: "only http/https URLs are accepted", parsed };
+  }
+
+  if (!isAllowedPort(parsed)) {
+    return { ok: false, reason: "only the standard web ports (80 and 443) are accepted", parsed };
   }
 
   // Refuse private/local hostnames to prevent SSRF
@@ -145,9 +160,17 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
       res.status(502).json({ error: err.message });
       return;
     case "dns_failed":
+      res.status(502).json({ error: "Fetch failed", details: "The address could not be found." });
+      return;
     case "network_error":
     default:
-      res.status(502).json({ error: "Fetch failed", details: err.message });
+      // Never the raw socket text ("connect ECONNREFUSED <ip>:<port>"): it
+      // told an open port from a closed one (security review 2026-11-18).
+      // The full message still reaches the server log.
+      console.warn(`[safeFetch] ${err.code}: ${err.message}`);
+      res
+        .status(502)
+        .json({ error: "Fetch failed", details: "The document could not be fetched." });
       return;
   }
 }
@@ -175,5 +198,11 @@ export function validateUrlForFetch(u: URL): void {
 export function validateUrlPublic(u: URL): void {
   if (u.protocol !== "https:" && u.protocol !== "http:") {
     throw new SafeFetchError("malformed_url", "only http/https URLs are accepted");
+  }
+  if (!isAllowedPort(u)) {
+    throw new SafeFetchError(
+      "malformed_url",
+      "only the standard web ports (80 and 443) are accepted",
+    );
   }
 }

@@ -115,11 +115,13 @@ export interface SafeFetchOptions {
 function isPrivateIPv4(ip: string): boolean {
   if (isIP(ip) !== 4) return false;
   const parts = ip.split(".").map(Number);
-  const [a, b] = parts;
+  const [a, b, c] = parts;
   // 0.0.0.0/8 (this network)
   if (a === 0) return true;
   // 10.0.0.0/8
   if (a === 10) return true;
+  // 100.64.0.0/10 (carrier-grade NAT, RFC 6598 — added 2026-11-18)
+  if (a === 100 && b !== undefined && b >= 64 && b <= 127) return true;
   // 127.0.0.0/8 (loopback)
   if (a === 127) return true;
   // 169.254.0.0/16 (link-local, AWS/GCP metadata)
@@ -127,52 +129,98 @@ function isPrivateIPv4(ip: string): boolean {
   // 172.16.0.0/12
   if (a === 172 && b !== undefined && b >= 16 && b <= 31) return true;
   // 192.0.0.0/24 (IETF protocol assignments — includes 192.0.0.170 etc.)
-  if (a === 192 && b === 0) return true;
+  if (a === 192 && b === 0 && c === 0) return true;
+  // 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24 (documentation)
+  if (a === 192 && b === 0 && c === 2) return true;
+  if (a === 198 && b === 51 && c === 100) return true;
+  if (a === 203 && b === 0 && c === 113) return true;
   // 192.168.0.0/16
   if (a === 192 && b === 168) return true;
   // 198.18.0.0/15 (benchmarking)
   if (a === 198 && b !== undefined && b >= 18 && b <= 19) return true;
   // 224.0.0.0/4 (multicast) + 240.0.0.0/4 (reserved)
-  if (a >= 224) return true;
+  if (a !== undefined && a >= 224) return true;
   return false;
+}
+
+/**
+ * An IPv6 address as its eight 16-bit groups, or null. Handles "::"
+ * compression and a trailing dotted IPv4 ("::ffff:1.2.3.4"), so every
+ * spelling of one address classifies the same way — the string-prefix
+ * checks this replaces missed the written-out mapped form
+ * (0:0:0:0:0:ffff:a9fe:a9fe) and IPv4-compatible ::7f00:1 (review
+ * 2026-11-18).
+ */
+function ipv6Groups(addr: string): number[] | null {
+  let s = addr;
+  const tail: number[] = [];
+  const dotted = s.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    if (isIP(dotted[2]!) !== 4) return null;
+    const o = dotted[2]!.split(".").map(Number);
+    tail.push((o[0]! << 8) | o[1]!, (o[2]! << 8) | o[3]!);
+    s = dotted[1]!.endsWith("::") ? dotted[1]! : dotted[1]!.slice(0, -1);
+  }
+  const halves = s.split("::");
+  if (halves.length > 2) return null;
+  const parse = (part: string) => (part === "" ? [] : part.split(":").map((h) => parseInt(h, 16)));
+  const head = parse(halves[0]!);
+  const rest = halves.length === 2 ? parse(halves[1]!) : [];
+  const total = head.length + rest.length + tail.length;
+  if (halves.length === 1 && total !== 8) return null;
+  if (total > 8) return null;
+  const zeros = halves.length === 2 ? new Array(8 - total).fill(0) : [];
+  const groups = [...head, ...zeros, ...rest, ...tail];
+  if (groups.length !== 8 || groups.some((g) => !Number.isInteger(g) || g < 0 || g > 0xffff)) {
+    return null;
+  }
+  return groups;
+}
+
+function v4From(hi: number, lo: number): string {
+  return [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff].join(".");
 }
 
 function isPrivateIPv6(ip: string): boolean {
   // A URL hostname for an IPv6 address arrives bracketed ("[::1]"), and
   // isIP() returns 0 for the bracketed string — so strip the brackets
   // before classifying, or the guard fails OPEN on every IPv6 literal.
-  const unbracketed = ip.replace(/^\[/, "").replace(/\]$/, "");
+  const unbracketed = ip.replace(/^\[/, "").replace(/\]$/, "").replace(/%.*$/, "");
   if (isIP(unbracketed) !== 6) return false;
-  const lower = unbracketed.toLowerCase();
-  // Loopback
-  if (lower === "::1" || lower === "[::1]") return true;
-  // Unspecified
-  if (lower === "::" || lower === "::0") return true;
-  // IPv4-mapped IPv6 — re-check as IPv4 underneath
-  const v4MappedMatch = lower.match(/^::ffff:([0-9a-f.:]+)$/i);
-  if (v4MappedMatch) {
-    const inner = v4MappedMatch[1];
-    if (inner && isIP(inner) === 4 && isPrivateIPv4(inner)) return true;
-    if (inner && /^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/i.test(inner)) {
-      // hex IPv4-mapped form like ::ffff:7f00:1
-      const [hi, lo] = inner.split(":");
-      if (hi && lo) {
-        const dotted = [
-          parseInt(hi.slice(0, 2) || "0", 16),
-          parseInt(hi.slice(2) || "0", 16),
-          parseInt(lo.slice(0, 2) || "0", 16),
-          parseInt(lo.slice(2) || "0", 16),
-        ].join(".");
-        if (isPrivateIPv4(dotted)) return true;
-      }
-    }
-  }
+  const g = ipv6Groups(unbracketed.toLowerCase());
+  // isIP said IPv6 but we cannot parse it: refuse rather than fail open.
+  if (!g) return true;
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = g as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  const first80Zero = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0;
+  // :: (unspecified), ::1 (loopback), and ::a.b.c.d (IPv4-compatible,
+  // deprecated — reaches the embedded IPv4 on some stacks): all refused.
+  if (first80Zero && g5 === 0) return true;
+  // ::ffff:a.b.c.d (IPv4-mapped) — judge the IPv4 underneath.
+  if (first80Zero && g5 === 0xffff) return isPrivateIPv4(v4From(g6, g7));
+  // 64:ff9b::/96 (NAT64) and 64:ff9b:1::/48 (local-use NAT64): an address
+  // here is translated to the IPv4 it embeds — refused outright.
+  if (g0 === 0x64 && g1 === 0xff9b) return true;
+  // 100::/64 (discard)
+  if (g0 === 0x100 && g1 === 0 && g2 === 0 && g3 === 0) return true;
+  // 2001::/32 (Teredo — embeds an obfuscated IPv4) and 2001:db8::/32 (docs)
+  if (g0 === 0x2001 && (g1 === 0 || g1 === 0xdb8)) return true;
+  // 2002::/16 (6to4) — judge the IPv4 it embeds.
+  if (g0 === 0x2002) return isPrivateIPv4(v4From(g1, g2));
   // fc00::/7 (unique local)
-  if (/^f[cd]/i.test(lower)) return true;
-  // fe80::/10 (link-local)
-  if (/^fe[89ab]/i.test(lower)) return true;
+  if ((g0 & 0xfe00) === 0xfc00) return true;
+  // fe80::/10 (link-local) and fec0::/10 (site-local, deprecated)
+  if ((g0 & 0xffc0) === 0xfe80 || (g0 & 0xffc0) === 0xfec0) return true;
   // ff00::/8 (multicast)
-  if (lower.startsWith("ff")) return true;
+  if ((g0 & 0xff00) === 0xff00) return true;
   return false;
 }
 

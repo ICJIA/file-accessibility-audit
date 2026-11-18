@@ -36,6 +36,7 @@ import {
   contrastRatio,
   buildSchemeColorMap,
   readCapped,
+  assertZipEntryCountBeforeParse,
   assertZipWithinLimits,
   xsdBoolean,
   relationshipIdsOf,
@@ -1004,6 +1005,8 @@ export function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
 
 async function analyzePptxPackage(buffer: Buffer): Promise<PptxAnalysis> {
   let zip: JSZip;
+  // Before JSZip allocates an object per entry (review 2026-11-18).
+  assertZipEntryCountBeforeParse(buffer, OOXML.MAX_ZIP_ENTRIES, (m) => new PptxParseError(m));
   try {
     zip = await JSZip.loadAsync(buffer);
   } catch {

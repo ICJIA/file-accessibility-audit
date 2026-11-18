@@ -54,6 +54,41 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.5",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a full review of the whole tool from an attacker&rsquo;s point of view.",
+    body: [
+      {
+        kind: "p",
+        html: "A full review of the tool, done the way an outsider trying to break it would. It found no way for anyone to take control of the server, read other people&rsquo;s files, or plant harmful content in a report. It did find ways someone could slow the service down or interrupt it, and a few smaller weaknesses. All of them except one are fixed in this update. Nothing about what is collected, kept or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>A specially built file could restart the service.</strong> An Office file packed with hundreds of thousands of empty parts made the server use too much memory while checking it, so a few such uploads could restart the service and interrupt everyone&rsquo;s checks. The server now counts the parts before opening the file and refuses it straight away.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Uploads could be blocked for ten minutes.</strong> Someone sending many uploads and never collecting the results could fill the space that holds finished reports, so other visitors were turned away. Uncollected reports now make room for new visitors.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Smaller weaknesses, closed.</strong> The program that checks web pages no longer receives the server&rsquo;s private keys; the tool now fetches documents only from the standard web ports, and its error messages no longer reveal details about other servers; the public status page can no longer be made to report &ldquo;unknown&rdquo;; and the list of private network addresses the tool refuses to visit is complete.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One weakness is still open.</strong> It can only be used by a trusted tool that holds ICJIA&rsquo;s private access key, not by the public. The fix is being considered.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Each fix has new self-checks that fail on the previous version. Every self-check passed, and every accuracy check on the test documents was run again: no score moved. The regular check of third-party software reports the same single warning as before, in a tool used only while the site is being built.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.173.4",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: this data retention policy, checked against the software.",
     body: [

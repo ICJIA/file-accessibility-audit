@@ -36,6 +36,7 @@ import {
   normalizeHex,
   contrastRatio,
   readCapped as ooxmlReadCapped,
+  assertZipEntryCountBeforeParse,
   assertZipWithinLimits,
   buildSchemeColorMap,
   WORD_THEME_COLOR_MAP,
@@ -1417,6 +1418,8 @@ export function readCapped(
 
 export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   let zip: JSZip;
+  // Before JSZip allocates an object per entry (review 2026-11-18).
+  assertZipEntryCountBeforeParse(buffer, OOXML.MAX_ZIP_ENTRIES, (m) => new DocxParseError(m));
   try {
     zip = await JSZip.loadAsync(buffer);
   } catch {

@@ -16,7 +16,7 @@ import {
 } from "./pdfAnalyzer.js";
 import { readCapped } from "./docxService.js";
 import { runOoxmlInWorker } from "./ooxmlRunner.js";
-import { assertZipWithinLimits } from "./ooxml.js";
+import { assertZipEntryCountBeforeParse, assertZipWithinLimits } from "./ooxml.js";
 import { DOCX, PPTX, XLSX, OOXML } from "#config";
 
 export type DetectedFileType = "pdf" | "docx" | "pptx" | "xlsx";
@@ -44,6 +44,9 @@ export async function detectFileType(buffer: Buffer): Promise<DetectedFileType |
 
   if (isZip(buffer)) {
     try {
+      // Count entries from the raw bytes FIRST: loadAsync allocates per
+      // entry, and this runs in the API's main process (review 2026-11-18).
+      assertZipEntryCountBeforeParse(buffer, OOXML.MAX_ZIP_ENTRIES, (m) => new Error(m));
       const zip = await JSZip.loadAsync(buffer);
       // Same aggregate zip-package limits the docx/pptx/xlsx extractors
       // enforce (see OOXML in #config), applied here too: this detection

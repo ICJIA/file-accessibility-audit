@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.5] - 2026-11-18
+
+Security release from the 2026-11-18 adversarial review, plus three copy corrections. Full technical write-up: README § Security, v1.173.5.
+
+### Security
+
+- **A ZIP with a huge number of entries could restart the API (High).** The entry cap ran only after JSZip had built an object per entry, in the API's main process. The count is now read from the raw bytes first (`countZipEntriesFromBytes`, mirroring JSZip's own central-directory walk, zip64 included) and the upload refused before JSZip runs. The reviewer's 290,000-entry file: 676 MB → 122 MB peak, refused in milliseconds.
+- **100 uncollected uploads locked everyone out for 10 minutes (Medium).** A full progress-job store now evicts its oldest finished, uncollected jobs; running jobs are never evicted.
+- **Chromium got the API's secrets (Low).** The page audit now launches it with the same stripped environment as every other child process.
+- **Ports (Low).** URL fetches accept only 80 and 443, and fetch errors no longer quote the raw connection message (which told an open port from a closed one).
+- **`/status` could be made to read "unknown" (Low).** One shared result for at most 5 seconds; concurrent requests share one probe.
+- **Reserved addresses (Info).** `isPrivateIP` parses IPv6 properly and covers CGNAT, documentation ranges, every IPv4-mapped spelling, IPv4-compatible, NAT64, 6to4, Teredo and site-local.
+- **Left open, decision pending:** the privileged-token page audit can still be steered through a second hostname (DNS rebinding). Anonymous audits are unaffected.
+
+### Fixed — copy
+
+- README: "WCAG 2.2 AA (superset of 2.1 AA)" → WCAG 2.1 AA, the version the laws name and the only one the grade measures.
+- README: best practices "40 — 19 for PDF, 21 for Office" → 43: 21 for PDF, 22 across Word, PowerPoint and Excel (the catalog's own count).
+- Trust brief: veraPDF runs on every **PDF** report, not "every single report" — Word, PowerPoint and Excel files are judged by our checker alone.
+
+### Notes
+
+- Tests 4,756 across 265 files (API 2,596 · Web 2,063 · CLI 97); 49 new, and each fix's tests fail on v1.173.4.
+- No score changed; all accuracy gates re-run.
+- `pnpm audit --prod` (2026-11-18): 3 high, the same unpatched `picomatch` advisory, accepted.
+
 ## [1.173.4] - 2026-11-18
 
 Today's review, second half: the data-retention policy checked against the code, and every "reviewed on" date brought current.

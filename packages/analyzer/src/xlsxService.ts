@@ -43,6 +43,7 @@ import {
   normalizeHex,
   contrastRatio,
   readCapped,
+  assertZipEntryCountBeforeParse,
   assertZipWithinLimits,
   buildSchemeColorMap,
   applyExcelTint,
@@ -296,6 +297,8 @@ function collectAppliedCellStyles(sheetRoot: PONode, applied: Set<number>): void
 
 export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   let zip: JSZip;
+  // Before JSZip allocates an object per entry (review 2026-11-18).
+  assertZipEntryCountBeforeParse(buffer, OOXML.MAX_ZIP_ENTRIES, (m) => new XlsxParseError(m));
   try {
     zip = await JSZip.loadAsync(buffer);
   } catch {

@@ -626,6 +626,110 @@ export function decodeXmlBytes(bytes: Buffer): string {
 // ---------------------------------------------------------------------------
 
 /**
+ * Count a ZIP's central-directory records straight from the bytes, BEFORE
+ * JSZip parses anything — and stop counting at `max + 1`.
+ *
+ * WHY (security review 2026-11-18, High): assertZipWithinLimits runs only
+ * after JSZip.loadAsync has built an object for every entry. A 25 MB zip64
+ * file with 290,000 empty entries made one loadAsync peak at 676 MB and three
+ * at once at 1.44 GB — in the API's main process, before the analysis
+ * semaphore — so a few anonymous uploads restarted the API (PM2 768 MB cap).
+ *
+ * This walk mirrors JSZip 3.x's own (ZipEntries.readEndOfCentral +
+ * readCentralDir) so that whatever JSZip would parse, this counts first:
+ *   - find the end-of-central-directory record (last "PK\x05\x06");
+ *   - if any field is saturated (0xFFFF / 0xFFFFFFFF), read the zip64
+ *     locator 20 bytes before it and the zip64 record it points to;
+ *   - apply JSZip's prepended-data shift ("extra bytes" before the archive);
+ *   - walk records while the central-file-header signature matches —
+ *     JSZip loops on the SIGNATURE, not the declared count, so a lying
+ *     count in the header cannot hide records from this walk either.
+ * Each step reads a few integers; nothing is allocated per entry.
+ *
+ * Returns the number of records found (capped at max + 1), or null when the
+ * bytes do not hold a readable central directory — the caller then lets
+ * JSZip produce its own "not a readable ZIP" error, exactly as before.
+ */
+export function countZipEntriesFromBytes(buf: Buffer, max: number): number | null {
+  const EOCD = 0x06054b50;
+  const Z64_LOCATOR = 0x07064b50;
+  const Z64_EOCD = 0x06064b50;
+  const CDH = 0x02014b50;
+  if (buf.length < 22) return null;
+  // EOCD: last occurrence, within the 22-byte record + a 65,535-byte comment.
+  let eocd = -1;
+  const floor = Math.max(0, buf.length - 22 - 0xffff);
+  for (let k = buf.length - 22; k >= floor; k--) {
+    if (buf.readUInt32LE(k) === EOCD) {
+      eocd = k;
+      break;
+    }
+  }
+  if (eocd < 0) return null;
+  const disk = buf.readUInt16LE(eocd + 4);
+  const cdDisk = buf.readUInt16LE(eocd + 6);
+  const entriesOnDisk = buf.readUInt16LE(eocd + 8);
+  const entries = buf.readUInt16LE(eocd + 10);
+  let cdSize = buf.readUInt32LE(eocd + 12);
+  let cdOffset = buf.readUInt32LE(eocd + 16);
+  let endOfCentral = eocd;
+  let zip64Extra = 0;
+  const saturated =
+    disk === 0xffff ||
+    cdDisk === 0xffff ||
+    entriesOnDisk === 0xffff ||
+    entries === 0xffff ||
+    cdSize === 0xffffffff ||
+    cdOffset === 0xffffffff;
+  if (saturated) {
+    const loc = eocd - 20;
+    if (loc < 0 || buf.readUInt32LE(loc) !== Z64_LOCATOR) return null;
+    const z64At = Number(buf.readBigUInt64LE(loc + 8));
+    if (!Number.isSafeInteger(z64At) || z64At < 0 || z64At + 56 > buf.length) return null;
+    if (buf.readUInt32LE(z64At) !== Z64_EOCD) return null;
+    const z64RecordSize = Number(buf.readBigUInt64LE(z64At + 4));
+    cdSize = Number(buf.readBigUInt64LE(z64At + 40));
+    cdOffset = Number(buf.readBigUInt64LE(z64At + 48));
+    if (![z64RecordSize, cdSize, cdOffset].every(Number.isSafeInteger)) return null;
+    endOfCentral = z64At;
+    zip64Extra = 20 + 12 + z64RecordSize;
+  }
+  // JSZip's prepended-data shift.
+  const extra = endOfCentral - (cdOffset + cdSize + zip64Extra);
+  let zero = 0;
+  if (extra > 0 && !(endOfCentral + 4 <= buf.length && buf.readUInt32LE(endOfCentral) === CDH)) {
+    zero = extra;
+  }
+  let pos = zero + cdOffset;
+  let count = 0;
+  while (pos >= 0 && pos + 46 <= buf.length && buf.readUInt32LE(pos) === CDH) {
+    count++;
+    if (count > max) return count;
+    pos +=
+      46 + buf.readUInt16LE(pos + 28) + buf.readUInt16LE(pos + 30) + buf.readUInt16LE(pos + 32);
+  }
+  return count;
+}
+
+/**
+ * The pre-parse half of the package limits: refuse a ZIP whose central
+ * directory holds more than `maxEntries` records before JSZip builds a
+ * single object for it. Call immediately before JSZip.loadAsync.
+ */
+export function assertZipEntryCountBeforeParse(
+  buf: Buffer,
+  maxEntries: number,
+  makeError: (message: string) => Error,
+): void {
+  const n = countZipEntriesFromBytes(buf, maxEntries);
+  if (n !== null && n > maxEntries) {
+    throw makeError(
+      `This package contains too many entries (more than ${maxEntries.toLocaleString()}) to analyze.`,
+    );
+  }
+}
+
+/**
  * Reject a package outright — before any part is read — if it has more
  * entries than `limits.maxEntries`, or if the SUM of every entry's declared
  * uncompressed size exceeds `limits.maxTotalUncompressedBytes`. Complements

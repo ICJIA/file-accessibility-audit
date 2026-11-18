@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "security-review-2026-11-18",
+    badge: "Security",
+    text: "A full security review of the tool, done the way an attacker would try to break it. It found no way to take over the server, see anyone else's files, or plant harmful content in a report. It did find ways someone could slow the service down or briefly interrupt it, for example with a specially built file. Those are fixed. Nothing about how your files are checked or handled has changed, and no score changes.",
+    linkText: "Security review log",
+    linkTo: "/data-retention#security-audits",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 18, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "review-2026-11-18",
     badge: "Fixed",
     text: "Today's review of the tool. Every menu path in the fix steps was checked again against Microsoft's and Adobe's own help pages, and the wrong ones are corrected: Excel was told to use a language setting it does not have, and PowerPoint's advice on reading order would have made a slide's title read last instead of first. A few Acrobat steps gave only the older Acrobat's menus. The note on each set of steps now covers PowerPoint and Excel and says where a Mac differs. The data retention policy was also checked against the software and brought up to date: it now says that a saved report can quote slide titles, sheet names and heading text, and how long a file can wait in the queue for automatic repair. Nothing new is collected or kept, and no score or grade changes.",
