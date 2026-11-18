@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.175.4",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: wording of the announcement on the home page.",
+    body: [
+      {
+        kind: "p",
+        html: "No new findings. This update only changes the announcement on the home page, so that it sums up today&rsquo;s changes in words that make sense to a visitor. Nothing about how files are received, checked, stored or deleted changed.",
+      },
+    ],
+  },
+  {
     version: "v1.175.3",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: web-page checks of sites that load their content after they open.",
     body: [

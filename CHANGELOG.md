@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.4] - 2026-11-18
+
+Landing-page banner only.
+
+### Changed
+
+- **The banner now sums up today's review instead of announcing web-page checks.** The previous entry said "Web-page checks work again", which meant nothing to a visitor: the web-page check (`POST /api/audit-url-page`) is a service for automated tools such as the fleet audit, reached through the API, and the site has no button for it. The new entry lists today's visitor-facing changes (fix steps re-checked, stricter scoring, "Likely, please verify", repair asks for title and language, security review fixed) and says in one sentence that the API's web-page check had stopped working for about a week and is fixed. It links to the full list of updates. The web-page fixes stay recorded in v1.175.1–v1.175.3 here, in README § Security and in § 10.
+
+### Notes
+
+- No code, scoring or security change. Tests 4,832 across 274 files.
+
 ## [1.175.3] - 2026-11-18
 
 Web pages that load their content after they open are audited complete again. **Deploy this** (it includes v1.175.2).

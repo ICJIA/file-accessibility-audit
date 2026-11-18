@@ -263,11 +263,11 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
-    id: "page-audits-restored-2026-11-18",
-    badge: "Fixed",
-    text: 'Web-page checks work again, and see the whole page. For about a week, checking a web page failed every time, because a safety measure that stops checked pages from opening extra browser windows also closed the one the accessibility scanner needs. And sites that load their content after the page opens, such as the ICJIA home page, were briefly checked almost empty, which produced a false "missing main heading". Both are fixed, and the safety measures still apply. File checks (PDF, Word, PowerPoint, Excel) were never affected.',
-    linkText: "Security and data history",
-    linkTo: "/data-retention",
+    id: "todays-review-summary-2026-11-18",
+    badge: "Improved",
+    text: "Today's review, in one place: every fix step was checked again against Microsoft's and Adobe's own help pages, and the wrong ones are corrected. Scoring is stricter where it was too generous: hiding pictures no longer raises a PDF's grade, two Excel checks that never checked anything no longer count, and findings based on how text looks are marked \"Likely, please verify\". Automatic repair now asks for the document's title and language, and every finding from a full security review is fixed. Separately, the web-page check, a service for automated tools through the privileged API rather than part of this site, had stopped working for about a week and is fixed. Each change is described in full in the updates below.",
+    linkText: "All of today's updates",
+    linkTo: "/announcements",
     /** In-app route — an ordinary router link. */
     linkExternal: false,
     wcagRefs: [],
