@@ -41,7 +41,7 @@ Category weights by format (a scored category's weights within one format always
 | Title & Language | 15% | 18% | 14% | 12%\* | 2.4.2, 3.1.1 (A) |
 | Heading Structure | 15% | 18% | — | — | 1.3.1 (A) |
 | Slide Titles | — | — | 18% | — | 1.3.1 (A) |
-| Sheet Names | — | — | — | 18% | — (advisory only; no criterion asserted) |
+| Sheet Names | — | — | — | 0% | — (reported, not graded; no criterion asserted) |
 | Alt Text on Images | 15% | 18% | 18% | 18% | 1.1.1 (A) |
 | Table Markup | 10% | 12% | 10% | 25% | 1.3.1 (A) |
 | Reading Order | 10% | not assessed | 10% | — | 1.3.2 (A) |

@@ -23,7 +23,7 @@ export function formatScopeNote(fileType: string | null | undefined): string | n
     case "pptx":
       return "This grade includes color contrast. A PDF of the same content is graded without it, because contrast is not checked automatically in PDFs, so the two can grade differently.";
     case "xlsx":
-      return "This grade includes color contrast. Excel files store no document language, so the title-and-language check covers the title only. A PDF of the same content is graded without contrast, so the two can grade differently.";
+      return "This grade includes color contrast. It covers less of a workbook than other grades cover of their files: Excel stores no document language, so that check covers the title only; sheet names, and data kept in plain cells rather than a defined table, are reported but not graded, because a person has to judge them. A PDF of the same content is graded without contrast, so the two can grade differently.";
     default:
       return null;
   }

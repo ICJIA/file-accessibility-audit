@@ -1,6 +1,7 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { CategoryResult } from "../scorer.js";
+import { structTreeIsContentFree } from "./common.js";
 
 // ---------------------------------------------------------------------------
 // Tags that are one capital letter away from a standard structure type.
@@ -551,7 +552,13 @@ export function appendSupplementaryFindings(
   if (textCat && qpdf.hasStructTree) {
     const artifactCount = qpdf.artifactCount + (pdfjs.artifactRunCount ?? 0);
     textCat.findings.push(`--- Artifact Tagging ---`);
-    if (artifactCount > 0) {
+    if (artifactCount > 0 && structTreeIsContentFree(qpdf, pdfjs)) {
+      // No praise when the tags hold nothing: marking content as artifacts
+      // there hides it rather than distinguishing it (decision 2026-11-18).
+      textCat.findings.push(
+        `  ${artifactCount} element(s) are marked as artifacts, but the tags contain no content — so this hides content from screen readers rather than separating decoration from it`,
+      );
+    } else if (artifactCount > 0) {
       textCat.findings.push(
         `  ${artifactCount} element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content`,
       );

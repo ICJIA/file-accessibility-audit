@@ -153,7 +153,7 @@ function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
     );
   } else {
     findings.push(
-      "No workbook title is set. In Excel: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the workbook opens.",
+      "No workbook title is set. In Excel: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this file uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
     );
   }
   findings.push(
@@ -205,15 +205,22 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
       `Note: ${hiddenCount} hidden sheet(s) were excluded from this audit — hidden sheets are not presented to any reader, so their content, images, and styles do not drive findings (v1.95.0 disclosure).`,
     );
   }
-  const score = 100;
+  // NOT ASSESSED, not 100 (user decision 2026-11-18, decision 3): nothing
+  // in this category is ever graded, so a constant 100 at weight 0.18 only
+  // padded every workbook's average. It is reported in full and kept out of
+  // the grade.
+  findings.push(
+    "Reported, not graded: whether a sheet name is descriptive enough is a judgment for a person, so this check never changes the grade.",
+  );
   return xlsxCategory(
     "sheet_names",
     "Sheet Names",
     XLSX.SCORING_WEIGHTS.sheet_names,
-    score,
+    null,
     findings,
     'Descriptive sheet names (not Excel defaults like "Sheet1") are the workbook\'s navigation — screen-reader users hear them when switching sheets.',
     [XLSX_HELP.sheetNames],
+    true,
   );
 }
 
@@ -345,6 +352,25 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
         .join(
           ", ",
         )}), which can confuse screen-reader navigation. Whether they harm depends on placement — review manually.`,
+    );
+  }
+
+  // Plain cells and no defined table: nothing here was checked, so the
+  // category is NOT ASSESSED rather than a free 100 (user decision
+  // 2026-11-18, decision 3). Whether a block of cells is a data table needs
+  // a person; the advisory above says how to make it one.
+  if (a.tables.length === 0) {
+    findings[0] =
+      'No defined Excel Table was found, so whether this workbook\'s data has header rows could not be checked automatically — this category does not count toward the grade. A person should check that each block of data has a header row, and turn it into a table (Insert → Table → "My table has headers").';
+    return xlsxCategory(
+      "table_markup",
+      "Table Markup",
+      XLSX.SCORING_WEIGHTS.table_markup,
+      null,
+      findings,
+      "Data laid out as a real Excel Table (with a header row) lets screen readers announce the relevant column header as a user moves across cells. Merged cells and plain, unstructured ranges are harder to navigate.",
+      [XLSX_HELP.tables],
+      true,
     );
   }
 

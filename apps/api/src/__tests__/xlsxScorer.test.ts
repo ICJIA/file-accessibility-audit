@@ -25,7 +25,7 @@ describe("XLSX config", () => {
     const w = XLSX.SCORING_WEIGHTS;
     expect(w.text_extractability).toBe(0.05);
     expect(w.title_language).toBe(0.12);
-    expect(w.sheet_names).toBe(0.18);
+    expect(w.sheet_names).toBe(0); // reported, not graded (decision 3, 2026-11-18)
     expect(w.table_markup).toBe(0.25);
     expect(w.alt_text).toBe(0.18);
     expect(w.color_contrast).toBe(0.12);
@@ -37,7 +37,7 @@ describe("XLSX config", () => {
     expect(r.categories.find((c) => c.id === "title_language")!.score).toBe(50);
   });
 
-  it("sheet_names reports default names as advisories at 100", () => {
+  it("sheet_names reports default names as advisories and is not graded (decision 3)", () => {
     const mk = (name: string, defaultNamed: boolean) => ({
       name,
       hidden: false,
@@ -54,10 +54,10 @@ describe("XLSX config", () => {
         ],
       }),
     );
-    expect(many.categories.find((c) => c.id === "sheet_names")!.score).toBe(100);
+    expect(many.categories.find((c) => c.id === "sheet_names")!.score).toBeNull(); // reported, not graded (decision 3, 2026-11-18)
 
     const single = scoreXlsx(baseAnalysis({ sheets: [mk("Sheet1", true)] }));
-    expect(single.categories.find((c) => c.id === "sheet_names")!.score).toBe(100);
+    expect(single.categories.find((c) => c.id === "sheet_names")!.score).toBeNull(); // reported, not graded (decision 3, 2026-11-18)
   });
 
   it("table_markup: merged cells are a note, not a deduction", () => {
@@ -80,7 +80,7 @@ describe("XLSX config", () => {
     expect(cat.findings.join(" ")).toContain("merged");
   });
 
-  it("table_markup advises at 100 when dataful sheets have no defined table (heuristic)", () => {
+  it("table_markup is not assessed (not a free 100) when dataful sheets have no defined table", () => {
     const r = scoreXlsx(
       baseAnalysis({
         tables: [],
@@ -97,7 +97,9 @@ describe("XLSX config", () => {
       }),
     );
     const cat = r.categories.find((c) => c.id === "table_markup")!;
-    expect(cat.score).toBe(100); // dataful-without-table is a heuristic — advisory
+    // Decision 3 (2026-11-18): nothing was checked, so not assessed — not a free 100.
+    expect(cat.score).toBeNull();
+    expect(cat.notAssessed).toBe(true);
     expect(cat.findings.join(" ")).toMatch(/Advisory — not scored:/);
   });
 
@@ -243,7 +245,7 @@ describe("scoreXlsx", () => {
       }),
     );
     // Proportional now: the single visible sheet is default-named → floor 40.
-    expect(r.categories.find((c) => c.id === "sheet_names")!.score).toBe(100); // advisory
+    expect(r.categories.find((c) => c.id === "sheet_names")!.score).toBeNull(); // reported, not graded (decision 3, 2026-11-18) // advisory
   });
 
   it("link_quality judges resolved links and excludes unresolved ones from the denominator", () => {

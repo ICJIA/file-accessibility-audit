@@ -1258,6 +1258,37 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     paintedContentImages === 0 &&
     qpdf.imageObjectCount <= paintedImages;
 
+  // HIDDEN, NOT DECORATIVE (user decision 2026-11-18: "the grade should not
+  // reward this, stricter and explanatory is better than rewarding"). In a
+  // document whose tag structure holds no content at all, every image being
+  // an artifact is not a judgement that each is decorative — it is what
+  // marking EVERYTHING as an artifact looks like (a failed or careless
+  // auto-tag; one "remediated" control did exactly this and outscored its
+  // untagged original, 60/D vs 50/F, because the category dropped out of
+  // the average). Score it as undescribed images, and say why.
+  if (
+    figures.length === 0 &&
+    formulaCount === 0 &&
+    allImagesArtifacted &&
+    structTreeIsContentFree(qpdf, pdfjs)
+  ) {
+    return {
+      id: "alt_text",
+      label: "Alt Text on Images",
+      weight: SCORING_WEIGHTS.alt_text,
+      score: 0,
+      grade: getGrade(0),
+      severity: "Critical",
+      findings: [
+        `${paintedImages} image(s) detected, and every one is marked as an artifact (decorative) — in a document whose tags contain no content at all.`,
+        "That pattern is what marking everything as decoration looks like, not a decision that each picture is decorative, so the images are counted as having no description. A screen reader user is told nothing about any of them.",
+        "How to fix: re-tag the document (All tools → Prepare for accessibility → Automatically tag PDF; classic UI: Tools → Accessibility → Autotag Document), then give every meaningful picture a description (All tools → Prepare for accessibility → Add alternate text) and mark only truly decorative ones as artifacts.",
+      ],
+      explanation: altExplanation,
+      helpLinks: altLinks,
+    };
+  }
+
   if (figures.length === 0 && formulaCount === 0 && allImagesArtifacted) {
     return {
       id: "alt_text",
@@ -1269,7 +1300,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       notAssessed: true,
       findings: [
         `${paintedImages} image(s) detected — all are marked as artifacts (decorative) and excluded from the reading order, so no alt text is required.`,
-        "Artifacted images are correctly hidden from screen readers. If any of these images actually convey information, they should instead be tagged as <Figure> with /Alt text — verify in Acrobat's Tags panel that none are meaningful content.",
+        "Please verify: a person should confirm that none of these pictures carries information. If one does, it must be tagged as <Figure> with alternate text instead of being hidden — check in Acrobat's Tags panel.",
       ],
       explanation: altExplanation,
       helpLinks: altLinks,
@@ -2538,6 +2569,28 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
         "No structure tree present — reading order cannot be determined",
         "Without a tag structure, screen readers fall back to the raw drawing order, which may not match the visual layout at all.",
         "How to fix: First add tags (All tools → Prepare for accessibility → Automatically tag PDF), then use Fix reading order (classic UI: Tools → Accessibility → Reading Order) to verify and correct the sequence.",
+      ],
+      explanation: readingExplanation,
+      helpLinks: readingLinks,
+    };
+  }
+
+  // A tag structure with no content in it orders nothing: score it exactly
+  // like no tags at all (user decision 2026-11-18 — it used to fall through
+  // to "not assessed", leaving the category out of the average, so a
+  // content-free tree scored HIGHER than an untagged file).
+  if (structTreeIsContentFree(qpdf, pdfjs)) {
+    return {
+      id: "reading_order",
+      label: "Reading Order",
+      weight: SCORING_WEIGHTS.reading_order,
+      score: 0,
+      grade: "F",
+      severity: "Critical",
+      findings: [
+        "The document has a tag structure, but it contains no content — every word sits outside the tags — so it gives no reading order at all.",
+        "Screen readers fall back to the raw drawing order, exactly as in an untagged file, which may not match the visual layout.",
+        "How to fix: re-tag the document (All tools → Prepare for accessibility → Automatically tag PDF), check in the Tags panel that the body text appears under the tags, then use Fix reading order to verify the sequence.",
       ],
       explanation: readingExplanation,
       helpLinks: readingLinks,

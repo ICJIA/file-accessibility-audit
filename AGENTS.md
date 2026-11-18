@@ -16,7 +16,7 @@ ICJIA File Accessibility Audit — a document accessibility scoring +
 auto-remediation tool. Auditors and content managers upload (or link)
 PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) files; the
 tool scores them on WCAG-aligned categories (9 for PDF and PPTX, 8 for
-DOCX, 7 for XLSX) on the single canonical "strict" profile, produces
+DOCX, 6 for XLSX) on the single canonical "strict" profile, produces
 shareable reports, and optionally auto-remediates PDFs through a
 qpdf → OpenDataLoader → veraPDF pipeline. PDF audits also carry a
 veraPDF PDF/UA-1 verdict (v1.37.0+).

@@ -96,6 +96,13 @@ export interface ConformanceFinding {
   issue: string;
   /** Link to the W3C "Understanding" page for this exact criterion. */
   url: string;
+  /**
+   * The failure is a judgement from how the document LOOKS (bold or large
+   * text that looks like a heading), not from its markup — reported as
+   * "likely — please verify" (user decision 2026-11-18). It still counts in
+   * the score; the label says a person should confirm it.
+   */
+  likely?: boolean;
 }
 
 export interface NotAssessedCriterion {

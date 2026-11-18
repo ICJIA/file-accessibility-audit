@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.175.0",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: changes to how documents are scored and labelled.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface. This update changes how some documents are scored and how some findings are labelled. Nothing about how files are received, checked, stored or deleted changed, and nothing new is kept or sent.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> a PDF that hid all its pictures, in a document whose tags held no content, scored higher than the same document left untagged. <strong>Fix:</strong> hiding content now scores the same as leaving it undescribed, and the report explains why.",
+          },
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> two Excel checks gave full marks without checking anything. <strong>Fix:</strong> they are now reported but not counted in the grade, and the report says so.",
+          },
+          {
+            badge: "UX",
+            html: "<strong>Guesses are labelled as guesses.</strong> Problems found from how text looks, such as bold lines that look like headings, are now marked &ldquo;Likely &mdash; please verify&rdquo; so a person can confirm them.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> Every self-check passed. The three test documents whose scores changed were each examined by hand, and every change was intended.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.174.1",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s web-page fix.",
     body: [

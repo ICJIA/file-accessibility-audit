@@ -46,7 +46,7 @@ function conformanceHtmlBlock(c: ConformanceVerdict, wcagVersion: string): strin
     ? `<ul style="font-size:13px;color:#ccc;margin:12px 0 0;padding-left:20px">${c.failures
         .map(
           (f) =>
-            `<li style="margin-bottom:6px"><a href="${escapeHtml(safeHttpUrl(f.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span> — ${escapeHtml(f.issue)}</li>`,
+            `<li style="margin-bottom:6px"><a href="${escapeHtml(safeHttpUrl(f.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span>${(f as { likely?: boolean }).likely ? ' <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:#d97706">Likely — please verify</span>' : ""} — ${escapeHtml(f.issue)}</li>`,
         )
         .join("")}</ul>`
     : "";

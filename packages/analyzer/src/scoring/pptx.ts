@@ -159,7 +159,7 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
       // and could not tell whether they were one issue or two. They are two.
       // The opening words are matched by the action plan and the fix-time
       // chip (apps/web utils/actionPlan.ts, fixTime.ts) — keep them.
-      "No presentation title is set in the file's properties. This is the title of the whole file — not a slide's title, which is reported separately under Slide Titles. In PowerPoint: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the presentation opens.",
+      "No presentation title is set in the file's properties. This is the title of the whole file — not a slide's title, which is reported separately under Slide Titles. In PowerPoint: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this deck uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
     );
   }
   if (a.metadata.language) {

@@ -56,6 +56,9 @@ export interface ConformanceFinding {
   issue: string;
   /** Link to the W3C "Understanding" page for this exact criterion. */
   url: string;
+  /** Judged from how the document LOOKS, not its markup: shown as "likely —
+   *  please verify" (decision 2026-11-18). Still counts in the score. */
+  likely?: boolean;
 }
 
 export interface NotAssessedCriterion {
@@ -219,8 +222,17 @@ export function evaluateConformance(
     level: "A" | "AA",
     category: string,
     issue: string,
+    likely?: boolean,
   ): void => {
-    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+    failures.push({
+      sc,
+      name,
+      level,
+      category,
+      issue,
+      url: wcagUrl(sc),
+      ...(likely ? { likely: true } : {}),
+    });
   };
 
   // 0. Security settings deny assistive technology (Matterhorn 26-002 /
@@ -318,6 +330,35 @@ export function evaluateConformance(
       "alt_text",
       `${untaggedImages} image(s) are painted as page content but are not tagged as <Figure>, so they carry no alternative text and are missing from the reading order entirely. Tag each one as <Figure> with /Alt text, or — if it is purely decorative — mark it as an Artifact so it is deliberately hidden from assistive technology.`,
     );
+  }
+
+  // 3b-ii. Every image hidden as an artifact in a tree that holds NO content
+  //     (decision 2026-11-18): not a judgement that each picture is
+  //     decorative, but what marking everything as decoration looks like.
+  //     LIKELY, not confirmed — a person must say whether any picture
+  //     carries information. Mirrors scoreAltText's content-free branch.
+  {
+    const painted = pdfjs.imageCount;
+    const allArtifacted =
+      !pdfjs.error &&
+      painted > 0 &&
+      (pdfjs.nonArtifactImageCount ?? painted) === 0 &&
+      qpdf.imageObjectCount <= painted;
+    if (
+      allArtifacted &&
+      qpdf.images.length === 0 &&
+      (qpdf.formulaCount ?? 0) === 0 &&
+      structTreeIsContentFree(qpdf, pdfjs)
+    ) {
+      add(
+        "1.1.1",
+        "Non-text Content",
+        "A",
+        "alt_text",
+        `${painted} image(s) are all hidden as decoration in a document whose tags contain no content, so none carries a description. Marking everything as decoration hides pictures rather than describing them — a person should check each one and describe any that carries information.`,
+        true, // likely — whether a picture is meaningful needs a person
+      );
+    }
   }
 
   // 3c. Formulas without a text alternative (v1.92.0 — Matterhorn 17).
@@ -576,6 +617,7 @@ export function evaluateConformance(
         "A",
         "heading_structure",
         `No heading tags (H1–H6) exist in this document's structure, but ${visualCount} line(s) look like section headings — larger or bold text over body text${samples ? ` (e.g., ${samples})` : ""} — so the structure a sighted reader sees is conveyed by presentation only; assistive technology receives no outline to navigate by. Tag the section titles as headings (Acrobat: Tags panel, or re-export from the source with heading styles).`,
+        true, // likely — judged from how text looks, not from markup (decision 2026-11-18)
       );
     }
   }
@@ -599,6 +641,7 @@ export function evaluateConformance(
         "A",
         "heading_structure",
         `${untagged} line(s) look like section headings — larger or bold text standing over a section${samples ? ` (e.g., ${samples})` : ""} — but are tagged as ordinary paragraphs beside the document's real heading tags, so screen-reader users cannot find or jump to those sections. Retag them as headings (Acrobat: Tags panel, or re-export from the source with heading styles).`,
+        true, // likely — judged from how text looks, not from markup (decision 2026-11-18)
       );
     }
   }
@@ -702,6 +745,16 @@ export function evaluateConformance(
       "A",
       "reading_order",
       "The document has no tag structure, so no programmatic reading sequence exists — screen readers fall back to raw drawing order, which may not match the visual layout at all.",
+    );
+  } else if (structTreeIsContentFree(qpdf, pdfjs)) {
+    // The same certainty as no tags at all (decision 2026-11-18): a tree
+    // that holds no content orders nothing. Mirrors scoreReadingOrder.
+    add(
+      "1.3.2",
+      "Meaningful Sequence",
+      "A",
+      "reading_order",
+      "The document has a tag structure, but it contains no content, so no programmatic reading sequence exists — screen readers fall back to raw drawing order, exactly as in an untagged file.",
     );
   }
 
@@ -1033,8 +1086,17 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     level: "A" | "AA",
     category: string,
     issue: string,
+    likely?: boolean,
   ): void => {
-    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+    failures.push({
+      sc,
+      name,
+      level,
+      category,
+      issue,
+      url: wcagUrl(sc),
+      ...(likely ? { likely: true } : {}),
+    });
   };
   const stylesUnreadable = analysis.parse?.stylesState === "unparseable";
   const coreUnreadable = analysis.parse?.coreState === "unparseable";
@@ -1128,6 +1190,7 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       "A",
       "heading_structure",
       `${analysis.fakeHeadings.length} paragraph(s) are formatted to look like headings (bold/large text) without a real Heading style — the visual structure is not programmatically determinable (WCAG failure F2). Apply Heading 1–6 styles.`,
+      true, // likely — judged from how text looks, not from markup (decision 2026-11-18)
     );
   }
 
@@ -1272,8 +1335,17 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
     level: "A" | "AA",
     category: string,
     issue: string,
+    likely?: boolean,
   ): void => {
-    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+    failures.push({
+      sc,
+      name,
+      level,
+      category,
+      issue,
+      url: wcagUrl(sc),
+      ...(likely ? { likely: true } : {}),
+    });
   };
 
   // 1. Non-decorative images without alt text → 1.1.1.
@@ -1423,6 +1495,7 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       "A",
       "slide_titles",
       `${n} slide(s) carry a heading typed into an ordinary text box rather than the slide's title placeholder, so the heading is visible but not programmatically a heading. In PowerPoint: Home → Layout → choose a layout with a Title, then move the text into the title placeholder.`,
+      true, // likely — judged from how text looks, not from markup (decision 2026-11-18)
     );
   }
 
@@ -1514,8 +1587,17 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
     level: "A" | "AA",
     category: string,
     issue: string,
+    likely?: boolean,
   ): void => {
-    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+    failures.push({
+      sc,
+      name,
+      level,
+      category,
+      issue,
+      url: wcagUrl(sc),
+      ...(likely ? { likely: true } : {}),
+    });
   };
 
   // 1. Non-decorative images without alt text → 1.1.1.

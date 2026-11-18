@@ -86,7 +86,9 @@ export function buildText(result: ReportResult, branding: BrandingInfo): string 
       out.push("Confirmed failures:");
       for (const f of cf.failures) {
         out.push(`  - ${f.sc} ${f.name} (Level ${f.level})`);
-        out.push(`      ${f.issue}`);
+        out.push(
+          `      ${(f as { likely?: boolean }).likely ? "[Likely — please verify] " : ""}${f.issue}`,
+        );
         out.push(`      ${f.url}`);
       }
       out.push("");

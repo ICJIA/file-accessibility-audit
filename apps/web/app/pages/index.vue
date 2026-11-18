@@ -696,7 +696,7 @@
       <!-- Audit -->
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
         <!-- "9" counts SCORED (weighed) categories — the basis llms.txt and
-             MethodologyCard use: PDF 9, PowerPoint 9, Word 8, Excel 7. The
+             MethodologyCard use: PDF 9, PowerPoint 9, Word 8, Excel 6 (7 until v1.175.0, when Sheet Names became reported-not-graded). The
              report additionally shows always-"Not Assessed" placeholder rows
              (PDF displays 10 in total), so do NOT "correct" this to 10 —
              that recount happened once (v1.73.1's README) and was itself the

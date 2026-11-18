@@ -1012,12 +1012,15 @@
               Structure, Bookmarks and Form Accessibility are not scored for a presentation.
             </li>
             <li>
-              <strong>Excel (.xlsx) — 7 scored categories:</strong> Text Extractability, Title &amp;
-              Language, <strong>Sheet Names</strong> (descriptive names vs. Excel defaults like
-              "Sheet1"), Table Markup, Alt Text on Images, Color Contrast, and Link Quality. Excel
-              workbooks have no document-language property, so Title &amp; Language evaluates title
-              only. Heading Structure, List Structure, Reading Order, Bookmarks and Form
-              Accessibility do not apply to a workbook and are not scored.
+              <strong>Excel (.xlsx) — 6 scored categories:</strong> Text Extractability, Title &amp;
+              Language, Table Markup, Alt Text on Images, Color Contrast, and Link Quality.
+              <strong>Sheet Names</strong> (descriptive names vs. Excel defaults like "Sheet1") is
+              reported but not graded, and Table Markup is not assessed when a workbook has no
+              defined Excel table, because whether plain cells form a data table needs a person
+              (since v1.175.0; before, both counted as a free 100). Excel workbooks have no
+              document-language property, so Title &amp; Language evaluates title only. Heading
+              Structure, List Structure, Reading Order, Bookmarks and Form Accessibility do not
+              apply to a workbook and are not scored.
             </li>
             <li>
               <strong>Empty headings: scored for Word, reported for PDF.</strong> A Heading style on

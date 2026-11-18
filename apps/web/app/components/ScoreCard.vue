@@ -111,7 +111,14 @@
             rel="noopener noreferrer"
             class="font-mono font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >{{ f.sc }} {{ f.name }}</a
-          ><span class="text-[var(--text-muted)]"> (Level {{ f.level }})</span> — {{ f.issue }}
+          ><span class="text-[var(--text-muted)]"> (Level {{ f.level }})</span
+          ><span
+            v-if="f.likely"
+            data-testid="likely-badge"
+            class="ml-1 inline-block rounded px-1.5 text-[10px] font-semibold uppercase tracking-wide border border-[var(--border)] text-[var(--text-secondary)]"
+            >Likely — please verify</span
+          >
+          — {{ f.issue }}
         </li>
       </ul>
       <p
@@ -258,6 +265,8 @@ interface ConformanceFinding {
   category: string;
   issue: string;
   url: string;
+  /** Judged from how the document looks — "likely, please verify". */
+  likely?: boolean;
 }
 
 interface ConformanceVerdict {

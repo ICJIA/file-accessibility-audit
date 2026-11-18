@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.0] - 2026-11-18
+
+Decisions 2, 3, 4 and 9 from the 2026-11-18 review.
+
+### Changed — scoring
+
+- **Hiding content is not rewarded (decision 2: "stricter and explanatory is better than rewarding").** A PDF whose tag structure holds no content and marks every image as an artifact now scores alt text 0 and reading order 0, each with an explanation, instead of dropping both out of the average. The ILHEALS "remediated" copy goes from 60/D to 45/F, below its 50/F untagged original. One other real file, whose whole tag structure is one empty element, goes from 45/F to 35/F. The verdict names 1.3.2 (confirmed) and 1.1.1 (likely).
+- **Excel (decision 3).** Sheet Names is reported, not graded (weight 0; it only ever scored a constant 100). Table Markup is not assessed when a workbook has no defined table, instead of a free 100. Excel: 6 scored categories. No Excel grade moved in the test set.
+
+### Changed — reports
+
+- **"Likely — please verify" (decision 4).** Failures judged from how text looks (heading look-alikes in PDF, Word and PowerPoint, and hidden images in an empty tag structure) are labelled as likely in the verdict list, the exports and the two-standards strip, and the summary counts them apart from confirmed failures. They still count in the score.
+- **Office missing title (decision 9).** Still caps at C. The finding now says why a title matters: NVDA and JAWS read an Office file's name, not its Title, while it is open, but the Title becomes the title of a PDF or web page made from it, and the Access Board's ICT baseline requires it. One-minute fix, Windows and Mac paths given.
+- The Excel note under the grade says which checks are reported but not graded.
+
+### Notes
+
+- Tests 4,817 across 272 files (API 2,640 · Web 2,080 · CLI 97). Ledger re-blessed (3 documents, all intended and checked by hand); every gate green.
+
 ## [1.174.1] - 2026-11-18
 
 Completes v1.174.0. **v1.174.0 was never deployed; deploy this instead.**

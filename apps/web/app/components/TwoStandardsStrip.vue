@@ -179,7 +179,28 @@ const lawVerdict = computed(() => {
       catList.length === entries && cats !== n
         ? ` in ${cats} ${cats === 1 ? "category" : "categories"}`
         : "";
-    return `${n} ${n === 1 ? "criterion" : "criteria"} failing${bridge}`;
+    // Likely failures (judged from how text looks — decision 2026-11-18):
+    // a criterion confirmed by any finding is confirmed; one backed only by
+    // likely findings is counted as "likely".
+    const confirmed = new Set(
+      failures
+        .filter((f) => !(f as { likely?: boolean }).likely)
+        .map((f) => (f as { sc?: string }).sc),
+    );
+    const likelyOnly = new Set(
+      failures
+        .filter(
+          (f) => (f as { likely?: boolean }).likely && !confirmed.has((f as { sc?: string }).sc),
+        )
+        .map((f) => (f as { sc?: string }).sc),
+    ).size;
+    const likelyNote =
+      scList.length === entries && likelyOnly > 0
+        ? likelyOnly === n
+          ? " — likely, please verify"
+          : ` (${likelyOnly} likely — please verify)`
+        : "";
+    return `${n} ${n === 1 ? "criterion" : "criteria"} failing${bridge}${likelyNote}`;
   }
   const w = props.wcagVerdict;
   const veraItems =

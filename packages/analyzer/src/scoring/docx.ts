@@ -223,7 +223,7 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
     }
   } else if (coreReadable) {
     findings.push(
-      "No document title is set. In Word: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the document opens.",
+      "No document title is set. In Word: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this file uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
     );
   } else {
     score += 50;

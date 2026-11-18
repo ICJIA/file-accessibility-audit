@@ -263,6 +263,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "scoring-honesty-2026-11-18",
+    badge: "Scoring",
+    text: 'Three scoring changes. A PDF that hides all its pictures as decoration, in a document whose tags hold no content, no longer scores better than one left untagged; the report explains why. Two Excel checks that gave full marks without checking anything (sheet names, and data kept in plain cells) are now reported but not counted. And problems the checker finds from how text looks, such as bold lines that look like headings, are now marked "Likely, please verify" so a person can confirm them. A few scores change; most do not.',
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 18, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "repair-title-and-grade-notes-2026-11-18",
     badge: "Improved",
     text: 'Three changes from today\'s review. Automatic repair now asks for the document\'s title and language and writes them into the repaired PDF, because a missing title or language is the most common problem we see, and it throws away any repair that makes even one part of the report worse. A B grade now reads "Almost there" instead of "Good", because every B still has at least one problem to fix before publishing. And each report says, under the grade, what that kind of file\'s grade includes: color contrast is checked in Word, PowerPoint and Excel files, but not in PDFs. No score changes.',
@@ -1991,11 +2003,15 @@ export const XLSX = {
 
   /**
    * XLSX category weights. Excel maps onto the shared category IDs, except:
-   *   - sheet_names is Excel-specific (no default "Sheet1" names);
+   *   - sheet_names is Excel-specific (no default "Sheet1" names) and is
+   *     REPORTED, NOT GRADED: weight 0 since 2026-11-18 (decision 3) — it
+   *     never scored anything but a constant 100, which padded every
+   *     workbook's average;
    *   - title_language scores on the title alone (Excel stores no document
    *     language — the gate lists 3.1.1 as not assessed);
    *   - table_markup carries the most weight: data as real table objects with
-   *     header rows is THE Excel accessibility fundamental;
+   *     header rows is THE Excel accessibility fundamental — and with no
+   *     defined table it is NOT ASSESSED (2026-11-18), not a free 100;
    *   - heading_structure / reading_order / list_structure / bookmarks are
    *     omitted; form_accessibility is a not-assessed placeholder.
    * SAFE TO CHANGE: same rules as DOCX.SCORING_WEIGHTS.
@@ -2003,7 +2019,7 @@ export const XLSX = {
   SCORING_WEIGHTS: {
     text_extractability: 0.05,
     title_language: 0.12,
-    sheet_names: 0.18,
+    sheet_names: 0,
     table_markup: 0.25,
     alt_text: 0.18,
     color_contrast: 0.12,

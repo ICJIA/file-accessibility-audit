@@ -156,7 +156,9 @@ export function buildMarkdown(result: ReportResult, branding: BrandingInfo): str
       lines.push("| Success criterion | Level | Confirmed issue |");
       lines.push("|---|---|---|");
       for (const f of c.failures) {
-        lines.push(`| ${mdLink(`${f.sc} ${f.name}`, f.url)} | ${md(f.level)} | ${md(f.issue)} |`);
+        lines.push(
+          `| ${mdLink(`${f.sc} ${f.name}`, f.url)} | ${md(f.level)} | ${(f as { likely?: boolean }).likely ? "**Likely — please verify:** " : ""}${md(f.issue)} |`,
+        );
       }
       lines.push("");
     }

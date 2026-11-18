@@ -1,5 +1,5 @@
 {
-  "blessed": "2026-11-16",
+  "blessed": "2026-11-18",
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "10drug_arrests_1999-2008.pdf": {
@@ -539,8 +539,8 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "sheet_names": "100|No issues found",
-        "table_markup": "100|No scored issues",
+        "sheet_names": "null|none",
+        "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "100|No issues found",
         "link_quality": "100|No issues found",
@@ -660,7 +660,7 @@
       }
     },
     "Drug Testing Lit Review-200203T22022729.pdf": {
-      "score": 45,
+      "score": 35,
       "grade": "F",
       "categories": {
         "text_extractability": "50|Moderate",
@@ -671,7 +671,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "100|No scored issues",
+        "reading_order": "0|Critical",
         "form_accessibility": "null|none"
       }
     },
@@ -900,18 +900,18 @@
       }
     },
     "ILHEALSFallWinter2022FINAL-remediated.pdf": {
-      "score": 60,
-      "grade": "D",
+      "score": 45,
+      "grade": "F",
       "categories": {
         "text_extractability": "50|Moderate",
         "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
-        "alt_text": "null|none",
+        "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
-        "reading_order": "null|none",
+        "reading_order": "0|Critical",
         "form_accessibility": "null|none"
       }
     },
@@ -1671,18 +1671,18 @@
       }
     },
     "pdf_test-cases/ILHEALSFallWinter2022FINAL-remediated.pdf": {
-      "score": 60,
-      "grade": "D",
+      "score": 45,
+      "grade": "F",
       "categories": {
         "text_extractability": "50|Moderate",
         "title_language": "100|No scored issues",
         "heading_structure": "0|Critical",
-        "alt_text": "null|none",
+        "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
-        "reading_order": "null|none",
+        "reading_order": "0|Critical",
         "form_accessibility": "null|none"
       }
     },
@@ -1836,7 +1836,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No scored issues",
         "alt_text": "null|none",
         "color_contrast": "100|No scored issues",
@@ -1850,7 +1850,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No scored issues",
         "alt_text": "null|none",
         "color_contrast": "100|No scored issues",
@@ -2280,7 +2280,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No scored issues",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -2294,7 +2294,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -2308,7 +2308,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -2514,8 +2514,8 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No scored issues",
-        "table_markup": "100|No scored issues",
+        "sheet_names": "null|none",
+        "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -2672,7 +2672,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "45|Moderate",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -2686,7 +2686,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No issues found",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -3244,7 +3244,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No scored issues",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No issues found",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -3290,7 +3290,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No issues found",
         "alt_text": "null|none",
         "color_contrast": "0|Critical",
@@ -3304,7 +3304,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No issues found",
         "alt_text": "null|none",
         "color_contrast": "100|No issues found",
@@ -3750,7 +3750,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "100|No scored issues",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -3828,7 +3828,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "0|Critical",
@@ -3874,7 +3874,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -3936,7 +3936,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "0|Critical",
         "color_contrast": "null|none",
@@ -4254,7 +4254,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "100|No issues found",
+        "sheet_names": "null|none",
         "table_markup": "null|none",
         "alt_text": "0|Critical",
         "color_contrast": "null|none",

@@ -42,7 +42,34 @@ export function generateSummary(
       catList.length === entries && cats !== n
         ? ` in ${cats} ${cats === 1 ? "category" : "categories"}`
         : "";
-    return `This ${noun} scored ${score}/100 (grade ${grade}). Automated checks confirmed ${n} WCAG 2.1 ${n === 1 ? "criterion" : "criteria"} failing${bridge} — it does not yet meet WCAG 2.1 Level AA, the standard the ADA Title II rule and the Illinois IITAA require. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
+    // "Likely" failures (judged from how text looks — decision 2026-11-18)
+    // are counted apart: a criterion confirmed by ANY finding is confirmed;
+    // one backed only by likely findings is "likely — please verify".
+    const confirmedSc = new Set(
+      conformance.failures
+        .filter((f) => !f.likely)
+        .map((f) => f.sc)
+        .filter(Boolean),
+    );
+    const likelySc = new Set(
+      conformance.failures
+        .filter((f) => f.likely && !confirmedSc.has(f.sc))
+        .map((f) => f.sc)
+        .filter(Boolean),
+    );
+    const law =
+      "it does not yet meet WCAG 2.1 Level AA, the standard the ADA Title II rule and the Illinois IITAA require";
+    const crit = (k: number) => `${k} WCAG 2.1 ${k === 1 ? "criterion" : "criteria"}`;
+    if (likelySc.size > 0 && scList.length === entries) {
+      const c = confirmedSc.size;
+      const l = likelySc.size;
+      const found =
+        c > 0
+          ? `Automated checks confirmed ${crit(c)} failing, and found ${crit(l)} likely failing — please verify ${l === 1 ? "it" : "them"}`
+          : `Automated checks found ${crit(l)} likely failing — please verify ${l === 1 ? "it" : "them"}`;
+      return `This ${noun} scored ${score}/100 (grade ${grade}). ${found}: ${l === 1 ? "that finding is" : "those findings are"} judged from how the text looks (for example, bold or large lines that look like headings), so a person should confirm ${l === 1 ? "it" : "them"}. Until then, ${law}. The conformance verdict above lists the exact criteria.`;
+    }
+    return `This ${noun} scored ${score}/100 (grade ${grade}). Automated checks confirmed ${crit(n)} failing${bridge} — ${law}. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
   }
 
   // Analysis could not complete — no honest verdict, and no readiness claim.

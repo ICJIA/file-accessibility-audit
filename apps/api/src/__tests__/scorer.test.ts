@@ -305,7 +305,37 @@ describe("scoreDocument — scanned PDF", () => {
 // ---------------------------------------------------------------------------
 
 describe("scoreDocument — all images are decorative artifacts (0 figures)", () => {
-  const base = () => makeQpdf({ hasStructTree: true, images: [], imageObjectCount: 4 });
+  // A tree WITH content (paragraphs, marked content): the artifact marking is
+  // a decision someone made. (An EMPTY tree is the next test.)
+  const base = () =>
+    makeQpdf({
+      hasStructTree: true,
+      images: [],
+      imageObjectCount: 4,
+      paragraphCount: 20,
+      contentOrder: [0, 1, 2, 3],
+    });
+
+  it("a content-free tag tree with every image artifacted → alt_text 0, explained (decision 2026-11-18)", () => {
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 2000,
+      pageCount: 6,
+      imageCount: 4,
+      nonArtifactImageCount: 0,
+    });
+    const empty = makeQpdf({
+      hasStructTree: true,
+      images: [],
+      imageObjectCount: 4,
+      paragraphCount: 0,
+      contentOrder: [],
+      structTreeMcidsByPage: {},
+    });
+    const alt = findCategory(scoreDocument(empty, pdfjs), "alt_text");
+    expect(alt.score).toBe(0);
+    expect((alt.findings ?? []).join(" ")).toMatch(/marking everything as decoration/);
+  });
 
   it("all painted images artifacted → alt_text N/A, no 'untagged images' alarm", () => {
     const pdfjs = makePdfjs({

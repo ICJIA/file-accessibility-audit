@@ -1447,7 +1447,8 @@ const EXPECTED_BASELINE: Record<string, string> = {
   PowerPoint:
     "79/C alt_text=100|No issues found color_contrast=60|Moderate form_accessibility=null|none link_quality=100|No issues found list_structure=100|No issues found reading_order=100|No issues found slide_titles=85|Minor table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found",
   Excel:
-    "79/C alt_text=100|No issues found color_contrast=60|Moderate form_accessibility=null|none link_quality=100|No issues found sheet_names=100|No issues found table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found",
+    // sheet_names is reported, not graded, since 2026-11-18 (decision 3): null.
+    "79/C alt_text=100|No issues found color_contrast=60|Moderate form_accessibility=null|none link_quality=100|No issues found sheet_names=null|none table_markup=100|No issues found text_extractability=100|No issues found title_language=100|No issues found",
 };
 
 /** Returns how many encodings FAILED: diverged from the baseline, could not

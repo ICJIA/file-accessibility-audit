@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.174.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.175.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,807 tests** across 269 test files (API 2,632 · Web 2,078 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,817 tests** across 272 test files (API 2,640 · Web 2,080 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -912,7 +912,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (2,632 tests)
+### API Tests (2,640 tests)
 
 <details>
 <summary><strong>Per-file coverage</strong> — 115 of the 121 test files — click to expand</summary>
@@ -1060,6 +1060,8 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `analyzeJobEviction.test.ts` | 4 | Security review 2026-11-18 (Medium): a progress-job store full of finished, uncollected jobs still admits a new visitor and the pre-upload reservation; the oldest finished job goes first and newer results stay collectable; running jobs are never evicted (the unfinished cap still answers 503). Three fail on v1.173.4. |
 | `securityReview20261118.test.ts` | 41 | Security review 2026-11-18 (Low/Info): Chromium launches with an explicit environment holding no privileged token or seal secret; URL fetches accept only ports 80/443 (allowlist and privileged paths); a network error never echoes raw socket text; `isPrivateIP` refuses CGNAT, documentation ranges, written-out and hex IPv4-mapped, IPv4-compatible, NAT64, 6to4-of-private, Teredo, site-local and zoned link-local addresses, and still allows public ones. Eighteen fail on v1.173.4. Since v1.174.0, the page audit's request routing: the pinned document host goes to Chromium; every other host is fetched by Node (`safeFetch`) and handed back with `respond()`, a refused fetch aborts, non-GET/HEAD to another host is refused, and `auditPage` is wired with the pinned host. Four fail on v1.173.6. Since v1.174.1, the per-audit download budget: never more than `maxInFlight` at once, bytes reserved before each download so concurrent ones cannot overshoot, the unused part refunded, and a stop after `maxRequests`. |
 | `pdfDocMetadata.test.ts` | 8 | The remediation metadata step (v1.174.0): form values cleaned and validated (length, control characters, language-code shape); qpdf writes title, `/Lang` and `DisplayDocTitle` while keeping every other catalog key, and the output passes `qpdf --check`; on a tracked control the **real analyzer** then scores title/language 100 with no 2.4.2 or 3.1.1 failure and no score drop; an existing title still gets DisplayDocTitle. |
+| `hidingNotRewarded.test.ts` | 2 | Decision 2026-11-18 ("the grade should not reward this"): on tracked controls, the content-free "remediated" ILHEALS copy (empty tag tree, every image an artifact) scores no higher than its untagged original; alt text and reading order are 0 with explanations, the artifact praise is gone, and the verdict names 1.3.2 (confirmed) and 1.1.1 (likely); a properly tagged copy keeps its reading-order judgement. Fails on v1.174.1. |
+| `likelyFailures.test.ts` | 5 | The "likely — please verify" level (decision 2026-11-18): a heading look-alike is a likely failure and a missing title is not; the summary counts confirmed and likely criteria apart; only-likely failures make no "confirmed" claim; a criterion confirmed elsewhere stays confirmed. Plus decision 9: the Office missing-title finding explains why a title matters (NVDA/JAWS read the file name in Office; the Title becomes the PDF's title; the Access Board baseline requires it) without the old false claim. |
 | `remediationGuard.test.ts` | 6 | The per-category remediation guard (v1.174.0): accepts an output that holds or improves everything; rejects a trade (one category up, another down, same total), a scored category that becomes not assessed (hiding), a new WCAG failure with every score held, and a drop in the total; a category not assessed before may become assessed. |
 | `safeFetchDeadline.test.ts` | 7 | `safeFetch` has an overall deadline and aborts when the client has gone. |
 | `urlAuditPipelineAbort.test.ts` | 2 | A URL audit stops when the client disconnects. |
@@ -1067,7 +1069,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 
 </details>
 
-### Web Tests (2,078 tests)
+### Web Tests (2,080 tests)
 
 <details>
 <summary><strong>Per-file coverage</strong> — 100 of the 101 test files — click to expand</summary>
@@ -1132,6 +1134,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `statusCache.test.ts` | 5 | Security review 2026-11-18 (Low): `/status` answers from one shared result for at most 5 seconds — 1,000 requests cost one API probe, concurrent callers ride one in-flight probe, a real change shows within the window, a failed probe is not cached — and the route is wired through the cache. |
 | `formatScope.test.ts` | 9 | The note under the letter grade (v1.174.0): PDF says contrast is not in its grade; Word and PowerPoint say it is and a PDF differs; Excel adds the missing language half; old reports with no fileType are PDFs; web-page audits get no note — and the note renders in both the Visual-view hero and the Detailed-view score card. |
 | `remediateForm.test.ts` | 6 | The remediation form's title and language fields (v1.174.0): read from the audit's findings, prefilled (or empty + English (US) for an untitled PDF), sent with the upload, and absent on a file that already scores an A. |
+| `likelyLabels.test.ts` | 2 | The "Likely — please verify" label beside a likely failure in the score card (and not beside a confirmed one), and the two-standards strip's count of likely-only criteria. |
 | `healthz.test.ts` | 8 | `resolveHealthz`, the aggregation behind the `/healthz` liveness-fallback URL served by the Nuxt tier (superseded as the monitoring target by `/status`, but retained because it runs no probes and so still answers when `/status` cannot): 200 with both tiers ok (and the API's uptime echoed) only when the loopback `/api/health` probe answers `status:"ok"`; 503 with `api:"down"` when the probe rejects (unreachable/timeout) or returns a non-ok, empty, or null body; a 429 from the API's own rate limiter counts as alive (flooding `/healthz` can't fabricate an outage) while any other HTTP error stays down; `apiUptime` omitted when down |
 | `csp.test.ts` | 7 | `buildCspHeader`: the per-request nonce lands in `script-src` with `'unsafe-inline'` dropped there (while `style-src` keeps it), the tight high-value directives are preserved, and no nonce value can cause `'unsafe-inline'` to leak into `script-src`. Since the Plausible snippet: the self-hosted analytics origin from `ANALYTICS` appears in **both** `script-src` and `connect-src` (allowing only one breaks analytics silently — the script loads but every event is refused), and it is the policy's **only** external origin — strip it and no `scheme://host` source remains anywhere |
 | `plausibleAnalytics.test.ts` | 4 | The Plausible wiring's silent failure modes: `nuxt.config.ts` builds the MANUAL script tag (`script.manual.js` — the stock auto-tracker would report per-file URLs and full query strings) from the `ANALYTICS` constants rather than a hardcoded copy that could drift from the CSP; the client plugin sends pageviews from normalized route paths via `analyticsPagePath` and never from `location.href` or the query; `data-domain` equals `DEPLOY.PRODUCTION_URL`'s hostname (the self-hosted instance discards events for any site it doesn't know); and the origin is https with no trailing slash, since it is used verbatim in both the CSP and the script URL |
@@ -1470,6 +1473,17 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.175.0 — 2026-11-18 · Scoring: hiding is not rewarded; Excel grades only what they check; "likely — please verify" (no new attack surface)
+
+No new attack surface: scoring, report wording and labels only; no route, input, storage or dependency changed. Every change is stated with its reason.
+
+- **Hiding content no longer raises the grade (decision 2).** Finding: a PDF whose tag structure holds no content, with every image marked as an artifact, dropped alt text and reading order out of the average and outscored its untagged original (60/D vs 50/F). Fix: in that case alt text and reading order score 0 with explanations, the artifact praise is withdrawn, and the verdict names 1.3.2 (confirmed — an empty tree orders nothing) and 1.1.1 (likely — a person must say which pictures carry information). The copy now scores 45/F. One other real file moved (Drug Testing Lit Review, 45/F → 35/F): its tree is a single empty `<Document>`, checked by hand; it already failed 1.3.1 for the same reason. Ledger re-blessed.
+- **Excel grades only what they check (decision 3).** Sheet Names never scored anything but a constant 100 (weight 0.18); it is now reported, not graded (weight 0). Table Markup with no defined Excel table is not assessed instead of a free 100. No Excel grade moved in the test set (severity caps already set them); Excel now has 6 scored categories, and the note under its grade says what is not graded.
+- **"Likely — please verify" (decision 4).** Failures judged from how text looks (bold or large lines that look like headings) are marked likely in the verdict, labelled in the report and exports, and counted apart in the summary and the two-standards strip. They still count in the score.
+- **Office missing title (decision 9).** Kept as a C-capping failure — the Access Board's ICT baseline requires a Title, and it becomes the title of any PDF or web page made from the file — and the finding no longer claims screen readers announce it in Office (NVDA/JAWS read the file name there).
+
+**Verified rather than assumed.** Tests 4,817 green (each new test fails on v1.174.1); lint, format, typecheck, build green; all accuracy gates green after the intended moves (ledger re-blessed for 3 documents; the Office encoding gate's Excel baseline updated for `sheet_names`). `pnpm audit --prod`: unchanged.
 
 ### v1.174.1 — 2026-11-18 · Page-audit downloads bounded (SECURITY RELEASE — completes v1.174.0)
 
