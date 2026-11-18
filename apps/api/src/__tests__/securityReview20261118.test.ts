@@ -173,7 +173,82 @@ describe("page audit: requests to other hosts are fetched by Node, never resolve
   it("WIRING: auditPage installs the guard with the pinned host and a Node fetcher", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(new URL("../services/pageAuditor.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/installRequestGuard\(page, isUrlAllowed, host\)/);
-    expect(src).toMatch(/fetch: offHostFetchFor\(isUrlAllowed\)/);
+    expect(src).toMatch(/installRequestGuard\(page, isUrlAllowed, host, budget\)/);
+    expect(src).toMatch(/const budget = new OffHostBudget\(\)/);
+    expect(src).toMatch(/fetch: offHostFetchFor\(isUrlAllowed, budget\)/);
+  });
+});
+
+/**
+ * Automated review of v1.174.0: Node-fetched files live in the API's memory,
+ * so one audit's downloads are bounded — concurrency, request count, and a
+ * byte budget reserved before each download starts.
+ */
+describe("page audit: the per-audit download budget", () => {
+  const body = (n: number) => ({ body: Buffer.alloc(n) });
+
+  it("never runs more than maxInFlight downloads at once", async () => {
+    const { OffHostBudget } = await import("../services/pageAuditor.js");
+    const b = new OffHostBudget(3, 1e9, 100);
+    let now = 0;
+    let peak = 0;
+    const releases: Array<() => void> = [];
+    const jobs = Array.from({ length: 10 }, () =>
+      b.run(async () => {
+        now++;
+        peak = Math.max(peak, now);
+        await new Promise<void>((r) => releases.push(r));
+        now--;
+        return body(1);
+      }),
+    );
+    while (releases.length || now) {
+      await new Promise((r) => setTimeout(r, 0));
+      releases.shift()?.();
+    }
+    await Promise.all(jobs);
+    expect(peak).toBe(3);
+  });
+
+  it("reserves bytes BEFORE downloading, so concurrent downloads cannot overshoot", async () => {
+    const { OffHostBudget, OFF_HOST_MAX_BYTES } = await import("../services/pageAuditor.js");
+    const b = new OffHostBudget(10, OFF_HOST_MAX_BYTES * 2, 100);
+    const caps: number[] = [];
+    const releases: Array<() => void> = [];
+    const jobs = Array.from({ length: 4 }, () =>
+      b.run(async (cap) => {
+        caps.push(cap);
+        if (cap > 0) await new Promise<void>((r) => releases.push(r));
+        return body(cap);
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    // Two full allowances fit; the other two get nothing while those run.
+    expect(caps.filter((c) => c > 0)).toHaveLength(2);
+    expect(caps.reduce((a, c) => a + c, 0)).toBeLessThanOrEqual(OFF_HOST_MAX_BYTES * 2);
+    releases.forEach((r) => r());
+    const results = await Promise.all(jobs);
+    expect(results.filter((x) => x === null)).toHaveLength(2);
+  });
+
+  it("refunds the unused part of a reservation", async () => {
+    const { OffHostBudget } = await import("../services/pageAuditor.js");
+    const b = new OffHostBudget(1, 1000, 100);
+    await b.run(async () => body(100));
+    expect(b.bytesCommitted).toBe(100);
+    const got = await b.run(async (cap) => {
+      expect(cap).toBe(900);
+      return body(10);
+    });
+    expect(got).not.toBeNull();
+    expect(b.bytesCommitted).toBe(110);
+  });
+
+  it("stops after maxRequests", async () => {
+    const { OffHostBudget } = await import("../services/pageAuditor.js");
+    const b = new OffHostBudget(6, 1e9, 2);
+    expect(await b.run(async () => body(1))).not.toBeNull();
+    expect(await b.run(async () => body(1))).not.toBeNull();
+    expect(await b.run(async () => body(1))).toBeNull();
   });
 });

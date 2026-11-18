@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.174.1",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s web-page fix.",
+    body: [
+      {
+        kind: "p",
+        html: "A second, automatic review of the previous update found one more thing to tighten, fixed here before that update went live. Nothing about what is collected, kept or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> the previous update made the server fetch the files a checked web page loads from other addresses. Each file had a size limit, but there was no limit on how many it would fetch at once, so a page built to abuse this could have used up the server&rsquo;s memory. <strong>Fix:</strong> each web-page check now has a firm allowance &mdash; six files at a time, three hundred in all, and a fixed amount of memory set aside before each file is fetched &mdash; so the server&rsquo;s total use stays bounded. Real state websites use a small fraction of it and still load completely.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> New self-checks confirm each limit holds; every self-check passed and no score moved.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.174.0",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: how the tool checks web pages, and the new title and language step in automatic repair.",
     body: [

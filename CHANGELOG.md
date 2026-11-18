@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.174.1] - 2026-11-18
+
+Completes v1.174.0. **v1.174.0 was never deployed; deploy this instead.**
+
+### Security (finding with its fix)
+
+- **Unbounded page-audit downloads — fixed.** Finding (automated review of the v1.174.0 commit): files a checked page loads from other hosts were now downloaded into the API's memory with a per-file cap but no limit on how many or how many at once. Fix: a per-audit budget — 6 at a time, 300 in all, 32 MB reserved before each download starts — so the whole server is bounded at 64 MB for page audits. Two live state sites still render completely.
+
+### Notes
+
+- Tests 4,807 (API 2,632 · Web 2,078 · CLI 97). No score changed.
+
 ## [1.174.0] - 2026-11-18
 
 Decisions 5, 6, 8 and 11 from the 2026-11-18 review, and the last security finding closed.

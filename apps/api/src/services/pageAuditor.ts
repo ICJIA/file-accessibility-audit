@@ -215,6 +215,70 @@ export type OffHostFetch = (
 
 export const OFF_HOST_MAX_BYTES = 10 * 1024 * 1024;
 
+/**
+ * Bounds on what one page audit may download through Node (automated
+ * review of v1.174.0, 2026-11-18). Moving other-host downloads out of
+ * Chromium put their bytes in the API's own memory; without a bound a page
+ * could request hundreds of 10 MB files at once. Per audit: at most
+ * `maxInFlight` downloads at a time (the rest wait their turn), at most
+ * `maxRequests` in all, and a byte budget that is RESERVED before each
+ * download starts (min of the per-file cap and what is left) and refunded
+ * after — so concurrent downloads can never overshoot it. With
+ * MAX_CONCURRENT_PAGE_AUDITS = 2, the server-wide ceiling is 2 × maxBytes.
+ * A request refused by the budget is aborted; the page renders without it.
+ */
+export class OffHostBudget {
+  private inFlight = 0;
+  private requests = 0;
+  private reserved = 0;
+  private readonly waiting: Array<() => void> = [];
+  constructor(
+    readonly maxInFlight = 6,
+    readonly maxBytes = 32 * 1024 * 1024,
+    readonly maxRequests = 300,
+  ) {}
+
+  /** Run `fetch` with a byte allowance, or return null when the budget is
+   *  spent. `fetch` receives its cap and returns the body it got. */
+  async run<T extends { body: Buffer }>(
+    fetch: (capBytes: number) => Promise<T | null>,
+  ): Promise<T | null> {
+    if (this.requests >= this.maxRequests) return null;
+    this.requests++;
+    if (this.inFlight >= this.maxInFlight) {
+      await new Promise<void>((resolve) => this.waiting.push(resolve));
+    }
+    this.inFlight++;
+    const cap = Math.min(OFF_HOST_MAX_BYTES, this.maxBytes - this.reserved);
+    if (cap <= 0) {
+      this.release(0, 0);
+      return null;
+    }
+    this.reserved += cap;
+    let used = 0;
+    try {
+      const got = await fetch(cap);
+      used = got ? got.body.length : 0;
+      return got;
+    } finally {
+      this.release(cap, used);
+    }
+  }
+
+  private release(cap: number, used: number): void {
+    // Keep what was actually downloaded counted against the budget; give
+    // back the unused part of the reservation.
+    this.reserved -= cap - used;
+    this.inFlight--;
+    this.waiting.shift()?.();
+  }
+
+  /** For tests. */
+  get bytesCommitted(): number {
+    return this.reserved;
+  }
+}
+
 export function createRequestHandler(
   isUrlAllowed: (url: string) => boolean,
   isPublicHost: (host: string) => Promise<boolean>,
@@ -445,35 +509,40 @@ const isPublicHostViaNode = (host: string): Promise<boolean> =>
  *  the address it checked. A document (a navigation or a frame) must also
  *  stay on the URL policy at every redirect hop; a sub-resource must use a
  *  standard port. Any failure → null → the request is refused. */
-function offHostFetchFor(isUrlAllowed: (url: string) => boolean): OffHostFetch {
-  return async (url, isDocument) => {
-    try {
-      const r = await safeFetch(url, {
-        maxBytes: OFF_HOST_MAX_BYTES,
-        timeoutMs: 10_000,
-        totalTimeoutMs: 15_000,
-        validateUrl: (u) => {
-          if (!isAllowedPort(u) || (isDocument && !isUrlAllowed(u.toString()))) {
-            throw new SafeFetchError("malformed_url", "request not allowed");
-          }
-        },
-      });
-      return { status: r.status, headers: r.passHeaders, body: r.buffer };
-    } catch {
-      return null;
-    }
-  };
+function offHostFetchFor(
+  isUrlAllowed: (url: string) => boolean,
+  budget: OffHostBudget,
+): OffHostFetch {
+  return (url, isDocument) =>
+    budget.run(async (capBytes) => {
+      try {
+        const r = await safeFetch(url, {
+          maxBytes: capBytes,
+          timeoutMs: 10_000,
+          totalTimeoutMs: 15_000,
+          validateUrl: (u) => {
+            if (!isAllowedPort(u) || (isDocument && !isUrlAllowed(u.toString()))) {
+              throw new SafeFetchError("malformed_url", "request not allowed");
+            }
+          },
+        });
+        return { status: r.status, headers: r.passHeaders, body: r.buffer };
+      } catch {
+        return null;
+      }
+    });
 }
 
 async function installRequestGuard(
   page: import("puppeteer").Page,
   isUrlAllowed: (url: string) => boolean,
   pinnedHost: string,
+  budget: OffHostBudget,
 ): Promise<void> {
   await page.setRequestInterception(true);
   const handler = createRequestHandler(isUrlAllowed, isPublicHostViaNode, {
     pinnedHost,
-    fetch: offHostFetchFor(isUrlAllowed),
+    fetch: offHostFetchFor(isUrlAllowed, budget),
   });
   page.on("request", (req: HTTPRequest) => {
     void handler(req);
@@ -501,8 +570,10 @@ export async function auditPage(
     // Before any navigation: remove the network APIs that bypass the
     // interceptor (WebSockets, service workers, …), then install it.
     await hardenPage(page);
-    await installRequestGuard(page, isUrlAllowed, host);
-    denyPopups(browser, page, (popup) => installRequestGuard(popup, isUrlAllowed, host));
+    // ONE budget for the whole audit, popups included.
+    const budget = new OffHostBudget();
+    await installRequestGuard(page, isUrlAllowed, host, budget);
+    denyPopups(browser, page, (popup) => installRequestGuard(popup, isUrlAllowed, host, budget));
     await page.setUserAgent("Mozilla/5.0 (compatible; ICJIA-File-Audit/audit.icjia.app)");
     await page.goto(url, {
       waitUntil: "networkidle2",

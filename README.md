@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.174.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.174.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,803 tests** across 269 test files (API 2,628 · Web 2,078 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,807 tests** across 269 test files (API 2,632 · Web 2,078 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -912,7 +912,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (2,628 tests)
+### API Tests (2,632 tests)
 
 <details>
 <summary><strong>Per-file coverage</strong> — 115 of the 121 test files — click to expand</summary>
@@ -1058,7 +1058,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `reviewFixes20261112.test.ts` | 29 | Fixes from the 2026-11-12 whole-app review: page-audit requests that bypass the interceptor are removed, job status polling is exempt from the global limiter, and job capacity is reserved before an upload is buffered. |
 | `zipEntryPrecheck.test.ts` | 18 | Security review 2026-11-18 (High): a ZIP's central-directory records are counted from the raw bytes before JSZip parses anything — classic and zip64, a header that lies about its count (the walk follows record signatures, as JSZip does), JSZip's prepended-data shift, the stop at max + 1 — and `detectFileType` refuses a 20,000-entry zip64 package in under 500 ms without heap growth. All eight fail on v1.173.4. Since v1.173.6, a differential block checks eight archive shapes against JSZip itself (trailing junk after the end record, a moved or wrong zip64 locator, prepended data, truncation): the count must equal what JSZip parses, and a walk that gives up must be a file JSZip rejects — then refuses it (fail closed). Four fail on v1.173.5. |
 | `analyzeJobEviction.test.ts` | 4 | Security review 2026-11-18 (Medium): a progress-job store full of finished, uncollected jobs still admits a new visitor and the pre-upload reservation; the oldest finished job goes first and newer results stay collectable; running jobs are never evicted (the unfinished cap still answers 503). Three fail on v1.173.4. |
-| `securityReview20261118.test.ts` | 37 | Security review 2026-11-18 (Low/Info): Chromium launches with an explicit environment holding no privileged token or seal secret; URL fetches accept only ports 80/443 (allowlist and privileged paths); a network error never echoes raw socket text; `isPrivateIP` refuses CGNAT, documentation ranges, written-out and hex IPv4-mapped, IPv4-compatible, NAT64, 6to4-of-private, Teredo, site-local and zoned link-local addresses, and still allows public ones. Eighteen fail on v1.173.4. Since v1.174.0, the page audit's request routing: the pinned document host goes to Chromium; every other host is fetched by Node (`safeFetch`) and handed back with `respond()`, a refused fetch aborts, non-GET/HEAD to another host is refused, and `auditPage` is wired with the pinned host. Four fail on v1.173.6. |
+| `securityReview20261118.test.ts` | 41 | Security review 2026-11-18 (Low/Info): Chromium launches with an explicit environment holding no privileged token or seal secret; URL fetches accept only ports 80/443 (allowlist and privileged paths); a network error never echoes raw socket text; `isPrivateIP` refuses CGNAT, documentation ranges, written-out and hex IPv4-mapped, IPv4-compatible, NAT64, 6to4-of-private, Teredo, site-local and zoned link-local addresses, and still allows public ones. Eighteen fail on v1.173.4. Since v1.174.0, the page audit's request routing: the pinned document host goes to Chromium; every other host is fetched by Node (`safeFetch`) and handed back with `respond()`, a refused fetch aborts, non-GET/HEAD to another host is refused, and `auditPage` is wired with the pinned host. Four fail on v1.173.6. Since v1.174.1, the per-audit download budget: never more than `maxInFlight` at once, bytes reserved before each download so concurrent ones cannot overshoot, the unused part refunded, and a stop after `maxRequests`. |
 | `pdfDocMetadata.test.ts` | 8 | The remediation metadata step (v1.174.0): form values cleaned and validated (length, control characters, language-code shape); qpdf writes title, `/Lang` and `DisplayDocTitle` while keeping every other catalog key, and the output passes `qpdf --check`; on a tracked control the **real analyzer** then scores title/language 100 with no 2.4.2 or 3.1.1 failure and no score drop; an existing title still gets DisplayDocTitle. |
 | `remediationGuard.test.ts` | 6 | The per-category remediation guard (v1.174.0): accepts an output that holds or improves everything; rejects a trade (one category up, another down, same total), a scored category that becomes not assessed (hiding), a new WCAG failure with every score held, and a drop in the total; a category not assessed before may become assessed. |
 | `safeFetchDeadline.test.ts` | 7 | `safeFetch` has an overall deadline and aborts when the client has gone. |
@@ -1470,6 +1470,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.174.1 — 2026-11-18 · Page-audit downloads bounded (SECURITY RELEASE — completes v1.174.0)
+
+- **P2 / fixed — unbounded page-audit downloads (found by an automated review of the v1.174.0 commit, before deployment).** Finding: v1.174.0 moved other-host downloads from Chromium into the API process; each was capped at 10 MB but their number and concurrency were not, so a hostile page could make the API buffer hundreds of 10 MB files at once. Fix: an `OffHostBudget` per audit (popups included) — at most 6 downloads in flight (the rest wait), at most 300 requests, and a 32 MB byte budget **reserved before** each download starts (min of the per-file cap and what remains) and refunded after, so concurrent downloads cannot overshoot it. With at most 2 page audits at once (`MAX_CONCURRENT_PAGE_AUDITS`), the server-wide ceiling is 64 MB. A request the budget refuses is aborted and the page renders without it. Checked with a real browser on two live state sites: both rendered completely, using 1.06 MB and 0.29 MB of the budget. v1.174.0 was never deployed.
+
+**Verified rather than assumed.** Four budget tests; tests 4,807 green; lint, format, typecheck, build green. `pnpm audit --prod`: unchanged (one unpatched build-time advisory, not shipped).
 
 ### v1.174.0 — 2026-11-18 · Page audit fetches every other host itself; remediation title/language step; per-category guard (SECURITY RELEASE)
 
