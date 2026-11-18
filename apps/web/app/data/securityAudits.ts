@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.173.6",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s main fix.",
+    body: [
+      {
+        kind: "p",
+        html: "A second, automatic review of the previous update found that its main fix could still be got around. This update completes it. The previous update never went live, so the public site was never running the incomplete version. Nothing about what is collected, kept or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>The check on specially built files is now complete.</strong> The previous update made the server count the parts of an Office file before opening it. A file built with extra data in particular places could still slip past that count. The count now reads the file exactly the way the program that opens it does, and anything it cannot read is refused.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> New self-checks feed the same tricky files to both the count and the program that opens them, and require the two to agree; they fail on the previous version. Every self-check passed and no score moved.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.173.5",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a full review of the whole tool from an attacker&rsquo;s point of view.",
     body: [

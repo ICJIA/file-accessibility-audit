@@ -637,72 +637,89 @@ export function decodeXmlBytes(bytes: Buffer): string {
  *
  * This walk mirrors JSZip 3.x's own (ZipEntries.readEndOfCentral +
  * readCentralDir) so that whatever JSZip would parse, this counts first:
- *   - find the end-of-central-directory record (last "PK\x05\x06");
- *   - if any field is saturated (0xFFFF / 0xFFFFFFFF), read the zip64
- *     locator 20 bytes before it and the zip64 record it points to;
- *   - apply JSZip's prepended-data shift ("extra bytes" before the archive);
+ *   - find the end-of-central-directory record: the LAST "PK\x05\x06"
+ *     anywhere in the buffer, as JSZip searches (not just the final 64 KB);
+ *   - if any field is saturated (0xFFFF / 0xFFFFFFFF), take the last zip64
+ *     locator in the buffer and the zip64 record it points to — or, if none
+ *     is there, the last zip64 record (JSZip's own fallback);
+ *   - apply JSZip's prepended-data shift, measured from the CLASSIC end
+ *     record (as JSZip does), and give up where JSZip would throw;
  *   - walk records while the central-file-header signature matches —
  *     JSZip loops on the SIGNATURE, not the declared count, so a lying
  *     count in the header cannot hide records from this walk either.
  * Each step reads a few integers; nothing is allocated per entry.
  *
  * Returns the number of records found (capped at max + 1), or null when the
- * bytes do not hold a readable central directory — the caller then lets
- * JSZip produce its own "not a readable ZIP" error, exactly as before.
+ * bytes do not hold a central directory JSZip could read; the caller treats
+ * null as a refusal (fail closed).
  */
 export function countZipEntriesFromBytes(buf: Buffer, max: number): number | null {
-  const EOCD = 0x06054b50;
-  const Z64_LOCATOR = 0x07064b50;
+  // Each step below is JSZip 3.10.1's ZipEntries.readEndOfCentral /
+  // readCentralDir, in order; any divergence would let a file this walk
+  // cannot read reach JSZip unchecked (automated review, 2026-11-18).
+  const sigBytes = (n: number) => {
+    const b = Buffer.alloc(4);
+    b.writeUInt32LE(n, 0);
+    return b;
+  };
+  const EOCD = sigBytes(0x06054b50);
+  const Z64_LOCATOR = sigBytes(0x07064b50);
   const Z64_EOCD = 0x06064b50;
   const CDH = 0x02014b50;
-  if (buf.length < 22) return null;
-  // EOCD: last occurrence, within the 22-byte record + a 65,535-byte comment.
-  let eocd = -1;
-  const floor = Math.max(0, buf.length - 22 - 0xffff);
-  for (let k = buf.length - 22; k >= floor; k--) {
-    if (buf.readUInt32LE(k) === EOCD) {
-      eocd = k;
-      break;
-    }
-  }
-  if (eocd < 0) return null;
+  const sigAt = (at: number, sig: number) =>
+    at >= 0 && at + 4 <= buf.length && buf.readUInt32LE(at) === sig;
+  const u64 = (at: number) => {
+    if (at < 0 || at + 8 > buf.length) return NaN;
+    const v = Number(buf.readBigUInt64LE(at));
+    return Number.isSafeInteger(v) ? v : NaN;
+  };
+
+  // lastIndexOfSignature(CENTRAL_DIRECTORY_END) — over the WHOLE buffer.
+  const eocd = buf.lastIndexOf(EOCD);
+  if (eocd < 0 || eocd + 22 > buf.length) return null;
   const disk = buf.readUInt16LE(eocd + 4);
   const cdDisk = buf.readUInt16LE(eocd + 6);
   const entriesOnDisk = buf.readUInt16LE(eocd + 8);
   const entries = buf.readUInt16LE(eocd + 10);
   let cdSize = buf.readUInt32LE(eocd + 12);
   let cdOffset = buf.readUInt32LE(eocd + 16);
-  let endOfCentral = eocd;
-  let zip64Extra = 0;
-  const saturated =
+  let expectedEnd: number;
+  if (
     disk === 0xffff ||
     cdDisk === 0xffff ||
     entriesOnDisk === 0xffff ||
     entries === 0xffff ||
     cdSize === 0xffffffff ||
-    cdOffset === 0xffffffff;
-  if (saturated) {
-    const loc = eocd - 20;
-    if (loc < 0 || buf.readUInt32LE(loc) !== Z64_LOCATOR) return null;
-    const z64At = Number(buf.readBigUInt64LE(loc + 8));
-    if (!Number.isSafeInteger(z64At) || z64At < 0 || z64At + 56 > buf.length) return null;
-    if (buf.readUInt32LE(z64At) !== Z64_EOCD) return null;
-    const z64RecordSize = Number(buf.readBigUInt64LE(z64At + 4));
-    cdSize = Number(buf.readBigUInt64LE(z64At + 40));
-    cdOffset = Number(buf.readBigUInt64LE(z64At + 48));
-    if (![z64RecordSize, cdSize, cdOffset].every(Number.isSafeInteger)) return null;
-    endOfCentral = z64At;
-    zip64Extra = 20 + 12 + z64RecordSize;
+    cdOffset === 0xffffffff
+  ) {
+    // lastIndexOfSignature(ZIP64_CENTRAL_DIRECTORY_LOCATOR) — whole buffer.
+    const loc = buf.lastIndexOf(Z64_LOCATOR);
+    if (loc < 0 || loc + 20 > buf.length) return null;
+    let z64At = u64(loc + 8);
+    // Not where the locator says? JSZip falls back to the last signature.
+    if (!sigAt(z64At, Z64_EOCD)) z64At = buf.lastIndexOf(sigBytes(Z64_EOCD));
+    if (!sigAt(z64At, Z64_EOCD) || z64At + 56 > buf.length) return null;
+    const z64RecordSize = u64(z64At + 4);
+    cdSize = u64(z64At + 40);
+    cdOffset = u64(z64At + 48);
+    if ([z64RecordSize, cdSize, cdOffset].some(Number.isNaN)) return null;
+    expectedEnd = cdOffset + cdSize + 20 + 12 + z64RecordSize;
+  } else {
+    expectedEnd = cdOffset + cdSize;
   }
-  // JSZip's prepended-data shift.
-  const extra = endOfCentral - (cdOffset + cdSize + zip64Extra);
+  // The prepended-data shift, measured from the CLASSIC end record.
+  const extra = eocd - expectedEnd;
   let zero = 0;
-  if (extra > 0 && !(endOfCentral + 4 <= buf.length && buf.readUInt32LE(endOfCentral) === CDH)) {
-    zero = extra;
+  if (extra > 0) {
+    if (!sigAt(eocd, CDH)) zero = extra;
+  } else if (extra < 0) {
+    return null; // JSZip: "Corrupted zip: missing N bytes."
   }
+  // readCentralDir: walk while the central-file-header signature matches.
   let pos = zero + cdOffset;
   let count = 0;
-  while (pos >= 0 && pos + 46 <= buf.length && buf.readUInt32LE(pos) === CDH) {
+  while (sigAt(pos, CDH)) {
+    if (pos + 46 > buf.length) return null;
     count++;
     if (count > max) return count;
     pos +=
@@ -722,7 +739,14 @@ export function assertZipEntryCountBeforeParse(
   makeError: (message: string) => Error,
 ): void {
   const n = countZipEntriesFromBytes(buf, maxEntries);
-  if (n !== null && n > maxEntries) {
+  // FAIL CLOSED: every case the walk cannot read is one JSZip rejects too
+  // (no end record, no zip64 locator or record, "missing N bytes"), so
+  // refusing here costs no real file — and a walk that gave up must never
+  // wave a package through to the parser it exists to protect.
+  if (n === null) {
+    throw makeError("The file is not a readable ZIP package.");
+  }
+  if (n > maxEntries) {
     throw makeError(
       `This package contains too many entries (more than ${maxEntries.toLocaleString()}) to analyze.`,
     );

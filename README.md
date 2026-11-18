@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.173.5-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.173.6-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-4693%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -870,7 +870,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**4,756 tests** across 265 test files (API 2,596 · Web 2,063 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**4,766 tests** across 265 test files (API 2,606 · Web 2,063 · CLI 97) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -912,7 +912,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (2,596 tests)
+### API Tests (2,606 tests)
 
 <details>
 <summary><strong>Per-file coverage</strong> — 115 of the 121 test files — click to expand</summary>
@@ -1056,7 +1056,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `remediationWorkerCleanup.test.ts` | 4 | The remediation worker leaves nothing on disk after a failure and terminates children that will not exit. |
 | `reportSeal.test.ts` | 84 | The report seal (v1.168.0): an HMAC over the whole result in canonical form, surviving the browser round trip; any change breaks it; a document seal never validates a page report. |
 | `reviewFixes20261112.test.ts` | 29 | Fixes from the 2026-11-12 whole-app review: page-audit requests that bypass the interceptor are removed, job status polling is exempt from the global limiter, and job capacity is reserved before an upload is buffered. |
-| `zipEntryPrecheck.test.ts` | 8 | Security review 2026-11-18 (High): a ZIP's central-directory records are counted from the raw bytes before JSZip parses anything — classic and zip64, a header that lies about its count (the walk follows record signatures, as JSZip does), JSZip's prepended-data shift, the stop at max + 1 — and `detectFileType` refuses a 20,000-entry zip64 package in under 500 ms without heap growth. All eight fail on v1.173.4. |
+| `zipEntryPrecheck.test.ts` | 18 | Security review 2026-11-18 (High): a ZIP's central-directory records are counted from the raw bytes before JSZip parses anything — classic and zip64, a header that lies about its count (the walk follows record signatures, as JSZip does), JSZip's prepended-data shift, the stop at max + 1 — and `detectFileType` refuses a 20,000-entry zip64 package in under 500 ms without heap growth. All eight fail on v1.173.4. Since v1.173.6, a differential block checks eight archive shapes against JSZip itself (trailing junk after the end record, a moved or wrong zip64 locator, prepended data, truncation): the count must equal what JSZip parses, and a walk that gives up must be a file JSZip rejects — then refuses it (fail closed). Four fail on v1.173.5. |
 | `analyzeJobEviction.test.ts` | 4 | Security review 2026-11-18 (Medium): a progress-job store full of finished, uncollected jobs still admits a new visitor and the pre-upload reservation; the oldest finished job goes first and newer results stay collectable; running jobs are never evicted (the unfinished cap still answers 503). Three fail on v1.173.4. |
 | `securityReview20261118.test.ts` | 32 | Security review 2026-11-18 (Low/Info): Chromium launches with an explicit environment holding no privileged token or seal secret; URL fetches accept only ports 80/443 (allowlist and privileged paths); a network error never echoes raw socket text; `isPrivateIP` refuses CGNAT, documentation ranges, written-out and hex IPv4-mapped, IPv4-compatible, NAT64, 6to4-of-private, Teredo, site-local and zoned link-local addresses, and still allows public ones. Eighteen fail on v1.173.4. |
 | `safeFetchDeadline.test.ts` | 7 | `safeFetch` has an overall deadline and aborts when the client has gone. |
@@ -1466,6 +1466,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.173.6 — 2026-11-18 · ZIP pre-check matches JSZip exactly and fails closed (SECURITY RELEASE — completes v1.173.5's P1)
+
+**P1 / fixed — v1.173.5's ZIP entry pre-check could be bypassed.** An automated review of the v1.173.5 commit found that the byte walk diverged from JSZip 3.10.1 in three places and **failed open** wherever it gave up: it searched only the final 64 KB for the end-of-central-directory record (JSZip searches the whole buffer), expected the zip64 locator 20 bytes before that record (JSZip takes the last locator anywhere, then falls back to the last zip64 record when the locator's pointer is wrong), and measured the prepended-data shift from the zip64 record instead of the classic one. Confirmed: a 20,000-entry zip64 package followed by 70 KB of junk passed the pre-check and reached JSZip. Fix: the walk now follows JSZip's `readEndOfCentral` / `readCentralDir` step for step, and `assertZipEntryCountBeforeParse` **refuses** any package the walk cannot read — every such case is one JSZip itself rejects ("can't find end of central directory", missing zip64 locator/record, "missing N bytes"), so no real file is affected. v1.173.5 was never deployed.
+
+**Verified rather than assumed.** A differential test runs eight archive shapes through both the walk and JSZip and requires the counts to agree, and requires JSZip to reject every file the walk refuses; four of its tests fail on v1.173.5. Tests 4,766 green; lint, format, typecheck, build green; gates re-run, no score moved. `pnpm audit --prod` (2026-11-18): unchanged — 3 high, the accepted unpatched `picomatch` advisory.
 
 ### v1.173.5 — 2026-11-18 · Adversarial review fixes: ZIP entry bomb, job-store lockout, Chromium environment, ports, reserved ranges, /status (SECURITY RELEASE)
 

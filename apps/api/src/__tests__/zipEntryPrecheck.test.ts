@@ -132,3 +132,84 @@ describe("the pre-parse refusal", () => {
     expect(grewMb).toBeLessThan(20);
   });
 });
+
+/**
+ * Differential: the walk must see exactly what JSZip parses. The first
+ * version searched only the last 64 KB for the end record, expected the zip64
+ * locator at a fixed place, and measured the prepended-data shift from the
+ * wrong record — and failed OPEN wherever it gave up (automated review,
+ * 2026-11-18). Each shape below is checked both ways.
+ */
+describe("the walk agrees with JSZip on every shape", () => {
+  async function jszipCount(buf: Buffer): Promise<number | null> {
+    try {
+      return Object.keys((await JSZip.loadAsync(buf)).files).length;
+    } catch {
+      return null;
+    }
+  }
+  function withZip64LocatorMoved(n: number): Buffer {
+    // Junk between the zip64 locator and the end record: the locator is not
+    // 20 bytes before the end record, where the first walk looked for it.
+    const z = buildZip(n, { zip64: true });
+    const eocd = z.subarray(z.length - 22);
+    return Buffer.concat([z.subarray(0, z.length - 22), Buffer.alloc(64, 0x20), eocd]);
+  }
+  function withWrongZip64Pointer(n: number): Buffer {
+    const z = Buffer.from(buildZip(n, { zip64: true }));
+    const loc = z.length - 22 - 20;
+    z.writeBigUInt64LE(7n, loc + 8); // points at nothing; JSZip falls back
+    return z;
+  }
+  const shapes: Array<[string, () => Buffer | Promise<Buffer>]> = [
+    ["classic", () => buildZip(40)],
+    ["zip64", () => buildZip(40, { zip64: true })],
+    [
+      "70 KB of trailing junk after the end record",
+      () => Buffer.concat([buildZip(40), Buffer.alloc(70_000, 0x41)]),
+    ],
+    ["zip64 locator not where the first walk looked", () => withZip64LocatorMoved(40)],
+    ["zip64 locator pointing at the wrong offset", () => withWrongZip64Pointer(40)],
+    [
+      "prepended data (a self-extracting stub)",
+      async () => {
+        const z = new JSZip();
+        for (let i = 0; i < 40; i++) z.file(`f${i}`, "x");
+        return Buffer.concat([
+          Buffer.alloc(5000, 0x90),
+          await z.generateAsync({ type: "nodebuffer" }),
+        ]);
+      },
+    ],
+    ["truncated end record", () => buildZip(40).subarray(0, -5)],
+    ["no end record at all", () => Buffer.from("PK\x03\x04" + "x".repeat(200))],
+  ];
+  it.each(shapes)("%s", async (_, make) => {
+    const buf = await make();
+    const mine = countZipEntriesFromBytes(buf, 10_000);
+    const theirs = await jszipCount(buf);
+    if (mine === null) {
+      // Fail closed is only safe if JSZip could not have parsed it either.
+      expect(theirs).toBeNull();
+    } else if (theirs !== null) {
+      expect(mine).toBe(theirs);
+    }
+  });
+
+  it("70 KB of trailing junk no longer hides a 20,000-entry package", () => {
+    const buf = Buffer.concat([buildZip(20_000, { zip64: true }), Buffer.alloc(70_000, 0x41)]);
+    expect(() => assertZipEntryCountBeforeParse(buf, 10_000, (m) => new Error(m))).toThrow(
+      /too many entries/,
+    );
+  });
+
+  it("a package the walk cannot read is refused, not waved through (fail closed)", () => {
+    expect(() =>
+      assertZipEntryCountBeforeParse(
+        Buffer.from("PK\x03\x04 nothing else"),
+        10,
+        (m) => new Error(m),
+      ),
+    ).toThrow(/not a readable ZIP/);
+  });
+});

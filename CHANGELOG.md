@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.173.6] - 2026-11-18
+
+Completes v1.173.5's ZIP fix. **v1.173.5 was never deployed; deploy this instead.**
+
+### Security
+
+- **The ZIP entry pre-check could be bypassed (High).** An automated review of v1.173.5 found the byte walk differed from JSZip in three places — it looked for the end record only in the last 64 KB, expected the zip64 locator at a fixed spot, and measured the prepended-data shift from the wrong record — and let the file through whenever it gave up. A 20,000-entry package with 70 KB of junk appended passed. The walk now follows JSZip 3.10.1 step for step and refuses any package it cannot read (JSZip rejects every one of those anyway).
+
+### Notes
+
+- New differential test: eight archive shapes, each run through the walk and JSZip; counts must agree, and every refusal must be a file JSZip rejects. Four tests fail on v1.173.5.
+- Tests 4,766 (API 2,606 · Web 2,063 · CLI 97). No score changed; gates re-run. `pnpm audit --prod`: unchanged.
+
 ## [1.173.5] - 2026-11-18
 
 Security release from the 2026-11-18 adversarial review, plus three copy corrections. Full technical write-up: README § Security, v1.173.5.
