@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.175.3",
+    meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: web-page checks of sites that load their content after they open.",
+    body: [
+      {
+        kind: "p",
+        html: "Makes web-page checks see the whole page again. Nothing about what is collected, kept or deleted changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Finding:</strong> since v1.174.0, sites that fetch their content after the page opens &mdash; such as the ICJIA home page &mdash; were checked almost empty. The checker blocked the requests those pages use to fetch their news and other content, so it reported a missing main heading that is really there. Sites whose content is already in the page, such as r3.illinois.gov, were not affected. <strong>Fix:</strong> those requests are now allowed through the same protected path as every other request from a checked page: the address is checked before connecting, the request is limited in size, it never carries sign-in information such as cookies, and it is never sent on to a second address. The ICJIA home page now scores 100, the same result other accessibility tools give.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Checked, not assumed.</strong> New tests send real requests and fail on the previous version. Real checks of the ICJIA home page, its About page and r3.illinois.gov all complete in full.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.175.2",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: a second check of the previous update&rsquo;s web-page fix.",
     body: [

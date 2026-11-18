@@ -265,7 +265,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "page-audits-restored-2026-11-18",
     badge: "Fixed",
-    text: "Web-page checks work again. For about a week, checking a web page failed every time, because a safety measure that stops checked pages from opening extra browser windows also closed the one the accessibility scanner needs. The scanner's own window is now allowed, and pages still cannot open windows of their own. File checks (PDF, Word, PowerPoint, Excel) were never affected.",
+    text: 'Web-page checks work again, and see the whole page. For about a week, checking a web page failed every time, because a safety measure that stops checked pages from opening extra browser windows also closed the one the accessibility scanner needs. And sites that load their content after the page opens, such as the ICJIA home page, were briefly checked almost empty, which produced a false "missing main heading". Both are fixed, and the safety measures still apply. File checks (PDF, Word, PowerPoint, Excel) were never affected.',
     linkText: "Security and data history",
     linkTo: "/data-retention",
     /** In-app route — an ordinary router link. */

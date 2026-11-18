@@ -120,6 +120,7 @@ describe("page audit: requests to other hosts are fetched by Node, never resolve
       headers: { "content-type": "text/css" },
       body: Buffer.from("a{}"),
     },
+    opts: { resourceType?: string; postData?: string } = {},
   ) {
     const { createRequestHandler } = await import("../services/pageAuditor.js");
     const calls: string[] = [];
@@ -127,8 +128,11 @@ describe("page audit: requests to other hosts are fetched by Node, never resolve
     const req: any = {
       url: () => url,
       method: () => method,
-      resourceType: () => "stylesheet",
-      headers: () => ({}),
+      resourceType: () => opts.resourceType ?? "stylesheet",
+      headers: () => ({ "content-type": "application/json", cookie: "a=b" }),
+      postData: () => opts.postData,
+      hasPostData: () => opts.postData !== undefined,
+      fetchPostData: async () => opts.postData,
       continue: async () => void calls.push("continue"),
       abort: async () => void calls.push("abort"),
       respond: async (r: unknown) => {
@@ -154,7 +158,11 @@ describe("page audit: requests to other hosts are fetched by Node, never resolve
 
   it("another host is fetched by Node and handed back — Chromium never continues it", async () => {
     const { calls, responded, offFetch } = await run("https://rebind.attacker.example/x.css");
-    expect(offFetch).toHaveBeenCalledWith("https://rebind.attacker.example/x.css", false);
+    expect(offFetch).toHaveBeenCalledWith(
+      "https://rebind.attacker.example/x.css",
+      false,
+      undefined,
+    );
     expect(calls).toEqual(["respond"]);
     expect(responded.body.toString()).toBe("a{}");
   });
@@ -164,8 +172,49 @@ describe("page audit: requests to other hosts are fetched by Node, never resolve
     expect(calls).toEqual(["abort"]);
   });
 
-  it("anything but GET/HEAD to another host is refused", async () => {
-    const { calls, offFetch } = await run("https://other.example/api", "POST");
+  // 2026-11-18 (v1.175.3): GET/HEAD-only emptied every ICJIA single-page
+  // site, whose content arrives by GraphQL POST to another host.
+  it("a page's data POST to another host goes through Node, body and headers with it", async () => {
+    const q = '{"query":"{ news { title } }"}';
+    const { calls, offFetch } = await run(
+      "https://agency.icjia-api.cloud/graphql",
+      "POST",
+      undefined,
+      {
+        resourceType: "fetch",
+        postData: q,
+      },
+    );
+    expect(calls).toEqual(["respond"]);
+    const [, isDoc, request] = offFetch.mock.calls[0] as any;
+    expect(isDoc).toBe(false);
+    expect(request.method).toBe("POST");
+    expect(request.body.toString()).toBe(q);
+  });
+
+  it("the CORS preflight before it is forwarded too, so the real server's answer decides", async () => {
+    const { calls, offFetch } = await run(
+      "https://agency.icjia-api.cloud/graphql",
+      "OPTIONS",
+      undefined,
+      {
+        resourceType: "preflight",
+      },
+    );
+    expect(calls).toEqual(["respond"]);
+    expect((offFetch.mock.calls[0] as any)[2].method).toBe("OPTIONS");
+  });
+
+  it.each([
+    ["a POST that navigates the page (a form submission)", "POST", "document", "x=1"],
+    ["a POST body over 256 KB", "POST", "fetch", "x".repeat(256 * 1024 + 1)],
+    ["PUT", "PUT", "fetch", undefined],
+    ["DELETE", "DELETE", "fetch", undefined],
+  ])("refused: %s", async (_label, method, resourceType, postData) => {
+    const { calls, offFetch } = await run("https://other.example/api", method, undefined, {
+      resourceType,
+      postData,
+    });
     expect(calls).toEqual(["abort"]);
     expect(offFetch).not.toHaveBeenCalled();
   });

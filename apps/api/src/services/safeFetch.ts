@@ -136,7 +136,30 @@ export interface SafeFetchOptions {
    * This is the URL allowlist plug-in point.
    */
   validateUrl: (url: URL) => void;
+  /**
+   * The request to send. Default: GET with this module's own headers.
+   * POST and OPTIONS exist for one caller — the page auditor replaying a
+   * page's own data request (a GraphQL query) and the browser's CORS
+   * preflight before it (2026-11-18). Neither is ever redirected: a 3xx
+   * answer is an error, not a hop, so a body is never re-sent to a second
+   * address. `headers` may carry only the FORWARDABLE_REQUEST_HEADERS below
+   * (what CORS and a JSON body need); anything else — cookies, auth — is
+   * dropped.
+   */
+  request?: {
+    method: "GET" | "POST" | "OPTIONS";
+    body?: Buffer;
+    headers?: Record<string, string>;
+  };
 }
+
+const FORWARDABLE_REQUEST_HEADERS = new Set([
+  "content-type",
+  "accept",
+  "origin",
+  "access-control-request-method",
+  "access-control-request-headers",
+]);
 
 // IPv4 private / reserved ranges (RFC 1918, loopback, link-local, etc.).
 function isPrivateIPv4(ip: string): boolean {
@@ -314,6 +337,7 @@ async function singleHop(
   timeoutMs: number,
   maxBytes: number,
   budget: FetchBudget,
+  request?: SafeFetchOptions["request"],
 ): Promise<{
   status: number;
   statusText: string;
@@ -326,16 +350,24 @@ async function singleHop(
   // Connect to the resolved IP, not the hostname — bypasses any DNS
   // change between our lookup and the connection. TLS SNI uses the
   // original hostname so the server picks the right certificate.
+  const method = request?.method ?? "GET";
+  const headers: Record<string, string> = {
+    host: url.host,
+    "user-agent": "icjia-audit/1.20.1 (+https://audit.icjia.app)",
+    accept: "application/pdf,*/*;q=0.8",
+  };
+  for (const [k, v] of Object.entries(request?.headers ?? {})) {
+    const key = k.toLowerCase();
+    if (FORWARDABLE_REQUEST_HEADERS.has(key) && !/[\r\n]/.test(v)) headers[key] = v;
+  }
+  const body = method === "POST" ? (request?.body ?? Buffer.alloc(0)) : null;
+  if (body) headers["content-length"] = String(body.length);
   const options: https.RequestOptions = {
     host: resolvedIp,
     port,
     path: url.pathname + url.search,
-    method: "GET",
-    headers: {
-      host: url.host,
-      "user-agent": "icjia-audit/1.20.1 (+https://audit.icjia.app)",
-      accept: "application/pdf,*/*;q=0.8",
-    },
+    method,
+    headers,
     timeout: timeoutMs,
     servername: url.hostname,
   };
@@ -408,7 +440,7 @@ async function singleHop(
       if (err instanceof SafeFetchError) reject(err);
       else reject(new SafeFetchError("network_error", err?.message ?? String(err)));
     });
-    req.end();
+    req.end(body ?? undefined);
   });
 }
 
@@ -519,10 +551,23 @@ export async function safeFetch(
 
     // (3) Single HTTP hop to the resolved IP.
     budget.check();
-    const resp = await singleHop(currentUrl, resolvedIp, timeoutMs, opts.maxBytes, budget);
+    const resp = await singleHop(
+      currentUrl,
+      resolvedIp,
+      timeoutMs,
+      opts.maxBytes,
+      budget,
+      opts.request,
+    );
 
     // (4) Redirect handling. Manual, with full re-validation next loop.
     if (resp.status >= 300 && resp.status < 400 && resp.headers.location) {
+      if (opts.request && opts.request.method !== "GET") {
+        throw new SafeFetchError(
+          "redirect_invalid",
+          `A ${opts.request.method} is never redirected`,
+        );
+      }
       if (hop >= MAX_REDIRECTS) {
         throw new SafeFetchError("too_many_redirects", `Exceeded ${MAX_REDIRECTS} redirects`);
       }

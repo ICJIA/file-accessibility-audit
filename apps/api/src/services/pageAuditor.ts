@@ -205,13 +205,32 @@ export class PageAuditBusyError extends Error {
  * record, connects to the checked address and re-validates every redirect —
  * the same path the document fetches use. Chromium only ever receives bytes.
  *
- * GET and HEAD only (a page audit has no reason to POST anywhere else);
- * anything else to another host is refused. Bodies are capped.
+ * GET, HEAD, POST and the OPTIONS preflight before a POST. v1.174.0 allowed GET and HEAD only, on the belief
+ * that a page audit has no reason to POST elsewhere. Wrong: ICJIA's
+ * single-page sites load their content with GraphQL POSTs to another host
+ * (agency.icjia-api.cloud), so from v1.174.0 to v1.175.2 those pages were
+ * audited nearly empty — icjia.illinois.gov lost its <h1> (fixed
+ * 2026-11-18). A POST or preflight goes the same pinned path: body ≤
+ * OFF_HOST_MAX_POST_BYTES, only the content-type / accept / origin / CORS
+ * request headers forwarded (never cookies or auth), never redirected, not
+ * allowed for a document (a form submission navigating the page). The real
+ * server's CORS answer still decides what the page may read. Every other
+ * method is refused. Response bodies are capped.
  */
+export interface OffHostRequest {
+  method: "GET" | "POST" | "OPTIONS";
+  body?: Buffer;
+  headers?: Record<string, string>;
+}
+
 export type OffHostFetch = (
   url: string,
   isDocument: boolean,
+  request?: OffHostRequest,
 ) => Promise<{ status: number; headers: Record<string, string>; body: Buffer } | null>;
+
+/** Largest request body a page may send to another host (GraphQL queries are a few KB). */
+export const OFF_HOST_MAX_POST_BYTES = 256 * 1024;
 
 export const OFF_HOST_MAX_BYTES = 10 * 1024 * 1024;
 
@@ -304,11 +323,25 @@ export function createRequestHandler(
         const host = new URL(reqUrl).hostname;
         if (host.toLowerCase() !== offHost.pinnedHost.toLowerCase()) {
           const method = req.method().toUpperCase();
-          if (method !== "GET" && method !== "HEAD") {
+          let request: OffHostRequest | undefined;
+          if (method === "POST" && !isDocument) {
+            let data = req.postData();
+            if (data === undefined && req.hasPostData()) data = await req.fetchPostData();
+            const body = Buffer.from(data ?? "", "utf8");
+            if (body.length > OFF_HOST_MAX_POST_BYTES) {
+              await req.abort("blockedbyclient").catch(() => {});
+              return;
+            }
+            request = { method: "POST", body, headers: req.headers() };
+          } else if (method === "OPTIONS" && !isDocument) {
+            // The CORS preflight before a POST: forwarded, so the real
+            // server's own CORS answer decides, exactly as in a browser.
+            request = { method: "OPTIONS", headers: req.headers() };
+          } else if (method !== "GET" && method !== "HEAD") {
             await req.abort("blockedbyclient").catch(() => {});
             return;
           }
-          const got = await offHost.fetch(reqUrl, isDocument);
+          const got = await offHost.fetch(reqUrl, isDocument, request);
           if (!got) {
             await req.abort("blockedbyclient").catch(() => {});
             return;
@@ -563,10 +596,11 @@ function offHostFetchFor(
   isUrlAllowed: (url: string) => boolean,
   budget: OffHostBudget,
 ): OffHostFetch {
-  return (url, isDocument) =>
+  return (url, isDocument, request) =>
     budget.run(async (capBytes) => {
       try {
         const r = await safeFetch(url, {
+          request,
           maxBytes: capBytes,
           timeoutMs: 10_000,
           totalTimeoutMs: 15_000,

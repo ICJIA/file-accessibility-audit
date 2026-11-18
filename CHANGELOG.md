@@ -4,9 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.175.3] - 2026-11-18
+
+Web pages that load their content after they open are audited complete again. **Deploy this** (it includes v1.175.2).
+
+### Fixed (finding with its fix)
+
+- **Single-page sites were audited nearly empty (since v1.174.0).** Finding: v1.174.0 sent every request to another host through the server's own pinned download path, and allowed only GET and HEAD that way, on the belief that a page audit never needs to POST elsewhere. ICJIA's single-page sites load their content with GraphQL POSTs to another host (`agency.icjia-api.cloud`, `researchhub.icjia-api.cloud`), each preceded by a browser CORS check (OPTIONS). Both were blocked, so icjia.illinois.gov rendered about 520 characters instead of about 6,500 and lost its `<h1>`: the live check gave 98/A with a false "page has no level-one heading". Siteimprove, which sees the full page, did not report it. Static sites such as r3.illinois.gov were unaffected. Fix: a page's POST and the OPTIONS check before it now go through the same pinned path as everything else — every address checked, the connection pinned to it, request body at most 256 KB, only the content-type, accept, origin and CORS request headers forwarded (never cookies or authorisation), never redirected, and never for a POST that would navigate the page. The real API server's CORS answer still decides what the page may read. Every other method is still refused. Now: icjia.illinois.gov 100/A with its `<h1>`; icjia.illinois.gov/about 100/A; r3.illinois.gov unchanged at 100/A.
+- **After deploying,** re-run any page audit made today with `force: true`; the stored 98/A for icjia.illinois.gov is replaced by the newest one.
+
+### Notes
+
+- New `safeFetchDataRequests.test.ts` (real sockets) and handler tests; they fail on v1.175.2. Tests 4,832 across 274 files (API 2,655 · Web 2,080 · CLI 97).
+
 ## [1.175.2] - 2026-11-18
 
-Completes v1.175.1. **v1.175.1 was never deployed; deploy this instead.**
+Completes v1.175.1. v1.175.1 was never deployed. Superseded by v1.175.3 for deployment.
 
 ### Security (finding with its fix)
 
