@@ -1150,8 +1150,9 @@ interface Cached<T> {
  * Builds the status payload, caching the two halves independently.
  *
  * The split is the whole point. Database aggregates are pure SQL and refresh
- * every minute; engine probes spawn processes — including a veraPDF JVM — and
- * refresh every ten. A single short TTL would mean an uptime monitor polling
+ * every 5 seconds (STATUS.AGGREGATE_TTL_MS); engine probes spawn processes —
+ * including a veraPDF JVM — and refresh every 10 minutes
+ * (STATUS.ENGINE_PROBE_TTL_MS; 1 minute after a failure). A single short TTL would mean an uptime monitor polling
  * at its 5-minute default misses the cache on EVERY check, starting a JVM
  * roughly 288 times a day purely to answer monitoring traffic. With the split,
  * probe cost is bounded by the TTL rather than by anyone's poll rate.
