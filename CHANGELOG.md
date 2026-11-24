@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.177.0] - 2026-11-24
+
+### Changed
+
+- **the report acts on finding codes, not on wording; weekly live-site check.** The open items from the 2026-11-24 review. (1) THE REPORT DECIDES BY CODE. Fix-time estimates, action-plan steps and best-practice rows used to recognise a finding by running regular expressions over its English wording, so rewording a finding in the engine could silently change a plan step. They now decide by the finding's structured code (`apps/web/app/utils/findingMatch.ts`, 127 rules covering 169 codes) and use the wording test only for a report that carries no codes, which is how reports saved before v1.176.0 render unchanged. Proven on every control document: 367 analysed files, 355 plan steps and 5,838 best-practice verdicts, zero differences before and after, and zero between the code path and the wording path. `findingCodeParity.test.ts` (81 tests) keeps it that way and checks every rule-to-code pair against the engine's own source text. No score, grade or report wording changed. (2) A not-applicable Heading Structure now says why (no headings and no visible section headings were found) in place of a generic sentence, in the report and every export. (3) `.github/workflows/prod-sentinels.yml` runs the three live-site sentinel uploads every Monday and on demand, so a server that drifts between deploys is noticed. (4) `pnpm exec a11y-audit` works from the repository's top folder (the CLI is a root dev dependency). (5) Three dependency overrides for packages no longer installed at all (js-yaml, lodash, ip-address) are removed. (6) The trust page's timeline is brought up to v1.176. (7) `docs/database-backups.md` records the owner's decision that both backup layers stay in one DigitalOcean account, with a daily backup taken by hand. Considered and not changed: the 'checks a subset' box stays directly under the grade and 'About this document' stays above the action plan; both placements are deliberate.
+
+### Notes
+
+- Tests 5,493 across 306 files (API 2,878 · Web 2,443 · CLI 172).
+
 ## [1.176.2] - 2026-11-24
 
 ### Fixed

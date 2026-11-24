@@ -1,0 +1,62 @@
+name: Production sentinels
+
+# Ask the LIVE site three questions with known answers, once a week and on
+# demand (2026-11-24). CI proves the code judges correctly; this proves the
+# deployed system still does — code plus nginx plus PM2 plus the server's own
+# qpdf and Chromium. Until now it ran only when someone remembered to run
+# `pnpm prod-sentinels` after a deploy, so a server that drifted BETWEEN
+# deploys (a package update, a full disk, an expired certificate) went
+# unnoticed until a person reported it.
+#
+# What a run costs the live site: three small anonymous uploads, which add
+# three rows to its audit log and three to its public usage totals. That is
+# why this is weekly and not hourly — UptimeRobot already watches /status
+# every few minutes for "is it up"; this asks the slower question "is it
+# still right".
+#
+# A failure means the live checker gave a different answer from the one that
+# passed CI. GitHub emails the repository's owner. Start with docs/runbook.md.
+on:
+  schedule:
+    # Mondays 14:00 UTC (8 or 9 a.m. Central), before the working week's use.
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-sentinels
+  cancel-in-progress: false
+
+jobs:
+  sentinels:
+    name: Three known answers from the live site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Same pinned actions and versions as ci.yml — change them together.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The sentinel files are generated, not committed; the generator checks
+      # each one against the engine, which needs qpdf.
+      - name: Install qpdf
+        run: sudo apt-get update -q && sudo apt-get install -y -q qpdf && qpdf --version
+
+      - name: Ask the live site
+        run: pnpm prod-sentinels

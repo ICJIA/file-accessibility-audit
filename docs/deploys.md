@@ -16,7 +16,9 @@ cd ~/audit.icjia.app/file-accessibility-audit
 ```
 
 Then, from any checkout: `pnpm prod-sentinels` (three uploads with known
-answers, against the live site).
+answers, against the live site). GitHub runs the same check every Monday
+(`.github/workflows/prod-sentinels.yml`), which catches a server that drifts
+between deploys; it does not replace running it after a deploy.
 
 `rebuild.sh` works **in the live checkout** — the same directory the running
 site is served from. In order:

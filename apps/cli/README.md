@@ -37,7 +37,7 @@ cd file-accessibility-audit
 pnpm install
 ```
 
-Then run it one of these ways. All three run the same file.
+Then run it one of these ways. All four run the same file.
 
 ```bash
 # from anywhere — paths are relative to the directory you are in
@@ -46,7 +46,10 @@ node /path/to/file-accessibility-audit/apps/cli/bin/a11y-audit.js docs/
 # a shell alias makes that short
 alias a11y-audit='node /path/to/file-accessibility-audit/apps/cli/bin/a11y-audit.js'
 
-# through pnpm, from inside the repository
+# through pnpm, from the repository's top folder — relative paths work
+pnpm exec a11y-audit docs/
+
+# through pnpm, from anywhere inside the repository
 # (pnpm runs it in apps/cli, so give absolute paths)
 pnpm --filter @icjia/a11y-audit a11y-audit "$PWD/docs"
 ```

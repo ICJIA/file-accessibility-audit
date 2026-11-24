@@ -122,3 +122,25 @@ a scan result that was not produced for this release.
 5. `scripts/brief-stats.json` counts, then `pnpm build-brief`.
 6. `pnpm lint && pnpm format:check && pnpm typecheck && pnpm build && pnpm test`.
 7. Commit `release: vX.Y.Z — <title>`; `git tag -a vX.Y.Z -m "vX.Y.Z — <title>"`.
+
+## When a finding's wording changes
+
+The report's fix-time estimates, action-plan steps and best-practice rows
+decide by finding **code** (`apps/web/app/utils/findingMatch.ts`), and fall back
+to the finding's wording only for reports saved before codes existed. One table
+pairs each code with its wording, and `findingCodeParity.test.ts` fails the day
+the engine's wording for a code stops matching that table.
+
+That test also compares both paths on stored engine results
+(`apps/web/app/__tests__/fixtures/finding-consumers.ndjson`). The stored
+results do not update themselves. After rewording a finding, or adding one that
+the report acts on, regenerate them and commit the file with the change:
+
+```bash
+pnpm synthetic-controls && pnpm synthetic-office-controls
+pnpm exec tsx --tsconfig scripts/tsconfig.json scripts/characterize-finding-consumers.ts --write-fixture
+```
+
+Run without `--write-fixture`, the same script compares the three consumers'
+output on every document in `controls/` by code and by wording, and prints any
+difference.

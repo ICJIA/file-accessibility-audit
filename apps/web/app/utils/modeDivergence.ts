@@ -28,6 +28,9 @@ export function naReason(categoryId: string, notAssessed?: boolean): string {
   if (categoryId === "bookmarks") {
     return "Bookmarks are a PDF-specific category, only scored for PDFs with 10 or more pages — shorter PDFs do not need a bookmark tree for navigation. Word, PowerPoint, and Excel files are not scored on bookmarks.";
   }
+  if (categoryId === "heading_structure") {
+    return "No headings were found, and the document does not appear to have visible section headings either (two or more lines set larger or bolder than the text beneath them), so heading structure does not apply. If the document does have section titles, mark them as headings (Heading 1, Heading 2, and so on) so screen-reader users can move between sections.";
+  }
   if (categoryId === "table_markup") {
     return "No tables were detected in the document, so table-markup quality does not apply.";
   }

@@ -24,7 +24,21 @@
  * says "under 10" — "under 5" would be the one direction an estimate must not
  * err). A plan gets a total only when EVERY step carries a summable estimate;
  * a partial sum presented as the total would overclaim.
+ *
+ * WHICH LINE IS COUNTED is decided by the line's finding code when the report
+ * carries codes, and the count is then the code's own number; the wording
+ * patterns (and the number inside them) are read only from a line with no
+ * code — a report stored before v1.176.0. Code and wording are paired in
+ * utils/findingMatch.ts (the `fix…` rules); rewording a finding in the engine
+ * does not move an estimate.
  */
+import {
+  FINDING,
+  buildCodeIndex,
+  findingHit,
+  type CodeIndex,
+  type FindingRule,
+} from "~/utils/findingMatch";
 
 export interface FixTimeEstimate {
   /** Chip text, e.g. "~4 min". */
@@ -49,11 +63,23 @@ function countableLines(findings: string[]): string[] {
   );
 }
 
-function sumMatches(lines: string[], patterns: RegExp[]): number {
+/** A category's countable lines, with their codes when the report has them. */
+interface Lines {
+  lines: string[];
+  codes: CodeIndex | null;
+}
+
+function sumMatches({ lines, codes }: Lines, rules: FindingRule[]): number {
   let total = 0;
   for (const line of lines) {
-    for (const re of patterns) {
-      const m = re.exec(line);
+    for (const rule of rules) {
+      const hit = findingHit(rule, line, codes);
+      if (!hit) continue;
+      if (hit.by === "code" && hit.coded.count !== undefined) {
+        total += hit.coded.count;
+        continue;
+      }
+      const m = rule.pattern?.exec(line);
       if (m) total += Number(m[1]);
     }
   }
@@ -62,11 +88,17 @@ function sumMatches(lines: string[], patterns: RegExp[]): number {
 
 /** Missing alt count: prefer the explicit missing line; else derive it from
  *  the "X of Y image(s) have alt/alternative text" coverage line (PDF). */
-function missingAltCount(lines: string[]): number {
-  const explicit = sumMatches(lines, [/(\d+) image\(s\) are missing alt text/]);
+function missingAltCount(l: Lines): number {
+  const explicit = sumMatches(l, [FINDING.fixImagesMissingAlt]);
   if (explicit > 0) return explicit;
-  for (const line of lines) {
-    const m = /(\d+) of (\d+) (?:meaningful )?image\(s\) have alt(?:ernative)? text/.exec(line);
+  const rule = FINDING.fixImagesWithAlt;
+  for (const line of l.lines) {
+    const hit = findingHit(rule, line, l.codes);
+    if (!hit) continue;
+    if (hit.by === "code" && hit.coded.count !== undefined && hit.coded.total !== undefined) {
+      return hit.coded.total - hit.coded.count;
+    }
+    const m = rule.pattern?.exec(line);
     if (m) return Number(m[2]) - Number(m[1]);
   }
   return 0;
@@ -76,7 +108,7 @@ interface PerItemSpec {
   kind: "perItem";
   seconds: number;
   floorMinutes: number;
-  count: (lines: string[]) => number;
+  count: (lines: Lines) => number;
   applyOnly?: boolean;
 }
 interface FlatSpec {
@@ -92,35 +124,31 @@ const SPECS: Record<string, Spec> = {
     kind: "perItem",
     seconds: 30,
     floorMinutes: 2,
-    count: (l) =>
-      sumMatches(l, [
-        /(\d+) paragraph\(s\) are formatted to look like headings/,
-        /(\d+) Heading-styled paragraph\(s\) contain no text/,
-      ]),
+    count: (l) => sumMatches(l, [FINDING.fixLookalikeHeadings, FINDING.fixEmptyHeadings]),
   },
   list_structure: {
     kind: "perItem",
     seconds: 20,
     floorMinutes: 2,
-    count: (l) => sumMatches(l, [/(\d+) paragraph\(s\) use typed bullets or numbers/]),
+    count: (l) => sumMatches(l, [FINDING.fixTypedBullets]),
   },
   color_contrast: {
     kind: "perItem",
     seconds: 60,
     floorMinutes: 2,
-    count: (l) => sumMatches(l, [/(\d+) below the WCAG (?:contrast )?minimum/]),
+    count: (l) => sumMatches(l, [FINDING.fixBelowContrastMinimum]),
   },
   table_markup: {
     kind: "perItem",
     seconds: 60,
     floorMinutes: 1,
-    count: (l) => sumMatches(l, [/(\d+) (?:data )?table\(s\) have no header row/]),
+    count: (l) => sumMatches(l, [FINDING.fixTablesNoHeaderRow]),
   },
   link_quality: {
     kind: "perItem",
     seconds: 30,
     floorMinutes: 1,
-    count: (l) => sumMatches(l, [/(\d+) link\(s\) have no link text/]),
+    count: (l) => sumMatches(l, [FINDING.fixLinksNoText]),
   },
   alt_text: {
     kind: "perItem",
@@ -139,6 +167,10 @@ export function estimateFixTime(
   categoryId: string,
   findings: string[],
   fileType: string | null | undefined,
+  /** The category's `findingDetails`, when the report carries them. Raw
+   *  stored JSON is fine: anything that is not the index-aligned twin of
+   *  `findings` is ignored and the wording decides. */
+  findingDetails?: unknown,
 ): FixTimeEstimate | null {
   const spec = SPECS[categoryId];
   if (!spec) return null;
@@ -146,7 +178,10 @@ export function estimateFixTime(
 
   if (spec.kind === "flat") return { label: `~${spec.minutes} min`, maxMinutes: spec.minutes };
 
-  const count = spec.count(countableLines(findings));
+  const count = spec.count({
+    lines: countableLines(findings),
+    codes: buildCodeIndex(findings, findingDetails),
+  });
   if (count <= 0) return null;
   const minutes = Math.max(spec.floorMinutes, Math.ceil((count * spec.seconds) / 60));
   if (spec.applyOnly) return { label: `~${minutes} min`, maxMinutes: null, note: ALT_NOTE };

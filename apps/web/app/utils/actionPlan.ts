@@ -10,6 +10,7 @@
 import { WCAG_CATEGORY_MAP } from "@file-audit/shared";
 import { firstActionableFinding, partitionCardFindings } from "~/utils/findings";
 import { estimateFixTime, type FixTimeEstimate } from "~/utils/fixTime";
+import { FINDING, findingLines, type FindingLines } from "~/utils/findingMatch";
 import { publicationStatus, type VerdictTone } from "~/utils/publicationStatus";
 
 export type PlanSeverity = "Critical" | "Moderate" | "Minor";
@@ -424,13 +425,13 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
  * so a failed match can only ever reproduce today's behavior.
  */
 const TEXT_EXTRACTABILITY_VARIANTS: Array<{
-  matches: (findings: string[]) => boolean;
+  matches: (findings: FindingLines) => boolean;
   entry: PlanCopyEntry;
 }> = [
   {
     // AT access denied by security settings — nothing else matters until
     // this is lifted, and OCR/tagging advice would be actively wrong.
-    matches: (f) => f.some((s) => s.includes("deny assistive-technology access")),
+    matches: (f) => f.has(FINDING.planAccessDenied),
     entry: {
       title: "Allow screen readers in the document's security settings",
       why: "This PDF's security settings switch off assistive-technology access — screen readers in conforming viewers can't read any of it, no matter how good the content is.",
@@ -452,8 +453,7 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
     // Real text, but no usable tag structure (missing or empty tree).
     // Checked before the fonts variant: a file can carry both problems, and
     // tagging is the more fundamental barrier.
-    matches: (f) =>
-      f.some((s) => s.includes("Document is NOT tagged") || s.includes("is present but EMPTY")),
+    matches: (f) => f.has(FINDING.planNotTagged) || f.has(FINDING.planStructTreeEmpty),
     entry: {
       title: "Add the hidden accessibility tags to the PDF",
       why: "The text itself is real and readable — but the document has no working tag structure, the hidden layer that tells a screen reader the reading order, headings, and other elements.",
@@ -480,11 +480,7 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
     // advisory tier ("often stray export residue", score untouched) never
     // brings this category into the plan by itself.
     matches: (f) =>
-      f.some(
-        (s) =>
-          s.includes("bring the untagged content into the structure") ||
-          s.includes("Review the named pages in Acrobat's Tags panel"),
-      ),
+      f.has(FINDING.planUntaggedContentFix) || f.has(FINDING.planUntaggedContentReview),
     entry: {
       title: "Bring the untagged text into the tag structure",
       why: "The document is tagged, but part of its visible text is painted outside the tag structure — a screen reader following the tags never encounters those passages.",
@@ -507,12 +503,7 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
     // (missing character maps). The text LOOKS fine — OCR advice would be
     // wrong; the fix is fonts at the source. Keyed on the SCORED-branch
     // sentences only, same rule as above.
-    matches: (f) =>
-      f.some(
-        (s) =>
-          s.includes("cannot be read aloud or searched") ||
-          s.includes("Verify the affected passages read correctly"),
-      ),
+    matches: (f) => f.has(FINDING.planUnmappedTextEffect) || f.has(FINDING.planUnmappedTextVerify),
     entry: {
       title: "Fix the fonts so the text reads as real words",
       why: "The page looks fine, but some of its characters extract as unreadable symbols — the fonts don't carry a usable map from glyphs to text, so a screen reader gets nothing it can pronounce.",
@@ -535,9 +526,7 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
     // tagged (StructTreeRoot present)" is emitted only on the no-deduction
     // path, so if this category is flagged at all alongside it, fonts are
     // the reason.
-    matches: (f) =>
-      f.some((s) => s.includes("Document is tagged (StructTreeRoot present)")) &&
-      f.some((s) => /non-embedded font/i.test(s)),
+    matches: (f) => f.has(FINDING.planTagged) && f.has(FINDING.planFontsNotEmbedded),
     entry: {
       title: "Embed the fonts so the text stays correct everywhere",
       why: "The text itself is readable by screen readers — this is a smaller finish item. Some fonts aren't embedded in the file, and on a computer without them the text can display, print, or be read back with wrong or garbled characters.",
@@ -588,11 +577,11 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
  * default copy.
  */
 const ALT_TEXT_VARIANTS: Array<{
-  matches: (findings: string[]) => boolean;
+  matches: (findings: FindingLines) => boolean;
   entry: PlanCopyEntry;
 }> = [
   {
-    matches: (f) => f.some((s) => s.includes("--- Some Lettering May Not Be Real Text ---")),
+    matches: (f) => f.has(FINDING.planLetteringNotText),
     entry: {
       title: "Check whether some lettering here is artwork instead of text",
       why: 'This document contains "images" you may never have added knowingly. Graphics shaped like lines of writing usually mean words have been baked into artwork — most often a letterhead or a banner heading. On screen they look perfect, which is why it goes unnoticed, and no checker inside Word or InDesign can warn you, because the source file looks fine there. But a picture of a word is not a word: a screen reader has nothing to read out, nobody can search for it, and it can blur when zoomed. Check it in ten seconds — try to select those words in the PDF with your mouse. If they highlight, they are real text and you can skip this step.',
@@ -624,7 +613,7 @@ const ALT_TEXT_VARIANTS: Array<{
     },
   },
   {
-    matches: (f) => f.some((s) => s.includes("--- Figures That Contain Text ---")),
+    matches: (f) => f.has(FINDING.planFiguresContainText),
     entry: {
       title: "Describe the pictures — and turn the text boxes back into text",
       why: "People who can't see an image rely on its description. But some of this file's \"images\" are really boxes of text (Word exports text boxes, sidebars, and chart titles that way), and describing those would hide the text inside them — they need their tag changed, not a description.",
@@ -660,11 +649,11 @@ const ALT_TEXT_VARIANTS: Array<{
  * block (pdf.ts).
  */
 const LINK_QUALITY_VARIANTS: Array<{
-  matches: (findings: string[]) => boolean;
+  matches: (findings: FindingLines) => boolean;
   entry: PlanCopyEntry;
 }> = [
   {
-    matches: (f) => f.some((s) => s.includes("--- Links Not Tagged ---")),
+    matches: (f) => f.has(FINDING.planLinksNotTagged),
     entry: {
       title: "Tag the links so screen readers can find them",
       why: "Some links in this file have no tag, so a screen reader following the document's tags never meets them — and with the tab order following the tags, they can't be tabbed to either. Links whose text doesn't say where they go need rewording as well.",
@@ -705,11 +694,11 @@ const LINK_QUALITY_VARIANTS: Array<{
  * only when Scope AND the explicit /Headers association are both absent.
  */
 const TABLE_MARKUP_VARIANTS: Array<{
-  matches: (findings: string[]) => boolean;
+  matches: (findings: FindingLines) => boolean;
   entry: PlanCopyEntry;
 }> = [
   {
-    matches: (f) => f.some((s) => s.includes("missing Scope attribute")),
+    matches: (f) => f.has(FINDING.planScopeMissing),
     entry: {
       title: "Say which way your table headers point",
       // Post-split (v1.130.0/v1.136.0) this step fires ONLY for tables whose
@@ -767,35 +756,29 @@ const TABLE_MARKUP_VARIANTS: Array<{
 // filename…" is the scorer's own line in every format, PDF's included —
 // "looks like a filename…" is only the verdict's wording, so PDF's F25 never
 // matched here either.
-const TITLE_PROBLEM = (f: string): boolean =>
-  /No document title found|No (?:document|presentation|workbook) title is set|(?:looks like|is) a filename or tool-generated string/.test(
-    f,
-  );
+// The wording of each (and its finding codes) is in utils/findingMatch.ts:
+// planTitleProblem, planTitleNotDisplayed, planLanguageSet,
+// planExcelNoLanguage, planLanguageProblem, planTitleSet.
+const TITLE_PROBLEM = FINDING.planTitleProblem;
 /** The title exists and the PDF is told not to show it — scoring/pdf.ts's
  *  line, in both wordings it has carried. */
-const TITLE_NOT_DISPLAYED = (f: string): boolean =>
-  /DisplayDocTitle viewer preference is (?:off|NOT)/i.test(f);
+const TITLE_NOT_DISPLAYED = FINDING.planTitleNotDisplayed;
 /** The language half is demonstrably fine — the line each format writes when
  *  a language is declared. */
-const LANGUAGE_SET = (f: string): boolean =>
-  /^(?:Language declared:|Document language:|Presentation language:)/.test(f);
+const LANGUAGE_SET = FINDING.planLanguageSet;
 /** Excel stores no document language at all (scoreXlsxTitleLanguage). */
-const EXCEL_NO_LANGUAGE = (f: string): boolean =>
-  /^Excel does not store a document language/.test(f);
+const EXCEL_NO_LANGUAGE = FINDING.planExcelNoLanguage;
 /** The language half failed. PDF's three lines, plus Word's and
  *  PowerPoint's own "no language" lines (2026-10-05) — never matched until
  *  then, so an Office file with a fine title and no language was told to
  *  give itself a title. The unusable-code and mismatch lines are worded the
  *  same in every format. */
-const LANG_PROBLEM = (f: string): boolean =>
-  /No language declaration found|No document language is declared|No (?:default )?presentation language is declared|not a usable language code|declares its language as/.test(
-    f,
-  );
+const LANG_PROBLEM = FINDING.planLanguageProblem;
 /** The title half is demonstrably fine — the line each format writes for a
  *  title it found (a weak one is caught separately by TITLE_PROBLEM). */
-const TITLE_SET = (f: string): boolean => /^(?:Document|Presentation) title: "/.test(f);
+const TITLE_SET = FINDING.planTitleSet;
 const TITLE_LANGUAGE_VARIANTS: Array<{
-  matches: (findings: string[]) => boolean;
+  matches: (findings: FindingLines) => boolean;
   entry: PlanCopyEntry;
 }> = [
   {
@@ -807,8 +790,7 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
     // fourth of six in the fallback route. The fix lives in the PDF: only
     // InDesign's export is known to set it, so no other source route is
     // offered — a route that does not work is worse than none.
-    matches: (strs) =>
-      strs.some(TITLE_NOT_DISPLAYED) && !strs.some(TITLE_PROBLEM) && !strs.some(LANG_PROBLEM),
+    matches: (f) => f.has(TITLE_NOT_DISPLAYED) && !f.has(TITLE_PROBLEM) && !f.has(LANG_PROBLEM),
     entry: {
       title: "Tell the PDF to show its title",
       why: "This document already has a title, but the PDF is set to show its file name instead — so the file name is what a screen reader announces when it opens. (The title and the language are both set; there is nothing to retype.)",
@@ -829,7 +811,7 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
     // Excel (2026-10-05): a workbook has a title to fix and no language to
     // set — the combined default would ask for a setting Excel lacks, and
     // the title-only step below would claim it "is already set".
-    matches: (strs) => strs.some(TITLE_PROBLEM) && strs.some(EXCEL_NO_LANGUAGE),
+    matches: (f) => f.has(TITLE_PROBLEM) && f.has(EXCEL_NO_LANGUAGE),
     entry: {
       title: "Give the workbook a title",
       why: "Without a title, screen readers announce the raw filename when the workbook opens. (Excel has no document-language setting, so there is nothing to set there.)",
@@ -838,8 +820,7 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
   },
   {
     // Title missing/weak, language demonstrably fine → say only what's left.
-    matches: (strs) =>
-      strs.some(TITLE_PROBLEM) && !strs.some(LANG_PROBLEM) && strs.some(LANGUAGE_SET),
+    matches: (f) => f.has(TITLE_PROBLEM) && !f.has(LANG_PROBLEM) && f.has(LANGUAGE_SET),
     entry: {
       title: "Give the document a title",
       why: "Without a title, screen readers announce the raw filename when the document opens. (This document's language is already set — nothing to do there.)",
@@ -862,7 +843,7 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
   },
   {
     // Language wrong/unusable/missing, title demonstrably fine.
-    matches: (strs) => strs.some(LANG_PROBLEM) && !strs.some(TITLE_PROBLEM) && strs.some(TITLE_SET),
+    matches: (f) => f.has(LANG_PROBLEM) && !f.has(TITLE_PROBLEM) && f.has(TITLE_SET),
     entry: {
       title: "Fix the document's language declaration",
       why: "Screen readers follow the declared language to choose pronunciation rules — a missing, unusable, or wrong declaration makes the whole document read with the wrong voice. (This document's title is already set.)",
@@ -910,13 +891,11 @@ const TITLE_LANGUAGE_VARIANTS: Array<{
  * alt_text's variants.
  */
 const HEADING_STRUCTURE_VARIANTS: Array<{
-  matches: (findings: string[]) => boolean;
+  matches: (findings: FindingLines) => boolean;
   entry: PlanCopyEntry;
 }> = [
   {
-    matches: (f) =>
-      f.some((s) => s.includes("contain no text")) &&
-      !f.some((s) => s.includes("formatted to look like headings")),
+    matches: (f) => f.has(FINDING.planEmptyHeadings) && !f.has(FINDING.planLookalikeHeadings),
     entry: {
       title: "Clear the blank headings used as spacing",
       why: "A heading style on an empty line adds a section to the document's outline that has no content in it. Someone moving through the document by heading lands on silence, and the list of headings they navigate by has entries that lead nowhere.",
@@ -933,7 +912,7 @@ const HEADING_STRUCTURE_VARIANTS: Array<{
 
 const FINDINGS_VARIANTS: Record<
   string,
-  Array<{ matches: (findings: string[]) => boolean; entry: PlanCopyEntry }>
+  Array<{ matches: (findings: FindingLines) => boolean; entry: PlanCopyEntry }>
 > = {
   text_extractability: TEXT_EXTRACTABILITY_VARIANTS,
   title_language: TITLE_LANGUAGE_VARIANTS,
@@ -950,12 +929,18 @@ const FINDINGS_VARIANTS: Record<
  * that does not match keeps the default, so an unrecognized report can only
  * ever reproduce today's copy.
  */
-function planCopyFor(id: string, findings: string[]): PlanCopyEntry | undefined {
+function planCopyFor(
+  id: string,
+  findings: string[],
+  findingDetails: unknown,
+): PlanCopyEntry | undefined {
   const variants = FINDINGS_VARIANTS[id];
   if (variants) {
-    const strs = findings.filter((f): f is string => typeof f === "string");
+    // By finding code where the report carries codes, by wording where it
+    // does not (utils/findingMatch.ts) — line by line.
+    const lines = findingLines(findings, findingDetails);
     for (const variant of variants) {
-      if (variant.matches(strs)) return variant.entry;
+      if (variant.matches(lines)) return variant.entry;
     }
   }
   return PLAN_COPY[id];
@@ -1063,8 +1048,15 @@ export function buildActionPlan(
   }
 
   const issues = categories.filter(
-    (c): c is { id: string; label: string; severity: PlanSeverity; findings?: unknown } =>
-      !!c && typeof c === "object" && isPlanSeverity((c as { severity?: unknown }).severity),
+    (
+      c,
+    ): c is {
+      id: string;
+      label: string;
+      severity: PlanSeverity;
+      findings?: unknown;
+      findingDetails?: unknown;
+    } => !!c && typeof c === "object" && isPlanSeverity((c as { severity?: unknown }).severity),
   );
 
   // Array.prototype.sort is stable — equal severities keep analyzer order.
@@ -1076,7 +1068,7 @@ export function buildActionPlan(
     const id = String(c.id ?? "");
     const label = String(c.label ?? id);
     const findings = Array.isArray(c.findings) ? (c.findings as string[]) : [];
-    const entry = planCopyFor(id, findings);
+    const entry = planCopyFor(id, findings, c.findingDetails);
 
     // Per-document Acrobat steps beat the dictionary default — they're
     // specific to what the analyzer actually saw in this file.
@@ -1165,7 +1157,7 @@ export function buildActionPlan(
         failingRefs.get(id) ?? (WCAG_CATEGORY_MAP[id] ?? []).map(({ sc, name }) => ({ sc, name })),
       routes,
       detailAnchor: `#cat-${id}`,
-      estimate: estimateFixTime(id, findings, ft) ?? undefined,
+      estimate: estimateFixTime(id, findings, ft, c.findingDetails) ?? undefined,
     };
   });
 }

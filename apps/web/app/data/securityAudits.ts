@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.177.0",
+    meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: No new attack surface — report logic, tooling and documents.",
+    body: [
+      {
+        kind: "p",
+        html: "No security changes. The report now recognises each finding by a fixed code instead of by its wording, which makes the report's advice more dependable; it changes no score and collects nothing new. A new weekly check uploads three small test files to the live site to confirm it still gives the right answers; each adds one ordinary row to the activity record, as any upload does. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.176.2",
     meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: SECURITY-RELEVANT — policy accuracy + download path.",
     body: [

@@ -237,6 +237,7 @@ proposal in `docs/deploys.md`.
 | Preflight | `./rebuild.sh --check` | Changes nothing |
 | Deploy | `./rebuild.sh` | `docs/deploys.md` |
 | After every deploy | `pnpm prod-sentinels` (from a development machine) | Three uploads with known answers. Each one adds a row to the production activity log |
+| Every Monday, automatically | The same check, run by GitHub (`.github/workflows/prod-sentinels.yml`); it can also be started by hand from the Actions tab | A failure emails the repository's owner: the live site gave a different answer from the one that passed CI |
 | Roll back the code | Automatic when the health gate fails. By hand: `git reset --hard <commit>`, `pnpm install --frozen-lockfile && pnpm build`, `pm2 restart ecosystem.config.cjs --update-env` | `docs/deploys.md` |
 | Restore the database | `pm2 stop file-audit-api`, `./scripts/restore-db.sh <snapshot>`, `pm2 start file-audit-api` | `docs/database-backups.md` |
 | Restore the whole server | DigitalOcean → droplet → Backups | `docs/database-backups.md` |

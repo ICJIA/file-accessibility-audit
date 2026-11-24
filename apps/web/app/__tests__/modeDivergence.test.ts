@@ -113,3 +113,21 @@ describe("naReason: other categories are unaffected by the format-scoping fix", 
     );
   });
 });
+
+describe("naReason: heading_structure — says why, instead of the generic fallback", () => {
+  const reason = naReason("heading_structure");
+
+  it("explains that no headings and no visible section headings were found", () => {
+    expect(reason).toContain("No headings were found");
+    expect(reason).toContain("visible section headings");
+    expect(reason).not.toBe(naReason("some_unknown_category"));
+  });
+
+  it("tells the reader what to do if the document does have section titles", () => {
+    expect(reason).toContain("mark them as headings");
+  });
+
+  it("is written for every format — it does not call the file a PDF or name PDF tags", () => {
+    expect(reason).not.toMatch(/\bPDF\b|H1|Acrobat/);
+  });
+});

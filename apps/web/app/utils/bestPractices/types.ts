@@ -23,6 +23,7 @@
  *    DoIT dispute, where a correctly-built form was presented as broken.
  */
 import { partitionCardFindings, type TechnicalGroup } from "~/utils/findings";
+import { buildCodeIndex, isFinding, type CodeIndex, type FindingRule } from "~/utils/findingMatch";
 import type { FileType } from "@file-audit/shared";
 
 export type BestPracticeStatus = "met" | "not-met" | "not-applicable" | "not-checked";
@@ -140,6 +141,11 @@ export interface DetectContext {
    *  (the unattributable-link advisory, whose own text names an F89
    *  candidate, vanished that way). */
   consumed: Set<string>;
+  /** This category's finding codes by line, when the report carries them
+   *  (`findingDetails`, v1.176.0+); null or absent on an older stored report.
+   *  A matcher given a rule (utils/findingMatch.ts) decides by code for every
+   *  line found here and by wording for every line that is not. */
+  codes?: CodeIndex | null;
 }
 
 export interface BestPractice {
@@ -209,7 +215,23 @@ export function buildContext(
     pageCount: Number.isFinite(pageCount) ? pageCount : 0,
     analyzedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed : null,
     consumed: new Set<string>(),
+    codes: buildCodeIndex(cat?.findings, cat?.findingDetails),
   };
+}
+
+/**
+ * What a matcher looks for: a rule from utils/findingMatch.ts — decided by the
+ * line's finding code when it has one, by its wording when it does not — or
+ * bare needles, which are wording only (every needle, ignoring case). Every
+ * practice passes a rule; the needle form remains for the primitives' own
+ * unit tests.
+ */
+type Sought = [FindingRule] | string[];
+
+/** Is this line the finding the rule names? For the few practices that filter
+ *  a list of lines themselves rather than take the first match. */
+export function lineIs(ctx: DetectContext, rule: FindingRule, line: string): boolean {
+  return isFinding(rule, line, ctx.codes);
 }
 
 /** The first not-scored line containing every needle, or null. Case-insensitive.
@@ -217,8 +239,8 @@ export function buildContext(
  *  VERSION-BLIND — do not use it to read an advisory. The not-scored
  *  partition is filled by PREFIX, and the prefixes changed under stored
  *  reports that outlive them. Use `matchAdvisory` below. */
-export function matchNotScored(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn(ctx.notScored, needles, ctx.consumed);
+export function matchNotScored(ctx: DetectContext, ...needles: Sought): string | null {
+  return findIn(ctx.notScored, needles, ctx.consumed, ctx.codes);
 }
 
 /** The first finding ANYWHERE containing every needle, or null.
@@ -231,8 +253,8 @@ export function matchNotScored(ctx: DetectContext, ...needles: string[]): string
  *  H → H → H. Use `matchMain` for the analyzer's own voice, or
  *  `matchAdvisory` for an advisory. Retained only for the primitive's own
  *  unit tests. */
-export function matchAny(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn(ctx.findings, needles, ctx.consumed);
+export function matchAny(ctx: DetectContext, ...needles: Sought): string | null {
+  return findIn(ctx.findings, needles, ctx.consumed, ctx.codes);
 }
 
 /** An advisory, found in EITHER partition.
@@ -257,8 +279,8 @@ export function matchAny(ctx: DetectContext, ...needles: string[]): string | nul
  *  for a caller that genuinely needs to know which partition a line landed
  *  in — no practice does. Witness, positive, and not-applicable lookups keep
  *  using `matchMain`: those lines were never prefixed in either era. */
-export function matchAdvisory(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn([...ctx.notScored, ...ctx.main], needles, ctx.consumed);
+export function matchAdvisory(ctx: DetectContext, ...needles: Sought): string | null {
+  return findIn([...ctx.notScored, ...ctx.main], needles, ctx.consumed, ctx.codes);
 }
 
 /** `matchAdvisory` without the coverage side-effect: for a practice that only
@@ -266,8 +288,8 @@ export function matchAdvisory(ctx: DetectContext, ...needles: string[]): string 
  *  attributed — see Also noted") without being ABOUT it. A read through
  *  `matchAdvisory` would strike the line from "Also noted", and the note
  *  would point at a list the advisory had just vanished from (2026-09-02). */
-export function peekAdvisory(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn([...ctx.notScored, ...ctx.main], needles);
+export function peekAdvisory(ctx: DetectContext, ...needles: Sought): string | null {
+  return findIn([...ctx.notScored, ...ctx.main], needles, undefined, ctx.codes);
 }
 
 /** The lines `matchAdvisory` searches, for the two practices that need a
@@ -291,16 +313,30 @@ export function advisoryLines(ctx: DetectContext): string[] {
  *  bookmark title, …). Use this, not `matchAny`, for every
  *  positive/witness/not-applicable lookup — anywhere the caller is reading
  *  what the analyzer itself asserted, not quoting the document. */
-export function matchMain(ctx: DetectContext, ...needles: string[]): string | null {
-  return findIn(ctx.main, needles, ctx.consumed);
+export function matchMain(ctx: DetectContext, ...needles: Sought): string | null {
+  return findIn(ctx.main, needles, ctx.consumed, ctx.codes);
 }
 
-function findIn(haystack: string[], needles: string[], consumed?: Set<string>): string | null {
-  if (needles.length === 0) return null;
-  const lowered = needles.map((n) => n.toLowerCase());
+function findIn(
+  haystack: string[],
+  sought: Sought,
+  consumed?: Set<string>,
+  codes?: CodeIndex | null,
+): string | null {
+  if (sought.length === 0) return null;
+  const first = sought[0];
+  let matches: (line: string) => boolean;
+  if (typeof first === "object") {
+    matches = (line) => isFinding(first, line, codes);
+  } else {
+    const lowered = (sought as string[]).map((n) => n.toLowerCase());
+    matches = (line) => {
+      const l = line.toLowerCase();
+      return lowered.every((n) => l.includes(n));
+    };
+  }
   for (const line of haystack) {
-    const l = line.toLowerCase();
-    if (lowered.every((n) => l.includes(n))) {
+    if (matches(line)) {
       consumed?.add(line);
       return line;
     }
@@ -308,10 +344,18 @@ function findIn(haystack: string[], needles: string[], consumed?: Set<string>): 
   return null;
 }
 
-/** A technical-signal group's items, by its `--- Heading ---`. Empty when absent. */
-export function signalLines(ctx: DetectContext, headingNeedle: string): string[] {
-  const needle = headingNeedle.toLowerCase();
-  const group = ctx.signals.find((g) => (g.heading ?? "").toLowerCase().includes(needle));
+/** A technical-signal group's items, by its `--- Heading ---`. Empty when
+ *  absent. A rule names the group by its divider's finding code (wording for
+ *  an un-coded report); a bare string is a wording needle. */
+export function signalLines(ctx: DetectContext, heading: FindingRule | string): string[] {
+  let named: (groupHeading: string) => boolean;
+  if (typeof heading === "string") {
+    const needle = heading.toLowerCase();
+    named = (h) => h.toLowerCase().includes(needle);
+  } else {
+    named = (h) => isFinding(heading, h, ctx.codes);
+  }
+  const group = ctx.signals.find((g) => named(g.heading ?? ""));
   return group ? [...group.items] : [];
 }
 

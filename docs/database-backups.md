@@ -141,7 +141,7 @@ There are two backups, and they answer different questions.
 | Where it lives | On the **same server**, in `/home/forge/audit.icjia.app/backups` | In DigitalOcean's backup storage, in the **same DigitalOcean account** |
 | How often | Nightly (Forge Scheduler), and once before every deploy (`backups/pre-deploy/`) | Daily |
 | How much is kept | The 5 newest nightly, the 3 newest pre-deploy | Set on DigitalOcean's side, outside this repository |
-| Run by | This repository's scripts | DigitalOcean. **Confirmed enabled and running daily by the server's owner on 2026-11-24** |
+| Run by | This repository's scripts | The server's owner, in DigitalOcean: **a backup is taken by hand every day** (stated by the owner on 2026-11-24) |
 | Restores | The database alone, in about a minute | The whole machine, to the state of the last daily backup |
 | Checked by | `/status` shows the last snapshot's age; marked stale after 30 hours | Nothing in this repository can see it — check the droplet's Backups tab |
 
@@ -178,12 +178,17 @@ Both layers sit inside one DigitalOcean account. Losing the account, or a
 mistake made with full access to it, loses both. Nothing copies the database
 anywhere else today.
 
-Closing the gap means a third copy somewhere that account cannot reach — for
-example a second Scheduler job that encrypts the newest snapshot and uploads it
-to object storage held under a different account. That is **not set up**. It
-would also change a published statement: the data-retention policy and the
-README say snapshots stay on the server, so the policy text has to change in
-the same release as the job. It is the owner's decision.
+**Decided by the owner, 2026-11-24: the gap is accepted.** No third copy is
+kept outside the DigitalOcean account, and none is planned; DigitalOcean's own
+backups cannot be sent anywhere else. What stands against the gap is the daily
+backup the owner takes by hand.
+
+If that decision is ever revisited, closing the gap means a copy somewhere that
+account cannot reach — for example a second Scheduler job that encrypts the
+newest snapshot and uploads it to object storage held under a different
+account. It would also change a published statement: the data-retention policy
+and the README say snapshots stay on the server, so the policy text would have
+to change in the same release as the job.
 
 ## The report-seal key
 
