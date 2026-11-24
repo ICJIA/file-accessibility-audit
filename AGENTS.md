@@ -213,7 +213,7 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── restore-db.sh         verify-first restore for those snapshots
 │   ├── release.ts            `pnpm release` — see § Versioning, docs/releasing.md
 │   └── e2e-smoke.ts          `pnpm e2e` — browser upload + axe on the app's own pages
-├── ops/nginx/                reference reverse-proxy config (NOT the live one)
+├── ops/nginx/                copy of the live reverse-proxy config (nothing reads it)
 ├── CHANGELOG.md
 ├── README.md
 ├── AGENTS.md                 you are here
@@ -384,7 +384,7 @@ pages (link with a plain `<a href>`, never `<NuxtLink>`).
 - Everything on the server that is not in this repository — packages,
   `/etc/environment` names, PM2 modules, the Scheduler job, nginx — is
   listed in `docs/runbook.md`; `ops/nginx/audit.icjia.app.conf.example`
-  is a reference copy of what the code assumes about the proxy.
+  is a copy of the live proxy configuration, taken 2026-11-24.
 - Production URL: `https://audit.icjia.app`
 
 `REMEDIATION_ENABLED=true` is persisted in `/etc/environment` so

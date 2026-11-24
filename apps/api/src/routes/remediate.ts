@@ -705,6 +705,14 @@ router.get("/remediate/:jobId/download", requireEnabled, async (req: Request, re
       `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`,
     );
     res.setHeader("Content-Length", String(fileSize));
+    // Tell the reverse proxy to pass this response straight through. The live
+    // nginx buffers proxied responses by default (seen in `nginx -T`,
+    // 2026-11-24): it would take the whole file from us at once — into memory,
+    // then a temporary file of its own — and we would see a "complete"
+    // transfer and delete the file while the person's browser was still
+    // receiving it. Unbuffered, our transfer ends when theirs does, and nginx
+    // writes no copy of the repaired file to disk.
+    res.setHeader("X-Accel-Buffering", "no");
 
     if (isHead) {
       res.status(200).end();

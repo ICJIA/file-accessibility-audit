@@ -158,6 +158,18 @@ describe("HEAD uses nothing up", () => {
     expect(get.status).toBe(200);
     expect(Buffer.from(await get.arrayBuffer()).equals(j.bytes)).toBe(true);
   });
+
+  it("asks the reverse proxy not to buffer the file, so our transfer ends when the person's does", async () => {
+    // nginx buffers proxied responses unless told otherwise: it would take the
+    // whole file at once, we would count the transfer complete and delete the
+    // file while the browser was still receiving it.
+    const j = completeJob();
+    const head = await fetch(j.url, { method: "HEAD" });
+    expect(head.headers.get("x-accel-buffering")).toBe("no");
+    const get = await fetch(j.url);
+    expect(get.headers.get("x-accel-buffering")).toBe("no");
+    await get.arrayBuffer();
+  });
 });
 
 describe("a completed GET is the one use", () => {

@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.176.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5388%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.176.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5391%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -109,7 +109,7 @@ Since **v1.68.0** the tool has no authentication system at all — removed delib
 
 One credential still exists and is unchanged: the optional **`API_PRIVILEGED_TOKEN`** fleet service token — a rate-tier/allowlist bypass for server-to-server fleet automation, **a service credential, not a user account**. See [API Access & the Fleet Service Token](#api-access--the-fleet-service-token).
 
-The plain-language version of all of this lives on the in-app [data-retention policy](https://audit.icjia.app/data-retention) (v1.20, 2026-11-24); precise wording matters there — the schema has no email, IP-address, or browser column, but the tool deliberately never claims "no personal data" (a file name as uploaded can itself name a person, and shared reports quote short labels from documents).
+The plain-language version of all of this lives on the in-app [data-retention policy](https://audit.icjia.app/data-retention) (v1.21, 2026-11-24); precise wording matters there — the schema has no email, IP-address, or browser column, but the tool deliberately never claims "no personal data" (a file name as uploaded can itself name a person, and shared reports quote short labels from documents).
 
 ## Scoring Rubric
 
@@ -868,7 +868,7 @@ file-accessibility-audit/
 │   ├── e2e-smoke.ts                 # `pnpm e2e` — headless-browser upload + axe check of the app's own pages (CI job)
 │   └── build-brief.mjs              # Regenerates the /trust page + emailable brief with live numbers
 ├── docs/               # Operations documents (runbook, deploys, releasing, backups) + per-fix write-ups (see below)
-├── ops/nginx/          # audit.icjia.app.conf.example — a reference nginx configuration, test-pinned to the code (not the live file)
+├── ops/nginx/          # audit.icjia.app.conf.example — a copy of the live nginx configuration (taken 2026-11-24), test-pinned to the code
 ├── CONTRIBUTING.md     # Set-up, what to run before pushing, how changes are judged
 ├── rebuild.sh          # Deploy script: preflight (--check), build, restart, health gate, automatic rollback
 ├── audit.config.ts     # Single source of truth for all constants + branding
@@ -992,7 +992,7 @@ Current operations documents, at the root of `docs/` and the repository:
 | [Releasing](docs/releasing.md) | `pnpm release`: what it writes, its placeholders, the dependency scan, and the steps it leaves to a person |
 | [Database backups](docs/database-backups.md) | The two backup layers, what a snapshot contains, the report-seal key, and the restore steps |
 | [Process supervision](docs/process-supervision.md) | PM2 restart policy, memory caps and log rotation |
-| [nginx reference configuration](ops/nginx/audit.icjia.app.conf.example) | A template that agrees with the code (ports, body size, timeouts) — `opsNginxTemplate.test.ts` checks it; it is not the live configuration |
+| [nginx reference configuration](ops/nginx/audit.icjia.app.conf.example) | A copy of the live configuration, taken from `sudo nginx -T` on 2026-11-24 — `opsNginxTemplate.test.ts` checks that it agrees with the code (ports, body size, timeouts); nothing reads it, and the live file is edited in Forge |
 | [Contributing](CONTRIBUTING.md) | Set-up, checks to run before pushing, how changes are judged, writing for readers |
 | [CLI reference](apps/cli/README.md) | Every `a11y-audit` option, gate, exit status and output format |
 
@@ -1000,7 +1000,7 @@ In the first table, all but the last row live in [`docs/archive/`](docs/archive/
 
 ## Tests
 
-**5,388 tests** across 304 test files (API 2,875 · Web 2,341 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**5,391 tests** across 304 test files (API 2,878 · Web 2,341 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1204,7 +1204,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `shutdown.test.ts` | 16 | Graceful shutdown (`services/shutdown.ts`): the order of the steps (stop accepting → stop the sweep → wait for work in flight, including an audit running after its 202 → browsers → database → exit), the deadline (exit 1), the backstop timer, an immediate exit on a second signal, and the in-flight tracker |
 | `tempFiles.test.ts` | 16 | Temp copies live in one owner-only directory (`packages/analyzer/src/tempDir.ts`): `TMP_DIR` or `<os.tmpdir()>/file-audit-tmp`, created 0700, a symlinked default refused; the purge deletes only `<uuid>.pdf` files by age; the API purges at startup and in the retention sweep (`TEMP_FILES`) |
 | `workerStderrCap.test.ts` | 8 | The repair worker's error output has a hard per-job byte limit (`jobs/stderrCap.ts`, 64 KB): output passes until the limit, then one notice line, then nothing; bytes not characters; a dropped write still calls back; a real process started as `jobs/remediate.ts` with its stderr on a file attempts 2.5 MB and writes at most the limit plus the notice, while any other process importing the module is untouched; the worker imports the limit before anything else |
-| `remediateDownload.test.ts` | 14 | The remediation download is single-use, and the use is a completed transfer: HEAD changes nothing; a completed GET expires the job and deletes its files (next GET 410); an interrupted GET can be retried; of two GETs at once exactly one succeeds (the other 409); a wrong or missing token is the same 404 as an unknown job in every job state |
+| `remediateDownload.test.ts` | 15 | The remediation download is single-use, and the use is a completed transfer: HEAD changes nothing; a completed GET expires the job and deletes its files (next GET 410); an interrupted GET can be retried; of two GETs at once exactly one succeeds (the other 409); a wrong or missing token is the same 404 as an unknown job in every job state |
 | `urlAnalyzeErrors.test.ts` | 11 | One error mapping for uploads and URLs: a password-protected PDF is 422 and named as such on `/api/analyze`, `/api/analyze-url` and `/api/audit-url`; a corrupt PDF likewise; a bulk-inventory entry's `errorCode` and the remediation preflight use the same mapping |
 | `robustness20261124.test.ts` | 10 | The 2026-11-24 robustness fixes: a refused audit stops its veraPDF run and releases its slot and temp copy; a remediation worker's stderr reaches the error log; the first outcome of an analyze job is the only one; `/api/bulk-from-inventory` returns the report page link and takes its limits from `BULK_INVENTORY` |
 | `qpdfOutputOverflow.test.ts` | 6 | qpdf output larger than `QPDF_MAX_BUFFER` gets its own error (not a timeout, sync or async); an encrypted file still wins over an overflow; a real timeout is still a timeout |
@@ -1213,7 +1213,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `rebuildScript.test.ts` | 20 | `rebuild.sh` as a contract: passes `bash -n`; `--check` exits before anything is pulled, installed, built or restarted and writes no log; local edits are saved as a patch before being discarded; the previous web build is kept until the health gate passes; automatic rollback runs its steps in order, checks each one, can be switched off, and never touches the database |
 | `releaseScript.test.ts` | 29 | `pnpm release` (`scripts/releaseLib.ts`) against fixture files: version arithmetic, the six `package.json` writers, the README badge, the CHANGELOG / README § Security / security-log scaffolds with marked placeholders, refusal of a duplicate version, and the test counts written into the README badge and Tests line |
 | `versionSync.test.ts` | 11 | The release version is written the same everywhere: the six `package.json` files, the README version badge, the newest CHANGELOG heading, the newest security-log entry and the newest README § Security entry |
-| `opsNginxTemplate.test.ts` | 7 | The nginx reference template (`ops/nginx/audit.icjia.app.conf.example`) agrees with the code: ports, upload size and read timeout at least the documented proxy contract, forwarded address, HSTS sent once — and it says at the top that it is not the live configuration |
+| `opsNginxTemplate.test.ts` | 9 | The nginx reference copy (`ops/nginx/audit.icjia.app.conf.example`) agrees with the code: ports, upload size and read timeout at least the documented proxy contract, forwarded address, HSTS at server level, no access log for the site with the error log kept, uploads passed straight through and each security header sent once — and it says at the top that it is a copy nothing reads |
 
 </details>
 
@@ -1655,6 +1655,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.176.2 — 2026-11-24 · the web-server log is described as it really is; repaired files pass straight through the web server (SECURITY-RELEVANT — policy accuracy + download path)
+
+Finding, fixed in this release: behind nginx's default response buffering, the single-use repaired-file download could be counted complete (and the file deleted) before the browser had received it, and nginx could hold a temporary copy of the file. Fix: the download response sends `X-Accel-Buffering: no` (test added). Finding, fixed the same day on the server: nginx wrote uploads over 16 KB to a temporary file for the length of the request, which the policy did not describe. Fix: `proxy_request_buffering off` in the live /api/ block, mirrored in the reference copy and pinned by test. Policy v1.21 corrects an overstatement (it claimed a per-request access log that does not exist) and names what nginx does record. Verified on the live site after the nginx change: each security header once on five routes, sentinels 0/F · 69/D · 100/A. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,391 green; lint, format, typecheck, build green.
 
 ### v1.176.1 — 2026-11-24 · The repair worker's error output has a size limit (SECURITY RELEASE — completes v1.176.0, fixed before it was deployed)
 

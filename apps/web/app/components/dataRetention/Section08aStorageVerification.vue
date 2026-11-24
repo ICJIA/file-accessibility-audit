@@ -257,11 +257,25 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
         its credentials. There is no mailer left to misuse.
       </li>
       <li>
-        <strong>The hosting layer keeps standard web-server access logs.</strong> The site runs
-        behind nginx, which — as on effectively every website — records each request's IP address,
-        timestamp, URL path, status, and browser user-agent in its own log files on the server,
-        outside this application. It is stated here, with its retention listed in § 7, so the phrase
-        "standard web-server logs" is concrete rather than a hedge.
+        <strong>The web server keeps no access log for this site.</strong> The site runs behind
+        nginx, and the live configuration was read on 2026-11-24: an ordinary request to
+        <code class="text-xs font-mono">https://audit.icjia.app</code> is not recorded by it at all.
+        Two things are recorded, both outside this application, with their retention listed in § 7.
+        The web server's <em>error log</em> gets a line only when the web server itself reports a
+        problem — the service not answering, or an upload over the size limit — and that line holds
+        the caller's IP address, the time and the address requested. And a request that arrives at
+        the <code class="text-xs font-mono">http://</code> or
+        <code class="text-xs font-mono">www.</code> address, which is only redirected to the real
+        one, is written to the server's general access log (IP address, timestamp, URL path, status,
+        browser user-agent). Versions of this policy before v1.21 said every request was logged;
+        that overstated what is kept.
+      </li>
+      <li>
+        <strong>The web server does not write uploads or repaired files to disk.</strong> A web
+        server normally holds a large upload or download in a temporary file of its own while it
+        passes it along. Since 2026-11-24 this one is set to pass an upload straight to the
+        application, and since tool v1.176.2 the application tells it to pass a repaired PDF
+        straight to the browser, so neither is written anywhere by the web server.
       </li>
     </ul>
 

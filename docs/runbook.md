@@ -183,9 +183,10 @@ may share this PM2.
 
 ## 6. nginx
 
-`ops/nginx/audit.icjia.app.conf.example` is a reference **reconstructed from
-what the code assumes**, not a copy of the live file. Diff it against
-`sudo nginx -T` before trusting it. What must hold:
+`ops/nginx/audit.icjia.app.conf.example` is a copy of the live configuration,
+taken from `sudo nginx -T` on 2026-11-24. The live file is edited in Forge;
+when it changes, update the copy. This site has `access_log off`; its error
+log is kept. What must hold:
 
 - `/api/` goes to `127.0.0.1:5103`; everything else to `127.0.0.1:5102`.
 - In `location /api/`: `client_max_body_size` at least **60m** and

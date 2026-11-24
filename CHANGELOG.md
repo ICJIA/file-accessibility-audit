@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.176.2] - 2026-11-24
+
+### Fixed
+
+- **the web-server log is described as it really is; repaired files pass straight through the web server.** The web server's live configuration was read line by line (`sudo nginx -T`, 2026-11-24) and compared with the published data-retention policy and the repository's reference copy. Three things followed. (1) POLICY CORRECTION, v1.21: the policy said nginx logs every request's IP address, path and browser for about 52 days. This site has `access_log off`; what is recorded is the nginx error log (only when nginx itself reports a problem) and the server-wide access log for requests to the http:// or www. address that are only redirected. Sections 7, 8a and 14 now say exactly that, and the retention wording follows the real logrotate rule (52 rotations, rotated only on a day with new lines). (2) FIXED: nginx buffers proxied responses by default, so it took the whole repaired PDF from the API at once; the API counted the transfer complete and deleted the file while the browser was still receiving it, and nginx could write a temporary copy of its own. The download now sends `X-Accel-Buffering: no`, so the transfer ends when the person's does and nginx writes no copy. (3) The owner changed the live nginx configuration the same day: `proxy_request_buffering off` on /api/ (uploads no longer pass through an nginx temporary file), each security header sent once, and a 90 s read timeout on the web app. `ops/nginx/audit.icjia.app.conf.example` is now a copy of that live file rather than a reconstruction, and its test pins the logging and buffering lines the policy depends on.
+
+### Notes
+
+- Tests 5,391 across 304 files (API 2,878 · Web 2,341 · CLI 172).
+
 ## [1.176.1] - 2026-11-24
 
 ### Security

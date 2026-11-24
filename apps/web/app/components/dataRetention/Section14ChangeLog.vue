@@ -6,6 +6,21 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.21 · 2026-11-24</strong> — A correction and one change, tool v1.176.2, after the
+        web server's live configuration was read line by line. <em>Correction</em> (§§ 7, 8a):
+        earlier versions said the web server logs every request's IP address, path and browser. It
+        does not — this site has no access log. What is recorded is narrower: the web server's error
+        log, written only when the web server itself reports a problem, and the server's general
+        access log for a request to the <code class="text-xs font-mono">http://</code> or
+        <code class="text-xs font-mono">www.</code> address that is only redirected. The retention
+        wording is also more exact: 52 rotated files are kept, and a file is rotated only on a day
+        it has new lines. <em>Change</em> (§ 8a): until 2026-11-24 the web server held each upload
+        over 16 KB in a temporary file of its own for the length of the request and then deleted it,
+        and could do the same with a repaired PDF being downloaded; this policy had not said so. The
+        web server now passes uploads straight through, and from tool v1.176.2 repaired PDFs too, so
+        it writes neither to disk.
+      </li>
+      <li>
         <strong>v1.20 · 2026-11-24</strong> — Four changes, tool v1.176.0, that follow a review of
         the whole application. No new kind of data is collected and no retention period changes.
         <em>Temp copies</em> (§§ 2, 8a): the short-lived copy of a PDF that the analysis tools read

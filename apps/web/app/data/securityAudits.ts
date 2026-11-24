@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.176.2",
+    meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: SECURITY-RELEVANT — policy accuracy + download path.",
+    body: [
+      {
+        kind: "p",
+        html: "We read the web server's real settings and compared them with this policy. The policy said the web server keeps a log of every visit; it does not, and the policy now says what it does keep: a log of the web server's own errors, and a log of visits to the old http:// or www. address that are only redirected. We also found that the web server was briefly holding uploads, and could hold repaired files, in a temporary file of its own. Both are fixed: uploads and repaired files now pass straight through and the web server writes neither to disk. As part of the same fix, a repaired file is now deleted when your download has really finished, not when the web server has taken it from the application. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.176.1",
     meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: the automatic-repair worker's error output, added to the error log in v1.176.0.",
     body: [

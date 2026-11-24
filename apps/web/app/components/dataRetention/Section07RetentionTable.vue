@@ -308,8 +308,15 @@
           <tbody class="text-[var(--text-secondary)] text-xs">
             <tr class="border-b border-[var(--border)]/40">
               <td class="px-4 py-3 font-medium">
-                Host web-server access log (nginx — outside this application; IP address, timestamp,
-                URL path, status, browser user-agent; see § 8a)
+                Host web-server logs (nginx — outside this application; see § 8a).
+                <strong>No access log is kept for this site</strong>: an ordinary request to
+                <code class="font-mono">https://audit.icjia.app</code> is not recorded. Two things
+                are: the web server's <em>error log</em>, written only when the web server itself
+                reports a problem (IP address, timestamp, the address requested); and the server's
+                general access log, only for a request that arrives at the
+                <code class="font-mono">http://</code> or <code class="font-mono">www.</code>
+                address and is redirected (IP address, timestamp, URL path, status, browser
+                user-agent)
               </td>
               <td class="px-4 py-3">
                 <code class="font-mono">/var/log/nginx/</code> on the server, managed by the host's
@@ -318,10 +325,12 @@
               <td class="px-4 py-3">
                 <span
                   class="inline-block whitespace-nowrap rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300"
-                  >≈52 days</span
+                  >52 rotations</span
                 >
                 <span class="block mt-1 text-[var(--text-muted)]"
-                  >Rotated daily, 52 rotations kept (≈52 days)</span
+                  >A log file is rotated on each day it has new lines, and 52 rotated files are
+                  kept: about 52 days for a log written every day, longer for one written
+                  rarely</span
                 >
               </td>
               <td class="px-4 py-3">Yes — host logrotate config (not this application)</td>
