@@ -152,6 +152,12 @@ export function reconcileWorkers(now: number = Date.now()): number {
  * worker is detached and outlives an API restart, and a pipe to a parent
  * that has gone would break it.
  *
+ * A raw descriptor does not pass through the error log's per-day byte limit,
+ * so the worker limits ITSELF: jobs/stderrCap.ts, imported first by the
+ * worker, stops its error output after WORKER_STDERR_MAX_BYTES (64 KB) per
+ * job. With at most 2 workers running and a daily remediation cap per caller,
+ * that bounds what remediation can add to a day's file.
+ *
  * Returns an open descriptor the caller must close after spawn, or "ignore"
  * when the log cannot be opened (the worker must still start). Exported for
  * tests.

@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.176.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5380%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.176.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5388%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -1000,7 +1000,7 @@ In the first table, all but the last row live in [`docs/archive/`](docs/archive/
 
 ## Tests
 
-**5,380 tests** across 303 test files (API 2,867 · Web 2,341 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**5,388 tests** across 304 test files (API 2,875 · Web 2,341 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1034,18 +1034,18 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      2867 passed (164 files)
+  ✔ API      2875 passed (165 files)
   ✔ Web      2341 passed (128 files)
   ✔ CLI      172 passed (11 files)
 ────────────────────────────────────────────────────────────
-  ✔ 5380 tests passed across 303 files
+  ✔ 5388 tests passed across 304 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (2,867 tests)
+### API Tests (2,875 tests)
 
 <details>
-<summary><strong>Per-file coverage</strong> — all 164 test files — click to expand</summary>
+<summary><strong>Per-file coverage</strong> — all 165 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1203,6 +1203,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `openapi.test.ts` | 11 | `GET /api/openapi.json` pinned to the real router: the test walks the Express stack `createApp()` builds and fails when a mounted route is not described or a described route is not mounted; path parameters, unique `operationId`s and `$ref`s are checked; the shared error schema lists exactly the codes the API can send |
 | `shutdown.test.ts` | 16 | Graceful shutdown (`services/shutdown.ts`): the order of the steps (stop accepting → stop the sweep → wait for work in flight, including an audit running after its 202 → browsers → database → exit), the deadline (exit 1), the backstop timer, an immediate exit on a second signal, and the in-flight tracker |
 | `tempFiles.test.ts` | 16 | Temp copies live in one owner-only directory (`packages/analyzer/src/tempDir.ts`): `TMP_DIR` or `<os.tmpdir()>/file-audit-tmp`, created 0700, a symlinked default refused; the purge deletes only `<uuid>.pdf` files by age; the API purges at startup and in the retention sweep (`TEMP_FILES`) |
+| `workerStderrCap.test.ts` | 8 | The repair worker's error output has a hard per-job byte limit (`jobs/stderrCap.ts`, 64 KB): output passes until the limit, then one notice line, then nothing; bytes not characters; a dropped write still calls back; a real process started as `jobs/remediate.ts` with its stderr on a file attempts 2.5 MB and writes at most the limit plus the notice, while any other process importing the module is untouched; the worker imports the limit before anything else |
 | `remediateDownload.test.ts` | 14 | The remediation download is single-use, and the use is a completed transfer: HEAD changes nothing; a completed GET expires the job and deletes its files (next GET 410); an interrupted GET can be retried; of two GETs at once exactly one succeeds (the other 409); a wrong or missing token is the same 404 as an unknown job in every job state |
 | `urlAnalyzeErrors.test.ts` | 11 | One error mapping for uploads and URLs: a password-protected PDF is 422 and named as such on `/api/analyze`, `/api/analyze-url` and `/api/audit-url`; a corrupt PDF likewise; a bulk-inventory entry's `errorCode` and the remediation preflight use the same mapping |
 | `robustness20261124.test.ts` | 10 | The 2026-11-24 robustness fixes: a refused audit stops its veraPDF run and releases its slot and temp copy; a remediation worker's stderr reaches the error log; the first outcome of an analyze job is the only one; `/api/bulk-from-inventory` returns the report page link and takes its limits from `BULK_INVENTORY` |
@@ -1654,6 +1655,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.176.1 — 2026-11-24 · The repair worker's error output has a size limit (SECURITY RELEASE — completes v1.176.0, fixed before it was deployed)
+
+SECURITY RELEASE, fixed before v1.176.0 reached production. v1.176.0 pointed the remediation worker's stderr at the day's application error log through a raw descriptor (`services/remediationQueue.ts` `openWorkerStderr`), bypassing `maxBytesPerDay`. A PDF built to make a parser or the Java tagger emit output without end could have grown that file until the disk filled. Fix: `jobs/stderrCap.ts` wraps `process.stderr.write` in the worker process with a byte budget (64 KB per job, one notice line, then drop; dropped writes still call back). Everything the worker emits passes through it: `console.*`, the analyzer's warnings, and the Java tagger's output, which @opendataloader/pdf reads from a pipe and relays with `process.stderr.write`; every other tool is run with `execFile` under its own `maxBuffer`. Not counted: what Node itself prints when the process dies outside JavaScript, which is one message per process. `workerStderrCap.test.ts` proves it with a real process whose stderr is a file (2.5 MB attempted, at most 64 KB plus the notice written) and was sabotage-tested. No other change to routes, inputs, storage or scoring. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,388 green. Verified before release: lint, format check, typecheck and production build green; 5,388 tests green (API 2,875 · Web 2,341 · CLI 172); `pnpm e2e` green against the production build.
 
 ### v1.176.0 — 2026-11-24 · Whole-app review: larger batches, check by link, before-and-after, sample report; restarts and downloads made safe (SECURITY-RELEVANT: four findings, all fixed in this release)
 

@@ -19,6 +19,9 @@
  * file. A worker killed from OUTSIDE (OOM killer, reboot) is covered by the
  * API's exit listener and the retention sweep.
  */
+// FIRST, before anything else in the worker runs: the byte limit on this
+// process's error output (see jobs/stderrCap.ts).
+import "./stderrCap.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { promises as fs, existsSync, readdirSync } from "node:fs";

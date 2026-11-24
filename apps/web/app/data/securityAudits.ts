@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.176.1",
+    meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: the automatic-repair worker's error output, added to the error log in v1.176.0.",
+    body: [
+      {
+        kind: "p",
+        html: "The previous release began keeping the error messages of the automatic-repair program in the service's error log, so that a failure while it starts can be diagnosed. A review of that release found that those messages were not counted against the log's daily size limit, so a PDF built to trigger endless error messages could have filled the server's disk. This release fixes that: the repair program now stops writing error messages after a small fixed amount (64 KB) for each file it works on. The weakness was found and fixed before the previous release was put on the public server, so it was never exposed. Nothing else changed: no score, no stored data and no retention period. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.176.0",
     meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: the whole application: the API's lifecycle and error handling, the audit engine's plumbing, every page of the site, the command-line tool, and the deploy and backup tooling.",
     body: [

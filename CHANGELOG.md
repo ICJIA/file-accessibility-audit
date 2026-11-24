@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.176.1] - 2026-11-24
+
+### Security
+
+- **The repair worker's error output has a size limit.** v1.176.0 began sending the automatic-repair worker's error output to the application error log, so that a worker that fails while starting leaves a trace. That output went to the log through a raw file descriptor, which does not pass through the log's per-day size limit. The worker now limits itself: `apps/api/src/jobs/stderrCap.ts`, imported first by the worker, stops its error output after 64 KB per job with one notice line. Found by the security review of the v1.176.0 commit and fixed before v1.176.0 was deployed. `rebuild.sh` also now re-registers the PM2 processes when the shutdown timeout in `ecosystem.config.cjs` differs from what PM2 holds (shipped in the v1.176.0 commit; recorded here).
+
+### Notes
+
+- Tests 5,388 across 304 files (API 2,875 · Web 2,341 · CLI 172).
+
 ## [1.176.0] - 2026-11-24
 
 ### Added
