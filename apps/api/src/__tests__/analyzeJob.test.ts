@@ -194,7 +194,7 @@ describe("POST /api/analyze-job", () => {
     const poll = pollRes(res._json.jobId, res._json.token);
     expect(poll._json.done).toBe(true);
     expect(poll._json.error.status).toBe(504);
-    expect(poll._json.error.body).toEqual(AUDIT_TIMEOUT_MESSAGE);
+    expect(poll._json.error.body).toEqual({ ...AUDIT_TIMEOUT_MESSAGE, code: "TIMEOUT" });
   });
 });
 

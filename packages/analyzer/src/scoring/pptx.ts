@@ -28,6 +28,8 @@ import {
   officeLanguageFindings,
   type ScoringResult,
   placeholderAltFinding,
+  fd,
+  withFindingDetails,
 } from "./common.js";
 import { drawnShapeFinding } from "../ooxml.js";
 import { evaluatePptxConformance } from "./conformance.js";
@@ -97,9 +99,15 @@ function scorePptxText(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.text_extractability,
       null,
       [
-        "No text was found on this presentation's visible slides, so the usual PowerPoint guarantee — extractable, selectable text — does not apply here.",
-        `${a.images.length} image(s) make up its content. If they are pictures of slides or of text, a screen reader gets nothing from them — type the text onto the slides, or give each image alt text that carries what it says.`,
-        "Text extractability was not assessed for this presentation.",
+        fd("pptx.text_extractability.no_text")(
+          "No text was found on this presentation's visible slides, so the usual PowerPoint guarantee — extractable, selectable text — does not apply here.",
+        ),
+        fd("pptx.text_extractability.images_only_content", {
+          count: a.images.length,
+        })`${a.images.length} image(s) make up its content. If they are pictures of slides or of text, a screen reader gets nothing from them — type the text onto the slides, or give each image alt text that carries what it says.`,
+        fd("pptx.text_extractability.not_assessed")(
+          "Text extractability was not assessed for this presentation.",
+        ),
       ],
       "PowerPoint normally stores real text screen readers can always read; this presentation's visible slides have no text at all, so that guarantee could not be confirmed.",
       [PPTX_HELP.overview],
@@ -112,7 +120,9 @@ function scorePptxText(a: PptxAnalysis): CategoryResult {
     PPTX.SCORING_WEIGHTS.text_extractability,
     100,
     [
-      "PowerPoint slides contain fully extractable, selectable text — unlike a scanned image, the content is always available to assistive technology.",
+      fd("pptx.text_extractability.text_extractable")(
+        "PowerPoint slides contain fully extractable, selectable text — unlike a scanned image, the content is always available to assistive technology.",
+      ),
     ],
     "PowerPoint stores real text (never a flat image), so screen readers can always read the words. This foundational check therefore passes automatically for .pptx; the remaining categories assess how well that text is structured.",
     [PPTX_HELP.overview],
@@ -127,20 +137,28 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     // often PowerPoint's own default, "PowerPoint Presentation", which every
     // deck made from a template carrying it inherits.
     const shape = classifyTitleShape(a.metadata.title);
-    findings.push(`Presentation title: "${a.metadata.title}"`);
+    findings.push(
+      fd("pptx.title_language.title_present")`Presentation title: "${a.metadata.title}"`,
+    );
     if (shape === "tool-generated") {
       score += 25;
       findings.push(
-        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the presentation name, so partial credit only.",
+        fd("pptx.title_language.title_tool_generated")(
+          "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the presentation name, so partial credit only.",
+        ),
       );
       findings.push(
-        'How to fix: In PowerPoint: File → Info → Properties → Title — replace it with a descriptive title (e.g., "2024 Program Results").',
+        fd("pptx.title_language.title_tool_generated_fix")(
+          'How to fix: In PowerPoint: File → Info → Properties → Title — replace it with a descriptive title (e.g., "2024 Program Results").',
+        ),
       );
     } else {
       score += 50;
       if (shape === "filename-shaped") {
         findings.push(
-          `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the presentation, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the presentation well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
+          fd(
+            "pptx.title_language.title_filename_shaped",
+          )`Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the presentation, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the presentation well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
         );
       }
     }
@@ -150,7 +168,9 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     // scored — "could not be read" is never "missing".
     score += 50;
     findings.push(
-      "The presentation's title could not be read — the file's core-properties part is unparseable, so this half is not scored.",
+      fd("pptx.title_language.title_unreadable")(
+        "The presentation's title could not be read — the file's core-properties part is unparseable, so this half is not scored.",
+      ),
     );
   } else {
     findings.push(
@@ -159,7 +179,9 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
       // and could not tell whether they were one issue or two. They are two.
       // The opening words are matched by the action plan and the fix-time
       // chip (apps/web utils/actionPlan.ts, fixTime.ts) — keep them.
-      "No presentation title is set in the file's properties. This is the title of the whole file — not a slide's title, which is reported separately under Slide Titles. In PowerPoint: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this deck uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
+      fd("pptx.title_language.title_missing")(
+        "No presentation title is set in the file's properties. This is the title of the whole file — not a slide's title, which is reported separately under Slide Titles. In PowerPoint: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this deck uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
+      ),
     );
   }
   if (a.metadata.language) {
@@ -170,7 +192,9 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     if (verdict.kind === "ok") {
       score += 50;
       findings.push(
-        `Presentation language: ${a.metadata.language}${a.languageFromText ? " (declared on the text itself — the presentation sets no default language)" : ""}`,
+        fd(
+          "pptx.title_language.language_declared",
+        )`Presentation language: ${a.metadata.language}${a.languageFromText ? " (declared on the text itself — the presentation sets no default language)" : ""}`,
       );
     } else {
       score += 25;
@@ -185,7 +209,9 @@ function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
     }
   } else {
     findings.push(
-      "No default presentation language is declared, and none is declared on most of the text. In PowerPoint: select the text — in View → Outline View, click in the outline and press Ctrl+A (⌘A on a Mac) to select every slide's title and body text; text boxes and tables are selected on their own slides — then Review → Language → Set Proofing Language → choose the language → OK, and save. It tells screen readers which pronunciation rules to use.",
+      fd("pptx.title_language.language_missing")(
+        "No default presentation language is declared, and none is declared on most of the text. In PowerPoint: select the text — in View → Outline View, click in the outline and press Ctrl+A (⌘A on a Mac) to select every slide's title and body text; text boxes and tables are selected on their own slides — then Review → Language → Set Proofing Language → choose the language → OK, and save. It tells screen readers which pronunciation rules to use.",
+      ),
     );
   }
   return pptxCategory(
@@ -206,7 +232,7 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
       "Slide Titles",
       PPTX.SCORING_WEIGHTS.slide_titles,
       null,
-      ["No slides were found."],
+      [fd("pptx.slide_titles.no_slides")("No slides were found.")],
       "Every slide needs a title placeholder so screen-reader users can tell slides apart and jump directly to one — PowerPoint's equivalent of a heading. This presentation has no slides to assess.",
       [PPTX_HELP.slideTitles],
       false,
@@ -275,32 +301,53 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
   if (loneTitle) {
     const f = fakeHeadings[0];
     findings.push(
-      `Advisory — not scored: slide ${f.slide} has its heading typed into a text box ("${f.text.slice(0, 80).replace(/"/g, "'")}") rather than the slide's title placeholder. No slide in this deck has a title, and a single title does not make sections, so it is not scored — but moving it into the title placeholder still gives screen-reader users the slide's title. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder.`,
+      fd("pptx.slide_titles.lone_typed_heading", {
+        pages: [f.slide],
+      })`Advisory — not scored: slide ${f.slide} has its heading typed into a text box ("${f.text.slice(0, 80).replace(/"/g, "'")}") rather than the slide's title placeholder. No slide in this deck has a title, and a single title does not make sections, so it is not scored — but moving it into the title placeholder still gives screen-reader users the slide's title. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder.`,
     );
   } else if (fakeHeadings.length > 0) {
     const nums = fakeHeadings.map((f) => f.slide).join(", ");
     findings.push(
-      `Slide${fakeHeadings.length > 1 ? "s" : ""} ${nums} ${
+      fd("pptx.slide_titles.typed_headings", {
+        count: fakeHeadings.length,
+        pages: fakeHeadings.map((f) => f.slide),
+      })`Slide${fakeHeadings.length > 1 ? "s" : ""} ${nums} ${
         fakeHeadings.length > 1 ? "have" : "has"
       } a heading typed into an ordinary text box instead of the slide's title placeholder — it looks like a heading and is not one, so assistive technology cannot announce it as the slide's title or navigate to it. In PowerPoint: Home → Layout → pick a layout with a Title, then move the text into the title placeholder (or View → Outline View and type it there). Quicker: select the text box, then Review → Check Accessibility → Slide Title ▾ → Set as Slide Title.`,
     );
     if (headingsOverwhelmed(titledSlides, fakeHeadings.length)) {
       findings.push(
-        overwhelmedHeadingsFinding(titledSlides, fakeHeadings.length, {
-          real: "titled slide(s)",
-          lookalike: "heading(s) typed into ordinary text boxes",
-        }),
+        fd("pptx.slide_titles.headings_overwhelmed", {
+          count: fakeHeadings.length,
+          total: titledSlides + fakeHeadings.length,
+        })(
+          overwhelmedHeadingsFinding(titledSlides, fakeHeadings.length, {
+            real: "titled slide(s)",
+            lookalike: "heading(s) typed into ordinary text boxes",
+          }),
+        ),
       );
     }
-    findings.push(`--- Text Boxes Styled Like Slide Titles ---`);
+    findings.push(
+      fd(
+        "pptx.slide_titles.typed_heading_list_heading",
+      )`--- Text Boxes Styled Like Slide Titles ---`,
+    );
     for (const f of fakeHeadings.slice(0, 10)) {
-      findings.push(`  Slide ${f.slide}: "${f.text.slice(0, 80)}"`);
+      findings.push(
+        fd("pptx.slide_titles.typed_heading_list_item", {
+          pages: [f.slide],
+        })`  Slide ${f.slide}: "${f.text.slice(0, 80)}"`,
+      );
     }
   }
   if (untitled.length > 0) {
     const nums = untitled.map((s) => s.index).join(", ");
     findings.push(
-      `Advisory — not scored: slide${untitled.length > 1 ? "s" : ""} ${nums} ${
+      fd("pptx.slide_titles.untitled_slides", {
+        count: untitled.length,
+        pages: untitled.map((s) => s.index),
+      })`Advisory — not scored: slide${untitled.length > 1 ? "s" : ""} ${nums} ${
         untitled.length > 1 ? "have" : "has"
       } no slide title — your grade is not affected (no WCAG 2.1 A/AA criterion requires a heading to exist; that is 2.4.10 Section Headings, Level AAA), but titled slides give screen-reader users a navigable outline. This is the slide's own title, not the presentation's title in the file's properties, which is scored under Title & Language. In PowerPoint: use the Outline view (View → Outline View) or a layout with a title placeholder.`,
     );
@@ -316,27 +363,42 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
   if (duplicateGroups.length > 0) {
     for (const [title, idx] of duplicateGroups) {
       findings.push(
-        `Advisory — not scored: ${idx.length} slides share the title "${title}" — your grade is not affected, but a distinct, descriptive title on each slide lets screen-reader users tell them apart in the outline.`,
+        fd("pptx.slide_titles.duplicate_title", {
+          count: idx.length,
+          pages: idx,
+        })`Advisory — not scored: ${idx.length} slides share the title "${title}" — your grade is not affected, but a distinct, descriptive title on each slide lets screen-reader users tell them apart in the outline.`,
       );
     }
   }
 
   if (hiddenCount > 0) {
-    findings.push(`${hiddenCount} hidden slide(s) were excluded from title judgment.`);
+    findings.push(
+      fd("pptx.slide_titles.hidden_slides_excluded_from_titles", {
+        count: hiddenCount,
+      })`${hiddenCount} hidden slide(s) were excluded from title judgment.`,
+    );
     // The whole slide, not only its title (2026-11-12) — Excel's hidden-sheet
     // disclosure, for slides.
     findings.push(
-      `Note: ${hiddenCount} hidden slide(s) were excluded from this audit — hidden slides are not presented to any reader, so their images, tables, links, lists, and colors do not drive findings. If a hidden slide will be shown or shared, unhide it and check the presentation again.`,
+      fd("pptx.slide_titles.hidden_slides_excluded", {
+        count: hiddenCount,
+      })`Note: ${hiddenCount} hidden slide(s) were excluded from this audit — hidden slides are not presented to any reader, so their images, tables, links, lists, and colors do not drive findings. If a hidden slide will be shown or shared, unhide it and check the presentation again.`,
     );
   }
   if (untitled.length === 0 && duplicateGroups.length === 0) {
-    findings.push(`All ${visible.length} visible slide(s) have a distinct title.`);
+    findings.push(
+      fd("pptx.slide_titles.all_distinct", {
+        count: visible.length,
+      })`All ${visible.length} visible slide(s) have a distinct title.`,
+    );
   }
   if (a.allSlidesHidden) {
     // Nothing but hidden slides (2026-11-12): they are the whole deck, so
     // they were checked — see pptxService.
     findings.push(
-      `All ${a.slides.length} slide(s) in this presentation are hidden. With no visible slide to judge, the hidden slides were checked as they are — unhide the slides that will be presented (right-click the slide → Unhide Slide) and check the presentation again.`,
+      fd("pptx.slide_titles.all_slides_hidden", {
+        count: a.slides.length,
+      })`All ${a.slides.length} slide(s) in this presentation are hidden. With no visible slide to judge, the hidden slides were checked as they are — unhide the slides that will be presented (right-click the slide → Unhide Slide) and check the presentation again.`,
     );
   }
 
@@ -358,7 +420,7 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
       "Alt Text on Images",
       PPTX.SCORING_WEIGHTS.alt_text,
       null,
-      ["No images were found."],
+      [fd("pptx.alt_text.no_images")("No images were found.")],
       "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [PPTX_HELP.altText],
       false,
@@ -373,7 +435,11 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
       "Alt Text on Images",
       PPTX.SCORING_WEIGHTS.alt_text,
       null,
-      ["All images are marked decorative, so none require alt text."],
+      [
+        fd("pptx.alt_text.all_decorative")(
+          "All images are marked decorative, so none require alt text.",
+        ),
+      ],
       "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [PPTX_HELP.altText],
       false,
@@ -384,16 +450,22 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
   // This rounded and capped at 85, a convention PDF never adopted.
   const score = shareScore(nonDecorative.length - missing.length, nonDecorative.length);
   const findings = [
-    `${nonDecorative.length - missing.length} of ${nonDecorative.length} meaningful image(s) have alt text.`,
+    fd("pptx.alt_text.images_with_alt", {
+      count: nonDecorative.length - missing.length,
+      total: nonDecorative.length,
+    })`${nonDecorative.length - missing.length} of ${nonDecorative.length} meaningful image(s) have alt text.`,
   ];
   if (missing.length > 0) {
     findings.push(
-      `${missing.length} image(s) are missing alt text. In PowerPoint: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
+      fd("pptx.alt_text.images_missing_alt", {
+        count: missing.length,
+        total: nonDecorative.length,
+      })`${missing.length} image(s) are missing alt text. In PowerPoint: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
     const placeholders = placeholderAltFinding(missing);
-    if (placeholders) findings.push(placeholders);
+    if (placeholders) findings.push(fd("pptx.alt_text.placeholder_alt")(placeholders));
     const drawnShapes = drawnShapeFinding(missing, "PowerPoint");
-    if (drawnShapes) findings.push(drawnShapes);
+    if (drawnShapes) findings.push(fd("pptx.alt_text.drawn_shapes")(drawnShapes));
   }
   return pptxCategory(
     "alt_text",
@@ -419,7 +491,9 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.reading_order,
       null,
       [
-        "No titled slides to order-check — reading order was not assessed. Verify manually with the Tab key or the Selection Pane (which lists shapes in reverse reading order).",
+        fd("pptx.reading_order.not_assessed_no_titled_slides")(
+          "No titled slides to order-check — reading order was not assessed. Verify manually with the Tab key or the Selection Pane (which lists shapes in reverse reading order).",
+        ),
       ],
       "Reading order determines the sequence assistive technology announces a slide's content. A slide's title should read first, orienting the listener before the body content.",
       [PPTX_HELP.overview],
@@ -452,7 +526,10 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
   if (titledOutOfOrder.length > 0) {
     const nums = titledOutOfOrder.map((s) => s.index).join(", ");
     findings.push(
-      `Advisory — not scored: slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
+      fd("pptx.reading_order.title_not_first", {
+        count: titledOutOfOrder.length,
+        pages: titledOutOfOrder.map((s) => s.index),
+      })`Advisory — not scored: slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
         titledOutOfOrder.length > 1 ? "have" : "has"
       } a title that is not the first shape in reading order. A listener hears the body text before the heading that was meant to orient them. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) — it lists shapes in reverse reading order, so drag the title to the BOTTOM of the list to make it read first. (On Windows, the Reading Order pane lists them top-down: Review → Check Accessibility → Check reading order → Verify object order.)`,
     );
@@ -461,14 +538,21 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
   if (denseSlides.length > 0) {
     const nums = denseSlides.map((s) => `${s.index} (${s.shapeCount} shapes)`).join(", ");
     findings.push(
-      `Slide${denseSlides.length > 1 ? "s" : ""} ${nums} ${
+      fd("pptx.reading_order.dense_slides", {
+        count: denseSlides.length,
+        pages: denseSlides.map((s) => s.index),
+      })`Slide${denseSlides.length > 1 ? "s" : ""} ${nums} ${
         denseSlides.length > 1 ? "have" : "has"
       } more than 10 shapes. Dense slides are hard to verify automatically — check the reading order manually with the Tab key or the Selection Pane (which lists shapes in reverse reading order).`,
     );
   }
 
   if (findings.length === 0) {
-    findings.push("Every titled slide's title reads first in tab order.");
+    findings.push(
+      fd("pptx.reading_order.titles_read_first")(
+        "Every titled slide's title reads first in tab order.",
+      ),
+    );
   }
 
   return pptxCategory(
@@ -490,7 +574,7 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
       "Table Markup",
       PPTX.SCORING_WEIGHTS.table_markup,
       null,
-      ["No tables were found."],
+      [fd("pptx.table_markup.no_tables")("No tables were found.")],
       "Data tables need a marked header row so screen readers can associate each cell with its column header.",
       [PPTX_HELP.overview],
       false,
@@ -523,10 +607,16 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
   const perTable = dataTables.map((t) => (t.hasHeaderRow ? 100 : UNHEADERED_DATA_TABLE_SCORE));
   const score =
     perTable.length === 0 ? 100 : Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
-  const findings = [`${a.tables.length} table(s) found.`];
+  const findings = [
+    fd("pptx.table_markup.tables_found", {
+      count: a.tables.length,
+    })`${a.tables.length} table(s) found.`,
+  ];
   if (dataTablesNoHeader.length > 0) {
     findings.push(
-      `${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: click in the table → Table Design → Table Style Options → check "Header Row", and type the column headings in that top row.`,
+      fd("pptx.table_markup.no_header_row", {
+        count: dataTablesNoHeader.length,
+      })`${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: click in the table → Table Design → Table Style Options → check "Header Row", and type the column headings in that top row.`,
     );
   }
   // Headers that label nothing (2026-10-06, user decision: reported, never
@@ -534,12 +624,16 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
   const emptyHeaders = a.tables.filter((t) => isDataTable(t) && t.emptyHeaderRow === true).length;
   if (emptyHeaders > 0) {
     findings.push(
-      `Advisory — not scored: ${emptyHeaders} table(s) mark a header row whose cells are all empty — the structure is there, so this is not counted against your grade, but screen readers announce no header for those columns. Type a label into each header cell.`,
+      fd("pptx.table_markup.empty_header_row", {
+        count: emptyHeaders,
+      })`Advisory — not scored: ${emptyHeaders} table(s) mark a header row whose cells are all empty — the structure is there, so this is not counted against your grade, but screen readers announce no header for those columns. Type a label into each header cell.`,
     );
   }
   if (bareGrids > 0) {
     findings.push(
-      `Advisory — not scored: ${bareGrids} bare grid(s) with no table style, borders, shading, or header row — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
+      fd("pptx.table_markup.bare_grid_layout", {
+        count: bareGrids,
+      })`Advisory — not scored: ${bareGrids} bare grid(s) with no table style, borders, shading, or header row — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
     );
   }
   return pptxCategory(
@@ -563,7 +657,9 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
   const unchecked =
     unresolvedRuns > 0
       ? [
-          `Advisory — not scored: ${unresolvedRuns} more text run(s) could not be checked — text on a picture or gradient, on a see-through fill with more than one color beneath it, or in a tinted or see-through color, is not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
+          fd("pptx.color_contrast.runs_unchecked", {
+            count: unresolvedRuns,
+          })`Advisory — not scored: ${unresolvedRuns} more text run(s) could not be checked — text on a picture or gradient, on a see-through fill with more than one color beneath it, or in a tinted or see-through color, is not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
         ]
       : [];
   if (checkedRuns === 0) {
@@ -573,7 +669,9 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.color_contrast,
       null,
       [
-        "No text whose color and background are each one stated color was found — text on a picture or gradient, or in a tinted or see-through color, is not assessed.",
+        fd("pptx.color_contrast.nothing_checkable")(
+          "No text whose color and background are each one stated color was found — text on a picture or gradient, or in a tinted or see-through color, is not assessed.",
+        ),
       ],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, links are judged in the theme's link color, a lighter or darker shade of a color is computed, and a see-through fill is blended with the one color beneath it; text on a picture or gradient, or in a tinted or see-through color, is not assessed.",
       [PPTX_HELP.contrast],
@@ -587,7 +685,9 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.color_contrast,
       100,
       [
-        `${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`,
+        fd("pptx.color_contrast.all_pass", {
+          count: checkedRuns,
+        })`${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`,
         ...unchecked,
       ],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Each run's color and size are followed from the run through its slide's layout and master text styles, links are judged in the theme's link color, a lighter or darker shade of a color is computed, and a see-through fill is blended with the one color beneath it; text on a picture or gradient, or in a tinted or see-through color, is not assessed.",
@@ -601,8 +701,13 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
   const score = Math.min(85, Math.round(((checkedRuns - failing.length) / checkedRuns) * 100));
   const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
   const findings = [
-    `${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
-    `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+    fd("pptx.color_contrast.below_minimum", {
+      count: failing.length,
+      total: checkedRuns,
+    })`${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
+    fd(
+      "pptx.color_contrast.lowest_ratio",
+    )`Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
     ...unchecked,
   ];
   return pptxCategory(
@@ -624,7 +729,7 @@ function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
       "List Structure",
       PPTX.SCORING_WEIGHTS.list_structure,
       null,
-      ["No lists were found."],
+      [fd("pptx.list_structure.no_lists")("No lists were found.")],
       "Real bulleted/numbered list formatting lets screen readers announce list structure and item counts. Manually-typed bullet characters do not.",
       [PPTX_HELP.overview],
       false,
@@ -637,7 +742,9 @@ function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.list_structure,
       100,
       [
-        `${realListItems} real list item(s) found; all use PowerPoint's bullet/numbering formatting.`,
+        fd("pptx.list_structure.all_real", {
+          count: realListItems,
+        })`${realListItems} real list item(s) found; all use PowerPoint's bullet/numbering formatting.`,
       ],
       "Real bulleted/numbered list formatting lets screen readers announce list structure and item counts. Manually-typed bullet characters do not.",
       [PPTX_HELP.overview],
@@ -651,8 +758,14 @@ function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
   // Floored at the Moderate band (TYPED_LIST_FLOOR, 2026-10-05), as in Word.
   const score = Math.max(TYPED_LIST_FLOOR, Math.min(85, Math.round((realListItems / total) * 100)));
   const findings = [
-    `${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet paragraph(s).`,
-    `${manualBulletParagraphs} paragraph(s) use typed characters (e.g. "-" or "*") instead of PowerPoint's bullet/numbering formatting. In PowerPoint: select the text → Home → Bullets/Numbering.`,
+    fd("pptx.list_structure.list_items_census", {
+      count: manualBulletParagraphs,
+      total: total,
+    })`${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet paragraph(s).`,
+    fd("pptx.list_structure.typed_bullets", {
+      count: manualBulletParagraphs,
+      total: total,
+    })`${manualBulletParagraphs} paragraph(s) use typed characters (e.g. "-" or "*") instead of PowerPoint's bullet/numbering formatting. In PowerPoint: select the text → Home → Bullets/Numbering.`,
   ];
   return pptxCategory(
     "list_structure",
@@ -672,7 +785,7 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
       "Link Quality",
       PPTX.SCORING_WEIGHTS.link_quality,
       null,
-      ["No hyperlinks were found."],
+      [fd("pptx.link_quality.no_links")("No hyperlinks were found.")],
       "Link text should describe the destination. Empty or vague link text is unhelpful out of context.",
       [PPTX_HELP.overview],
       false,
@@ -697,15 +810,25 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
   const vague = a.links.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
   const score = shareScore(a.links.length - unnamed.length, a.links.length);
-  const findings = [`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`];
+  const findings = [
+    fd("pptx.link_quality.links_assessed", {
+      count: unnamed.length,
+      total: a.links.length,
+    })`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`,
+  ];
   if (unnamed.length > 0) {
     findings.push(
-      `${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In PowerPoint: select the linked text → Insert → Link, and type a descriptive phrase in "Text to display".`,
+      fd("pptx.link_quality.links_unnamed", {
+        count: unnamed.length,
+        total: a.links.length,
+      })`${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In PowerPoint: select the linked text → Insert → Link, and type a descriptive phrase in "Text to display".`,
     );
   }
   if (vague.length > 0) {
     findings.push(
-      `Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
+      fd("pptx.link_quality.vague_text", {
+        count: vague.length,
+      })`Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
         .slice(0, 5)
         .map((l) => `"${l.text.trim()}"`)
         .join(
@@ -715,7 +838,9 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
   }
   if (rawUrls.length > 0) {
     findings.push(
-      `Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.`,
+      fd("pptx.link_quality.raw_urls", {
+        count: rawUrls.length,
+      })`Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.`,
     );
   }
   return pptxCategory(
@@ -736,7 +861,9 @@ function scorePptxForms(): CategoryResult {
     0,
     null,
     [
-      "Interactive form controls are uncommon in PowerPoint presentations and are not automatically assessed in this version.",
+      fd("pptx.form_accessibility.not_assessed")(
+        "Interactive form controls are uncommon in PowerPoint presentations and are not automatically assessed in this version.",
+      ),
     ],
     "Interactive form fields need accessible labels. They are rare in PowerPoint presentations and are not assessed automatically here.",
     [PPTX_HELP.overview],
@@ -769,6 +896,10 @@ function buildPptxCategories(a: PptxAnalysis): CategoryResult[] {
  * adobeParity signals, so it flows through the existing report UI unchanged.
  */
 export function scorePptx(analysis: PptxAnalysis): ScoringResult {
+  return withFindingDetails("pptx", () => scorePptxUncoded(analysis));
+}
+
+function scorePptxUncoded(analysis: PptxAnalysis): ScoringResult {
   const categories = buildPptxCategories(analysis);
   const warnings: string[] = [];
   const unparsed = analysis.unparsedSlides ?? [];
@@ -781,6 +912,7 @@ export function scorePptx(analysis: PptxAnalysis): ScoringResult {
       // properties and presentation parts.
       new Set(categories.map((c) => c.id).filter((id) => id !== "title_language")),
       `slide${unparsed.length > 1 ? "s" : ""} ${unparsed.join(", ")}`,
+      "pptx",
     );
   }
   const conformance = evaluatePptxConformance(analysis);

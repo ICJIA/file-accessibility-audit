@@ -25,6 +25,8 @@
 <script setup lang="ts">
 // A lower-right floating button that appears once the user has scrolled down,
 // and smooth-scrolls back to the top. Self-contained; drop it on any page.
+import { scrollBehavior } from "~/utils/motion";
+
 const props = withDefaults(defineProps<{ threshold?: number }>(), {
   threshold: 500,
 });
@@ -36,7 +38,15 @@ function onScroll() {
 }
 
 function toTop() {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  // An instant jump for anyone who has asked for reduced motion: a smooth
+  // behaviour passed from script overrides the stylesheet's reduced-motion
+  // rule, so the choice has to be made here.
+  window.scrollTo({ top: 0, behavior: scrollBehavior() });
+  // This button hides itself once the page is back at the top, which would
+  // leave keyboard focus on an invisible control. Hand focus to the page
+  // content (the layout's skip-link target) instead; preventScroll so the
+  // focus move does not fight the scroll.
+  document.getElementById("main-content")?.focus({ preventScroll: true });
 }
 
 onMounted(() => {

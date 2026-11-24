@@ -169,7 +169,9 @@ function loggedHandler(limiterName: string, message: Record<string, string>) {
       windowMs: typeof options?.windowMs === "number" ? options.windowMs : 0,
       auth: authOutcome(req),
     });
-    res.status(options.statusCode).json(message);
+    // The one error shape (services/apiError.ts): the limiter's own sentence
+    // plus the stable code. Retry-After is already set (standardHeaders).
+    res.status(options.statusCode).json({ ...message, code: "RATE_LIMITED" });
   };
 }
 

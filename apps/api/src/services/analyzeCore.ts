@@ -9,6 +9,7 @@
  * transitions (engine analysis; the two concurrent veraPDF passes), the
  * synchronous path passes no hooks and behaves byte-for-byte as before.
  */
+import type { Response } from "express";
 import type { AnalysisResult } from "@file-audit/analyzer";
 import { analyzeDocument, detectFileType, detectLegacyFormat } from "./analyzer.js";
 import { AUDIT_TIMEOUT_MESSAGE, unsupportedFormatMessage } from "@file-audit/shared";
@@ -22,7 +23,8 @@ import {
   sha256Hex,
 } from "./auditLog.js";
 import { classifyAuditFailure } from "./auditFailure.js";
-import { retryWhileBusy } from "./busy.js";
+import { retryWhileBusy, setBusyRetryAfter } from "./busy.js";
+import type { ApiErrorCode } from "./apiError.js";
 
 export type AnalyzeStep = "analysis" | "veraPdfUa" | "veraPdfWcag";
 export type AnalyzeStepState = "running" | "done";
@@ -56,16 +58,26 @@ export async function performAudit(
   // PDFs only — cost is max(analyze, veraPDF), not the sum.
   const detectedType = await detectFileType(buffer).catch(() => null);
   onStep?.("analysis", "running");
-  const [result, veraChecks] = await Promise.all([
-    (opts.retryBusyMs
+  // The veraPDF passes run beside the analysis, and are STOPPED the moment
+  // the analysis is refused or fails (the line is full, the PDF is
+  // encrypted): Promise.all rejects at once, but the JVM used to carry on for
+  // up to VERAPDF_AUDIT_TIMEOUT_MS holding the only veraPDF slot — and a temp
+  // copy of the document — for a verdict nobody would receive.
+  const veraAbort = new AbortController();
+  const analysis = (
+    opts.retryBusyMs
       ? retryWhileBusy(() => analyzeDocument(buffer, filename), { totalMs: opts.retryBusyMs })
       : analyzeDocument(buffer, filename)
-    ).finally(() => onStep?.("analysis", "done")),
+  ).finally(() => onStep?.("analysis", "done"));
+  analysis.catch(() => veraAbort.abort());
+  const [result, veraChecks] = await Promise.all([
+    analysis,
     detectedType === "pdf"
       ? runVeraPdfChecksOnBuffer(buffer, {
           wcag: REMEDIATION.VERAPDF_WCAG_ENABLED,
           onUa: (s) => onStep?.("veraPdfUa", s),
           onWcag: (s) => onStep?.("veraPdfWcag", s),
+          signal: veraAbort.signal,
         })
       : Promise.resolve(null),
   ]);
@@ -97,15 +109,53 @@ export async function performAudit(
   return result;
 }
 
+/**
+ * Whether a PDF's bytes declare an /Encrypt dictionary. The key sits in the
+ * trailer (or in the cross-reference stream's own dictionary, which is never
+ * compressed), so a byte scan finds it. Exported for tests.
+ */
+export function declaresEncryption(buffer: Buffer): boolean {
+  return buffer.subarray(0, 5).toString("latin1") === "%PDF-" && buffer.includes("/Encrypt");
+}
+
 export interface MappedAnalyzeError {
   status: number;
-  body: { error: string; details?: string };
+  /** `code` is the stable machine-readable part (services/apiError.ts). */
+  body: { error: string; details?: string; code: ApiErrorCode };
+}
+
+/** What differs between the callers of mapAnalyzeError. */
+export interface MapAnalyzeContext {
+  /**
+   * "upload" (default) — the caller sent the file. "url" — the server
+   * fetched it: the URL routes have always said "The fetched … could not be
+   * read." and given the short busy hint, and keep doing so.
+   */
+  source?: "upload" | "url";
+  /** audit_log event the failed-audit row is recorded under. Default "analyze". */
+  eventType?: "analyze" | "analyze-url" | "audit-url";
+  /** Name recorded on the failed-audit row. Default: the file's own name;
+   *  the URL routes record the URL that was asked for. */
+  failureName?: string;
+  /**
+   * false = record no audit_log row at all: the caller keeps its own records
+   * (bulk-from-inventory), or the failure is not an audit (the remediation
+   * preflight). Default true.
+   */
+  record?: boolean;
 }
 
 /**
  * The single error → HTTP mapping for audit failures, extracted verbatim
  * from the pre-v1.100.0 handler. Also records the v1.88.0 failed-audit /
  * rejected-upload rows, exactly as the synchronous route always has.
+ *
+ * EVERY analysis path maps through here: the upload routes (/analyze,
+ * /analyze-job), the URL routes (/analyze-url, /audit-url), each entry of
+ * /bulk-from-inventory, and the /remediate preflight. The URL routes used to
+ * keep their own copies of this chain, which had no password-protected and
+ * no unreadable branch — so the same encrypted PDF answered 422 as an upload
+ * and 500 by URL.
  */
 export function mapAnalyzeError(
   err: {
@@ -116,18 +166,22 @@ export function mapAnalyzeError(
   },
   file: { originalname: string; buffer: Buffer } | undefined,
   privileged: boolean,
+  ctx: MapAnalyzeContext = {},
 ): MappedAnalyzeError {
+  const fetched = ctx.source === "url";
+  const record = ctx.record !== false;
   // v1.88.0: an audit the tool attempted and could not complete leaves a row
   // of its own — same fields as a successful one, no score/grade/hash, a
   // one-word reason. The classifier answers null for capacity (503) and for
   // refusals, which the UNSUPPORTED_FILE_TYPE branch below records as
   // rejected-upload instead.
   const failure = classifyAuditFailure(err);
-  if (failure && file) {
+  const failureName = ctx.failureName ?? file?.originalname;
+  if (record && failure && failureName !== undefined) {
     recordAuditFailure({
-      eventType: "analyze",
+      eventType: ctx.eventType ?? "analyze",
       privileged,
-      filename: file.originalname,
+      filename: failureName,
       reason: failure,
     });
   }
@@ -137,8 +191,10 @@ export function mapAnalyzeError(
       status: 503,
       body: {
         error: "The server is busy processing other files.",
-        details:
-          "Please wait a moment and try again. The server can analyze two files at a time — your request will be processed as soon as a slot opens.",
+        details: fetched
+          ? "Please wait a moment and try again."
+          : "Please wait a moment and try again. The server can analyze two files at a time — your request will be processed as soon as a slot opens.",
+        code: "SERVER_BUSY",
       },
     };
   }
@@ -149,7 +205,7 @@ export function mapAnalyzeError(
     // arrived without a telling extension. Counted here rather than in the
     // upload filter: this file passed the extension check, so the filter
     // never saw it as a refusal.
-    if (file) {
+    if (record && file) {
       recordRejectedUpload({
         filename: sanitizeStoredFilename(file.originalname),
         privileged,
@@ -162,6 +218,7 @@ export function mapAnalyzeError(
         body: {
           error: "This file is a legacy format that cannot be audited.",
           details: unsupportedFormatMessage(legacy),
+          code: "UNSUPPORTED_TYPE",
         },
       };
     }
@@ -171,6 +228,7 @@ export function mapAnalyzeError(
         error: "This file is not a supported document.",
         details:
           "Upload a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file. The file content matches none of these formats — check that you are not uploading a renamed file of another type (e.g., .zip, .jpg).",
+        code: "UNSUPPORTED_TYPE",
       },
     };
   }
@@ -182,6 +240,7 @@ export function mapAnalyzeError(
         error: "Word (.docx) auditing is currently disabled.",
         details:
           "This server is not configured to audit Word files. Contact the administrator to enable it.",
+        code: "FORMAT_DISABLED",
       },
     };
   }
@@ -189,9 +248,12 @@ export function mapAnalyzeError(
     return {
       status: 422,
       body: {
-        error: "This Word document could not be read.",
+        error: fetched
+          ? "The fetched Word document could not be read."
+          : "This Word document could not be read.",
         details:
           "The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.",
+        code: "FILE_UNREADABLE",
       },
     };
   }
@@ -202,6 +264,7 @@ export function mapAnalyzeError(
         error: "PowerPoint (.pptx) auditing is currently disabled.",
         details:
           "This server is not configured to audit PowerPoint files. Contact the administrator to enable it.",
+        code: "FORMAT_DISABLED",
       },
     };
   }
@@ -209,9 +272,12 @@ export function mapAnalyzeError(
     return {
       status: 422,
       body: {
-        error: "This PowerPoint file could not be read.",
+        error: fetched
+          ? "The fetched PowerPoint file could not be read."
+          : "This PowerPoint file could not be read.",
         details:
           "The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.",
+        code: "FILE_UNREADABLE",
       },
     };
   }
@@ -222,6 +288,7 @@ export function mapAnalyzeError(
         error: "Excel (.xlsx) auditing is currently disabled.",
         details:
           "This server is not configured to audit Excel files. Contact the administrator to enable it.",
+        code: "FORMAT_DISABLED",
       },
     };
   }
@@ -229,20 +296,35 @@ export function mapAnalyzeError(
     return {
       status: 422,
       body: {
-        error: "This Excel file could not be read.",
+        error: fetched
+          ? "The fetched Excel file could not be read."
+          : "This Excel file could not be read.",
         details:
           "The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.",
+        code: "FILE_UNREADABLE",
       },
     };
   }
 
-  if (err.message?.includes("encrypted") || err.message?.includes("password")) {
+  // A password-protected PDF. The analyzer names it in the message when qpdf
+  // says "encrypted" — but current qpdf says "invalid password" for a file
+  // that needs a password to open, pdf.js then fails as well, and what
+  // arrives here is the generic PDF_PARSE_FAILED. So a parse failure of a
+  // file that declares an /Encrypt dictionary is treated as what it almost
+  // certainly is, and the person is told about the password instead of being
+  // sent to re-download a "corrupt" file.
+  if (
+    err.message?.includes("encrypted") ||
+    err.message?.includes("password") ||
+    (err.code === "PDF_PARSE_FAILED" && file !== undefined && declaresEncryption(file.buffer))
+  ) {
     return {
       status: 422,
       body: {
         error: "This PDF is password-protected.",
         details:
           "Screen readers and accessibility tools also cannot access password-protected content. Please remove the password protection in Adobe Acrobat (Document properties — ☰ Menu on Windows, File menu on Mac → Security tab → Security Method: No Security) and re-upload.",
+        code: "FILE_ENCRYPTED",
       },
     };
   }
@@ -251,7 +333,7 @@ export function mapAnalyzeError(
   // branch catches any killed subprocess, and server contention is the more
   // common cause. See AUDIT_TIMEOUT_MESSAGE for the incident behind the copy.
   if (err.code === "ETIMEDOUT" || err.killed) {
-    return { status: 504, body: { ...AUDIT_TIMEOUT_MESSAGE } };
+    return { status: 504, body: { ...AUDIT_TIMEOUT_MESSAGE, code: "TIMEOUT" } };
   }
 
   return {
@@ -260,6 +342,44 @@ export function mapAnalyzeError(
       error: "This file could not be analyzed.",
       details:
         "It may be corrupt or in an unsupported format. To fix this: (1) Re-download the file from its original source; (2) Open the file in its native application and re-save it; (3) If all else fails, try re-exporting it to the same format.",
+      code: "FILE_UNREADABLE",
     },
   };
+}
+
+/** Send a mapped error; a busy (503) answer also says when to come back. */
+export function sendMappedAnalyzeError(
+  res: Pick<Response, "setHeader" | "status">,
+  mapped: MappedAnalyzeError,
+): void {
+  if (mapped.status === 503) setBusyRetryAfter(res);
+  res.status(mapped.status).json(mapped.body);
+}
+
+/**
+ * Map an error thrown by the ANALYSIS of a document the server fetched by
+ * URL, log it when it is not one of the expected kinds, and return the
+ * response to send — the URL routes' one catch for analyzeDocument.
+ */
+export function mapUrlAnalyzeError(
+  err: unknown,
+  input: {
+    eventType: "analyze-url" | "audit-url";
+    url: string;
+    filename: string;
+    buffer: Buffer;
+    privileged: boolean;
+  },
+): MappedAnalyzeError {
+  // The detail stays server-side — never echo a raw err.message to the
+  // client (it can carry library internals and paths). Expected outcomes (a
+  // password-protected or corrupt file, a timeout, a full line) are not
+  // logged with a stack; only the unclassified ones are.
+  if (classifyAuditFailure(err) === "internal") console.error(`${input.eventType} error:`, err);
+  return mapAnalyzeError(
+    (err ?? {}) as { status?: number; code?: string; message?: string; killed?: boolean },
+    { originalname: input.filename, buffer: input.buffer },
+    input.privileged,
+    { source: "url", eventType: input.eventType, failureName: input.url },
+  );
 }

@@ -3,7 +3,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import AnnouncementBanner from "../components/AnnouncementBanner.vue";
-import { ANNOUNCEMENTS, ANNOUNCEMENT_BANNER_SENTENCES } from "../../../../audit.config";
+import {
+  ANNOUNCEMENTS,
+  ANNOUNCEMENT_BANNER_MAX_WORDS,
+  ANNOUNCEMENT_BANNER_SENTENCES,
+} from "../../../../audit.config";
 import { splitSentences, summarizeAnnouncement } from "../utils/announcementSummary";
 
 const STORAGE_KEY = "a11y-audit:dismissed-announcements";
@@ -173,8 +177,9 @@ describe("AnnouncementBanner", () => {
     it("shows only the opening sentences of a long entry", async () => {
       const wrapper = mountWith(LONG);
       await nextTick();
-      expect(wrapper.text()).toContain("Four.");
-      expect(wrapper.text()).not.toContain("Five.");
+      // Two sentences at most (owner's rule, 2026-11-24; it was four).
+      expect(wrapper.text()).toContain("Two.");
+      expect(wrapper.text()).not.toContain("Three.");
       expect(wrapper.text()).not.toContain("Six.");
     });
 
@@ -189,10 +194,10 @@ describe("AnnouncementBanner", () => {
     });
 
     it("separates the cut text from the link with a space", async () => {
-      // Without it the rendered line reads "…Four.Read the full update".
+      // Without it the rendered line reads "…Two.Read the full update".
       const wrapper = mountWith(LONG);
       await nextTick();
-      expect(wrapper.text()).toContain("Four. Read the full update");
+      expect(wrapper.text()).toContain("Two. Read the full update");
     });
 
     it("separates the link from an entry's own link, when the entry has one", async () => {
@@ -246,8 +251,12 @@ describe("AnnouncementBanner", () => {
       // The property is that the banner agrees with the summarizer either
       // way: it shows what the summarizer returned, offers the link exactly
       // when something was cut, and never leaks a sentence that was cut.
-      const newest = ANNOUNCEMENTS[0] as { text: string };
-      const { text: expected, truncated } = summarizeAnnouncement(newest.text);
+      const newest = ANNOUNCEMENTS[0] as { text: string; summary?: string };
+      // An entry's own hand-written summary is what the banner shows; the
+      // full text is then always "more", so the link is always offered.
+      const { text: expected, truncated } = newest.summary
+        ? { text: summarizeAnnouncement(newest.summary).text, truncated: true }
+        : summarizeAnnouncement(newest.text);
       vi.stubGlobal(
         "useRuntimeConfig",
         vi.fn(() => ({
@@ -264,6 +273,91 @@ describe("AnnouncementBanner", () => {
         expect(rendered).not.toContain(cut);
       }
     });
+  });
+
+  // ---------------------------------------------------------------------
+  // THE BANNER RULE (owner's instruction, 2026-11-24): "reduce the what's new
+  // showing to two sentences max." The banner had grown to ~130 words and
+  // filled the whole first screen of a phone. This is the gate the next
+  // release's announcement has to pass — see the doc-comment above
+  // ANNOUNCEMENTS in audit.config.ts.
+  // ---------------------------------------------------------------------
+  describe("the banner rule: two sentences at most", () => {
+    const newest = ANNOUNCEMENTS[0] as { id: string; text: string; summary?: string };
+    const bannerText = newest.summary
+      ? newest.summary.trim()
+      : summarizeAnnouncement(newest.text).text;
+
+    it("the configured limit is itself two sentences or fewer", () => {
+      expect(ANNOUNCEMENT_BANNER_SENTENCES).toBeLessThanOrEqual(2);
+      expect(ANNOUNCEMENT_BANNER_MAX_WORDS).toBeLessThanOrEqual(40);
+    });
+
+    it("the newest entry's banner text is at most two sentences", () => {
+      expect(
+        splitSentences(bannerText).length,
+        `${newest.id}: the banner text has more than two sentences — shorten its \`summary\``,
+      ).toBeLessThanOrEqual(2);
+    });
+
+    it("the newest entry's banner text is at most 40 words", () => {
+      const words = bannerText.split(/\s+/).filter(Boolean).length;
+      expect(
+        words,
+        `${newest.id}: the banner text is ${words} words — write a shorter \`summary\` (the full story stays in \`text\`)`,
+      ).toBeLessThanOrEqual(ANNOUNCEMENT_BANNER_MAX_WORDS);
+    });
+
+    it("the newest entry's banner text is date-neutral", () => {
+      // The banner stays up long after the day it was written; "Today's
+      // review" was still showing a week later.
+      expect(bannerText).not.toMatch(/\b(today|yesterday|this (week|morning|afternoon))\b/i);
+    });
+
+    it("the rule is checked against a sentence the splitter can actually count", () => {
+      // Sabotage check on the gate itself: three sentences must fail it.
+      expect(splitSentences("One. Two. Three.").length).toBeGreaterThan(2);
+    });
+
+    it("a hand-written summary is shown instead of the opening of the full text", async () => {
+      const wrapper = mountWithEntry({
+        id: "sum-x",
+        badge: "Improved",
+        summary: "Short one. Short two.",
+        text: "Long one. Long two. Long three. Long four.",
+      });
+      await nextTick();
+      expect(wrapper.text()).toContain("Short one. Short two.");
+      expect(wrapper.text()).not.toContain("Long one.");
+      // The full entry says more than the summary, so the link is offered.
+      const link = wrapper.findAll("a").find((a) => a.text().includes("Read the full update"));
+      expect(link?.attributes("to")).toBe("/announcements");
+    });
+
+    it("a summary that breaks the rule is still cut to two sentences on screen", async () => {
+      const wrapper = mountWithEntry({
+        id: "sum-y",
+        badge: "Improved",
+        summary: "S one. S two. S three.",
+        text: "Long one. Long two. Long three. Long four.",
+      });
+      await nextTick();
+      expect(wrapper.text()).toContain("S two.");
+      expect(wrapper.text()).not.toContain("S three.");
+    });
+
+    it("the full text of the newest entry is kept whole for /announcements", () => {
+      // Shortening the banner must not shorten the archive.
+      expect(newest.text.length).toBeGreaterThanOrEqual(bannerText.length);
+    });
+
+    function mountWithEntry(entry: Record<string, unknown>) {
+      vi.stubGlobal(
+        "useRuntimeConfig",
+        vi.fn(() => ({ public: { wcagVersion: "2.2", announcements: [entry] } })),
+      );
+      return mount(AnnouncementBanner);
+    }
   });
 
   // ---------------------------------------------------------------------

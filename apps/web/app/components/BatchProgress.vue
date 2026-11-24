@@ -23,7 +23,13 @@
       <p class="text-sm text-[var(--text-muted)]">{{ doneCount }} of {{ items.length }} complete</p>
     </div>
 
-    <div class="w-full max-w-md space-y-2">
+    <!-- Scrolls inside itself once a batch is long (up to BATCH.MAX_FILES
+         rows), so the Cancel button below stays in reach. -->
+    <div
+      class="w-full max-w-md space-y-2 max-h-[50vh] overflow-y-auto pr-1"
+      tabindex="0"
+      aria-label="Files in this batch"
+    >
       <div
         v-for="item in items"
         :key="item.id"
@@ -121,6 +127,14 @@
           class="flex-shrink-0 text-xs font-medium text-[var(--status-error)]"
           >Could not be analyzed</span
         >
+        <!-- A busy server (429/503) is waited out, not failed — and said
+             in words, so a long pause does not read as a stall. -->
+        <span
+          v-else-if="item.status === 'processing' && item.note"
+          data-testid="batch-item-waiting"
+          class="flex-shrink-0 max-w-[55%] text-right text-xs text-[var(--text-muted)]"
+          >{{ item.note }}</span
+        >
         <span
           v-else-if="item.status === 'processing'"
           class="flex-shrink-0 text-xs text-[var(--text-muted)]"
@@ -148,6 +162,8 @@ interface BatchItem {
   status: "queued" | "processing" | "done" | "error" | "cancelled";
   result: any | null;
   error: any | null;
+  /** Why this file is paused, when the server asked the page to wait. */
+  note?: string | null;
 }
 
 const props = defineProps<{

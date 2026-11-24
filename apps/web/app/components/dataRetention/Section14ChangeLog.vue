@@ -6,6 +6,21 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.20 · 2026-11-24</strong> — Four changes, tool v1.176.0, that follow a review of
+        the whole application. No new kind of data is collected and no retention period changes.
+        <em>Temp copies</em> (§§ 2, 8a): the short-lived copy of a PDF that the analysis tools read
+        now lives in a folder only the service's account can open; leftovers are deleted when the
+        service starts and anything older than 15 minutes is deleted by the background cleanup.
+        Before this, a copy could be left behind if the service was restarted in the middle of an
+        audit. <em>Repaired PDFs</em> (§ 3): the repaired file is now deleted when its download
+        finishes rather than when it starts, so an interrupted download can be tried again; the
+        30-minute limit is unchanged. <em>Error log</em> (§§ 7, 8): it now also receives the error
+        output of the automatic-repair worker, and each line about a request carries a random number
+        made up for that request alone. <em>Your own browser</em> (§ 8): the page now also keeps, in
+        the same per-tab store, a finished batch's reports and — when you check a file again under
+        the same name — the earlier report, so it can show what changed. Neither is sent anywhere.
+      </li>
+      <li>
         <strong>v1.19 · 2026-11-18</strong> — Two changes, tool v1.174.0. Nothing new is kept beyond
         a remediation job's own lifetime, and no retention period changes.
         <em>Automatic repair</em> (§ 3): the repair form now asks for the document's title and

@@ -65,7 +65,7 @@ function sweep(now = Date.now()): void {
       // timeout, so this is a backstop): fail the job honestly rather than
       // letting the page poll a zombie forever.
       job.status.done = true;
-      job.status.error = { status: 504, body: { ...AUDIT_TIMEOUT_MESSAGE } };
+      job.status.error = { status: 504, body: { ...AUDIT_TIMEOUT_MESSAGE, code: "TIMEOUT" } };
     }
   }
 }
@@ -210,6 +210,11 @@ export function finishJob(
 ): void {
   const job = jobs.get(id);
   if (!job) return;
+  // First outcome wins. The sweep fails a job that ran past
+  // JOB_HARD_TIMEOUT_MS with a 504; if its pipeline then settled after all,
+  // a late call here used to attach a result to that already-failed job, and
+  // the page received `error` and `result` together.
+  if (job.status.done) return;
   job.status.done = true;
   if ("result" in outcome) job.status.result = outcome.result;
   else job.status.error = outcome.error;

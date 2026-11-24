@@ -62,7 +62,7 @@
           Fix progress
         </span>
         <span class="text-sm font-semibold text-[var(--text-heading)]">
-          {{ checksPassed }} of {{ checksTotal }} checks passed
+          {{ progress.headline }}
         </span>
       </div>
       <div
@@ -71,6 +71,13 @@
       >
         <div class="h-full rounded-full bg-sky-500/70" :style="{ width: `${barWidth}%` }" />
       </div>
+      <p
+        v-if="progress.others"
+        data-testid="fix-progress-others"
+        class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
+      >
+        {{ progress.others }}
+      </p>
       <p class="mt-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
         {{ progressNote }}
       </p>
@@ -232,6 +239,7 @@
 </template>
 
 <script setup lang="ts">
+import { fixProgress } from "~/utils/fixProgress";
 import { formatScopeNote } from "~/utils/formatScope";
 import {
   categoriesForScoringMode,
@@ -419,22 +427,19 @@ const gradeLabelColor = computed(() =>
 // displayedProfile's score came from, so it can never describe a document
 // other than the one on screen.
 // Counted over the same set the SCORE is computed over — see ReportGradeHero.
-const counted = computed(() =>
-  (displayedCategories.value ?? []).filter((c) => c && (c.score !== null || !c.notAssessed)),
-);
-const checksTotal = computed(() => counted.value.length);
-const checksPassed = computed(
-  () => counted.value.filter((c) => c.score === 100 || c.score === null).length,
-);
-const barWidth = computed(() =>
-  checksTotal.value === 0 ? 0 : Math.round((checksPassed.value / checksTotal.value) * 100),
-);
+// Same count, same words as the Visual view's hero (utils/fixProgress.ts):
+// only checks with a number are "scored"; a check that did not apply is
+// named as such rather than folded into "passed".
+const progress = computed(() => fixProgress(displayedCategories.value));
+const checksTotal = computed(() => progress.value.scored);
+const checksPassed = computed(() => progress.value.passed);
+const barWidth = computed(() => progress.value.barPercent);
 
 // Explains the NUMBER — see ReportGradeHero for the reasoning.
 const progressNote = computed(() => {
   const reason = scoreCapReason(displayedProfile.value.overallScore, displayedCategories.value);
   if (!reason) {
-    if (checksPassed.value === checksTotal.value && checksTotal.value > 0) {
+    if (progress.value.nothingFailed) {
       return (
         allChecksPassedCaveat(pubStatus.value) ??
         "Every automated check passed. Some things still need a person — see the manual-review list."

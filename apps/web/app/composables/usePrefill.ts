@@ -1,15 +1,25 @@
 /**
  * usePrefill — reads ?prefill=<url> from the page's query string on mount
- * and fires POST /api/analyze-url so the analysis starts automatically.
+ * and hands the address to the page, which audits it exactly as it audits an
+ * address typed into the "check a document by link" field.
  *
  * Designed to be called once from pages/index.vue's <script setup>.
  *
- * @param opts.onStart   called before the request — show the processing UI
- * @param opts.onResult  called with the successful AnalysisResult JSON
- * @param opts.onError   called with { error, details? } on any failure
- * @param opts.onDone    called in finally — hide the processing UI
+ * WHAT CHANGED (2026-11-24). This used to make the request itself, with no
+ * abort signal and no idea who owned the page:
+ *   - a reset mid-request left the processing overlay up, and the answer
+ *     still landed on the page the visitor had just cleared;
+ *   - the param stayed in the address bar, so a reload ran it again and it
+ *     overrode a later upload's saved report.
+ * Now the composable only READS the param and removes it from the address
+ * (router.replace — no new history entry); the page runs the audit under the
+ * same ownership/abort model as an upload.
+ *
+ * @param opts.onUrl    called with the decoded address — start the audit
+ * @param opts.onError  called with { error, details? } when the param is unusable
  */
-import type { AnalysisResult } from "@file-audit/shared";
+import { useRouter } from "#app";
+import { queryWithoutPrefill, readPrefillParam } from "~/utils/urlAudit";
 
 export interface PrefillError {
   error: string;
@@ -17,45 +27,35 @@ export interface PrefillError {
 }
 
 export interface PrefillCallbacks {
-  onStart: (url: string) => void;
-  onResult: (result: AnalysisResult) => void;
+  onUrl: (url: string) => void | Promise<void>;
   onError: (err: PrefillError) => void;
-  onDone: () => void;
 }
 
 export function usePrefill(callbacks: PrefillCallbacks): void {
   // Only run client-side (Nuxt SSR guard)
   if (import.meta.server) return;
 
-  onMounted(async () => {
-    const params = new URLSearchParams(window.location.search);
-    const rawUrl = params.get("prefill");
-    if (!rawUrl) return;
+  const router = useRouter();
 
-    // Decode in case the URL was percent-encoded (the normal case from filecap
-    // audit links, e.g. ?prefill=https%3A%2F%2Fexample.com%2Freport.pdf)
-    let url: string;
-    try {
-      url = decodeURIComponent(rawUrl);
-    } catch {
+  onMounted(() => {
+    const search = window.location.search;
+    const read = readPrefillParam(search);
+    if (read.kind === "none") return;
+
+    // Remove the param FIRST, whatever happens next: it is an instruction to
+    // run once, not a setting. Left in place, a reload repeated the audit and
+    // took the page back from a report the visitor had made since.
+    // `replace`, so Back does not return to an address that re-runs it.
+    void Promise.resolve(
+      router.replace({ path: window.location.pathname, query: queryWithoutPrefill(search) }),
+    ).catch(() => {
+      /* navigation refused — the audit still runs */
+    });
+
+    if (read.kind === "invalid") {
       callbacks.onError({ error: "Invalid prefill URL (could not decode)." });
       return;
     }
-
-    callbacks.onStart(url);
-    try {
-      const result = await $fetch<AnalysisResult>("/api/analyze-url", {
-        method: "POST",
-        body: { url },
-        credentials: "include",
-      });
-      callbacks.onResult(result);
-    } catch (err: any) {
-      callbacks.onError(
-        err?.data ?? { error: "Could not analyze the prefill URL. Please try again." },
-      );
-    } finally {
-      callbacks.onDone();
-    }
+    void callbacks.onUrl(read.url);
   });
 }

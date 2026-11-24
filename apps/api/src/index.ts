@@ -1,25 +1,17 @@
-import express from "express";
-import helmet from "helmet";
-import cors from "cors";
-import { globalLimiter, tokenAuditMiddleware } from "./middleware/rateLimiter.js";
-import { errorHandler } from "./middleware/errorHandler.js";
-import { bodyParsers } from "./middleware/bodyParsers.js";
-import analyzeRoutes from "./routes/analyze.js";
-import analyzeJobRoutes from "./routes/analyzeJob.js";
-import reportsRoutes from "./routes/reports.js";
-import bulkInventoryRoutes from "./routes/bulk-from-inventory.js";
-import analyzeUrlRoutes from "./routes/analyze-url.js";
-import auditUrlRoutes from "./routes/audit-url.js";
-import auditUrlPageRoutes from "./routes/audit-url-page.js";
-import remediateRoutes from "./routes/remediate.js";
-import statusRoutes, { service as statusService } from "./routes/status.js";
-import { runScheduledSweep, startCleanupInterval } from "./services/remediationCleanup.js";
+import { createApp } from "./app.js";
+import {
+  purgeTempFilesAtBoot,
+  runScheduledSweep,
+  startCleanupInterval,
+  stopCleanupInterval,
+} from "./services/remediationCleanup.js";
 import { reconcileWorkers } from "./services/remediationQueue.js";
-import { formatUptime } from "./services/status.js";
+import { closeBrowser } from "./services/pageAuditor.js";
+import { createShutdown, inFlight } from "./services/shutdown.js";
 
 // Import db to trigger table creation on startup
-import "./db/sqlite.js";
-import { ACTIVITY_EXPORT, DEPLOY } from "#config";
+import db from "./db/sqlite.js";
+import { ACTIVITY_EXPORT, DEPLOY, SHUTDOWN } from "#config";
 import { resolveBindHost } from "./bindHost.js";
 import { installErrorLogTee } from "./services/errorLog.js";
 import { activityLogDir } from "./services/dataDir.js";
@@ -33,86 +25,37 @@ installErrorLogTee({
   maxBytesPerDay: ACTIVITY_EXPORT.ERROR_LOG_MAX_BYTES_PER_DAY,
 });
 
-const app = express();
 const PORT = Number(process.env.PORT) || 5103;
 const isProduction = process.env.NODE_ENV === "production";
 
-// Trust proxy — behind nginx in production, behind Nuxt proxy in development
-app.set("trust proxy", 1);
-
-// Security headers
-app.use(helmet());
-
-// CORS
-app.use(
-  cors({
-    origin: isProduction ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL,
-    credentials: true,
-  }),
-);
-
-// Body parsing (JSON, and text/plain for bulk-from-inventory's piped NDJSON)
-app.use(bodyParsers);
-
-// Public status document. Mounted BEFORE globalLimiter and carrying its own
-// limiter: the Nitro tier proxies /status over loopback, so every browser hit
-// arrives as 127.0.0.1 and shares one global bucket. Under globalLimiter,
-// ordinary site traffic could 429 the status page — making it unavailable
-// exactly when someone is checking whether the service is healthy.
-// (globalLimiter also skips this path, so the ordering is belt and braces.)
-app.use("/api", statusRoutes);
-
-// Surfaces a Bearer token the server rejects (or one presented when no
-// API_PRIVILEGED_TOKEN is configured). Mounted BEFORE globalLimiter so a
-// misconfigured automated client is named on its FIRST request, rather than
-// only once it has already been throttled in the anonymous tier. Logs at most
-// once a minute and records no identifiers.
-app.use(tokenAuditMiddleware);
-
-// Global rate limit
-app.use(globalLimiter);
-
-// Routes
-app.use("/api", analyzeRoutes);
-app.use("/api", analyzeJobRoutes);
-app.use("/api", reportsRoutes);
-app.use("/api", bulkInventoryRoutes);
-app.use("/api", analyzeUrlRoutes);
-app.use("/api", auditUrlRoutes);
-app.use("/api", auditUrlPageRoutes);
-app.use("/api", remediateRoutes);
-
-// Health check — also serves as the root API response
-const startedAt = new Date();
-
-function healthPayload() {
-  const uptimeSec = Math.floor((Date.now() - startedAt.getTime()) / 1000);
-  // `status` is the SAME verdict /status computes, read from already-cached
-  // state — so the always-visible header indicator can say "degraded" instead
-  // of a green "online" while /status reports a stale backup, a low disk or a
-  // dead engine. It previously answered only "is this process alive", which is
-  // a different and much weaker question.
-  //
-  // Computed here rather than by polling /status because that endpoint is
-  // capped at 120/min shared globally; see getHealthSummary's note.
-  const summary = statusService.getHealthSummary();
-  return {
-    status: summary.status,
-    uptime: formatUptime(uptimeSec),
-    ...(summary.degraded.length > 0 ? { degraded: summary.degraded } : {}),
-    // The per-system list behind the verdict, so the header's tooltip can name
-    // what "online" is actually claiming. Static labels and one-word states
-    // only — nothing here /status does not already publish in more detail.
-    systems: summary.systems,
-  };
+// Temp copies of documents left by a process that was killed mid-audit: gone
+// before this one accepts a request (services/remediationCleanup.ts).
+const staleTempFiles = purgeTempFilesAtBoot();
+if (staleTempFiles > 0) {
+  console.log(`[API] Deleted ${staleTempFiles} temp file(s) left by a previous process`);
 }
 
-app.get("/", (_req, res) => res.json(healthPayload()));
-app.get("/api", (_req, res) => res.json(healthPayload()));
-app.get("/api/health", (_req, res) => res.json(healthPayload()));
+// Graceful shutdown (services/shutdown.ts). Declared before the app so the
+// app's first middleware can refuse new requests once a stop signal arrives;
+// the listener is filled in below, before any signal handler is registered.
+const listener: { server?: import("node:http").Server } = {};
+const shutdown = createShutdown({
+  stopAccepting: () => {
+    listener.server?.close();
+  },
+  stopSweep: stopCleanupInterval,
+  tracker: inFlight,
+  closeBrowsers: closeBrowser,
+  closeDatabase: () => {
+    db.close();
+  },
+  exit: (code) => process.exit(code),
+  drainDeadlineMs: SHUTDOWN.DRAIN_DEADLINE_MS,
+  forceExitGraceMs: SHUTDOWN.FORCE_EXIT_GRACE_MS,
+});
 
-// Global error handler — never leak internals (middleware/errorHandler.ts).
-app.use(errorHandler);
+// Every middleware and route, in order: app.ts.
+const app = createApp({ isDraining: shutdown.isDraining });
 
 // Bind loopback in production so the port is reachable only from the same host
 // (nginx proxies to 127.0.0.1); bind all interfaces in dev so the Nuxt proxy's
@@ -144,6 +87,17 @@ const onListen = () => {
 // unambiguous listen(port, callback) with no reliance on how the overload
 // treats an explicit undefined in the host position.
 const server = HOST ? app.listen(PORT, HOST, onListen) : app.listen(PORT, onListen);
+listener.server = server;
+
+// Stop signals. PM2 sends SIGINT on stop / restart / reload and waits
+// `kill_timeout` (ecosystem.config.cjs) before SIGKILL; SIGTERM is what
+// systemd, Docker and `kill` send. Both drain the same way; a second signal
+// exits at once.
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    void shutdown.onSignal(signal);
+  });
+}
 
 // Process-level safety nets. Without these, an unhandled rejection anywhere
 // in the process (a stray promise in a route handler, a background job, a

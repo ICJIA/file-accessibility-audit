@@ -60,6 +60,10 @@ export async function runVeraPdf(
   // The profileFile's label is what the verdict falls back to when veraPDF's
   // own output names no profile.
   profileFile?: { path: string; label: string },
+  // Kills the JVM when the audit this check belongs to has already failed
+  // (see runVeraPdfChecksOnBuffer). An aborted run reports the same generic
+  // "produced no output" verdict as any other failed invocation.
+  signal?: AbortSignal,
 ): Promise<VeraPdfVerdict> {
   const bin = REMEDIATION.VERAPDF_PATH;
   const fallbackLabel = profileFile ? profileFile.label : flavour;
@@ -93,6 +97,7 @@ export async function runVeraPdf(
         // ATTACKER-CONTROLLED PDF bytes and must not inherit the API's own
         // secrets. It needs none of them — PATH/JAVA_HOME/TMPDIR survive.
         env: buildChildSpawnEnv(),
+        ...(signal ? { signal, killSignal: "SIGKILL" as const } : {}),
       },
     );
     stdout = result.stdout;
@@ -107,7 +112,9 @@ export async function runVeraPdf(
       // routes/analyze.ts and persisted into shared reports (reportSanitize
       // does not touch it), so the detail goes to the server log and the
       // caller gets a generic string.
-      console.error("veraPDF invocation failed:", err.message);
+      // An aborted run is not a failure worth a log line: the audit it
+      // belonged to was refused and the JVM was stopped on purpose.
+      if (!signal?.aborted) console.error("veraPDF invocation failed:", err.message);
       return {
         available: true,
         passed: false,

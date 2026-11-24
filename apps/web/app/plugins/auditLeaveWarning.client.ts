@@ -34,8 +34,12 @@ export default defineNuxtPlugin(() => {
   });
 
   router.beforeEach((to, from) => {
-    // A reset that lands on the page it started from is not leaving.
-    if (to.fullPath === from.fullPath) return true;
+    // Staying on the same page is not leaving it: a reset that lands where it
+    // started, or a change to the query string only. The second matters for
+    // ?prefill= links — the page removes that parameter as the audit starts
+    // (usePrefill), and asking "leave this page?" about that would greet every
+    // visitor who follows such a link with a prompt (found 2026-11-24).
+    if (to.path === from.path) return true;
     return guardNavigation(busy.value, (message) => window.confirm(message));
   });
 });

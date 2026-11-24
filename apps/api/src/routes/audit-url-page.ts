@@ -98,7 +98,9 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
     const privileged = isPrivilegedRequest(req);
     const check = isAllowedUrl(url);
     if (!privileged && !check.ok) {
-      res.status(400).json({ error: "URL not allowed", details: check.reason });
+      res
+        .status(400)
+        .json({ error: "URL not allowed", details: check.reason, code: "URL_NOT_ALLOWED" });
       return;
     }
 

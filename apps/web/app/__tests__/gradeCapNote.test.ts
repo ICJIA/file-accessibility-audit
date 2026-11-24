@@ -56,7 +56,7 @@ describe("ReportGradeHero — the Visual view", () => {
     });
     const text = w.text();
     expect(text).toContain("Fix progress");
-    expect(text).toContain("1 of 2 checks passed");
+    expect(text).toContain("1 of 2 scored checks passed");
   });
 
   it("explains why the number stalled, naming the finding that holds it", () => {
@@ -86,15 +86,16 @@ describe("ReportGradeHero — the Visual view", () => {
     });
     const text = w.text();
     expect(text).not.toContain("holds the score at");
-    expect(text).toContain("1 of 1 checks passed");
+    expect(text).toContain("1 of 1 scored check passed");
   });
 
-  it("counts a not-APPLICABLE check as passed", () => {
+  it("does not hold a not-APPLICABLE check against the document — and says it did not apply", () => {
     // "No tables were found" is not a check that failed — the document has no
-    // table problem. Counting it against the document is what punished a
-    // one-page notice for being simple: same missing-title fault as a longer
-    // agenda, worse score, because only 3 of its 10 categories could be
-    // checked at all.
+    // table problem, and it is not counted as a failure. It USED to be folded
+    // into "passed" ("2 of 2 checks passed"), which made the sentence
+    // disagree with the chart of scored bars: a report read "5 of 9 checks
+    // passed" beside six bars with two at 100 (2026-11-24). The count is now
+    // of SCORED checks, and the rest are named for what they are.
     const w = mount(ReportGradeHero, {
       props: {
         grade: "A",
@@ -105,7 +106,12 @@ describe("ReportGradeHero — the Visual view", () => {
         ],
       },
     });
-    expect(w.text()).toContain("2 of 2 checks passed");
+    expect(w.text()).toContain("1 of 1 scored check passed");
+    expect(w.find('[data-testid="fix-progress-others"]').text()).toBe(
+      "1 other check did not apply to this document.",
+    );
+    // Still the clean-document note, not "fix the steps below".
+    expect(w.text()).not.toContain("re-upload to watch this rise");
   });
 
   it("excludes a NOT-ASSESSED check entirely rather than assuming it passed", () => {
@@ -129,7 +135,10 @@ describe("ReportGradeHero — the Visual view", () => {
         ],
       },
     });
-    expect(w.text()).toContain("1 of 1 checks passed");
+    expect(w.text()).toContain("1 of 1 scored check passed");
+    expect(w.find('[data-testid="fix-progress-others"]').text()).toBe(
+      "1 other could not be assessed automatically.",
+    );
   });
 });
 
@@ -149,7 +158,7 @@ describe("ScoreCard — the Detailed view does the same", () => {
     const text = w.text();
     expect(text).toContain("79");
     expect(text).toContain("/100");
-    expect(text).toContain("1 of 2 checks passed");
+    expect(text).toContain("1 of 2 scored checks passed");
     expect(text).toContain("holds the score at 79");
   });
 
@@ -181,7 +190,7 @@ describe("ScoreCard — the Detailed view does the same", () => {
       },
     });
     const text = w.text();
-    expect(text).toContain("1 of 2 checks passed");
+    expect(text).toContain("1 of 2 scored checks passed");
     expect(text).toContain("holds the score at 79");
   });
 });

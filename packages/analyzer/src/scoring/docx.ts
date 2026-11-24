@@ -30,6 +30,9 @@ import {
   officeLanguageFindings,
   type ScoringResult,
   placeholderAltFinding,
+  fd,
+  fdEach,
+  withFindingDetails,
 } from "./common.js";
 import { drawnShapeFinding } from "../ooxml.js";
 import { evaluateDocxConformance } from "./conformance.js";
@@ -114,13 +117,36 @@ export function withholdUnreadCategories(
   categories: CategoryResult[],
   affected: ReadonlySet<string>,
   unread: string,
+  format?: "docx" | "pptx" | "xlsx",
 ): void {
+  // Finding codes are per format; these two lines can land in any category,
+  // so they carry the format's `general` codes. (No format — a caller from
+  // before the codes existed — leaves the lines untagged.)
+  const code = {
+    docx: {
+      partial: "docx.general.unread_content_partial",
+      notAssessed: "docx.general.unread_content_not_assessed",
+    },
+    pptx: {
+      partial: "pptx.general.unread_content_partial",
+      notAssessed: "pptx.general.unread_content_not_assessed",
+    },
+    xlsx: {
+      partial: "xlsx.general.unread_content_partial",
+      notAssessed: "xlsx.general.unread_content_not_assessed",
+    },
+  } as const;
+  const tag = (which: "partial" | "notAssessed", text: string): string =>
+    format ? fd(code[format][which])(text) : text;
   for (let i = 0; i < categories.length; i++) {
     const c = categories[i];
     if (!affected.has(c.id)) continue;
     if (c.score !== null && c.score < 100) {
       c.findings.push(
-        `This result covers only the content that was read — ${unread} could not be read, so a manual review is required for the rest.`,
+        tag(
+          "partial",
+          `This result covers only the content that was read — ${unread} could not be read, so a manual review is required for the rest.`,
+        ),
       );
       continue;
     }
@@ -131,7 +157,10 @@ export function withholdUnreadCategories(
       severity: null,
       notAssessed: true,
       findings: [
-        `This check could not run — ${unread} could not be read, so its inputs are unavailable. The results below reflect only the checks that succeeded; a manual review is required for this category.`,
+        tag(
+          "notAssessed",
+          `This check could not run — ${unread} could not be read, so its inputs are unavailable. The results below reflect only the checks that succeeded; a manual review is required for this category.`,
+        ),
       ],
     };
   }
@@ -157,9 +186,15 @@ function scoreDocxText(a: DocxAnalysis): CategoryResult {
       DOCX.SCORING_WEIGHTS.text_extractability,
       null,
       [
-        "No text was found in this document, so the usual Word guarantee — extractable, selectable text — does not apply here.",
-        `${a.images.length} image(s) make up its content. If they are scanned pages or pictures of text, a screen reader gets nothing from them — type the text into the document, or give each image alt text that carries what it says.`,
-        "Text extractability was not assessed for this document.",
+        fd("docx.text_extractability.no_text")(
+          "No text was found in this document, so the usual Word guarantee — extractable, selectable text — does not apply here.",
+        ),
+        fd("docx.text_extractability.images_only_content", {
+          count: a.images.length,
+        })`${a.images.length} image(s) make up its content. If they are scanned pages or pictures of text, a screen reader gets nothing from them — type the text into the document, or give each image alt text that carries what it says.`,
+        fd("docx.text_extractability.not_assessed")(
+          "Text extractability was not assessed for this document.",
+        ),
       ],
       "Word normally stores real text screen readers can always read; this document has no text at all, so that guarantee could not be confirmed.",
       [DOCX_HELP.overview, DOCX_HELP.webaim],
@@ -167,11 +202,15 @@ function scoreDocxText(a: DocxAnalysis): CategoryResult {
     );
   }
   const findings = [
-    "Word documents contain fully extractable, selectable text — unlike a scanned PDF, the content is always available to assistive technology.",
+    fd("docx.text_extractability.text_extractable")(
+      "Word documents contain fully extractable, selectable text — unlike a scanned PDF, the content is always available to assistive technology.",
+    ),
   ];
   if ((a.emptyParagraphRunCount ?? 0) > 0) {
     findings.push(
-      `Advisory — not scored: ${a.emptyParagraphRunCount} run(s) of three or more consecutive empty paragraphs — blank lines used for spacing, each announced by a screen reader. Use paragraph spacing (Layout → Spacing) instead.`,
+      fd("docx.text_extractability.empty_paragraph_runs", {
+        count: a.emptyParagraphRunCount,
+      })`Advisory — not scored: ${a.emptyParagraphRunCount} run(s) of three or more consecutive empty paragraphs — blank lines used for spacing, each announced by a screen reader. Use paragraph spacing (Layout → Spacing) instead.`,
     );
   }
   return docxCategory(
@@ -204,31 +243,41 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
     // LOOKS like a file name but carries real words keeps full credit and is
     // reported as an advisory. conformance.ts rule 3a-ii mirrors this.
     const shape = classifyTitleShape(a.metadata.title);
-    findings.push(`Document title: "${a.metadata.title}"`);
+    findings.push(fd("docx.title_language.title_present")`Document title: "${a.metadata.title}"`);
     if (shape === "tool-generated") {
       score += 25;
       findings.push(
-        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+        fd("docx.title_language.title_tool_generated")(
+          "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+        ),
       );
       findings.push(
-        'How to fix: In Word: File → Info → Properties → Title — replace it with a descriptive title (e.g., "2024 Annual Crime Report").',
+        fd("docx.title_language.title_tool_generated_fix")(
+          'How to fix: In Word: File → Info → Properties → Title — replace it with a descriptive title (e.g., "2024 Annual Crime Report").',
+        ),
       );
     } else {
       score += 50;
       if (shape === "filename-shaped") {
         findings.push(
-          `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
+          fd(
+            "docx.title_language.title_filename_shaped",
+          )`Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
         );
       }
     }
   } else if (coreReadable) {
     findings.push(
-      "No document title is set. In Word: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this file uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
+      fd("docx.title_language.title_missing")(
+        "No document title is set. In Word: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this file uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
+      ),
     );
   } else {
     score += 50;
     findings.push(
-      "The document's title could not be read — the file's core-properties part is unparseable, so this half is not scored.",
+      fd("docx.title_language.title_unreadable")(
+        "The document's title could not be read — the file's core-properties part is unparseable, so this half is not scored.",
+      ),
     );
   }
   if (a.metadata.language) {
@@ -240,7 +289,9 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
     if (verdict.kind === "ok") {
       score += 50;
       findings.push(
-        `Document language: ${a.metadata.language}${a.languageFromText ? " (declared on the text itself — the document sets no default language)" : ""}`,
+        fd(
+          "docx.title_language.language_declared",
+        )`Document language: ${a.metadata.language}${a.languageFromText ? " (declared on the text itself — the document sets no default language)" : ""}`,
       );
     } else {
       score += 25;
@@ -256,18 +307,24 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
   }
   if ((a.runLanguages?.length ?? 0) > 0) {
     findings.push(
-      `Passages are declared in ${a.runLanguages!.join(", ")} alongside the document language. Screen readers switch pronunciation for each — whether every marking is a real foreign passage (rather than Word's autodetect guessing) is worth a manual glance (WCAG 3.1.2).`,
+      fd(
+        "docx.title_language.passage_languages",
+      )`Passages are declared in ${a.runLanguages!.join(", ")} alongside the document language. Screen readers switch pronunciation for each — whether every marking is a real foreign passage (rather than Word's autodetect guessing) is worth a manual glance (WCAG 3.1.2).`,
     );
   }
   if (!a.metadata.language) {
     if (langReadable) {
       findings.push(
-        "No document language is declared — neither as the document's default nor on most of its text. In Word: select all the text (Ctrl+A; ⌘A on a Mac), then Review → Language → Set Proofing Language → choose the document's language → OK, and save. This tells screen readers which pronunciation rules to use.",
+        fd("docx.title_language.language_missing")(
+          "No document language is declared — neither as the document's default nor on most of its text. In Word: select all the text (Ctrl+A; ⌘A on a Mac), then Review → Language → Set Proofing Language → choose the document's language → OK, and save. This tells screen readers which pronunciation rules to use.",
+        ),
       );
     } else {
       score += 50;
       findings.push(
-        "The document's language could not be read — a properties part is unparseable, so this half is not scored.",
+        fd("docx.title_language.language_unreadable")(
+          "The document's language could not be read — a properties part is unparseable, so this half is not scored.",
+        ),
       );
     }
   }
@@ -314,8 +371,12 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       null,
       [
         loneTitle
-          ? `No headings were found. One paragraph is formatted like a heading ("${loneTitleText}") — a single title does not make sections, so nothing is scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`
-          : "No headings were found. Short documents may not need them; longer documents should use Heading styles so readers can navigate.",
+          ? fd(
+              "docx.heading_structure.no_headings_lone_title",
+            )`No headings were found. One paragraph is formatted like a heading ("${loneTitleText}") — a single title does not make sections, so nothing is scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`
+          : fd("docx.heading_structure.no_headings")(
+              "No headings were found. Short documents may not need them; longer documents should use Heading styles so readers can navigate.",
+            ),
       ],
       "Heading styles (Heading 1–6) create the navigable outline screen-reader users rely on. This document has none to assess.",
       [DOCX_HELP.headings],
@@ -325,14 +386,20 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   let score = 100;
   const findings: string[] = [];
   if (total > 0) {
-    findings.push(`${total} real heading(s) found.`);
+    findings.push(
+      fd("docx.heading_structure.headings_found", {
+        count: total,
+      })`${total} real heading(s) found.`,
+    );
     // NOT SCORED (2026-08-29, the legal-only sweep): starting below Heading 1
     // and skipping levels are best practices (W3C's own guidance says skipped
     // levels are not a WCAG failure), so they may not move the grade. The
     // headings exist and are programmatic — 1.3.1 is satisfied.
     if (a.headings[0].level !== 1) {
       findings.push(
-        `Advisory — not scored: the first heading is Heading ${a.headings[0].level}, not Heading 1 — your grade is not affected, but starting the outline at Heading 1 gives it a single root.`,
+        fd(
+          "docx.heading_structure.first_not_h1",
+        )`Advisory — not scored: the first heading is Heading ${a.headings[0].level}, not Heading 1 — your grade is not affected, but starting the outline at Heading 1 gives it a single root.`,
       );
     }
     let skips = 0;
@@ -341,7 +408,9 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
     }
     if (skips > 0) {
       findings.push(
-        `Advisory — not scored: ${skips} place(s) skip a heading level (e.g. Heading 1 → Heading 3) — not a WCAG 2.1 failure, so your grade is not affected, but screen-reader users may wonder what they missed at the skipped level.`,
+        fd("docx.heading_structure.skipped_level", {
+          count: skips,
+        })`Advisory — not scored: ${skips} place(s) skip a heading level (e.g. Heading 1 → Heading 3) — not a WCAG 2.1 failure, so your grade is not affected, but screen-reader users may wonder what they missed at the skipped level.`,
       );
     }
   }
@@ -373,12 +442,16 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   if (emptyHeadings > 0) {
     score -= Math.min(30, emptyHeadings * 10);
     findings.push(
-      `${emptyHeadings} Heading-styled paragraph(s) contain no text — a heading style applied to a blank line, usually to make space. Someone navigating by heading lands on silence, and the outline shows a section that is not there. In Word: delete the blank line, or set it to Normal style and use paragraph spacing instead.`,
+      fd("docx.heading_structure.empty_headings", {
+        count: emptyHeadings,
+      })`${emptyHeadings} Heading-styled paragraph(s) contain no text — a heading style applied to a blank line, usually to make space. Someone navigating by heading lands on silence, and the outline shows a section that is not there. In Word: delete the blank line, or set it to Normal style and use paragraph spacing instead.`,
     );
   }
   if (loneTitle) {
     findings.push(
-      `Advisory — not scored: one paragraph is formatted like a heading ("${loneTitleText}") — with no Heading styles in this document, a single title does not make sections, so it is not scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`,
+      fd(
+        "docx.heading_structure.lone_title_lookalike",
+      )`Advisory — not scored: one paragraph is formatted like a heading ("${loneTitleText}") — with no Heading styles in this document, a single title does not make sections, so it is not scored. If the document has more section titles, apply Heading 1–6 styles so screen-reader users can navigate.`,
     );
   } else if (fakes > 0) {
     // A few Heading styles do not rescue an unmarked outline (2026-11-12) —
@@ -388,26 +461,46 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       total === 0 || overwhelmed ? 100 - OVERWHELMED_HEADINGS_SCORE : Math.min(40, fakes * 15);
     if (overwhelmed) {
       findings.push(
-        overwhelmedHeadingsFinding(total, fakes, {
-          real: "real heading(s)",
-          lookalike: "paragraph(s) formatted to look like headings",
-        }),
+        fd("docx.heading_structure.headings_overwhelmed", { count: fakes, total: total + fakes })(
+          overwhelmedHeadingsFinding(total, fakes, {
+            real: "real heading(s)",
+            lookalike: "paragraph(s) formatted to look like headings",
+          }),
+        ),
       );
     }
     findings.push(
-      `${fakes} paragraph(s) are formatted to look like headings (bold/large text) but are not real Heading styles. Apply Heading 1–6 so assistive technology can navigate them.`,
+      fd("docx.heading_structure.lookalike_headings", {
+        count: fakes,
+      })`${fakes} paragraph(s) are formatted to look like headings (bold/large text) but are not real Heading styles. Apply Heading 1–6 so assistive technology can navigate them.`,
     );
   }
   if (total > 0) {
-    findings.push(...headingOutlineLines(a.headings));
+    findings.push(
+      ...fdEach(headingOutlineLines(a.headings), (line) =>
+        line.startsWith("---")
+          ? "docx.heading_structure.outline_heading"
+          : line.startsWith("  ...")
+            ? "docx.heading_structure.outline_more"
+            : "docx.heading_structure.outline_item",
+      ),
+    );
   }
   if (fakes > 0 && !loneTitle) {
-    findings.push(`--- Paragraphs Styled Like Headings ---`);
+    findings.push(
+      fd("docx.heading_structure.lookalike_list_heading")`--- Paragraphs Styled Like Headings ---`,
+    );
     for (const fh of a.fakeHeadings.slice(0, MAX_FAKE_HEADING_LINES)) {
-      findings.push(`  "${truncateHeadingText(fh.text)}"`);
+      findings.push(
+        fd("docx.heading_structure.lookalike_list_item")`  "${truncateHeadingText(fh.text)}"`,
+      );
     }
     if (fakes > MAX_FAKE_HEADING_LINES) {
-      findings.push(`  ... and ${fakes - MAX_FAKE_HEADING_LINES} more paragraph(s)`);
+      findings.push(
+        fd("docx.heading_structure.lookalike_list_more", {
+          count: fakes - MAX_FAKE_HEADING_LINES,
+        })`  ... and ${fakes - MAX_FAKE_HEADING_LINES} more paragraph(s)`,
+      );
     }
   }
   return docxCategory(
@@ -431,8 +524,10 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
       null,
       [
         a.images.length > 0
-          ? "All images are marked decorative, so none require alt text."
-          : "No images were found.",
+          ? fd("docx.alt_text.all_decorative")(
+              "All images are marked decorative, so none require alt text.",
+            )
+          : fd("docx.alt_text.no_images")("No images were found."),
       ],
       "Every meaningful image needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [DOCX_HELP.altText],
@@ -444,22 +539,32 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
   // rounded and capped any failure at 85, so 16 of 23 described read 70
   // (Minor) here and 69 (Moderate) as a PDF.
   const score = shareScore(withAlt, nonDecorative.length);
-  const findings = [`${withAlt} of ${nonDecorative.length} meaningful image(s) have alt text.`];
+  const findings = [
+    fd("docx.alt_text.images_with_alt", {
+      count: withAlt,
+      total: nonDecorative.length,
+    })`${withAlt} of ${nonDecorative.length} meaningful image(s) have alt text.`,
+  ];
   if (withAlt < nonDecorative.length) {
     findings.push(
-      `${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text (some Word versions call it Edit Alt Text) and add a description.`,
+      fd("docx.alt_text.images_missing_alt", {
+        count: nonDecorative.length - withAlt,
+        total: nonDecorative.length,
+      })`${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text (some Word versions call it Edit Alt Text) and add a description.`,
     );
     const placeholders = placeholderAltFinding(nonDecorative);
-    if (placeholders) findings.push(placeholders);
+    if (placeholders) findings.push(fd("docx.alt_text.placeholder_alt")(placeholders));
     const drawnShapes = drawnShapeFinding(
       nonDecorative.filter((i) => !(i.altText && i.altText.trim().length > 0)),
       "Word",
     );
-    if (drawnShapes) findings.push(drawnShapes);
+    if (drawnShapes) findings.push(fd("docx.alt_text.drawn_shapes")(drawnShapes));
     const titleOnly = nonDecorative.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {
       findings.push(
-        `${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title. Move the text into the Description box.`,
+        fd("docx.alt_text.title_only", {
+          count: titleOnly,
+        })`${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title. Move the text into the Description box.`,
       );
     }
     // Header/footer images stay scored (user decision, 2026-10-05) — an
@@ -474,7 +579,9 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
     ).length;
     if (inPageFurniture > 0) {
       findings.push(
-        `${inPageFurniture} of them ${inPageFurniture === 1 ? "is" : "are"} in a page header or footer — usually a letterhead logo or seal repeated on every page. If it adds nothing the text does not already say, mark it decorative (right-click → View Alt Text → Mark as decorative) and it stops counting here; if it carries information — a seal that certifies, or a logo that is the only place the agency is named — describe it instead. (When Word saves a tagged PDF, header and footer content is marked as page decoration that screen readers skip, so the PDF may not flag the same image.)`,
+        fd("docx.alt_text.in_header_or_footer", {
+          count: inPageFurniture,
+        })`${inPageFurniture} of them ${inPageFurniture === 1 ? "is" : "are"} in a page header or footer — usually a letterhead logo or seal repeated on every page. If it adds nothing the text does not already say, mark it decorative (right-click → View Alt Text → Mark as decorative) and it stops counting here; if it carries information — a seal that certifies, or a logo that is the only place the agency is named — describe it instead. (When Word saves a tagged PDF, header and footer content is marked as page decoration that screen readers skip, so the PDF may not flag the same image.)`,
       );
     }
   }
@@ -496,7 +603,7 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
       "Table Markup",
       DOCX.SCORING_WEIGHTS.table_markup,
       null,
-      ["No tables were found."],
+      [fd("docx.table_markup.no_tables")("No tables were found.")],
       "Data tables need a marked header row so screen readers can associate each cell with its column/row header.",
       [DOCX_HELP.tables],
       false,
@@ -524,15 +631,23 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
   const layoutish = a.tables.filter(
     (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout === true,
   ).length;
-  const findings = [`${a.tables.length} table(s) found.`];
+  const findings = [
+    fd("docx.table_markup.tables_found", {
+      count: a.tables.length,
+    })`${a.tables.length} table(s) found.`,
+  ];
   if (noHeader > 0) {
     findings.push(
-      `${noHeader} data table(s) have no header row. In Word: click in the table → Table Design → check Header Row.`,
+      fd("docx.table_markup.no_header_row", {
+        count: noHeader,
+      })`${noHeader} data table(s) have no header row. In Word: click in the table → Table Design → check Header Row.`,
     );
   }
   if (layoutish > 0) {
     findings.push(
-      `Advisory — not scored: ${layoutish} bare grid(s) — nothing drawn (no visible border or shading from the table, its cells, or its style) and no header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
+      fd("docx.table_markup.bare_grid_layout", {
+        count: layoutish,
+      })`Advisory — not scored: ${layoutish} bare grid(s) — nothing drawn (no visible border or shading from the table, its cells, or its style) and no header marks anywhere — usually a layout construct, so this is not counted against your grade — but if any of these is really a data table, its missing header row IS a WCAG 1.3.1 failure, so give them a look. If it IS a data table, give it a table style and check Table Design → Header Row.`,
     );
   }
   // Headers that label nothing (2026-10-06, user decision: reported, never
@@ -543,25 +658,33 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
   ).length;
   if (emptyHeaders > 0) {
     findings.push(
-      `Advisory — not scored: ${emptyHeaders} table(s) mark a header row whose cells are all empty — the structure is there, so this is not counted against your grade, but screen readers announce no header for those columns. Type a label into each header cell.`,
+      fd("docx.table_markup.empty_header_row", {
+        count: emptyHeaders,
+      })`Advisory — not scored: ${emptyHeaders} table(s) mark a header row whose cells are all empty — the structure is there, so this is not counted against your grade, but screen readers announce no header for those columns. Type a label into each header cell.`,
     );
   }
   // Nested tables: reported, never scored (2026-08-29 — same rule as the
   // PDF path since v1.131.0: properly built nesting is still determinable).
   if (a.tables.some((t) => t.hasNestedTable)) {
     findings.push(
-      "Advisory — not scored: nested tables were found — your grade is not affected, but they are hard for screen readers to navigate. Flatten them where possible.",
+      fd("docx.table_markup.nested_tables")(
+        "Advisory — not scored: nested tables were found — your grade is not affected, but they are hard for screen readers to navigate. Flatten them where possible.",
+      ),
     );
   }
   const mergedTotal = a.tables.reduce((sum, t) => sum + (t.mergedCellCount ?? 0), 0);
   if (mergedTotal > 0) {
     findings.push(
-      `Note — not scored: ${mergedTotal} merged cell(s) across the table(s). Merged and split cells can confuse screen-reader navigation (Microsoft's own checker flags them); whether they harm depends on placement — review manually.`,
+      fd("docx.table_markup.merged_cells", {
+        count: mergedTotal,
+      })`Note — not scored: ${mergedTotal} merged cell(s) across the table(s). Merged and split cells can confuse screen-reader navigation (Microsoft's own checker flags them); whether they harm depends on placement — review manually.`,
     );
   }
   if ((a.emptyTableRowCount ?? 0) > 0) {
     findings.push(
-      `Note — not scored: ${a.emptyTableRowCount} entirely empty table row(s) — blank rows used for spacing are announced as empty rows a screen reader has to sit through. Use cell padding or table spacing instead.`,
+      fd("docx.table_markup.empty_rows", {
+        count: a.emptyTableRowCount,
+      })`Note — not scored: ${a.emptyTableRowCount} entirely empty table row(s) — blank rows used for spacing are announced as empty rows a screen reader has to sit through. Use cell padding or table spacing instead.`,
     );
   }
   return docxCategory(
@@ -582,7 +705,7 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
       "Link Quality",
       DOCX.SCORING_WEIGHTS.link_quality,
       null,
-      ["No hyperlinks were found."],
+      [fd("docx.link_quality.no_links")("No hyperlinks were found.")],
       "Link text should describe the destination. Vague phrases like 'click here' are unhelpful out of context.",
       [DOCX_HELP.links],
       false,
@@ -607,15 +730,25 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
   const vague = a.links.filter((l) => classifyLinkText(l.text) === "vague");
   const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
   const score = shareScore(a.links.length - unnamed.length, a.links.length);
-  const findings = [`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`];
+  const findings = [
+    fd("docx.link_quality.links_assessed", {
+      count: unnamed.length,
+      total: a.links.length,
+    })`${a.links.length} link(s) found; ${unnamed.length} with no link text at all.`,
+  ];
   if (unnamed.length > 0) {
     findings.push(
-      `${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In Word: select the link → Insert → Link, and type a descriptive phrase in "Text to display".`,
+      fd("docx.link_quality.links_unnamed", {
+        count: unnamed.length,
+        total: a.links.length,
+      })`${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In Word: select the link → Insert → Link, and type a descriptive phrase in "Text to display".`,
     );
   }
   if (vague.length > 0) {
     findings.push(
-      `Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
+      fd("docx.link_quality.vague_text", {
+        count: vague.length,
+      })`Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
         .slice(0, 5)
         .map((l) => `"${l.text.trim()}"`)
         .join(
@@ -625,7 +758,9 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
   }
   if (rawUrls.length > 0) {
     findings.push(
-      `Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable), but a descriptive label reads better in a screen reader's list of links.`,
+      fd("docx.link_quality.raw_urls", {
+        count: rawUrls.length,
+      })`Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable), but a descriptive label reads better in a screen reader's list of links.`,
     );
   }
   return docxCategory(
@@ -649,8 +784,12 @@ function scoreDocxContrast(a: DocxAnalysis): CategoryResult {
       null,
       [
         unresolvedRuns > 0
-          ? `${unresolvedRuns} text run(s) use style-inherited or automatic colors that could not be resolved, so contrast could not be evaluated automatically — review manually. (Explicit and theme-based colors ARE resolved since v1.95.0.)`
-          : "No text with a resolvable color (explicit or theme-based) was found to evaluate.",
+          ? fd("docx.color_contrast.colors_unresolved", {
+              count: unresolvedRuns,
+            })`${unresolvedRuns} text run(s) use style-inherited or automatic colors that could not be resolved, so contrast could not be evaluated automatically — review manually. (Explicit and theme-based colors ARE resolved since v1.95.0.)`
+          : fd("docx.color_contrast.nothing_checkable")(
+              "No text with a resolvable color (explicit or theme-based) was found to evaluate.",
+            ),
       ],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Word stores explicit and theme colors, so both are checked directly where they are set.",
       [DOCX_HELP.contrast],
@@ -659,18 +798,25 @@ function scoreDocxContrast(a: DocxAnalysis): CategoryResult {
   }
   let score = Math.round(((checkedRuns - failing.length) / checkedRuns) * 100);
   const findings = [
-    `${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
+    fd("docx.color_contrast.runs_checked", {
+      count: failing.length,
+      total: checkedRuns,
+    })`${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
   ];
   if (unresolvedRuns > 0) {
     findings.push(
-      `${unresolvedRuns} additional run(s) use inherited/theme colors that couldn't be resolved — review those manually.`,
+      fd("docx.color_contrast.some_colors_unresolved", {
+        count: unresolvedRuns,
+      })`${unresolvedRuns} additional run(s) use inherited/theme colors that couldn't be resolved — review those manually.`,
     );
   }
   if (failing.length > 0) {
     score = Math.min(score, 85);
     const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
     findings.push(
-      `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+      fd(
+        "docx.color_contrast.lowest_ratio",
+      )`Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
     );
   }
   return docxCategory(
@@ -693,7 +839,7 @@ function scoreDocxLists(a: DocxAnalysis): CategoryResult {
       "List Structure",
       DOCX.SCORING_WEIGHTS.list_structure,
       null,
-      ["No lists were found."],
+      [fd("docx.list_structure.no_lists")("No lists were found.")],
       "Real list formatting (the Bullets/Numbering buttons) lets screen readers announce list structure and item counts. Manually-typed bullets do not.",
       [DOCX_HELP.overview],
       false,
@@ -701,7 +847,10 @@ function scoreDocxLists(a: DocxAnalysis): CategoryResult {
   }
   let score = Math.round((realListItems / total) * 100);
   const findings = [
-    `${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet/number paragraph(s).`,
+    fd("docx.list_structure.list_items_census", {
+      count: manualBulletParagraphs,
+      total: total,
+    })`${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet/number paragraph(s).`,
   ];
   if (manualBulletParagraphs > 0) {
     // Capped at 85 so any typed bullet is a finding; floored at the Moderate
@@ -709,7 +858,10 @@ function scoreDocxLists(a: DocxAnalysis): CategoryResult {
     // every word present and in order — is never Critical.
     score = Math.max(TYPED_LIST_FLOOR, Math.min(score, 85));
     findings.push(
-      `${manualBulletParagraphs} paragraph(s) use typed bullets or numbers instead of Word's list formatting. Use the Bullets/Numbering buttons so the list is announced as a list.`,
+      fd("docx.list_structure.typed_bullets", {
+        count: manualBulletParagraphs,
+        total: total,
+      })`${manualBulletParagraphs} paragraph(s) use typed bullets or numbers instead of Word's list formatting. Use the Bullets/Numbering buttons so the list is announced as a list.`,
     );
   }
   return docxCategory(
@@ -728,11 +880,17 @@ function scoreDocxReadingOrder(a: DocxAnalysis): CategoryResult {
   const findings =
     floating > 0
       ? [
-          `${floating} floating (anchored) object(s) were found — their reading position is set by anchoring, not the text flow, so verify each is announced where a reader expects it (v1.95.0 census). Inline objects follow the flow and are fine.`,
-          "Word's linear flow preserves the order of ordinary paragraphs; the floating objects above are the part to check by hand.",
+          fd("docx.reading_order.floating_objects", {
+            count: floating,
+          })`${floating} floating (anchored) object(s) were found — their reading position is set by anchoring, not the text flow, so verify each is announced where a reader expects it (v1.95.0 census). Inline objects follow the flow and are fine.`,
+          fd("docx.reading_order.floating_objects_check_by_hand")(
+            "Word's linear flow preserves the order of ordinary paragraphs; the floating objects above are the part to check by hand.",
+          ),
         ]
       : [
-          "No floating (anchored) objects were found in the document body — body content follows Word's linear flow, which preserves reading order. Headers/footers and text-box internals are still worth a manual glance.",
+          fd("docx.reading_order.no_floating_objects")(
+            "No floating (anchored) objects were found in the document body — body content follows Word's linear flow, which preserves reading order. Headers/footers and text-box internals are still worth a manual glance.",
+          ),
         ];
   return docxCategory(
     "reading_order",
@@ -754,10 +912,14 @@ function scoreDocxForms(a: DocxAnalysis): CategoryResult {
   const findings =
     controls > 0
       ? [
-          `${a.contentControlCount ?? 0} content control(s) and ${a.legacyFieldCount ?? 0} legacy form field(s) were detected. Whether each is labeled and reachable is not automatically assessed — verify with Word's own Accessibility Checker and a screen reader.`,
+          fd("docx.form_accessibility.controls_detected", {
+            count: controls,
+          })`${a.contentControlCount ?? 0} content control(s) and ${a.legacyFieldCount ?? 0} legacy form field(s) were detected. Whether each is labeled and reachable is not automatically assessed — verify with Word's own Accessibility Checker and a screen reader.`,
         ]
       : [
-          "No form controls were detected in the document body (interactive content controls and legacy form fields are both checked). Interactive form semantics are not automatically assessed in this version.",
+          fd("docx.form_accessibility.no_controls")(
+            "No form controls were detected in the document body (interactive content controls and legacy form fields are both checked). Interactive form semantics are not automatically assessed in this version.",
+          ),
         ];
   return docxCategory(
     "form_accessibility",
@@ -796,6 +958,10 @@ function buildDocxCategories(a: DocxAnalysis): CategoryResult[] {
  * flows through the existing report UI unchanged.
  */
 export function scoreDocx(analysis: DocxAnalysis): ScoringResult {
+  return withFindingDetails("docx", () => scoreDocxUncoded(analysis));
+}
+
+function scoreDocxUncoded(analysis: DocxAnalysis): ScoringResult {
   const categories = buildDocxCategories(analysis);
   const warnings: string[] = [];
   // analysis.parse is absent on hand-built and older payloads — read as ok.
@@ -807,6 +973,7 @@ export function scoreDocx(analysis: DocxAnalysis): ScoringResult {
       // properties and styles parts, which have their own parse guards.
       new Set(categories.map((c) => c.id).filter((id) => id !== "title_language")),
       "the document's body (word/document.xml)",
+      "docx",
     );
   }
   const conformance = evaluateDocxConformance(analysis);

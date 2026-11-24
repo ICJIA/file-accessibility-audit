@@ -151,6 +151,7 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
       res.status(422).json({
         error: "The fetched file is a legacy format that cannot be audited.",
         details: unsupportedFormatMessage(legacy),
+        code: "UNSUPPORTED_TYPE",
       });
       return { ok: false };
     }
@@ -158,6 +159,7 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
       error: "Fetched content is not a supported document.",
       details:
         "The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.",
+      code: "UNSUPPORTED_TYPE",
     });
     return { ok: false };
   }

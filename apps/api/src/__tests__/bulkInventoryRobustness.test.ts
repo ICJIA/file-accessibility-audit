@@ -241,6 +241,7 @@ describe("POST /api/bulk-from-inventory — one bad entry never costs the batch"
       sha256: undefined,
       path: "bad.pdf",
       error: "invalid inventory entry: publicUrl must be a string",
+      errorCode: "INVALID_REQUEST",
     });
   });
 
@@ -314,5 +315,12 @@ describe("POST /api/bulk-from-inventory — stops when the client has gone", () 
     expect(res._json.summary).toMatchObject({ total: 6, analyzed: 6, failed: 0 });
     expect(sharedReportInserts()).toHaveLength(6);
     expect(res.listenerCount("close")).toBe(0);
+    // Each audited entry links to its report PAGE (absolute, /report/<id>) —
+    // the same link shape /api/audit-url returns — and carries no error code.
+    for (const r of res._json.results) {
+      expect(r.reportUrl).toMatch(/^https?:\/\/[^/]+\/report\/[a-f0-9]{32}$/);
+      expect(r.reportUrl.endsWith(`/report/${r.reportId}`)).toBe(true);
+      expect(r.errorCode).toBeUndefined();
+    }
   });
 });

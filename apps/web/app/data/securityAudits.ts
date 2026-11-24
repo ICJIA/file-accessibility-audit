@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.176.0",
+    meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: the whole application: the API's lifecycle and error handling, the audit engine's plumbing, every page of the site, the command-line tool, and the deploy and backup tooling.",
+    body: [
+      {
+        kind: "p",
+        html: "This release follows a review of the whole application. Four weaknesses were found and all four are fixed in this release. First, the short-lived copy of a PDF that the analysis tools read could be left on the server if the service was restarted in the middle of a check; those copies now live in a folder only the service can open, leftovers are deleted when the service starts, and anything older than 15 minutes is deleted automatically. Second, the one-time download link for a repaired PDF could be used up by a program that only asked about the file without downloading it; the file is now deleted only when a download actually completes, so an interrupted download can be tried again. Third, the service now checks that it has room for a file before it reads the file, so a burst of large uploads cannot push it over its memory limit. Fourth, a check that is turned away no longer leaves a background program running. Two things were added for people who connect other software to the service: a description of the service at /api/openapi.json, and a random number on each response so two failures can be told apart; the number is not derived from anything about the person. Larger batches (25 files), checking a document by link, the before-and-after comparison and the sample report change nothing about what the server stores. The data-retention policy is updated to version 1.20. No document's score changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.175.6",
     meta: "Reviewed <strong>2026-11-18</strong> &middot; scope: text size on the data-retention and technical-details pages.",
     body: [

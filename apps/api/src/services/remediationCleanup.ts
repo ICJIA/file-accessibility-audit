@@ -3,7 +3,7 @@
  * — ALWAYS, regardless of REMEDIATION.ENABLED (since v1.51.0; the interval
  * previously early-returned when remediation was off, which silently
  * disabled steps 6–7 too — retention must not hang off a feature flag).
- * Does eight things, in order:
+ * Does nine things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
  *      record verified_absent for the auditor), then delete-and-verify the
@@ -33,6 +33,10 @@
  *      AUDIT_LOG_RETENTION_DAYS and error-log files past
  *      ERROR_LOG_RETENTION_DAYS (v1.88.0, services/activityExport.ts). Runs
  *      after step 6 so both see one cutoff.
+ *   9. Delete temp copies of documents older than TEMP_FILES.MAX_AGE_MS from
+ *      the dedicated temp directory (packages/analyzer tempDir.ts). qpdf and
+ *      veraPDF read from a file; each copy is deleted the moment its tool
+ *      finishes, and this step removes the ones a killed process left.
  *
  * Steps 1–4 are no-ops on a deployment that has never run remediation
  * (queries over empty tables; the orphan scan guards on the output dir
@@ -43,7 +47,8 @@
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import db from "../db/sqlite.js";
-import { ACTIVITY_EXPORT, DEPLOY, REMEDIATION, SHARED_REPORTS } from "#config";
+import { ACTIVITY_EXPORT, DEPLOY, REMEDIATION, SHARED_REPORTS, TEMP_FILES } from "#config";
+import { purgeAuditTempFiles } from "@file-audit/analyzer/tempDir";
 import { runActivityExport } from "./activityExport.js";
 import { activityLogDir } from "./dataDir.js";
 import { pruneErrorLogs } from "./errorLog.js";
@@ -100,8 +105,16 @@ const purgeOldEvents = db.prepare(`DELETE FROM remediation_events WHERE occurred
 // audit-gate. Without retention it grows unbounded — the slow-burn
 // DoS vector flagged as P2.3 in the v1.20.1 red/blue review.
 // created_at is stored as a SQLite TEXT timestamp (DATETIME DEFAULT
-// CURRENT_TIMESTAMP), so the cutoff is an ISO string.
-const purgeOldAuditLog = db.prepare(`DELETE FROM audit_log WHERE created_at < ?`);
+// CURRENT_TIMESTAMP): "YYYY-MM-DD HH:MM:SS", UTC, a SPACE between date and
+// time. The cutoff is therefore built by SQLite in that same format, from
+// epoch seconds — the convention hasRecentAudit (services/auditLog.ts)
+// already uses. It used to be an ISO string from JavaScript
+// ("YYYY-MM-DDTHH:MM:SS.sssZ"): compared as text, a space sorts before "T",
+// so EVERY row dated the cutoff's calendar day counted as older than the
+// cutoff and was purged up to 24 hours early.
+const purgeOldAuditLog = db.prepare(
+  `DELETE FROM audit_log WHERE created_at < datetime(?, 'unixepoch')`,
+);
 
 // v1.51.0: shared_reports physical retention. expires_at is an ISO-8601 TEXT
 // column (every writer stores `new Date(...).toISOString()`), so lexicographic
@@ -129,6 +142,8 @@ export interface CleanupResult {
   activityFilesPruned: number;
   /** v1.88.0: error-log files pruned by step 8. */
   errorLogFilesPruned: number;
+  /** Temp copies of documents deleted by step 9 (left by a killed process). */
+  tempFilesPurged: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -147,6 +162,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     activityFilesWritten: 0,
     activityFilesPruned: 0,
     errorLogFilesPruned: 0,
+    tempFilesPurged: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -337,12 +353,12 @@ export async function runCleanup(): Promise<CleanupResult> {
   }
 
   /* 6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS (v1.20.1+).
-   *    audit_log uses TEXT timestamps (DATETIME DEFAULT CURRENT_TIMESTAMP),
-   *    so the cutoff is an ISO 8601 string. */
+   *    audit_log uses SQLite TEXT timestamps (DATETIME DEFAULT
+   *    CURRENT_TIMESTAMP), so the cutoff is passed as epoch seconds and
+   *    formatted by SQLite — see purgeOldAuditLog. */
   try {
     const cutoffMs = now - SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS * 86_400_000;
-    const cutoffIso = new Date(cutoffMs).toISOString();
-    const info = purgeOldAuditLog.run(cutoffIso);
+    const info = purgeOldAuditLog.run(Math.floor(cutoffMs / 1000));
     result.purgedAuditLog = info.changes;
   } catch (e) {
     result.errors.push({
@@ -400,6 +416,14 @@ export async function runCleanup(): Promise<CleanupResult> {
     result.errors.push({ step: "errorLogPrune", message: (e as Error).message });
   }
 
+  /* 9. Temp copies of documents older than TEMP_FILES.MAX_AGE_MS. Only files
+   *    this service names (<uuid>.pdf) in its own temp directory. */
+  try {
+    result.tempFilesPurged = purgeAuditTempFiles(TEMP_FILES.MAX_AGE_MS, now);
+  } catch (e) {
+    result.errors.push({ step: "tempFiles", message: (e as Error).message });
+  }
+
   return result;
 }
 
@@ -418,6 +442,7 @@ export function summarizeCleanup(r: CleanupResult): string {
     ` · error logs pruned: ${r.errorLogFilesPruned}` +
     ` · audit_log rows purged: ${r.purgedAuditLog}` +
     ` · shared reports purged: ${r.purgedSharedReports}` +
+    ` · temp files purged: ${r.tempFilesPurged}` +
     ` · remediation: ${r.expiredOutputs} expired, ${r.stuckJobs} stuck, ${r.orphanDirs} orphans,` +
     ` ${r.queueExpiredJobs} queue-expired, ${r.jobDirsPurged} job dirs purged,` +
     ` ${r.purgedJobs} jobs purged, ${r.purgedEvents} events purged` +
@@ -438,7 +463,8 @@ function didSomething(r: CleanupResult): boolean {
       r.purgedSharedReports +
       r.activityFilesWritten +
       r.activityFilesPruned +
-      r.errorLogFilesPruned >
+      r.errorLogFilesPruned +
+      r.tempFilesPurged >
       0 || r.errors.length > 0
   );
 }
@@ -522,4 +548,20 @@ if (isMain) {
       process.exit(2);
     },
   );
+}
+
+/**
+ * Startup purge of the temp directory: delete the temp copies of documents a
+ * previous process left behind when it was killed mid-audit. Synchronous —
+ * index.ts runs it before the server starts listening. Everything older than
+ * TEMP_FILES.BOOT_PURGE_MIN_AGE_MS goes (see that constant for why not
+ * everything); the periodic sweep's step 9 removes the rest. Returns the
+ * number of files deleted; never throws.
+ */
+export function purgeTempFilesAtBoot(nowMs: number = Date.now()): number {
+  try {
+    return purgeAuditTempFiles(TEMP_FILES.BOOT_PURGE_MIN_AGE_MS, nowMs);
+  } catch {
+    return 0;
+  }
 }

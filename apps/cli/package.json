@@ -1,13 +1,17 @@
 {
   "name": "@icjia/a11y-audit",
-  "version": "1.175.6",
+  "version": "1.176.0",
   "private": true,
   "type": "module",
   "imports": {
     "#config": "../../audit.config.ts"
   },
+  "bin": {
+    "a11y-audit": "./bin/a11y-audit.js"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
+    "a11y-audit": "node bin/a11y-audit.js",
     "publist": "tsx src/index.ts publist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

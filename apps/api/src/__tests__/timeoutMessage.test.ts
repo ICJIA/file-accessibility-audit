@@ -45,7 +45,7 @@ describe("every surface that can time out uses it", () => {
 
     expect(mapAnalyzeError({ killed: true }, undefined, false)).toEqual({
       status: 504,
-      body: AUDIT_TIMEOUT_MESSAGE,
+      body: { ...AUDIT_TIMEOUT_MESSAGE, code: "TIMEOUT" },
     });
   });
 
@@ -54,7 +54,7 @@ describe("every surface that can time out uses it", () => {
 
     expect(mapAnalyzeError({ code: "ETIMEDOUT" }, undefined, false)).toEqual({
       status: 504,
-      body: AUDIT_TIMEOUT_MESSAGE,
+      body: { ...AUDIT_TIMEOUT_MESSAGE, code: "TIMEOUT" },
     });
   });
 
@@ -71,7 +71,10 @@ describe("every surface that can time out uses it", () => {
       const status = pollAnalyzeJob(created!.id, created!.token);
 
       expect(status?.done).toBe(true);
-      expect(status?.error).toEqual({ status: 504, body: AUDIT_TIMEOUT_MESSAGE });
+      expect(status?.error).toEqual({
+        status: 504,
+        body: { ...AUDIT_TIMEOUT_MESSAGE, code: "TIMEOUT" },
+      });
     } finally {
       vi.useRealTimers();
     }

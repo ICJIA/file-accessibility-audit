@@ -1,7 +1,7 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { CategoryResult } from "../scorer.js";
-import { structTreeIsContentFree } from "./common.js";
+import { structTreeIsContentFree, fd, fdEach } from "./common.js";
 
 // ---------------------------------------------------------------------------
 // Tags that are one capital letter away from a standard structure type.
@@ -171,6 +171,47 @@ const acrobatGuide: Record<string, string[]> = {
   ],
 };
 
+// Finding codes for the guide above: one for its "---" heading and one for
+// its steps, per category (a code names the category it appears under).
+const acrobatGuideCodes = {
+  text_extractability: {
+    heading: "pdf.text_extractability.acrobat_guide_heading",
+    step: "pdf.text_extractability.acrobat_guide_step",
+  },
+  title_language: {
+    heading: "pdf.title_language.acrobat_guide_heading",
+    step: "pdf.title_language.acrobat_guide_step",
+  },
+  heading_structure: {
+    heading: "pdf.heading_structure.acrobat_guide_heading",
+    step: "pdf.heading_structure.acrobat_guide_step",
+  },
+  alt_text: {
+    heading: "pdf.alt_text.acrobat_guide_heading",
+    step: "pdf.alt_text.acrobat_guide_step",
+  },
+  bookmarks: {
+    heading: "pdf.bookmarks.acrobat_guide_heading",
+    step: "pdf.bookmarks.acrobat_guide_step",
+  },
+  table_markup: {
+    heading: "pdf.table_markup.acrobat_guide_heading",
+    step: "pdf.table_markup.acrobat_guide_step",
+  },
+  link_quality: {
+    heading: "pdf.link_quality.acrobat_guide_heading",
+    step: "pdf.link_quality.acrobat_guide_step",
+  },
+  form_accessibility: {
+    heading: "pdf.form_accessibility.acrobat_guide_heading",
+    step: "pdf.form_accessibility.acrobat_guide_step",
+  },
+  reading_order: {
+    heading: "pdf.reading_order.acrobat_guide_heading",
+    step: "pdf.reading_order.acrobat_guide_step",
+  },
+} as const;
+
 export function appendSupplementaryFindings(
   qpdf: QpdfResult,
   pdfjs: PdfjsResult,
@@ -182,9 +223,13 @@ export function appendSupplementaryFindings(
   if (readingCatForLists && qpdf.lists.length > 0) {
     const totalItems = qpdf.lists.reduce((sum, l) => sum + l.itemCount, 0);
     const wellFormed = qpdf.lists.filter((l) => l.isWellFormed).length;
-    readingCatForLists.findings.push(`--- List Structure Analysis ---`);
     readingCatForLists.findings.push(
-      `${qpdf.lists.length} list(s) detected with ${totalItems} total item(s)`,
+      fd("pdf.reading_order.lists_section")`--- List Structure Analysis ---`,
+    );
+    readingCatForLists.findings.push(
+      fd("pdf.reading_order.lists_detected", {
+        count: qpdf.lists.length,
+      })`${qpdf.lists.length} list(s) detected with ${totalItems} total item(s)`,
     );
     for (let li = 0; li < qpdf.lists.length; li++) {
       const l = qpdf.lists[li];
@@ -196,14 +241,23 @@ export function appendSupplementaryFindings(
       ];
       if (l.nestingDepth > 0) parts.push(`nested depth: ${l.nestingDepth}`);
       parts.push(l.isWellFormed ? "well-formed" : "incomplete structure");
-      readingCatForLists.findings.push(`  ${label}: ${parts.join(" | ")}`);
+      readingCatForLists.findings.push(
+        fd("pdf.reading_order.lists_item")`  ${label}: ${parts.join(" | ")}`,
+      );
     }
     if (wellFormed === qpdf.lists.length) {
-      readingCatForLists.findings.push(`All lists are well-formed (each <LI> has an <LBody>)`);
+      readingCatForLists.findings.push(
+        fd("pdf.reading_order.lists_well_formed", {
+          count: qpdf.lists.length,
+        })`All lists are well-formed (each <LI> has an <LBody>)`,
+      );
       const withoutLabels = qpdf.lists.filter((l) => !l.hasLabels).length;
       if (withoutLabels > 0) {
         readingCatForLists.findings.push(
-          `${withoutLabels} list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker`,
+          fd("pdf.reading_order.lists_without_labels", {
+            count: withoutLabels,
+            total: qpdf.lists.length,
+          })`${withoutLabels} list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker`,
         );
       }
     } else {
@@ -215,24 +269,38 @@ export function appendSupplementaryFindings(
       );
       if (lbodyNearMiss) {
         readingCatForLists.findings.push(
-          `${malformed} list(s) look as though their items have no <LBody>, but the bodies are almost certainly present under the wrong name: this document uses a <${lbodyNearMiss.tag}> tag, which differs from the standard <LBody> only in capitalization, and the RoleMap does not say what it is. Software that reads the file sees an unrecognised container rather than a list item's text.`,
+          fd("pdf.reading_order.lists_lbody_misspelt", {
+            count: malformed,
+            total: qpdf.lists.length,
+          })`${malformed} list(s) look as though their items have no <LBody>, but the bodies are almost certainly present under the wrong name: this document uses a <${lbodyNearMiss.tag}> tag, which differs from the standard <LBody> only in capitalization, and the RoleMap does not say what it is. Software that reads the file sees an unrecognised container rather than a list item's text.`,
         );
         readingCatForLists.findings.push(
-          `Fix: this is a one-line repair, not a retagging job. In Adobe Acrobat's Tags panel, open the RoleMap (Tags panel → Options → Edit Role Map) and map <${lbodyNearMiss.tag}> to <${lbodyNearMiss.standard}>. Check the list items afterwards to confirm the text is there; only add bodies if any item really has none.`,
+          fd(
+            "pdf.reading_order.lists_lbody_misspelt_fix",
+          )`Fix: this is a one-line repair, not a retagging job. In Adobe Acrobat's Tags panel, open the RoleMap (Tags panel → Options → Edit Role Map) and map <${lbodyNearMiss.tag}> to <${lbodyNearMiss.standard}>. Check the list items afterwards to confirm the text is there; only add bodies if any item really has none.`,
         );
       } else {
         readingCatForLists.findings.push(
-          `${malformed} list(s) have items missing <LBody> elements — screen readers may not announce list item content correctly`,
+          fd("pdf.reading_order.lists_missing_lbody", {
+            count: malformed,
+            total: qpdf.lists.length,
+          })`${malformed} list(s) have items missing <LBody> elements — screen readers may not announce list item content correctly`,
         );
         readingCatForLists.findings.push(
-          "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
+          fd("pdf.reading_order.lists_missing_lbody_fix")(
+            "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
+          ),
         );
       }
     }
   } else if (readingCatForLists && qpdf.lists.length === 0 && qpdf.hasStructTree) {
-    readingCatForLists.findings.push(`--- List Structure Analysis ---`);
     readingCatForLists.findings.push(
-      "No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements",
+      fd("pdf.reading_order.lists_section")`--- List Structure Analysis ---`,
+    );
+    readingCatForLists.findings.push(
+      fd("pdf.reading_order.lists_none_tagged")(
+        "No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements",
+      ),
     );
   }
 
@@ -244,78 +312,116 @@ export function appendSupplementaryFindings(
   if (readingCatForLists && noteCount > 0) {
     const missingId = qpdf.notesMissingId ?? 0;
     const dupIds = qpdf.noteDuplicateIdCount ?? 0;
-    readingCatForLists.findings.push(`--- Footnotes & Endnotes (<Note>) ---`);
     readingCatForLists.findings.push(
-      `${noteCount} <Note> tag(s) detected (footnotes, endnotes, or labeled notes)`,
+      fd("pdf.reading_order.notes_section")`--- Footnotes & Endnotes (<Note>) ---`,
+    );
+    readingCatForLists.findings.push(
+      fd("pdf.reading_order.notes_detected", {
+        count: noteCount,
+      })`${noteCount} <Note> tag(s) detected (footnotes, endnotes, or labeled notes)`,
     );
     if (missingId === 0 && dupIds === 0) {
       readingCatForLists.findings.push(
-        "  All notes carry a unique /ID — assistive technology can link each reference to its note (Matterhorn 19-003/19-004)",
+        fd("pdf.reading_order.notes_ids_unique")(
+          "  All notes carry a unique /ID — assistive technology can link each reference to its note (Matterhorn 19-003/19-004)",
+        ),
       );
     } else {
       if (missingId > 0) {
         readingCatForLists.findings.push(
-          `  Advisory — not scored: ${missingId} note(s) have no /ID (Matterhorn 19-003). PDF/UA requires one so assistive technology can link the in-text reference to its note; Word footnote exports commonly omit it.`,
+          fd("pdf.reading_order.notes_missing_id", {
+            count: missingId,
+            total: noteCount,
+          })`  Advisory — not scored: ${missingId} note(s) have no /ID (Matterhorn 19-003). PDF/UA requires one so assistive technology can link the in-text reference to its note; Word footnote exports commonly omit it.`,
         );
       }
       if (dupIds > 0) {
         readingCatForLists.findings.push(
-          `  Advisory — not scored: ${dupIds} note(s) reuse another note's /ID (Matterhorn 19-004) — IDs must be unique within the document.`,
+          fd("pdf.reading_order.notes_duplicate_id", {
+            count: dupIds,
+            total: noteCount,
+          })`  Advisory — not scored: ${dupIds} note(s) reuse another note's /ID (Matterhorn 19-004) — IDs must be unique within the document.`,
         );
       }
       readingCatForLists.findings.push(
-        "  Fix: In Adobe Acrobat's Tags panel, select each <Note> tag → Properties → set a unique ID (remediation tools and re-exporting from current Word versions also repair this).",
+        fd("pdf.reading_order.notes_id_fix")(
+          "  Fix: In Adobe Acrobat's Tags panel, select each <Note> tag → Properties → set a unique ID (remediation tools and re-exporting from current Word versions also repair this).",
+        ),
       );
     }
   }
 
   const textCat = findCat("text_extractability");
   if (textCat) {
-    textCat.findings.push(`--- Document Structure Signals ---`);
+    textCat.findings.push(
+      fd("pdf.text_extractability.structure_signals_section")`--- Document Structure Signals ---`,
+    );
     if (qpdf.hasMarkInfo) {
       if (qpdf.isMarkedContent) {
         textCat.findings.push(
-          '  Document is marked as "Marked Content" (/MarkInfo /Marked true) — content is properly distinguished from artifacts',
+          fd("pdf.text_extractability.structure_marked_content")(
+            '  Document is marked as "Marked Content" (/MarkInfo /Marked true) — content is properly distinguished from artifacts',
+          ),
         );
       } else {
         textCat.findings.push(
-          "  MarkInfo present but /Marked is not true — the document may not properly distinguish content from artifacts",
+          fd("pdf.text_extractability.structure_marked_not_true")(
+            "  MarkInfo present but /Marked is not true — the document may not properly distinguish content from artifacts",
+          ),
         );
         textCat.findings.push(
-          "  Fix: In Adobe Acrobat, run Check for accessibility (classic UI: Full Check), then use the Fix reading order tool to mark decorative elements as artifacts",
+          fd("pdf.text_extractability.structure_marked_not_true_fix")(
+            "  Fix: In Adobe Acrobat, run Check for accessibility (classic UI: Full Check), then use the Fix reading order tool to mark decorative elements as artifacts",
+          ),
         );
       }
     } else if (qpdf.hasStructTree) {
       textCat.findings.push(
-        "  No MarkInfo dictionary found — artifacts (headers, footers, page numbers, watermarks) may be read aloud by screen readers",
+        fd("pdf.text_extractability.structure_no_markinfo")(
+          "  No MarkInfo dictionary found — artifacts (headers, footers, page numbers, watermarks) may be read aloud by screen readers",
+        ),
       );
       textCat.findings.push(
-        '  Fix: In Adobe Acrobat, use All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select decorative elements → click "Background/Artifact"',
+        fd("pdf.text_extractability.structure_no_markinfo_fix")(
+          '  Fix: In Adobe Acrobat, use All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select decorative elements → click "Background/Artifact"',
+        ),
       );
     }
 
     if (qpdf.paragraphCount > 0) {
       textCat.findings.push(
-        `  ${qpdf.paragraphCount} paragraph tag(s) (/P) found — text is structurally organized`,
+        fd("pdf.text_extractability.structure_paragraph_tags", {
+          count: qpdf.paragraphCount,
+        })`  ${qpdf.paragraphCount} paragraph tag(s) (/P) found — text is structurally organized`,
       );
     } else if (qpdf.hasStructTree) {
       textCat.findings.push(
-        "  No paragraph tags (/P) found — body text may not be properly tagged for screen reader navigation",
+        fd("pdf.text_extractability.structure_no_paragraph_tags")(
+          "  No paragraph tags (/P) found — body text may not be properly tagged for screen reader navigation",
+        ),
       );
     }
 
     if (pdfjs.emptyPages.length > 0) {
       if (pdfjs.emptyPages.length <= 5) {
         textCat.findings.push(
-          `  ${pdfjs.emptyPages.length} empty/near-empty page(s) detected: page(s) ${pdfjs.emptyPages.join(", ")}`,
+          fd("pdf.text_extractability.structure_empty_pages", {
+            count: pdfjs.emptyPages.length,
+            pages: pdfjs.emptyPages,
+          })`  ${pdfjs.emptyPages.length} empty/near-empty page(s) detected: page(s) ${pdfjs.emptyPages.join(", ")}`,
         );
       } else {
         textCat.findings.push(
-          `  ${pdfjs.emptyPages.length} empty/near-empty page(s) detected (first 5: pages ${pdfjs.emptyPages.slice(0, 5).join(", ")}...)`,
+          fd("pdf.text_extractability.structure_empty_pages", {
+            count: pdfjs.emptyPages.length,
+            pages: pdfjs.emptyPages,
+          })`  ${pdfjs.emptyPages.length} empty/near-empty page(s) detected (first 5: pages ${pdfjs.emptyPages.slice(0, 5).join(", ")}...)`,
         );
       }
       textCat.findings.push(
-        "  Empty pages may indicate scanned images without OCR, blank separator pages, or content stored only as images",
+        fd("pdf.text_extractability.structure_empty_pages_note")(
+          "  Empty pages may indicate scanned images without OCR, blank separator pages, or content stored only as images",
+        ),
       );
       // Scanned pages inside a text document (2026-11-12). The whole-file
       // "scanned" classification needs zero text anywhere, so a report with
@@ -330,10 +436,15 @@ export function appendSupplementaryFindings(
         const shown = imageOnly.slice(0, 12).join(", ");
         const more = imageOnly.length > 12 ? `, and ${imageOnly.length - 12} more` : "";
         textCat.findings.push(
-          `  Advisory — not scored here: ${imageOnly.length} page(s) have no text and are filled by an image (page${imageOnly.length === 1 ? "" : "s"} ${shown}${more}) — they look like scanned pages inside a text document. A screen reader reads nothing from a scanned page.`,
+          fd("pdf.text_extractability.structure_image_only_pages", {
+            count: imageOnly.length,
+            pages: imageOnly,
+          })`  Advisory — not scored here: ${imageOnly.length} page(s) have no text and are filled by an image (page${imageOnly.length === 1 ? "" : "s"} ${shown}${more}) — they look like scanned pages inside a text document. A screen reader reads nothing from a scanned page.`,
         );
         textCat.findings.push(
-          "  How to fix: if these pages are scans, run OCR on them (Adobe Acrobat: All tools → Scan & OCR → Recognize Text → In this file) and then tag the new text. If a page is a full-page photograph or chart, give the image alternative text instead.",
+          fd("pdf.text_extractability.structure_image_only_pages_fix")(
+            "  How to fix: if these pages are scans, run OCR on them (Adobe Acrobat: All tools → Scan & OCR → Recognize Text → In this file) and then tag the new text. If a page is a full-page photograph or chart, give the image alternative text instead.",
+          ),
         );
       }
     }
@@ -341,24 +452,34 @@ export function appendSupplementaryFindings(
 
   const readingCat = findCat("reading_order");
   if (readingCat) {
-    readingCat.findings.push(`--- Additional Structure Signals ---`);
+    readingCat.findings.push(
+      fd("pdf.reading_order.structure_signals_section")`--- Additional Structure Signals ---`,
+    );
     if (qpdf.hasRoleMap) {
       readingCat.findings.push(
-        `  Role mapping present — ${qpdf.roleMapEntries.length} custom tag(s) mapped to standard PDF roles`,
+        fd("pdf.reading_order.rolemap_present", {
+          count: qpdf.roleMapEntries.length,
+        })`  Role mapping present — ${qpdf.roleMapEntries.length} custom tag(s) mapped to standard PDF roles`,
       );
       if (qpdf.roleMapEntries.length <= 10) {
         for (const entry of qpdf.roleMapEntries) {
-          readingCat.findings.push(`  ${entry}`);
+          readingCat.findings.push(fd("pdf.reading_order.rolemap_entry")`  ${entry}`);
         }
       } else {
         for (const entry of qpdf.roleMapEntries.slice(0, 8)) {
-          readingCat.findings.push(`  ${entry}`);
+          readingCat.findings.push(fd("pdf.reading_order.rolemap_entry")`  ${entry}`);
         }
-        readingCat.findings.push(`  ... and ${qpdf.roleMapEntries.length - 8} more`);
+        readingCat.findings.push(
+          fd("pdf.reading_order.rolemap_entries_more", {
+            count: qpdf.roleMapEntries.length - 8,
+          })`  ... and ${qpdf.roleMapEntries.length - 8} more`,
+        );
       }
     } else if (qpdf.hasStructTree) {
       readingCat.findings.push(
-        "  No role mapping (/RoleMap) found — all tags use standard PDF roles (this is normal for most documents)",
+        fd("pdf.reading_order.rolemap_absent")(
+          "  No role mapping (/RoleMap) found — all tags use standard PDF roles (this is normal for most documents)",
+        ),
       );
     }
 
@@ -369,19 +490,25 @@ export function appendSupplementaryFindings(
     const circular = qpdf.roleMapCircularTags ?? [];
     if (circular.length > 0) {
       readingCat.findings.push(
-        `  Advisory — not scored: ${circular.length} role-map entr${circular.length === 1 ? "y is" : "ies are"} circular (${circular.slice(0, 6).join(", ")}${circular.length > 6 ? ", …" : ""}) — the chain never reaches a standard type, so assistive technology cannot resolve what these tags mean (Matterhorn 02-003). Fix the RoleMap so every custom tag ends on a standard structure type.`,
+        fd("pdf.reading_order.rolemap_circular", {
+          count: circular.length,
+        })`  Advisory — not scored: ${circular.length} role-map entr${circular.length === 1 ? "y is" : "ies are"} circular (${circular.slice(0, 6).join(", ")}${circular.length > 6 ? ", …" : ""}) — the chain never reaches a standard type, so assistive technology cannot resolve what these tags mean (Matterhorn 02-003). Fix the RoleMap so every custom tag ends on a standard structure type.`,
       );
     }
     const standardRemaps = qpdf.roleMapStandardRemaps ?? [];
     if (standardRemaps.length > 0) {
       readingCat.findings.push(
-        `  Advisory — not scored: the RoleMap remaps ${standardRemaps.length} STANDARD structure type(s) (${standardRemaps.slice(0, 6).join("; ")}${standardRemaps.length > 6 ? "; …" : ""}) — PDF/UA prohibits remapping standard types (Matterhorn 02-004); viewers may honor either meaning.`,
+        fd("pdf.reading_order.rolemap_standard_remapped", {
+          count: standardRemaps.length,
+        })`  Advisory — not scored: the RoleMap remaps ${standardRemaps.length} STANDARD structure type(s) (${standardRemaps.slice(0, 6).join("; ")}${standardRemaps.length > 6 ? "; …" : ""}) — PDF/UA prohibits remapping standard types (Matterhorn 02-004); viewers may honor either meaning.`,
       );
     }
     const unmapped = qpdf.roleMapUnmappedTags ?? [];
     if (unmapped.length > 0) {
       readingCat.findings.push(
-        `  Advisory — not scored: ${unmapped.length} custom tag name(s) carry no mapping to a standard structure type (${unmapped.slice(0, 8).join(", ")}${unmapped.length > 8 ? ", …" : ""}) — assistive technology treats them as anonymous containers (Matterhorn 02-001). Map each to its closest standard type in the RoleMap.`,
+        fd("pdf.reading_order.rolemap_unmapped_tags", {
+          count: unmapped.length,
+        })`  Advisory — not scored: ${unmapped.length} custom tag name(s) carry no mapping to a standard structure type (${unmapped.slice(0, 8).join(", ")}${unmapped.length > 8 ? ", …" : ""}) — assistive technology treats them as anonymous containers (Matterhorn 02-001). Map each to its closest standard type in the RoleMap.`,
       );
       // A tag one capital away from a standard name is a typo with a one-line
       // fix, and it is worth saying so — the alternative reading ("this
@@ -389,7 +516,10 @@ export function appendSupplementaryFindings(
       const nearMisses = nearMissPairs(unmapped);
       if (nearMisses.length > 0) {
         readingCat.findings.push(
-          `  ${nearMisses.length} of them differ${nearMisses.length === 1 ? "s" : ""} from a standard tag only in capitalization or spacing: ${nearMisses
+          fd("pdf.reading_order.rolemap_near_miss_tags", {
+            count: nearMisses.length,
+            total: unmapped.length,
+          })`  ${nearMisses.length} of them differ${nearMisses.length === 1 ? "s" : ""} from a standard tag only in capitalization or spacing: ${nearMisses
             .slice(0, 6)
             .map((m) => `<${m.tag}> looks like <${m.standard}>`)
             .join(
@@ -402,21 +532,33 @@ export function appendSupplementaryFindings(
     if (qpdf.totalPageCount > 0) {
       if (qpdf.tabOrderPages === qpdf.totalPageCount) {
         readingCat.findings.push(
-          `  Tab order is set on all ${qpdf.totalPageCount} page(s) — keyboard navigation follows the structure tree`,
+          fd("pdf.reading_order.tab_order_all_pages", {
+            count: qpdf.tabOrderPages,
+            total: qpdf.totalPageCount,
+          })`  Tab order is set on all ${qpdf.totalPageCount} page(s) — keyboard navigation follows the structure tree`,
         );
       } else if (qpdf.tabOrderPages > 0) {
         readingCat.findings.push(
-          `  Tab order set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s) — some pages may have inconsistent keyboard navigation`,
+          fd("pdf.reading_order.tab_order_some_pages", {
+            count: qpdf.tabOrderPages,
+            total: qpdf.totalPageCount,
+          })`  Tab order set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s) — some pages may have inconsistent keyboard navigation`,
         );
         readingCat.findings.push(
-          '  Fix: In Adobe Acrobat, go to each page\'s properties and set Tab Order to "Use Document Structure"',
+          fd("pdf.reading_order.tab_order_some_pages_fix")(
+            '  Fix: In Adobe Acrobat, go to each page\'s properties and set Tab Order to "Use Document Structure"',
+          ),
         );
       } else if (qpdf.hasStructTree) {
         readingCat.findings.push(
-          "  No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order",
+          fd("pdf.reading_order.tab_order_not_set", { count: 0, total: qpdf.totalPageCount })(
+            "  No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order",
+          ),
         );
         readingCat.findings.push(
-          '  Fix: In Adobe Acrobat, open the Page Thumbnails panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Page Thumbnails; classic UI: View → Show/Hide → Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+          fd("pdf.reading_order.tab_order_not_set_fix")(
+            '  Fix: In Adobe Acrobat, open the Page Thumbnails panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Page Thumbnails; classic UI: View → Show/Hide → Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+          ),
         );
       }
     }
@@ -440,7 +582,9 @@ export function appendSupplementaryFindings(
       embeddedFiles > 0 ||
       sigFields > 0
     ) {
-      readingCat.findings.push(`--- Document Behaviors ---`);
+      readingCat.findings.push(
+        fd("pdf.reading_order.behaviors_section")`--- Document Behaviors ---`,
+      );
     }
     if (mediaTotal > 0 && media) {
       const kinds = [
@@ -452,12 +596,16 @@ export function appendSupplementaryFindings(
         .filter(Boolean)
         .join(", ");
       readingCat.findings.push(
-        `  ${mediaTotal} multimedia annotation(s) embedded (${kinds}) — whether the media carries captions or text alternatives requires manual review (WCAG 1.2.x; the conformance panel lists it as not assessed)`,
+        fd("pdf.reading_order.behaviors_multimedia", {
+          count: mediaTotal,
+        })`  ${mediaTotal} multimedia annotation(s) embedded (${kinds}) — whether the media carries captions or text alternatives requires manual review (WCAG 1.2.x; the conformance panel lists it as not assessed)`,
       );
     }
     if (jsSignals > 0) {
       readingCat.findings.push(
-        `  JavaScript is present (${qpdf.jsActionCount ?? 0} action(s)${qpdf.hasJsNameTree ? " + a document-level script tree" : ""}) — whether scripted behavior stays keyboard- and AT-accessible requires manual review (Matterhorn 29)`,
+        fd(
+          "pdf.reading_order.behaviors_javascript",
+        )`  JavaScript is present (${qpdf.jsActionCount ?? 0} action(s)${qpdf.hasJsNameTree ? " + a document-level script tree" : ""}) — whether scripted behavior stays keyboard- and AT-accessible requires manual review (Matterhorn 29)`,
       );
     }
     if (qpdf.hasOptionalContent) {
@@ -465,16 +613,24 @@ export function appendSupplementaryFindings(
       const missingName = qpdf.ocgConfigsMissingName ?? 0;
       const withAS = qpdf.ocgConfigsWithAS ?? 0;
       readingCat.findings.push(
-        `  Optional-content layers are present (${cfgCount} configuration(s))${missingName === 0 && withAS === 0 ? " — configurations are named and none auto-switch content (Matterhorn 20)" : ""}`,
+        fd("pdf.reading_order.behaviors_layers", {
+          count: cfgCount,
+        })`  Optional-content layers are present (${cfgCount} configuration(s))${missingName === 0 && withAS === 0 ? " — configurations are named and none auto-switch content (Matterhorn 20)" : ""}`,
       );
       if (missingName > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${missingName} layer configuration(s) have no /Name (Matterhorn 20-001) — assistive technology cannot announce which view of the content is active.`,
+          fd("pdf.reading_order.behaviors_layers_unnamed", {
+            count: missingName,
+            total: cfgCount,
+          })`  Advisory — not scored: ${missingName} layer configuration(s) have no /Name (Matterhorn 20-001) — assistive technology cannot announce which view of the content is active.`,
         );
       }
       if (withAS > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${withAS} layer configuration(s) carry an /AS auto-state (Matterhorn 20) — content can appear or disappear with zoom or print without the reader acting, which assistive technology cannot follow.`,
+          fd("pdf.reading_order.behaviors_layers_auto_state", {
+            count: withAS,
+            total: cfgCount,
+          })`  Advisory — not scored: ${withAS} layer configuration(s) carry an /AS auto-state (Matterhorn 20) — content can appear or disappear with zoom or print without the reader acting, which assistive technology cannot follow.`,
         );
       }
     }
@@ -487,40 +643,57 @@ export function appendSupplementaryFindings(
         .map(([k, n]) => (n > 1 ? `${k} ×${n}` : k))
         .join(", ");
       readingCat.findings.push(
-        `  ${otherAnnots} annotation(s) beyond links and form fields (${kinds}) — comments, markup, and stamps are content too`,
+        fd("pdf.reading_order.behaviors_other_annotations", {
+          count: otherAnnots,
+        })`  ${otherAnnots} annotation(s) beyond links and form fields (${kinds}) — comments, markup, and stamps are content too`,
       );
       const untaggedOther = qpdf.untaggedOtherAnnotationCount ?? 0;
       if (untaggedOther > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${untaggedOther} of them are not referenced from the tag structure (Matterhorn 28) — assistive technology following the tags will not encounter them.`,
+          fd("pdf.reading_order.behaviors_other_annotations_untagged", {
+            count: untaggedOther,
+            total: otherAnnots,
+          })`  Advisory — not scored: ${untaggedOther} of them are not referenced from the tag structure (Matterhorn 28) — assistive technology following the tags will not encounter them.`,
         );
       }
       const missingContents = qpdf.otherAnnotationsMissingContents ?? 0;
       if (missingContents > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${missingContents} of them carry no /Contents description (PDF/UA 7.18.1) — a screen reader announces the annotation type with nothing to say about it.`,
+          fd("pdf.reading_order.behaviors_other_annotations_no_contents", {
+            count: missingContents,
+            total: otherAnnots,
+          })`  Advisory — not scored: ${missingContents} of them carry no /Contents description (PDF/UA 7.18.1) — a screen reader announces the annotation type with nothing to say about it.`,
         );
       }
     }
     if (refXObjects > 0) {
       readingCat.findings.push(
-        `  Advisory — not scored: the document uses ${refXObjects} reference XObject(s), which import content from another document — PDF/UA prohibits them outright (Matterhorn 30-001) because the imported content's structure is unreachable. Flatten or re-export the affected pages.`,
+        fd("pdf.reading_order.behaviors_reference_xobjects", {
+          count: refXObjects,
+        })`  Advisory — not scored: the document uses ${refXObjects} reference XObject(s), which import content from another document — PDF/UA prohibits them outright (Matterhorn 30-001) because the imported content's structure is unreachable. Flatten or re-export the affected pages.`,
       );
     }
     if (embeddedFiles > 0) {
       const missingDesc = qpdf.embeddedFilesMissingDesc ?? 0;
       readingCat.findings.push(
-        `  ${embeddedFiles} embedded file attachment(s) present${missingDesc === 0 ? " — each carries a description (Matterhorn 21)" : ""}`,
+        fd("pdf.reading_order.behaviors_attachments", {
+          count: embeddedFiles,
+        })`  ${embeddedFiles} embedded file attachment(s) present${missingDesc === 0 ? " — each carries a description (Matterhorn 21)" : ""}`,
       );
       if (missingDesc > 0) {
         readingCat.findings.push(
-          `  Advisory — not scored: ${missingDesc} attachment(s) have no description (/Desc — Matterhorn 21), so assistive technology can only announce a bare filename. In Acrobat's Attachments panel, add a description to each.`,
+          fd("pdf.reading_order.behaviors_attachments_no_description", {
+            count: missingDesc,
+            total: embeddedFiles,
+          })`  Advisory — not scored: ${missingDesc} attachment(s) have no description (/Desc — Matterhorn 21), so assistive technology can only announce a bare filename. In Acrobat's Attachments panel, add a description to each.`,
         );
       }
     }
     if (sigFields > 0) {
       readingCat.findings.push(
-        `  ${sigFields} digital-signature field(s) present (Matterhorn 23) — verify their labels and position in the reading order; whether a signature workflow is accessible end-to-end is a human judgment.`,
+        fd("pdf.reading_order.behaviors_signature_fields", {
+          count: sigFields,
+        })`  ${sigFields} digital-signature field(s) present (Matterhorn 23) — verify their labels and position in the reading order; whether a signature workflow is accessible end-to-end is a human judgment.`,
       );
     }
   }
@@ -531,43 +704,61 @@ export function appendSupplementaryFindings(
     // fallback but are almost always empty in practice.
     const hasPdfUa = (pdfjs.hasPdfUaIdentifier ?? false) || qpdf.hasPdfUaIdentifier;
     const pdfUaPart = pdfjs.pdfUaPart ?? qpdf.pdfUaPart;
-    textCat.findings.push(`--- PDF/UA Compliance ---`);
+    textCat.findings.push(fd("pdf.text_extractability.pdfua_section")`--- PDF/UA Compliance ---`);
     if (hasPdfUa) {
       textCat.findings.push(
-        `  Document declares PDF/UA conformance${pdfUaPart ? ` (PDF/UA-${pdfUaPart})` : ""}`,
+        fd(
+          "pdf.text_extractability.pdfua_declared",
+        )`  Document declares PDF/UA conformance${pdfUaPart ? ` (PDF/UA-${pdfUaPart})` : ""}`,
       );
       textCat.findings.push(
-        "  PDF/UA (ISO 14289) is the accessibility standard for PDF — this document claims to meet it",
+        fd("pdf.text_extractability.pdfua_declared_note")(
+          "  PDF/UA (ISO 14289) is the accessibility standard for PDF — this document claims to meet it",
+        ),
       );
     } else {
       textCat.findings.push(
-        "  No PDF/UA identifier found — the document does not claim PDF/UA (ISO 14289) conformance",
+        fd("pdf.text_extractability.pdfua_not_declared")(
+          "  No PDF/UA identifier found — the document does not claim PDF/UA (ISO 14289) conformance",
+        ),
       );
       textCat.findings.push(
-        "  Note: PDF/UA conformance is not required for WCAG compliance, but indicates the PDF was created with accessibility in mind",
+        fd("pdf.text_extractability.pdfua_not_required_note")(
+          "  Note: PDF/UA conformance is not required for WCAG compliance, but indicates the PDF was created with accessibility in mind",
+        ),
       );
     }
   }
 
   if (textCat && qpdf.hasStructTree) {
     const artifactCount = qpdf.artifactCount + (pdfjs.artifactRunCount ?? 0);
-    textCat.findings.push(`--- Artifact Tagging ---`);
+    textCat.findings.push(
+      fd("pdf.text_extractability.artifacts_section")`--- Artifact Tagging ---`,
+    );
     if (artifactCount > 0 && structTreeIsContentFree(qpdf, pdfjs)) {
       // No praise when the tags hold nothing: marking content as artifacts
       // there hides it rather than distinguishing it (decision 2026-11-18).
       textCat.findings.push(
-        `  ${artifactCount} element(s) are marked as artifacts, but the tags contain no content — so this hides content from screen readers rather than separating decoration from it`,
+        fd("pdf.text_extractability.artifacts_hide_content", {
+          count: artifactCount,
+        })`  ${artifactCount} element(s) are marked as artifacts, but the tags contain no content — so this hides content from screen readers rather than separating decoration from it`,
       );
     } else if (artifactCount > 0) {
       textCat.findings.push(
-        `  ${artifactCount} element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content`,
+        fd("pdf.text_extractability.artifacts_tagged", {
+          count: artifactCount,
+        })`  ${artifactCount} element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content`,
       );
     } else {
       textCat.findings.push(
-        "  No artifact tags found — headers, footers, page numbers, and watermarks may be read aloud by screen readers as if they were document content",
+        fd("pdf.text_extractability.artifacts_none")(
+          "  No artifact tags found — headers, footers, page numbers, and watermarks may be read aloud by screen readers as if they were document content",
+        ),
       );
       textCat.findings.push(
-        "  Note: If this document has repeating headers/footers, they should be tagged as artifacts in Adobe Acrobat's Reading Order tool",
+        fd("pdf.text_extractability.artifacts_none_note")(
+          "  Note: If this document has repeating headers/footers, they should be tagged as artifacts in Adobe Acrobat's Reading Order tool",
+        ),
       );
     }
   }
@@ -575,26 +766,36 @@ export function appendSupplementaryFindings(
   if (readingCat && qpdf.hasStructTree) {
     const total = qpdf.actualTextCount + qpdf.expansionTextCount;
     if (total > 0) {
-      readingCat.findings.push(`--- Screen Reader Text Overrides ---`);
+      readingCat.findings.push(
+        fd("pdf.reading_order.text_overrides_section")`--- Screen Reader Text Overrides ---`,
+      );
       if (qpdf.actualTextCount > 0) {
         readingCat.findings.push(
-          `  ${qpdf.actualTextCount} element(s) have /ActualText — provides a screen reader override for complex glyphs, ligatures, or symbols`,
+          fd("pdf.reading_order.text_overrides_actual_text", {
+            count: qpdf.actualTextCount,
+          })`  ${qpdf.actualTextCount} element(s) have /ActualText — provides a screen reader override for complex glyphs, ligatures, or symbols`,
         );
       }
       if (qpdf.expansionTextCount > 0) {
         readingCat.findings.push(
-          `  ${qpdf.expansionTextCount} element(s) have /E (expansion text) — provides full-form text for abbreviations (e.g., "IL" → "Illinois")`,
+          fd("pdf.reading_order.text_overrides_expansion_text", {
+            count: qpdf.expansionTextCount,
+          })`  ${qpdf.expansionTextCount} element(s) have /E (expansion text) — provides full-form text for abbreviations (e.g., "IL" → "Illinois")`,
         );
       }
       readingCat.findings.push(
-        "  These attributes help screen readers pronounce content correctly",
+        fd("pdf.reading_order.text_overrides_note")(
+          "  These attributes help screen readers pronounce content correctly",
+        ),
       );
     }
   }
 
   const langCat = findCat("title_language");
   if (langCat && qpdf.langSpans.length > 0) {
-    langCat.findings.push(`--- Language Span Analysis ---`);
+    langCat.findings.push(
+      fd("pdf.title_language.lang_spans_section")`--- Language Span Analysis ---`,
+    );
     const langCounts = new Map<string, number>();
     for (const span of qpdf.langSpans) {
       langCounts.set(span.lang, (langCounts.get(span.lang) || 0) + 1);
@@ -605,17 +806,27 @@ export function appendSupplementaryFindings(
     );
     if (foreignSpans.length > 0) {
       langCat.findings.push(
-        `  ${qpdf.langSpans.length} element(s) have explicit language declarations:`,
+        fd("pdf.title_language.lang_spans_foreign", {
+          count: qpdf.langSpans.length,
+        })`  ${qpdf.langSpans.length} element(s) have explicit language declarations:`,
       );
       for (const [lang, count] of foreignSpans) {
-        langCat.findings.push(`  ${lang}: ${count} element(s)`);
+        langCat.findings.push(
+          fd("pdf.title_language.lang_spans_language", {
+            count: count,
+          })`  ${lang}: ${count} element(s)`,
+        );
       }
       langCat.findings.push(
-        "  Language spans help screen readers switch pronunciation rules for foreign-language content",
+        fd("pdf.title_language.lang_spans_note")(
+          "  Language spans help screen readers switch pronunciation rules for foreign-language content",
+        ),
       );
     } else {
       langCat.findings.push(
-        `  ${qpdf.langSpans.length} element(s) have language declarations matching the document language`,
+        fd("pdf.title_language.lang_spans_match_document", {
+          count: qpdf.langSpans.length,
+        })`  ${qpdf.langSpans.length} element(s) have language declarations matching the document language`,
       );
     }
   }
@@ -627,14 +838,21 @@ export function appendSupplementaryFindings(
     // actually have something to fix. A perfect (100) or N/A category does not
     // need a "How to Fix" section — it is just noise to sift through.
     if (cat.score === null || cat.score === 100) continue;
-    cat.findings.push(...guide);
+    const guideCodes = acrobatGuideCodes[cat.id as keyof typeof acrobatGuideCodes];
+    cat.findings.push(
+      ...(guideCodes
+        ? fdEach(guide, (line) => (line.startsWith("---") ? guideCodes.heading : guideCodes.step))
+        : guide),
+    );
 
     // Per-document additions. The web action plan renders THIS block as the
     // "Fix the PDF in Acrobat" route (it beats the dictionary default), so a
     // finding that changes the right Acrobat move has to change it here.
     if (cat.id === "alt_text" && (pdfjs.textBearingFigures ?? []).some((f) => !f.hasAlt)) {
       cat.findings.push(
-        'Figures that are really text boxes (listed above under "Figures That Contain Text"): do not describe them — open the Tags panel → right-click the <Figure> tag → Properties → Type → "Section", so the text inside is read directly instead of being hidden behind a description',
+        fd("pdf.alt_text.acrobat_guide_text_box_figures")(
+          'Figures that are really text boxes (listed above under "Figures That Contain Text"): do not describe them — open the Tags panel → right-click the <Figure> tag → Properties → Type → "Section", so the text inside is read directly instead of being hidden behind a description',
+        ),
       );
     }
     if (
@@ -643,7 +861,9 @@ export function appendSupplementaryFindings(
       (pdfjs.untaggedLinkAnnotationCount ?? 0) > 0
     ) {
       cat.findings.push(
-        'Untagged links (listed above under "Links Not Tagged"): open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element; repeat until no unmarked links remain',
+        fd("pdf.link_quality.acrobat_guide_untagged_links")(
+          'Untagged links (listed above under "Links Not Tagged"): open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element; repeat until no unmarked links remain',
+        ),
       );
     }
   }

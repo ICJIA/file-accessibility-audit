@@ -139,12 +139,12 @@ describe("errorHandler responses are unchanged", () => {
     const r1 = makeRes();
     errorHandler(Object.assign(new Error("URL not allowed"), { status: 400 }), req, r1, vi.fn());
     expect(r1._status).toBe(400);
-    expect(r1._json).toEqual({ error: "URL not allowed" });
+    expect(r1._json).toEqual({ error: "URL not allowed", code: "INVALID_REQUEST" });
 
     const r2 = makeRes();
     errorHandler(new Error("disk on fire at /srv/secret"), req, r2, vi.fn());
     expect(r2._status).toBe(500);
-    expect(r2._json).toEqual({ error: "Internal server error" });
+    expect(r2._json).toEqual({ error: "Internal server error", code: "INTERNAL" });
   });
 
   it("body-parser's own 413 (no multer code) keeps its own message, not the multer upload guidance", () => {
@@ -159,7 +159,7 @@ describe("errorHandler responses are unchanged", () => {
       next,
     );
     expect(res._status).toBe(413);
-    expect(res._json).toEqual({ error: "request entity too large" });
+    expect(res._json).toEqual({ error: "request entity too large", code: "FILE_TOO_LARGE" });
     expect(warn).toHaveBeenCalledTimes(1);
     const line = warn.mock.calls[0].map(String).join(" ");
     expect(line).toBe("[api] 413 Error POST /api/analyze");

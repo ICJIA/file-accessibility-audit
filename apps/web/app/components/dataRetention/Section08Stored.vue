@@ -37,8 +37,12 @@
             its own error output — a timestamp, which operation failed, and the error message and
             stack trace. A message or stack can name a file, a page address, a library path, or the
             address of a server the tool tried to reach; the service never writes the address of the
-            person making the request, their browser identifier, or a token to it. Kept 30 days for
-            diagnosing faults; not part of the nightly backup; not downloadable
+            person making the request, their browser identifier, or a token to it. Since 2026-11-24
+            it also receives the error output of the automatic-repair worker (the same kind of
+            content), and each line about a request carries a random number made up for that request
+            alone, so two failures can be told apart; the number is not derived from anything about
+            the person. Kept 30 days for diagnosing faults; not part of the nightly backup; not
+            downloadable
           </li>
           <li>SHA-256 hash of file bytes (a 64-character hex digest)</li>
           <li>Page count (integer)</li>
@@ -151,8 +155,21 @@
           the file again. Typically 75&ndash;100 KB
         </li>
         <li>
+          After a batch of files finishes (since 2026-11-24): the reports for that batch and each
+          file&rsquo;s name and size, so a reload does not throw the batch away. A batch too large
+          for the browser&rsquo;s store is not kept; the page warns before you leave instead
+        </li>
+        <li>
+          When you check a file again under the same name (since 2026-11-24): the
+          <strong>earlier report</strong>, so the page can show what changed between the two
+        </li>
+        <li>
           Cleared when: the tab closes, you start another audit, you clear the results, or the app
-          is updated to a new version
+          is updated to a new version. The earlier report kept for a comparison is cleared when you
+          hide the comparison, check a file with a different name, close the tab, or the app is
+          updated. Separately, the page holds the most recent report in its own memory (not in the
+          store) until the tab closes or reloads; that is what lets &ldquo;reset, then upload the
+          fixed file&rdquo; show what changed
         </li>
         <li>
           The uploaded file itself is never put there — it is not storable, and the server has

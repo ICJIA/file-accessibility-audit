@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { navigateTo, useRuntimeConfig } from "#app";
 import { currentDocMetadata, REMEDIATION_LANGUAGES } from "~/utils/remediationMetadata";
+import { matchReselectedFile, type ExpectedFile } from "~/utils/remediationFileMatch";
 
 interface Props {
   /** The File that was uploaded for the audit; re-uploaded for remediation. */
@@ -10,12 +11,20 @@ interface Props {
   inputScore?: number | null;
   /** The audit's categories — the title/language findings prefill the form. */
   categories?: unknown;
+  /**
+   * The document this report is about: its filename, and its size when the
+   * page still knows it. When `file` is null the person is asked to choose
+   * THIS file again, and a different file is refused — see
+   * utils/remediationFileMatch.ts.
+   */
+  expectedFile?: ExpectedFile | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   file: null,
   inputScore: null,
   categories: undefined,
+  expectedFile: null,
 });
 
 // Title and language written into the repaired PDF (user decision
@@ -25,6 +34,22 @@ const props = withDefaults(defineProps<Props>(), {
 const current = computed(() => currentDocMetadata(props.categories));
 const docTitle = ref(current.value.title ?? "");
 const docLanguage = ref(current.value.language ?? "en-US");
+// The title and language ALWAYS belong to the document shown. This component
+// instance is reused when a batch switches tabs, and seeding the fields once
+// (as the two lines above did on their own) left document A's title in the
+// form while the report — and the file sent — were document B's: the wrong
+// title written into a PDF. Reseed whenever the report underneath changes;
+// the page also keys the component on the active report, and this watcher is
+// what keeps any OTHER caller safe.
+watch(
+  () => [props.categories, props.expectedFile?.name, props.file] as const,
+  () => {
+    docTitle.value = current.value.title ?? "";
+    docLanguage.value = current.value.language ?? "en-US";
+    error.value = null;
+    if (fileInput.value) fileInput.value.value = "";
+  },
+);
 const languageOptions = computed(() => {
   const own = current.value.language;
   return own && !REMEDIATION_LANGUAGES.some((l) => l.code.toLowerCase() === own.toLowerCase())
@@ -129,8 +154,11 @@ async function handleClick(): Promise<void> {
     await startRemediation(props.file);
     return;
   }
-  // Fallback: file no longer in memory (page reload, shared report view).
-  // Trigger the hidden picker.
+  // The file is no longer held in memory (a batch frees each one once it is
+  // audited; a report restored after a reload never had one). Ask for it
+  // again — the text beside the button says which file, and the picker's
+  // answer is checked before anything is sent.
+  error.value = null;
   fileInput.value?.click();
 }
 
@@ -138,8 +166,20 @@ async function handlePickerChange(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
   const picked = input.files?.[0];
   if (!picked) return;
+  // Clear the input so choosing the SAME wrong file twice still fires
+  // `change`, and so a stale selection never lingers across batch tabs.
+  input.value = "";
+  const match = matchReselectedFile(props.expectedFile, picked);
+  if (!match.ok) {
+    // Refuse: the title and language in this form belong to another document.
+    error.value = match.message;
+    return;
+  }
   await startRemediation(picked);
 }
+
+/** True when clicking the button will open a file picker rather than send. */
+const needsReselect = computed(() => !props.file && !alreadyAccessible.value);
 
 onBeforeUnmount(() => {
   clearSlowTimer();
@@ -203,7 +243,26 @@ onBeforeUnmount(() => {
         </select>
       </label>
     </div>
+    <!-- Says, before the click, that a file picker is coming and WHICH file
+         to choose. Without it the button silently opened a picker and took
+         whatever was picked. Tied to the button with aria-describedby. -->
+    <p
+      v-if="needsReselect && !busy"
+      id="remediate-reselect-note"
+      data-testid="remediate-reselect-note"
+      class="mb-3 text-sm text-[var(--text-secondary)] max-w-xl mx-auto break-words"
+    >
+      <template v-if="expectedFile?.name">
+        The file itself is no longer held in this browser. Choose
+        <strong class="font-semibold text-[var(--text-heading)]">{{ expectedFile.name }}</strong>
+        again to repair it.
+      </template>
+      <template v-else>
+        The file itself is no longer held in this browser. Choose the same PDF again to repair it.
+      </template>
+    </p>
     <UButton
+      :aria-describedby="needsReselect && !busy ? 'remediate-reselect-note' : undefined"
       :color="alreadyAccessible ? 'neutral' : 'primary'"
       :variant="alreadyAccessible ? 'subtle' : 'solid'"
       size="xl"
@@ -299,7 +358,12 @@ onBeforeUnmount(() => {
         </div>
       </details>
     </div>
-    <p v-if="error" class="text-sm text-red-400 mt-3" role="alert">
+    <p
+      v-if="error"
+      class="text-sm text-[var(--status-error)] mt-3 break-words"
+      role="alert"
+      data-testid="remediate-error"
+    >
       {{ error }}
     </p>
     <input
@@ -307,6 +371,9 @@ onBeforeUnmount(() => {
       type="file"
       accept="application/pdf,.pdf"
       class="hidden"
+      data-testid="remediate-file-input"
+      tabindex="-1"
+      aria-hidden="true"
       @change="handlePickerChange"
     />
   </div>

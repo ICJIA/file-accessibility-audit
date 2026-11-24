@@ -6,6 +6,7 @@ import {
   REMEDIATION,
   WCAG,
   ANNOUNCEMENTS,
+  BATCH,
   DOCX,
   PPTX,
   XLSX,
@@ -210,6 +211,9 @@ export default defineNuxtConfig({
       // needs a plain mutable array, and AnnouncementBanner.vue already
       // re-asserts its own consumption-side type regardless.
       announcements: ANNOUNCEMENTS.map((a) => ({ ...a })),
+      // The most files one batch may hold — the drop zone's limit and the
+      // number its copy quotes. One constant: audit.config.ts BATCH.MAX_FILES.
+      batchMaxFiles: BATCH.MAX_FILES,
     },
   },
 

@@ -340,7 +340,7 @@ describe("ScoreCard", () => {
     expect(wrapper.text()).toContain("87");
     expect(wrapper.text()).toContain("/100");
     expect(wrapper.text()).toContain("Fix progress");
-    expect(wrapper.text()).toMatch(/\d+ of \d+ checks passed/);
+    expect(wrapper.text()).toMatch(/\d+ of \d+ scored checks? passed|No checks were scored/);
   });
 
   it("renders the filename and page count", () => {

@@ -1,4 +1,6 @@
 import "./test-helpers";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref, h, defineComponent, Suspense } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
@@ -97,8 +99,21 @@ function mountSharedReportPage() {
   return mount(Host);
 }
 
+// useHead is called with a getter; resolve it so tests read the head the
+// page would actually set.
+type Head = {
+  title: string;
+  meta: Array<Record<string, string>>;
+  link: Array<Record<string, string>>;
+};
+let lastHead: (() => Head) | null = null;
+
 beforeEach(() => {
   useFetchMock.mockClear();
+  lastHead = null;
+  (globalThis as any).useHead = (input: () => Head) => {
+    lastHead = input;
+  };
   (globalThis as any).useFetch = useFetchMock;
   (globalThis as any).useRoute = () => ({ params: { id: "shared-id-123" } });
   (globalThis as any).useColorMode = () => ({ value: "dark", preference: "dark" });
@@ -150,5 +165,86 @@ describe("pages/report/[id].vue — Visual view prop wiring (real mount)", () =>
     // DOM rather than off the component instance's resolved props.
     expect(wrapper.text()).toContain("83");
     expect(wrapper.text()).toContain("acme-benefits-guide.pdf");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Head, heading and export hygiene. The page used to set no head at all — it
+// inherited the home page's title and canonical URL, with no robots directive
+// on what is an unlisted link — and its error state had an <h2> and no <h1>.
+// ---------------------------------------------------------------------------
+describe("pages/report/[id].vue — head for an unlisted report", () => {
+  it("titles the page with the report's filename", async () => {
+    mountSharedReportPage();
+    await flushPromises();
+    await flushPromises();
+    expect(lastHead!().title).toBe("Accessibility report: acme-benefits-guide.pdf");
+  });
+
+  it("is noindex, nofollow, with its own canonical — not the home page's", async () => {
+    mountSharedReportPage();
+    await flushPromises();
+    await flushPromises();
+    const head = lastHead!();
+    expect(head.meta).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+    expect(head.link).toEqual([
+      { rel: "canonical", href: "https://audit.example.test/report/shared-id-123" },
+    ]);
+    expect(head.meta).toContainEqual({
+      property: "og:url",
+      content: "https://audit.example.test/report/shared-id-123",
+    });
+  });
+
+  it("passes a hostile filename through as plain text for useHead to escape", async () => {
+    const hostile = "</title><script>alert(1)</script>.pdf";
+    useFetchMock.mockImplementationOnce(async () => ({
+      data: ref({ ...PAYLOAD, report: { ...REPORT, filename: hostile } }) as any,
+      pending: ref(false),
+      error: ref(null),
+    }));
+    mountSharedReportPage();
+    await flushPromises();
+    await flushPromises();
+    // A string handed to useHead's `title`, never markup of our own making.
+    expect(lastHead!().title).toBe(`Accessibility report: ${hostile}`);
+    const src = readFileSync(resolve(__dirname, "../pages/report/[id].vue"), "utf-8");
+    expect(src).not.toMatch(/v-html|innerHTML/);
+  });
+
+  it("the error state has an <h1>, a truthful title, and is still noindex", async () => {
+    useFetchMock.mockImplementationOnce(async () => ({
+      data: ref(null) as any,
+      pending: ref(false),
+      error: ref({ statusCode: 410 }) as any,
+    }));
+    const wrapper = mountSharedReportPage();
+    await flushPromises();
+    await flushPromises();
+    expect(wrapper.find("h1").text()).toBe("Report Not Available");
+    expect(wrapper.find("h2").exists()).toBe(false);
+    expect(wrapper.text()).toContain("expired");
+    expect(lastHead!().title).toBe("Report not available");
+    expect(lastHead!().meta).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+  });
+
+  it("sets the real HTTP status on the server, and only there", () => {
+    const src = readFileSync(resolve(__dirname, "../pages/report/[id].vue"), "utf-8");
+    expect(src).toMatch(
+      /if \(import\.meta\.server\) \{\s*const httpStatus = sharedReportErrorStatus\(error\.value\);/,
+    );
+    expect(src).toMatch(/setResponseStatus\(event, httpStatus\)/);
+  });
+
+  it("keeps the theme button out of the HTML export", async () => {
+    const wrapper = mountSharedReportPage();
+    await flushPromises();
+    await flushPromises();
+    const content = wrapper.find("[data-report-content]");
+    const toggle = content.find('button[aria-label^="Switch to"]');
+    expect(toggle.exists()).toBe(true);
+    expect(toggle.attributes("type")).toBe("button");
+    expect(toggle.element.closest("[data-export-exclude]")).not.toBeNull();
+    for (const svg of toggle.findAll("svg")) expect(svg.attributes("aria-hidden")).toBe("true");
   });
 });

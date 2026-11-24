@@ -60,6 +60,7 @@ export function acceptedFormatsMessage(labels: string[]): string {
  */
 export class UnsupportedFileTypeError extends Error {
   readonly status = 400;
+  override readonly name = "UnsupportedFileTypeError";
 }
 
 /**

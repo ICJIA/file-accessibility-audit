@@ -12,6 +12,23 @@ _self="$_self_dir/$(basename "$0")"
 cd "$_self_dir"
 
 # ---------------------------------------------------------------------
+# ./rebuild.sh --check  (2026-11-24)
+#
+# Runs ONLY the preflight — are the tools this deploy needs present, and at
+# what versions — prints a summary and exits. It pulls nothing, installs
+# nothing, builds nothing, restarts nothing, writes no deploy log and does not
+# touch a parked build. Exit 0 = the hard requirements are met (warnings may
+# still have been printed); non-zero = one is missing.
+# ---------------------------------------------------------------------
+_check_only=0
+for _arg in "$@"; do
+  case "$_arg" in
+    --check) _check_only=1 ;;
+  esac
+done
+unset _arg
+
+# ---------------------------------------------------------------------
 # Deploy log.
 #
 # 2026-08-18: a deploy died inside `nuxt build` and the only copy of the
@@ -27,7 +44,7 @@ cd "$_self_dir"
 # harness before this shipped). The path rides the same env-var pattern
 # as REBUILD_PRE_PULL_SHA so the guard survives the re-exec.
 # ---------------------------------------------------------------------
-if [ -z "${REBUILD_LOG_FILE:-}" ]; then
+if [ "$_check_only" -eq 0 ] && [ -z "${REBUILD_LOG_FILE:-}" ]; then
   _log_dir="${REBUILD_LOG_DIR:-$HOME/deploy-logs}"
   mkdir -p "$_log_dir"
   export REBUILD_LOG_FILE="$_log_dir/rebuild-$(date +%Y%m%dT%H%M%S).log"
@@ -35,6 +52,16 @@ if [ -z "${REBUILD_LOG_FILE:-}" ]; then
   ls -1t "$_log_dir"/rebuild-*.log 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
   exec > >(tee -a "$REBUILD_LOG_FILE") 2>&1
   echo "Full deploy log: $REBUILD_LOG_FILE"
+fi
+# Where this script keeps the small files it must find again on a later run
+# (the last-healthy-deploy marker, patches of discarded server-side edits):
+# the deploy-log directory — outside the checkout, so neither `git checkout`
+# nor `pnpm install` can remove them. Taken from the log path when there is
+# one, because that is what survives the re-exec.
+if [ -n "${REBUILD_LOG_FILE:-}" ]; then
+  _state_dir="$(dirname "$REBUILD_LOG_FILE")"
+else
+  _state_dir="${REBUILD_LOG_DIR:-$HOME/deploy-logs}"
 fi
 
 # ---------------------------------------------------------------------
@@ -49,7 +76,9 @@ fi
 # The trap prints, and does exactly ONE repair: if a web build was under way
 # it puts the parked previous build back in apps/web/.output (see
 # _restore_parked_output). It never touches git, node_modules, the database
-# or PM2.
+# or PM2. (The automatic rollback after a failed health gate is NOT done here:
+# it runs inline, at the gate, as ordinary checked steps — see
+# _rollback_deploy. The trap only reports how it ended.)
 #
 # INT and TERM are trapped too. Untrapped, a SIGTERM during the build killed
 # this script with no banner (exit 143), left the build running as an orphan,
@@ -83,6 +112,23 @@ _prev_output_dir="apps/web/node_modules/.cache/rebuild-previous-output"
 _output_restored=0
 # pid of the long-running command started by _run, while it is running.
 _child_pid=""
+# Once the web build has FINISHED, the parked previous build is kept under
+# this second name until the new version passes its health gate, so an
+# automatic rollback can put it back without rebuilding. It has a different
+# name on purpose: a directory at $_prev_output_dir means "a build was
+# interrupted, .output is half-written" and is restored at the start of the
+# next run — which must never happen to a build that completed.
+_rollback_output_dir="apps/web/node_modules/.cache/rebuild-rollback-output"
+# The commit of the last deploy that passed its health gate, written by this
+# script at that point. Automatic rollback uses it to confirm that the commit
+# this run started from really is the version that was serving (it is not,
+# when an earlier deploy failed and was left as it was).
+_last_healthy_file="$_state_dir/last-healthy-commit"
+_last_healthy_sha=$(cat "$_last_healthy_file" 2>/dev/null || true)
+# Why an automatic rollback was not attempted / which of its steps failed.
+_rollback_why=""
+_rollback_failed_step=""
+_rolled_back_from=""
 
 # Put the parked web build back. The parked directory only ever exists as a
 # COMPLETE copy (it is copied under a .tmp name and renamed), and only while
@@ -218,10 +264,15 @@ _on_exit() {
   if [ "$_status" -eq 0 ]; then
     exit 0
   fi
+  # --check changed nothing, so there is nothing to report about the state of
+  # a deploy: the preflight has already printed what is missing.
+  if [ "$_check_only" -eq 1 ]; then
+    exit "$_status"
+  fi
   # Before PM2 is restarted, a parked build means the web build did not
   # finish: put it back. (After the restart the new build is the live one.)
   case "$_stage" in
-    pm2-restart|pm2-restarted|unhealthy|healthy) ;;
+    pm2-restart|pm2-restarted|unhealthy|healthy|rolling-back|rolled-back|rollback-failed) ;;
     *) _restore_parked_output ;;
   esac
   echo ""
@@ -256,8 +307,54 @@ _on_exit() {
       echo "  The site is running the NEW code, badly or not at all. Look first:"
       echo "      pm2 status && pm2 logs --lines 80"
       echo ""
+      if [ -n "$_rollback_why" ]; then
+        echo "  It was NOT rolled back automatically: $_rollback_why."
+        echo ""
+      fi
       echo "  The API applies database migrations when it starts, so a start-up"
       echo "  failure may have left the database part-migrated."
+      _print_restore_hint
+      ;;
+    rolled-back)
+      echo "  DEPLOY FAILED AND WAS ROLLED BACK."
+      echo "  ${_unhealthy_summary:-The new version did not answer its health check.}"
+      echo ""
+      echo "  The new version (${_rolled_back_from:0:12}) was started and was not healthy, so"
+      echo "  the previous version (${_pre_pull_sha:0:12}) was put back and restarted. It"
+      echo "  answers both local health checks: the site is up, on the OLD version."
+      echo ""
+      echo "  What to do next:"
+      echo "    - Find out why the new version failed. Everything this run printed,"
+      echo "      and the last PM2 log lines of the failed start, are in:"
+      echo "          ${REBUILD_LOG_FILE:-the deploy log}"
+      echo "    - This checkout is now at ${_pre_pull_sha:0:12}. origin/main still has the"
+      echo "      failed commit, so the next ./rebuild.sh pulls it again. Fix it first."
+      echo ""
+      echo "  The DATABASE WAS NOT ROLLED BACK. Migrations only go forward: if the"
+      echo "  failed version applied one before it stopped, the database is now a"
+      echo "  step ahead of the code that is running. Check /status and one saved"
+      echo "  report. If the old version cannot work with the database as it is:"
+      if [ -n "$_predeploy_snapshot" ]; then
+        echo "      pm2 stop file-audit-api"
+        echo "      ./scripts/restore-db.sh \"$_predeploy_snapshot\""
+        echo "      pm2 start file-audit-api"
+        echo "  (that snapshot was taken just before the failed restart; the current"
+        echo "  database is moved aside by the restore, not deleted)"
+      else
+        echo "      no pre-restart snapshot was taken on this run; the nightly ones"
+        echo "      are in the backups/ directory beside this checkout — restore one"
+        echo "      with ./scripts/restore-db.sh after  pm2 stop file-audit-api"
+      fi
+      ;;
+    rolling-back|rollback-failed)
+      echo "  DEPLOY FAILED, AND THE AUTOMATIC ROLLBACK DID NOT FINISH."
+      echo "  ${_unhealthy_summary:-The new version did not answer its health check.}"
+      echo "  Rollback stopped at: ${_rollback_failed_step:-an unknown step} (exit $_status)"
+      echo ""
+      echo "  The state of the site is UNCERTAIN. Look first:"
+      echo "      pm2 status && pm2 logs --lines 80"
+      echo "      git status && git log --oneline -1"
+      echo "  Then finish by hand — the steps below put the previous version back."
       _print_restore_hint
       ;;
     preflight|git-pull)
@@ -300,8 +397,12 @@ trap '_on_signal TERM 143' TERM
 # the next build step would otherwise park the half-written directory and,
 # on a second failure, "restore" that. (A leftover .tmp is an unfinished
 # copy and is only ever discarded.)
-rm -rf "$_prev_output_dir.tmp"
-if [ -d "$_prev_output_dir" ]; then
+[ "$_check_only" -eq 1 ] || rm -rf "$_prev_output_dir.tmp"
+# A kept rollback copy from an earlier run is stale by now (that run either
+# passed its health gate and was killed before tidying up, or was rolled back
+# by hand): the build in apps/web/.output is complete either way.
+[ "$_check_only" -eq 1 ] || rm -rf "$_rollback_output_dir" "$_rollback_output_dir.failed"
+if [ "$_check_only" -eq 0 ] && [ -d "$_prev_output_dir" ]; then
   _restore_parked_output
   if [ "$_output_restored" -eq 1 ]; then
     echo "NOTE: an earlier run was interrupted during the web build; the last complete"
@@ -333,7 +434,7 @@ fi
 # ---------------------------------------------------------------------
 if [ -n "$REMEDIATION_ENABLED" ]; then
   : # already set by the caller — respect it
-elif [ -t 0 ]; then
+elif [ "$_check_only" -eq 0 ] && [ -t 0 ]; then
   # Interactive TTY — ask. Default is yes; hit Enter or type y/yes
   # for on, type n/no for off. Anything else falls through to on.
   echo ""
@@ -495,6 +596,58 @@ else
   echo ""
 fi
 
+# PM2 (2026-11-24). Nothing checked for it until the restart itself — after
+# the pull, the install and the build had already changed the live checkout.
+# A missing pm2 now stops the deploy here, before anything has been touched.
+if ! command -v pm2 &> /dev/null; then
+  echo "ERROR: pm2 is not on PATH. This script restarts the app through PM2"
+  echo "  (ecosystem.config.cjs). Install it (npm install -g pm2) or fix PATH."
+  exit 1
+fi
+
+if [ "$_check_only" -eq 1 ]; then
+  echo ""
+  echo "Preflight summary (--check: nothing was pulled, installed, built or restarted)"
+  echo "  node      $NODE_VERSION_LINE   (needs 22 or newer)"
+  echo "  pnpm      $(pnpm --version 2>/dev/null || echo '?')"
+  echo "  pm2       $(pm2 --version 2>/dev/null | tail -n 1 || echo '?')"
+  if command -v qpdf &> /dev/null; then
+    echo "  qpdf      ${QPDF_VERSION_LINE:-?}   (needs 10 or newer)"
+  else
+    echo "  qpdf      MISSING — PDF structure analysis will be limited"
+  fi
+  if command -v java &> /dev/null; then
+    echo "  java      ${JAVA_VERSION_LINE:-?}   (remediation needs 11 or newer; 17 advised)"
+  else
+    echo "  java      MISSING — PDF remediation and veraPDF will not run"
+  fi
+  if [ -n "${REMEDIATION_VERAPDF_PATH:-}" ] && [ -x "${REMEDIATION_VERAPDF_PATH:-}" ]; then
+    echo "  veraPDF   $REMEDIATION_VERAPDF_PATH (${VERAPDF_VERSION:-?})"
+  else
+    echo "  veraPDF   not found — PDF/UA machine checks will report \"Did not run\""
+  fi
+  if command -v curl &> /dev/null; then
+    echo "  curl      present"
+  else
+    echo "  curl      MISSING — the public smoke checks at the end of a deploy need it"
+  fi
+  echo "  checkout  $(git rev-parse --short=12 HEAD 2>/dev/null || echo '?') on $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+  _check_edits=$(git status --short --untracked-files=no 2>/dev/null || true)
+  if [ -n "$_check_edits" ]; then
+    echo "  local edits to tracked files (a deploy saves a patch of these, then discards them):"
+    printf '%s\n' "$_check_edits" | sed 's/^/      /'
+  else
+    echo "  local edits to tracked files: none"
+  fi
+  echo "  last deploy that passed its health gate: ${_last_healthy_sha:-not recorded yet}"
+  echo "  disk free here: $(df -h . 2>/dev/null | awk 'NR==2 {print $4}' || echo '?')"
+  echo ""
+  echo "Preflight passed: the hard requirements (node 22+, pnpm, pm2) are met."
+  echo "Read any WARNING or NOTE lines above — they do not stop a deploy, but"
+  echo "each one names a feature that will be limited."
+  exit 0
+fi
+
 # ---------------------------------------------------------------------
 # RESIDUAL RISK — this deploy works in the live checkout (2026-11-12).
 #
@@ -524,7 +677,10 @@ fi
 #     build fails, so a failed deploy does not leave the running web process
 #     over a half-written .output;
 #   - tells the truth in the failure banner: the tree HAS changed, the
-#     processes have NOT been restarted, and how to get out of that state.
+#     processes have NOT been restarted, and how to get out of that state;
+#   - if the new version is started and does not pass its health gate, puts
+#     the previous commit and the previous web build back and restarts onto
+#     them (see _rollback_deploy; ROLLBACK_ON_FAILURE=false turns that off).
 #
 # Deploy at a quiet time. An audit that fails during a deploy window is
 # most likely this, and succeeds on retry.
@@ -534,6 +690,49 @@ _stage="git-pull"
 if [ -z "$_pre_pull_sha" ]; then
   _pre_pull_sha=$(git rev-parse HEAD 2>/dev/null || true)
 fi
+# ---------------------------------------------------------------------
+# Server-side edits are discarded here — say so, and keep a copy (2026-11-24).
+#
+# `git checkout -- .` throws away every uncommitted edit to a tracked file.
+# It did that silently: a hot-fix typed on the server, or a config value
+# changed in place, vanished on the next deploy with nothing to show it had
+# existed. The edits are now listed, and saved as a patch beside the deploy
+# logs, BEFORE they are discarded. If the patch cannot be written the deploy
+# stops (nothing has been changed yet at this point) rather than discard
+# something it could not keep; REBUILD_DISCARD_WITHOUT_PATCH=1 overrides.
+# Untracked files are not touched by the checkout and are not listed.
+# ---------------------------------------------------------------------
+_local_edits=$(git diff --name-only 2>/dev/null || true)
+if [ -n "$_local_edits" ]; then
+  _discard_patch="$_state_dir/discarded-edits-$(date +%Y%m%dT%H%M%S).patch"
+  echo "NOTE: this checkout has uncommitted edits to tracked files. A deploy"
+  echo "      discards them (git checkout -- .):"
+  git status --short --untracked-files=no 2>/dev/null | sed 's/^/        /' || true
+  _patch_saved=0
+  if mkdir -p "$_state_dir" 2>/dev/null && git diff --binary > "$_discard_patch" 2>/dev/null; then
+    if [ -s "$_discard_patch" ]; then
+      _patch_saved=1
+    fi
+  fi
+  if [ "$_patch_saved" -eq 1 ]; then
+    echo "      A patch of them was saved first:"
+    echo "        $_discard_patch"
+    echo "      To put them back later:  git apply \"$_discard_patch\""
+  elif [ "${REBUILD_DISCARD_WITHOUT_PATCH:-}" = "1" ]; then
+    echo "      WARNING: a patch could NOT be saved to $_discard_patch."
+    echo "      Discarding anyway (REBUILD_DISCARD_WITHOUT_PATCH=1)."
+  else
+    echo "ERROR: could not save a patch of those edits to"
+    echo "         $_discard_patch"
+    echo "       so they were NOT discarded and the deploy stops here. Nothing has"
+    echo "       been changed. Commit or copy the edits, or free disk space, then"
+    echo "       re-run. To discard them without a copy, knowingly:"
+    echo "         REBUILD_DISCARD_WITHOUT_PATCH=1 ./rebuild.sh"
+    exit 1
+  fi
+  unset _patch_saved
+fi
+unset _local_edits
 git checkout -- .
 git pull origin main
 
@@ -621,7 +820,14 @@ if [ "$_build_split" -eq 1 ]; then
 else
   _run pnpm build
 fi
-rm -rf "$_prev_output_dir"
+# The build finished, so the parked copy no longer means "a build was
+# interrupted". It is kept, under its second name, until the new version has
+# passed the health gate below: an automatic rollback puts it back instead of
+# rebuilding. If it cannot be kept, it is dropped and a rollback rebuilds.
+rm -rf "$_rollback_output_dir"
+if [ -d "$_prev_output_dir" ]; then
+  mv "$_prev_output_dir" "$_rollback_output_dir" || rm -rf "$_prev_output_dir"
+fi
 
 # Load app secrets persisted in /etc/environment so PM2 inherits them even when
 # this script runs in a shell that didn't pick them up at login (/etc/environment
@@ -753,6 +959,13 @@ _pm2_command_state() {
           const wantExec = path.basename(String(app.script || ""));
           const wantArgs = [].concat(app.args || []).join(" ");
           if (exec !== wantExec || args !== wantArgs) differs = true;
+          // kill_timeout (v1.176.0): how long PM2 waits after SIGTERM before
+          // it kills. Like the start command, PM2 takes it only when a
+          // process is REGISTERED, so a plain restart keeps the old value and
+          // would cut the API off mid-shutdown. 1600 ms is PM2 own default.
+          const haveKill = Number(p.pm2_env.kill_timeout ?? 1600);
+          const wantKill = Number(app.kill_timeout ?? 1600);
+          if (haveKill !== wantKill) differs = true;
         }
         process.stdout.write(seen === 0 ? "unknown" : differs ? "differs" : "match");
       } catch {
@@ -764,7 +977,7 @@ _pm2_command_state() {
 
 _stage="pm2-restart"
 if [ "$(_pm2_command_state)" = "differs" ]; then
-  echo "PM2 is holding an older start command than ecosystem.config.cjs describes."
+  echo "PM2 is holding an older start command or shutdown timeout than ecosystem.config.cjs describes."
   echo "Re-registering file-audit-api and file-audit-web from the file (a plain"
   echo "restart would run the old program with the new arguments)..."
   # By name, never `pm2 delete all`: other applications share this PM2.
@@ -842,6 +1055,127 @@ _wait_healthy() {
   done
 }
 
+# ---------------------------------------------------------------------
+# Automatic rollback (2026-11-24).
+#
+# Until now a failed health gate ended the script with the NEW version
+# running, badly or not at all, and a banner of commands to type. The site
+# stayed down for as long as it took someone to read them. This puts the
+# previous version back by itself:
+#
+#   1. keep the evidence — the failed start's last PM2 log lines go into the
+#      deploy log before a second restart buries them;
+#   2. git reset --hard <the commit this run started from>;
+#   3. put the previous web build back (the copy kept since the build step) —
+#      no rebuild, so the outage is not extended by a second `nuxt build`;
+#      only if no copy was kept is the web app rebuilt from the old commit;
+#   4. pnpm install --frozen-lockfile, so node_modules matches the old
+#      lockfile again (the API runs from source: its code is step 2);
+#   5. restart PM2 the same way the deploy does;
+#   6. run the same health gate again.
+#
+# It is called in an `if`, where bash ignores `set -e` for the whole
+# function — so EVERY step is checked by hand and a failed step returns at
+# once. It never touches the database: migrations only go forward, and an
+# automatic restore could throw away audits recorded since the snapshot. The
+# banner names the snapshot and the restore script instead.
+#
+# It is not attempted when ROLLBACK_ON_FAILURE=false, when this run did not
+# move the checkout (there is no earlier commit to return to), or when the
+# starting commit is not the one the last healthy deploy recorded (an earlier
+# deploy failed and was left in place: the old build and the old source would
+# not belong together). In those cases the script ends as it always did.
+#
+# Returns 0 = rolled back and healthy · 1 = not attempted (_rollback_why says
+# why) · 2 = attempted and a step failed (_rollback_failed_step says which).
+# ---------------------------------------------------------------------
+_rollback_deploy() {
+  _rolled_back_from=$(git rev-parse HEAD 2>/dev/null || true)
+  if [ "${ROLLBACK_ON_FAILURE:-true}" = "false" ]; then
+    _rollback_why="ROLLBACK_ON_FAILURE=false was set"
+    return 1
+  fi
+  if [ -z "$_pre_pull_sha" ] || [ -z "$_rolled_back_from" ] || \
+     [ "$_pre_pull_sha" = "$_rolled_back_from" ]; then
+    _rollback_why="this run did not move the checkout to a new commit, so there is no earlier version to return to"
+    return 1
+  fi
+  if [ -n "$_last_healthy_sha" ] && [ "$_last_healthy_sha" != "$_pre_pull_sha" ]; then
+    _rollback_why="this run started from ${_pre_pull_sha:0:12}, but the last deploy that passed its health gate was ${_last_healthy_sha:0:12} — the kept web build may not belong to the starting commit"
+    return 1
+  fi
+
+  _stage="rolling-back"
+  echo ""
+  echo "======================================================================"
+  echo "  The new version is NOT healthy. Rolling back automatically"
+  echo "  ${_rolled_back_from:0:12} -> ${_pre_pull_sha:0:12}   (ROLLBACK_ON_FAILURE=false turns this off)"
+  echo "======================================================================"
+  if [ -z "$_last_healthy_sha" ]; then
+    echo "NOTE: no earlier run recorded which commit last passed its health gate;"
+    echo "      taking the commit this run started from as the last good one."
+  fi
+
+  echo ""
+  echo "--- last PM2 log lines of the failed start (kept here for later) ---"
+  pm2 logs file-audit-api --nostream --lines 80 2>&1 || true
+  pm2 logs file-audit-web --nostream --lines 40 2>&1 || true
+  echo "--- end of PM2 log lines ---"
+  echo ""
+
+  _rollback_failed_step="git reset --hard $_pre_pull_sha"
+  echo "Rollback 1/5: source back to ${_pre_pull_sha:0:12}..."
+  git reset --hard "$_pre_pull_sha" || return 2
+
+  _rollback_failed_step="putting the previous web build back"
+  if [ -d "$_rollback_output_dir" ]; then
+    echo "Rollback 2/5: previous web build back in apps/web/.output (no rebuild)..."
+    rm -rf "$_rollback_output_dir.failed"
+    if [ -d apps/web/.output ]; then
+      mv apps/web/.output "$_rollback_output_dir.failed" || return 2
+    fi
+    if ! mv "$_rollback_output_dir" apps/web/.output; then
+      # Do not leave the web app with no build at all.
+      [ -d "$_rollback_output_dir.failed" ] && mv "$_rollback_output_dir.failed" apps/web/.output
+      return 2
+    fi
+    rm -rf "$_rollback_output_dir.failed"
+    _rollback_rebuild=0
+  else
+    echo "Rollback 2/5: no copy of the previous web build was kept — it will be rebuilt."
+    _rollback_rebuild=1
+  fi
+
+  _rollback_failed_step="pnpm install --frozen-lockfile (for the previous commit)"
+  echo "Rollback 3/5: dependencies for ${_pre_pull_sha:0:12}..."
+  _run pnpm install --frozen-lockfile || return 2
+
+  if [ "$_rollback_rebuild" -eq 1 ]; then
+    _rollback_failed_step="rebuilding the previous web app (pnpm --filter web build)"
+    rm -rf apps/web/node_modules/.cache/nuxt
+    _run pnpm --filter web build || return 2
+  fi
+
+  _rollback_failed_step="restarting PM2 onto the previous version"
+  echo "Rollback 4/5: restarting PM2..."
+  if [ "$(_pm2_command_state)" = "differs" ]; then
+    # The failed version changed the start command; register the old one
+    # again. By name, never `pm2 delete all`: other applications share PM2.
+    pm2 delete file-audit-api file-audit-web || return 2
+    pm2 start ecosystem.config.cjs || return 2
+    pm2 save || return 2
+  else
+    pm2 restart ecosystem.config.cjs --update-env || return 2
+  fi
+
+  _rollback_failed_step="the health check of the previous version"
+  echo "Rollback 5/5: health gate..."
+  _wait_healthy "the API (previous version)" "$API_HEALTH_URL" || return 2
+  _wait_healthy "the web app (previous version)" "$WEB_HEALTH_URL" || return 2
+  _rollback_failed_step=""
+  return 0
+}
+
 echo ""
 _api_ok=1
 _web_ok=1
@@ -857,9 +1191,36 @@ if [ "$_api_ok" -eq 0 ] || [ "$_web_ok" -eq 0 ]; then
   fi
   pm2 status || true
   _stage="unhealthy"
+  # KEEP EVERYTHING FROM HERE TO THE `exit 1` INSIDE THIS ONE `if` BLOCK. The
+  # rollback's `git reset --hard` can replace this very file, and bash reads a
+  # script lazily, by byte offset (see the re-exec note after `git pull`). A
+  # compound command is parsed whole before it runs, and functions and the
+  # EXIT trap are already in memory — so nothing after the reset is read from
+  # the changed file as long as the script exits before this block ends.
+  # Rehearsed 2026-11-24 with an older rebuild.sh in the previous commit.
+  _rollback_rc=0
+  _rollback_deploy || _rollback_rc=$?
+  case "$_rollback_rc" in
+    0)
+      _stage="rolled-back"
+      # The previous version has just passed the gate: it is the known-good one.
+      mkdir -p "$_state_dir" 2>/dev/null || true
+      git rev-parse HEAD > "$_last_healthy_file" 2>/dev/null || true
+      ;;
+    1) _stage="unhealthy" ;;
+    *) _stage="rollback-failed" ;;
+  esac
+  pm2 status || true
+  # Non-zero in every case: the version that was asked for is not running.
   exit 1
 fi
 _stage="healthy"
+# Record which commit is now known-good, for the next run's rollback check,
+# and drop the kept copy of the previous web build — it is not needed now.
+# Neither is a reason to fail a deploy that is serving.
+mkdir -p "$_state_dir" 2>/dev/null || true
+git rev-parse HEAD > "$_last_healthy_file" 2>/dev/null || true
+rm -rf "$_rollback_output_dir" 2>/dev/null || true
 
 # ---------------------------------------------------------------------
 # Is PM2 watching the right process? (2026-11-12) — warning only.
@@ -1051,7 +1412,7 @@ if printf '%s' "$_verapdf_block" | grep -q '"ok":true'; then
 else
   echo "  ✗ engine verapdf -> ${_verapdf_block:-no verapdf block in /status?format=json}"
   echo "    PDF reports will show 'PDF/UA-1 machine checks (veraPDF): Did not run'"
-  echo "    until VERAPDF_PATH (in /etc/environment, then pm2 restart --update-env)"
+  echo "    until REMEDIATION_VERAPDF_PATH (in /etc/environment, then pm2 restart --update-env)"
   echo "    points at a working veraPDF install. See /status for the engine panel."
   _smoke_failed=1
 fi

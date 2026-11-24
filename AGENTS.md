@@ -179,6 +179,19 @@ auto-reads from `apps/web/package.json` via
    has an entry.
 5. Create an annotated git tag `vX.Y.Z`
 
+**Use `pnpm release <patch|minor|major|x.y.z>`** (`scripts/release.ts`,
+documented in `docs/releasing.md`). It writes steps 1–4 from one small
+input (`--title`, `--summary`, `--security-note`, `--scope`, or
+`--notes-file`), runs `pnpm audit --prod` and records that run's result,
+and with `--counts` runs the suite, updates the README and
+`scripts/brief-stats.json` counts and runs `pnpm build-brief`. Wherever a
+person must still write prose it leaves a `TODO(release)` marker, and
+`--commit` refuses to commit while one remains. `--dry-run` prints the
+diff and writes nothing. It never pushes, and by default neither commits
+nor tags — it prints the git commands. `pnpm release --verify` checks the
+result. `versionSync.test.ts` fails if any of the ten places a version is
+written disagrees with the others.
+
 The Security / data-retention entries are the auditor-facing
 historical record — they must not be skipped, even on bug-fix-only
 releases (write a short "no new findings; release covered X" entry).
@@ -197,7 +210,10 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── backup-db.sh          nightly DB backup wrapper (Forge Scheduler;
 │   │                         keeps the 5 newest snapshots, on-server —
 │   │                         see docs/database-backups.md)
-│   └── restore-db.sh         verify-first restore for those snapshots
+│   ├── restore-db.sh         verify-first restore for those snapshots
+│   ├── release.ts            `pnpm release` — see § Versioning, docs/releasing.md
+│   └── e2e-smoke.ts          `pnpm e2e` — browser upload + axe on the app's own pages
+├── ops/nginx/                reference reverse-proxy config (NOT the live one)
 ├── CHANGELOG.md
 ├── README.md
 ├── AGENTS.md                 you are here
@@ -243,6 +259,8 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── archive/fleet-inventory-reporting.md       fleet-tool integration brief
 │   ├── archive/06-smtp2go-integration.md          historical (mailer removed v1.68.0)
 │   ├── archive/07-mailgun-integration.md          historical (mailer removed v1.68.0)
+│   ├── runbook.md, deploys.md, releasing.md,      current operations docs
+│   │   database-backups.md, process-supervision.md
 │   └── (per-fix accuracy write-ups, e.g. table-and-heading-accuracy-fixes.md,
 │       live at the docs/ root — everything else historical is in archive/)
 │
@@ -260,16 +278,21 @@ generous rate tier and the URL-allowlist bypass):
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/analyze` | POST | Upload + audit a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file |
+| `/api/analyze-job` | POST | The same audit as a job with observable steps (v1.100.0) — returns 202 `{ jobId, token }`. What the web page uses; it falls back to `/api/analyze` |
+| `/api/analyze-job/:id` | GET | Poll a job (`?t=<token>`): step states, then the result (or the error body `/api/analyze` would send) exactly once. Exempt from the global limiter; has its own |
 | `/api/analyze-url` | POST | Audit a document (PDF/DOCX/PPTX/XLSX) by URL — returns the full AnalysisResult, not persisted |
 | `/api/audit-url` | POST | Audit by URL **and** persist a shareable report — returns trimmed CSV-friendly shape with reportUrl. Hash-dedups by content (hash alone since v1.68.0). For fleet inventory automation. |
+| `/api/audit-url-page` | POST | Audit a web PAGE (not a document) by URL: renders it in headless Chromium, runs axe-core, persists a shareable page report. API-only — for the fleet audit; the site has no form for it |
 | `/api/bulk-from-inventory` | POST | Batch variant taking a filecap NDJSON inventory |
-| `/api/reports` | POST/GET | Save / retrieve shareable reports (UUID id). POST accepts only a result carrying a valid server `seal` (HMAC over the whole result, v1.168.0) — post it back exactly as received |
+| `/api/reports` | POST | Save a shareable report (UUID id). Accepts only a result carrying a valid server `seal` (HMAC over the whole result, v1.168.0) — post it back exactly as received |
+| `/api/reports/:id` | GET | Retrieve a saved report |
 | `/api/remediate` | POST | Start a remediation job (gated on `REMEDIATION_ENABLED`; audit-gate binds to content hash; daily cap is in-memory per IP, resets on restart; jobs are QUEUED since v1.168.0 — 2 running, 10 waiting, 2 active per caller, 503/429 beyond) |
 | `/api/remediate/:id/status` | GET | Job status polling (authorized by the job's download token) |
 | `/api/remediate/:id/download` | GET | Download remediated PDF (single-use token) |
 | `/api/remediate/:id/receipt` | GET | Lifecycle audit trail JSON (authorized by the job's download token) |
 | `/api/status` | GET | Service status JSON — engines, DB, usage aggregates (public, v1.39.0+) |
-| `/api/health` | GET | Static liveness (`{status:"ok"}`; no DB or engine probe) |
+| `/api/health` | GET | Always HTTP 200 while the process is up. The body carries the SAME verdict `/status` computes, read from already-cached state: `{ status: "ok" \| "degraded", uptime, degraded?: [...], systems: [...] }` — it runs no probe of its own. Also served at `/` and `/api`. `rebuild.sh`'s health gate reads only the status code |
+| `/api/openapi.json` | GET | Machine-readable description of every route above (hand-written in `services/openapi.ts`, pinned to the real router by `openapi.test.ts`) |
 
 URL-fetching endpoints (`/analyze-url`, `/audit-url`, `/bulk-from-inventory`)
 share a host allowlist defined in
@@ -293,20 +316,38 @@ pages (link with a plain `<a href>`, never `<NuxtLink>`).
   Running a production build will not kill the dev server but will
   briefly consume ports / file handles. If the dev server stops
   responding, restart via `./start-dev-server.sh`.
-- **Don't add `puppeteer` / `playwright` for "small" PDF rendering
-  needs.** They're ~100+ MB. The repo's image generation uses
-  `sharp` (SVG → PNG). For PDF export from a Nuxt page, browser
+- **Don't add a second browser-automation stack, and don't reach for the
+  one that is here for "small" rendering needs.** `puppeteer` (with
+  `@axe-core/puppeteer`) IS a dependency of `apps/api` — for exactly one
+  product feature, the web-page audit service (`/api/audit-url-page`,
+  `services/pageAuditor.ts`), plus two developer tools that resolve it
+  from there: `scripts/e2e-smoke.ts` (`pnpm e2e`) and
+  `scripts/generate-diagrams.mjs`. Do not add `playwright`, a second
+  Chromium, or puppeteer to another package. For images the repo uses
+  `sharp` (SVG → PNG); for PDF export from a Nuxt page, browser
   `window.print()` with print-friendly CSS is the lightest path.
+- **`nuxt dev` needs `--host localhost`** (in the `dev` script of
+  `apps/web/package.json` — keep it). Without a `--host` flag and with no
+  `HOST` / `NUXT_HOST` / `NITRO_HOST` exported, Nuxt resolves
+  `devServer.host` to an empty object and `@nuxt/cli` 4.0.1 crashes at
+  start with `options.hostname.toLowerCase is not a function`. It
+  reproduces from a clean shell after `pnpm install --frozen-lockfile`. If
+  it comes back, also delete
+  `apps/web/node_modules/.cache/nuxt/dev-server.json` (it caches
+  `"hostname":{}`).
 - **There is no `req.user` and no auth middleware** (both removed in
   v1.68.0) — don't reintroduce an identity object or key anything on a
   caller identity. Endpoints are public and per-IP rate-limited; the
   remediation job endpoints authorize by the job's download token, and
   the daily remediation cap lives in process memory keyed by IP
   (`services/remediationCap.ts` — transient, written nowhere).
-- **Mermaid render order matters.** Multiple `MermaidDiagram`
-  instances on a single page must serialize their renders via a
-  shared promise queue, otherwise mermaid's global state races and
-  produces composited SVGs (see `apps/web/app/components/MermaidDiagram.vue`).
+- **Diagrams are pre-rendered; there is no Mermaid at runtime.** The
+  flowcharts on the site are static SVG files in
+  `apps/web/app/assets/diagrams/`, shown by
+  `apps/web/app/components/DiagramFigure.vue`. After changing a diagram's
+  source, regenerate them with `node scripts/generate-diagrams.mjs`
+  (renders one diagram at a time in headless Chromium). Do not add the
+  mermaid runtime to the web bundle.
 - **veraPDF JSON shape changed in 1.30.x.** `validationResult` is an
   array now, not an object. `apps/api/src/services/veraPdf.ts`
   handles both shapes. Don't "simplify" it unless you also update
@@ -327,12 +368,23 @@ pages (link with a plain `<a href>`, never `<NuxtLink>`).
 
 - DigitalOcean droplet, Ubuntu 22.04
 - Managed via Laravel Forge
-- Two PM2 apps: `file-audit-api` (port 5103, 512 MB cap) and
+- Two PM2 apps: `file-audit-api` (port 5103, 768 MB cap) and
   `file-audit-web` (port 5102, 512 MB cap), defined in
   `ecosystem.config.cjs`
 - nginx reverse proxy in front
 - Deploy via `./rebuild.sh` on the droplet — preflight checks for
-  qpdf, Java (if remediation enabled), veraPDF (optional), pnpm
+  node, pnpm, pm2, qpdf, Java (if remediation enabled), veraPDF
+  (optional). `./rebuild.sh --check` runs the preflight alone and
+  changes nothing. If the new version fails its health gate the script
+  puts the previous commit and web build back automatically and exits
+  non-zero (`ROLLBACK_ON_FAILURE=false` turns that off); the database is
+  never rolled back. See `docs/deploys.md`.
+- Pushing to `main` does **not** deploy. The maintainer runs
+  `./rebuild.sh` on the server by hand.
+- Everything on the server that is not in this repository — packages,
+  `/etc/environment` names, PM2 modules, the Scheduler job, nginx — is
+  listed in `docs/runbook.md`; `ops/nginx/audit.icjia.app.conf.example`
+  is a reference copy of what the code assumes about the proxy.
 - Production URL: `https://audit.icjia.app`
 
 `REMEDIATION_ENABLED=true` is persisted in `/etc/environment` so
@@ -350,3 +402,6 @@ deploy, edit that file + `pm2 restart ecosystem.config.cjs`.
 - `CHANGELOG.md` — release-by-release history with commit references
 - `README.md` § Security — pre-release red/blue-team audit findings
 - `docs/archive/fleet-inventory-reporting.md` — fleet-tool integration brief
+- `docs/runbook.md` — rebuilding the server from nothing; what to check
+  when something breaks
+- `docs/deploys.md` · `docs/releasing.md` · `docs/database-backups.md`

@@ -27,6 +27,32 @@ import type { OoxmlType, OoxmlWorkerRequest, OoxmlWorkerResult } from "./ooxmlWo
 // see ooxmlWorker.ts's header for why this is a child_process, not a Worker).
 const WORKER_PATH = fileURLToPath(new URL("./ooxmlWorker.ts", import.meta.url));
 
+/**
+ * What the child's `--import` loads: tsx, as an ABSOLUTE file URL.
+ *
+ * A bare `--import tsx` is resolved by Node against the child's working
+ * directory, not against this file. That only worked while the process was
+ * started from inside the repository: run the engine from anywhere else (the
+ * CLI auditing a folder of documents, a script in /tmp) and every Word,
+ * PowerPoint and Excel audit died with ERR_MODULE_NOT_FOUND before the worker
+ * loaded, while PDFs — which need no child — kept working.
+ *
+ * Resolving from here finds the same tsx the parent is running under, wherever
+ * the process was started. If resolution is unavailable (a host that does not
+ * implement `import.meta.resolve`), fall back to the bare name — the old
+ * behaviour, correct whenever the working directory is inside the repo.
+ */
+export function resolveTsxSpecifier(): string {
+  try {
+    const resolved = import.meta.resolve("tsx");
+    if (typeof resolved === "string" && resolved.startsWith("file:")) return resolved;
+  } catch {
+    // fall through to the bare specifier
+  }
+  return "tsx";
+}
+const TSX_SPECIFIER = resolveTsxSpecifier();
+
 // How long to wait for the OS to confirm a SIGKILLed child has actually
 // exited before giving up and settling the promise anyway (see the timeout
 // branch below). SIGKILL cannot be caught or blocked, so in practice 'exit'
@@ -93,7 +119,7 @@ export function runOoxmlInWorker<T extends OoxmlType>(
   timeoutMs: number,
 ): Promise<OoxmlRunResult<T>> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", "tsx", WORKER_PATH], {
+    const child = spawn(process.execPath, ["--import", TSX_SPECIFIER, WORKER_PATH], {
       // fd3 IPC channel with advanced (structured-clone) serialization so
       // the Buffer moves efficiently and arrives as a Buffer (no base64).
       // stdin ignored; stdout/stderr inherited so any child diagnostics

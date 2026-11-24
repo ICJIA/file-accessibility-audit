@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Response } from "express";
 import { detectFileType } from "../services/analyzer.js";
-import { mapEntryError } from "../routes/bulk-from-inventory.js";
+import { buildReportUrl, mapEntryError } from "../routes/bulk-from-inventory.js";
 import { AUDIT_TIMEOUT_SUMMARY } from "@file-audit/shared";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
 import { buildDocx } from "./helpers/minimalDocx.js";
@@ -651,19 +651,13 @@ describe("bulk-from-inventory: result structure", () => {
   });
 
   it("includes reportId and reportUrl on successfully analyzed entries", () => {
-    // Simulate a successful entry
+    // The link is the report PAGE on the web origin — the shape /api/audit-url
+    // returns — built by the route's own function (it used to be the relative
+    // API path `/api/reports/<id>`, and this test asserted a literal it had
+    // just written itself). The handler-level check is in
+    // bulkInventoryRobustness.test.ts.
     const id = crypto.randomUUID().replace(/-/g, "");
-    const result: any = {
-      path: "a.pdf",
-      publicUrl: "https://example.com/a.pdf",
-      overallScore: 78,
-      grade: "C",
-      reportId: id,
-      reportUrl: `/api/reports/${id}`,
-    };
-
-    expect(result.reportId).toBeTruthy();
-    expect(result.reportUrl).toBe(`/api/reports/${id}`);
+    expect(buildReportUrl(id)).toMatch(new RegExp(`^https?://[^/]+/report/${id}$`));
   });
 
   it("includes only error on failed entries — no score fields", () => {

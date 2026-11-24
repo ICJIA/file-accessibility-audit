@@ -1,10 +1,10 @@
 {
   "name": "web",
-  "version": "1.175.6",
+  "version": "1.176.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "TMPDIR=/tmp nuxt dev --port 5102",
+    "dev": "TMPDIR=/tmp nuxt dev --host localhost --port 5102",
     "build": "nuxt build",
     "start": "node .output/server/index.mjs",
     "test": "vitest run",

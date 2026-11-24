@@ -206,7 +206,9 @@ function revealEvidence(categoryId: string): void {
     // below is optional-chained so a missing target is a silent no-op, not
     // a throw.
     const target = document.getElementById(`cat-${categoryId}`);
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // "Reduce motion" means jump, not glide.
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    target?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     // Move DOM focus too, not just the viewport: without this, a keyboard/
     // screen-reader user's focus stays on the button they just left, and
     // their next Tab continues from there instead of from the card the

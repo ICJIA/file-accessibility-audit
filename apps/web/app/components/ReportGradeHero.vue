@@ -56,8 +56,11 @@
         <span class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
           Fix progress
         </span>
-        <span class="text-sm font-semibold text-[var(--text-heading)]">
-          {{ checksPassed }} of {{ checksTotal }} checks passed
+        <span
+          class="text-sm font-semibold text-[var(--text-heading)] text-right"
+          data-testid="fix-progress-count"
+        >
+          {{ progress.headline }}
         </span>
       </div>
       <div
@@ -66,6 +69,16 @@
       >
         <div class="h-full rounded-full bg-sky-500/70" :style="{ width: `${barWidth}%` }" />
       </div>
+      <!-- The checks the count above leaves out, said outright: it used to
+           fold "did not apply" into "passed", which made the sentence
+           disagree with the chart of scored bars further down. -->
+      <p
+        v-if="progress.others"
+        data-testid="fix-progress-others"
+        class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
+      >
+        {{ progress.others }}
+      </p>
       <p class="mt-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
         {{ progressNote }}
       </p>
@@ -79,6 +92,7 @@ import { computed } from "vue";
 import { scoreCapReason } from "@file-audit/shared";
 import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 import { formatScopeNote } from "~/utils/formatScope";
+import { fixProgress } from "~/utils/fixProgress";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
 const { gradeColor, severityColor, withAlpha } = useTokenColors();
 import { gradeLabel } from "~/utils/exportFormats/shared";
@@ -138,22 +152,14 @@ const labelColor = computed(() =>
 // Plain counts, not a percentage — a second figure out of 100 next to the
 // score would be one more thing to mistake for the grade.
 //
-// Counted over the same set the SCORE is computed over, so the two can never
-// be arithmetic-checked against each other and disagree: a check that does
-// not apply counts as passed (no tables means no table problem), while one
-// that could not be assessed is excluded entirely rather than assumed good.
-const counted = computed(() =>
-  (Array.isArray(props.categories) ? props.categories : []).filter(
-    (c) => c && (c.score !== null || c.notAssessed !== true),
-  ),
-);
-const checksTotal = computed(() => counted.value.length);
-const checksPassed = computed(
-  () => counted.value.filter((c) => c.score === 100 || c.score === null).length,
-);
-const barWidth = computed(() =>
-  checksTotal.value === 0 ? 0 : Math.round((checksPassed.value / checksTotal.value) * 100),
-);
+// The sentence says exactly what it counts (utils/fixProgress.ts): scored
+// checks that passed, out of scored checks — the same bars the chart below
+// shows. A check that does not apply is not held against the document (no
+// tables means no table problem), and is NAMED as not applying rather than
+// counted as passed; one that could not be assessed is named separately and
+// never assumed good.
+const progress = computed(() => fixProgress(props.categories));
+const barWidth = computed(() => progress.value.barPercent);
 
 // Explains the NUMBER, not the letter. A reader watching the score stall
 // needs to know one finding is holding it there — not that the checks stopped
@@ -163,7 +169,7 @@ const progressNote = computed(() => {
   if (!reason) {
     // "Fix the steps below" is wrong on a document with no steps — which is
     // exactly the report an author is most likely to read closely.
-    if (checksPassed.value === checksTotal.value && checksTotal.value > 0) {
+    if (progress.value.nothingFailed) {
       // Every category at 100 is not "every check passed" when the WCAG gate
       // failed something or reached no verdict.
       return (
@@ -173,7 +179,7 @@ const progressNote = computed(() => {
     }
     return "Fix the steps below and re-upload to watch this rise.";
   }
-  const n = checksTotal.value - checksPassed.value;
+  const n = progress.value.failed;
   return (
     `${n === 1 ? "The one check that didn't pass is" : `${n} checks did not pass; the most serious is`} ` +
     `${reason.severity.toLowerCase()}, which holds the score at ${reason.cappedScore} — ` +

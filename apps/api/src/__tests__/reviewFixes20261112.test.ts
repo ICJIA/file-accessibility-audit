@@ -430,7 +430,7 @@ describe("analyze-job capacity is checked AND reserved before the upload is buff
     const made = Array.from({ length: CAP }, () => createAnalyzeJob(true)!);
     expect(hasAnalyzeJobCapacity()).toBe(false);
     expect(run().res._status).toBe(503);
-    finishJob(made[0]!.id, { error: { status: 500, body: { error: "x" } } });
+    finishJob(made[0]!.id, { error: { status: 500, body: { error: "x", code: "INTERNAL" } } });
     expect(hasAnalyzeJobCapacity()).toBe(true); // its buffer is gone
     expect(MAX_JOBS).toBeGreaterThan(CAP);
   });
@@ -510,13 +510,20 @@ describe("busy (503) handling", () => {
   it("WIRING: every synchronous audit route that can answer 'busy' sets Retry-After", () => {
     const read = (f: string) =>
       readFileSync(fileURLToPath(new URL(`../routes/${f}`, import.meta.url)), "utf8");
-    for (const f of [
-      "analyze.ts",
-      "analyze-url.ts",
-      "audit-url.ts",
-      "audit-url-page.ts",
-      "remediate.ts",
-    ]) {
+    // The two URL routes no longer carry a busy branch of their own: their
+    // analysis errors go through the shared mapping, whose sender sets the
+    // header (services/analyzeCore.ts sendMappedAnalyzeError).
+    const core = readFileSync(
+      fileURLToPath(new URL("../services/analyzeCore.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(core).toMatch(/if \(mapped\.status === 503\) setBusyRetryAfter\(res\);/);
+    for (const f of ["analyze-url.ts", "audit-url.ts"]) {
+      const src = read(f);
+      expect(src, f).toContain("sendMappedAnalyzeError(");
+      expect(src, f).not.toMatch(/status\(503\)/);
+    }
+    for (const f of ["analyze.ts", "audit-url-page.ts", "remediate.ts"]) {
       const src = read(f);
       // No 503 is sent from a busy branch without the header being set first.
       const busyBranches = [...src.matchAll(/status === 503\) \{?\s*([\s\S]{0,80})/g)];

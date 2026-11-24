@@ -352,7 +352,9 @@ describe("DropZone works without a mouse (WCAG 2.1.1, 4.1.2, 2.4.7)", () => {
     const name = clone.textContent!.replace(/\s+/g, " ").trim();
     // The visible label opens the name, so speech input can say what it sees.
     expect(name.startsWith("Drop PDF, Word, PowerPoint, or Excel files here")).toBe(true);
-    expect(name).toContain("or click to browse for files to audit — up to 5 files, max 25 MB each");
+    expect(name).toContain(
+      "or click to browse for files to audit — up to 25 files, max 25 MB each",
+    );
     // The purpose words are for assistive technology only; the visible copy
     // is unchanged.
     expect(el.querySelector(".sr-only")?.textContent?.trim()).toBe("for files to audit");

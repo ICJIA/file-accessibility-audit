@@ -1,0 +1,155 @@
+# =============================================================================
+# audit.icjia.app — nginx reverse proxy.  REFERENCE COPY, NOT THE LIVE CONFIG.
+# =============================================================================
+#
+# READ THIS FIRST
+#
+#   This file was RECONSTRUCTED from what the application code assumes about
+#   the proxy in front of it (2026-11-24). It was not copied from the server.
+#   The live configuration is managed in Laravel Forge and lives at
+#   /etc/nginx/sites-available/audit.icjia.app on the server.
+#
+#   Before relying on it — and before using it to rebuild a server — the
+#   server's owner must diff it against the live file:
+#
+#       ssh forge@audit.icjia.app
+#       sudo nginx -T 2>/dev/null | less        # the whole live configuration
+#
+#   and then correct THIS file to match what is really there, so the next
+#   reader has a true copy. Until that has been done, treat every line as
+#   "what the code needs", not "what the server has".
+#
+#   Nothing reads this file. Editing it changes nothing on the server.
+#
+# WHAT THE CODE ASSUMES (each line below says where the assumption lives)
+#
+#   web app (Nuxt/Nitro)   127.0.0.1:5102   ecosystem.config.cjs (HOST, PORT)
+#   API (Express)          127.0.0.1:5103   audit.config.ts DEPLOY.BIND_HOST / API_PORT
+#   /api/ goes STRAIGHT to the API — not through the web app. The web app's
+#   own /api proxy rule is a development convenience (apps/web/nuxt.config.ts).
+#   /status and /healthz are web-app routes; they are NOT under /api/.
+#
+# =============================================================================
+
+# Plain HTTP: redirect everything to HTTPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name audit.icjia.app;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name audit.icjia.app;
+
+    # Certificates — Forge manages these (Let's Encrypt). Paths are examples.
+    ssl_certificate     /etc/nginx/ssl/audit.icjia.app/server.crt;
+    ssl_certificate_key /etc/nginx/ssl/audit.icjia.app/server.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # HSTS, once, for every response including errors nginx answers itself.
+    # The API also sets this header (helmet); it is hidden in the /api/ block
+    # below so a response never carries it twice. Do NOT add `preload` or
+    # raise this without the owner's decision — preload cannot be undone
+    # quickly.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # ACCESS LOG — AN OPEN QUESTION FOR THE OWNER. Two statements in this
+    # repository disagree about the live setting:
+    #   - the published data-retention policy (§ 7 and § 8a) says nginx keeps
+    #     an access log (IP address, time, path, status, browser), rotated
+    #     daily, about 52 days kept;
+    #   - a code comment in apps/api/src/middleware/rateLimiter.ts (written
+    #     2026-08-12) says this vhost has `access_log off`.
+    # One of them is out of date. Check the live file, then make this line and
+    # whichever statement is wrong match it. The policy is a public promise:
+    # if the log is on, the policy is right as written; if it is off, the
+    # policy overstates what is kept and should say so.
+    #
+    # access_log off;
+    access_log /var/log/nginx/audit.icjia.app-access.log;
+    error_log  /var/log/nginx/audit.icjia.app-error.log error;
+
+    # Never let nginx advertise its version.
+    server_tokens off;
+
+    # DO NOT add Forge's default blocks
+    #     location = /favicon.ico { access_log off; log_not_found off; }
+    #     location = /robots.txt  { access_log off; log_not_found off; }
+    # They answer from the vhost `root`, which holds neither file for this
+    # app, so both 404 — and a missing robots.txt means no Disallow rule is
+    # honoured. rebuild.sh's smoke checks test for exactly this.
+
+    # -------------------------------------------------------------------------
+    # The API. Uploads and long audits go through here.
+    # -------------------------------------------------------------------------
+    location /api/ {
+        proxy_pass http://127.0.0.1:5103;
+        proxy_http_version 1.1;
+
+        # Upload size. MUST be at least DEPLOY.NGINX_CLIENT_MAX_BODY_SIZE_MB
+        # (60): the largest accepted upload is a 50 MB PDF for remediation,
+        # plus 10 MB for the multipart envelope. Sizing this to the 25 MB
+        # audit limit broke remediation in production (2026-08-13) with a 413
+        # the application never saw. Pinned by deployLimits.test.ts.
+        client_max_body_size 60m;
+
+        # How long nginx waits for the API's answer. MUST be at least
+        # DEPLOY.NGINX_PROXY_READ_TIMEOUT_S (180): a long document may take
+        # two minutes to audit. At nginx's default of 60s a 246-page report
+        # came back as an nginx error page (2026-08-28).
+        proxy_read_timeout 180s;
+        proxy_send_timeout 180s;
+
+        # FOR THE OWNER TO DECIDE — not something the code assumes. By default
+        # nginx writes a request body larger than its buffer (16k) to a
+        # temporary file under /var/lib/nginx/body before passing it on, and
+        # deletes it when the request ends. The application holds an upload in
+        # memory and says it is never stored; that short-lived nginx file is
+        # outside the application and is not mentioned in the retention
+        # policy. `proxy_request_buffering off` stops nginx writing it, at the
+        # cost of exposing the API directly to slow uploads. Check which is in
+        # force on the server; either turn it off or describe the temporary
+        # file in the policy.
+        #
+        # proxy_request_buffering off;
+
+        # THE CLIENT'S ADDRESS. The API runs with `trust proxy` set to 1
+        # (apps/api/src/app.ts), so Express takes the LAST address in
+        # X-Forwarded-For — the one THIS proxy appends — as the caller.
+        # Every rate limit is per caller address (middleware/rateLimiter.ts).
+        #   - Without this header every visitor looks like 127.0.0.1 and
+        #     shares ONE rate-limit bucket: the whole site is throttled
+        #     together.
+        #   - $proxy_add_x_forwarded_for appends $remote_addr to whatever the
+        #     client sent. Because only the last entry is trusted, a client
+        #     cannot choose its own bucket by sending a forged header.
+        #   - If another proxy or a load balancer is ever put in FRONT of
+        #     nginx, `trust proxy` must be raised to match, or every caller
+        #     becomes that proxy's address.
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host              $host;
+
+        # The API sets HSTS too; keep the one added at server level only.
+        proxy_hide_header Strict-Transport-Security;
+    }
+
+    # -------------------------------------------------------------------------
+    # Everything else: the web app — pages, assets, /status, /healthz.
+    # -------------------------------------------------------------------------
+    location / {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_http_version 1.1;
+
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host              $host;
+
+        # /status asks the API for the engine checks; the first request after
+        # a restart starts a Java process and can take tens of seconds.
+        proxy_read_timeout 90s;
+    }
+}

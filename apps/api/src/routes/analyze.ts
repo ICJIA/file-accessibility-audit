@@ -4,6 +4,7 @@ import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { performAudit, mapAnalyzeError } from "../services/analyzeCore.js";
 import { sealReport } from "../services/reportSeal.js";
 import { setBusyRetryAfter } from "../services/busy.js";
+import { requireUploadCapacity } from "../services/uploadSlots.js";
 
 const router: IRouter = Router();
 
@@ -11,6 +12,9 @@ const router: IRouter = Router();
 router.post(
   "/analyze",
   analyzeLimiter,
+  // Before the body is read: a saturated server answers 503 without first
+  // buffering the upload (services/uploadSlots.ts).
+  requireUploadCapacity,
   uploadMiddleware.single("file"),
   async (req: Request, res: Response) => {
     // Which rate-limit tier this upload came through, recorded on the audit

@@ -160,7 +160,10 @@ export const uploadMiddleware = multer({
       data). There is no <code class="text-xs font-mono">createWriteStream</code> anywhere in the
       server code, no cache, and no other write. The two analysis tools that need a file path get a
       temp copy under a <em>random name</em> (the user's filename never appears on disk), deleted in
-      a <code class="text-xs font-mono">finally</code> block so failure cannot leak it — from
+      a <code class="text-xs font-mono">finally</code> block so failure cannot leak it. Since
+      2026-11-24 those copies live in one owner-only folder of their own, emptied of leftovers when
+      the service starts and swept of anything older than 15 minutes, so a copy orphaned by a
+      restart mid-audit cannot linger — from
       <code class="text-xs font-mono">packages/analyzer/src/qpdfService.ts</code> (veraPDF uses the
       identical pattern in
       <code class="text-xs font-mono">apps/api/src/services/veraPdfBuffer.ts</code>):

@@ -33,6 +33,9 @@ import {
   isPlausibleLanguageTag,
   type ScoringResult,
   type PdfUaSignals,
+  fd,
+  fdEach,
+  withFindingDetails,
 } from "./common.js";
 import { evaluateConformance } from "./conformance.js";
 import { buildAdobeParityReport } from "./adobeParity.js";
@@ -47,6 +50,10 @@ function wcagUnderstandingUrl(slug: string): string {
 }
 
 export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResult {
+  return withFindingDetails("pdf", () => scoreDocumentUncoded(qpdf, pdfjs));
+}
+
+function scoreDocumentUncoded(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResult {
   const warnings: string[] = [];
 
   if (qpdf.error || pdfjs.error) {
@@ -102,7 +109,9 @@ export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResu
         severity: null,
         notAssessed: true,
         findings: [
-          `This check could not run — the ${failedSide} analyzer failed on this file, so its inputs are unavailable. The results below reflect only the checks that succeeded; a manual review is required for this category.`,
+          fd(
+            "pdf.general.analyzer_failed_not_assessed",
+          )`This check could not run — the ${failedSide} analyzer failed on this file, so its inputs are unavailable. The results below reflect only the checks that succeeded; a manual review is required for this category.`,
         ],
       };
     }
@@ -230,13 +239,19 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     // nothing else about the text layer matters until that is lifted.
     score = 0;
     findings.push(
-      "The document's security settings deny assistive-technology access — the accessibility permission flag is off (PDF/UA 7.16 / Matterhorn 26-002).",
+      fd("pdf.text_extractability.accessibility_denied")(
+        "The document's security settings deny assistive-technology access — the accessibility permission flag is off (PDF/UA 7.16 / Matterhorn 26-002).",
+      ),
     );
     findings.push(
-      "Screen readers in conforming viewers cannot read ANY content of this document, regardless of tagging or text quality.",
+      fd("pdf.text_extractability.accessibility_denied_effect")(
+        "Screen readers in conforming viewers cannot read ANY content of this document, regardless of tagging or text quality.",
+      ),
     );
     findings.push(
-      "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Security tab and either remove security or enable 'Enable text access for screen reader devices for the visually impaired', then re-save. Modern AES-256 encryption always permits accessibility.",
+      fd("pdf.text_extractability.accessibility_denied_fix")(
+        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Security tab and either remove security or enable 'Enable text access for screen reader devices for the visually impaired', then re-save. Modern AES-256 encryption always permits accessibility.",
+      ),
     );
   } else if (pdfjs.hasText && qpdf.hasStructTree && structTreeIsContentFree(qpdf, pdfjs)) {
     // The root object exists but the tree references nothing — the same
@@ -244,29 +259,45 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     // "Document is tagged" credited a document whose entire body text sits
     // outside the structure tree.
     score = 50;
-    findings.push("PDF contains extractable text");
+    findings.push(fd("pdf.text_extractability.text_present")("PDF contains extractable text"));
     findings.push(
-      "A tag structure (StructTreeRoot) is present but EMPTY — it references no paragraphs, headings, figures, tables, lists, or marked content.",
+      fd("pdf.text_extractability.struct_tree_empty")(
+        "A tag structure (StructTreeRoot) is present but EMPTY — it references no paragraphs, headings, figures, tables, lists, or marked content.",
+      ),
     );
     if (pdfjs.textLength)
       findings.push(
-        `All ${pdfjs.textLength.toLocaleString()} characters of text sit outside the structure tree, so a screen reader following the tags receives nothing — the same result as an untagged document.`,
+        fd("pdf.text_extractability.all_text_outside_tree", {
+          count: pdfjs.textLength,
+        })`All ${pdfjs.textLength.toLocaleString()} characters of text sit outside the structure tree, so a screen reader following the tags receives nothing — the same result as an untagged document.`,
       );
     findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document), then open the Tags panel and confirm the body content now appears beneath the tags.",
+      fd("pdf.text_extractability.struct_tree_empty_fix")(
+        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document), then open the Tags panel and confirm the body content now appears beneath the tags.",
+      ),
     );
   } else if (pdfjs.hasText && qpdf.hasStructTree) {
     score = 100;
-    findings.push("PDF contains extractable text");
-    findings.push("Document is tagged (StructTreeRoot present)");
+    findings.push(fd("pdf.text_extractability.text_present")("PDF contains extractable text"));
+    findings.push(
+      fd("pdf.text_extractability.tagged")("Document is tagged (StructTreeRoot present)"),
+    );
     if (pdfjs.textLength)
-      findings.push(`Extracted ${pdfjs.textLength.toLocaleString()} characters of text content`);
+      findings.push(
+        fd("pdf.text_extractability.characters_extracted", {
+          count: pdfjs.textLength,
+        })`Extracted ${pdfjs.textLength.toLocaleString()} characters of text content`,
+      );
   } else if (pdfjs.hasText && !qpdf.hasStructTree) {
     score = 50;
-    findings.push("PDF contains extractable text");
-    findings.push("Document is NOT tagged — no StructTreeRoot found");
+    findings.push(fd("pdf.text_extractability.text_present")("PDF contains extractable text"));
     findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document). Tags create a hidden structure that tells screen readers the reading order, headings, and other elements.",
+      fd("pdf.text_extractability.not_tagged")("Document is NOT tagged — no StructTreeRoot found"),
+    );
+    findings.push(
+      fd("pdf.text_extractability.not_tagged_fix")(
+        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document). Tags create a hidden structure that tells screen readers the reading order, headings, and other elements.",
+      ),
     );
   } else if (!pdfjs.hasText && qpdf.hasStructTree) {
     // The hasText threshold (~50 chars) is a scoring heuristic; the wording
@@ -287,43 +318,69 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
         severity: null,
         notAssessed: true,
         findings: [
-          `Only ${pdfjs.textLength} characters of extractable text were found — too little to assess the text layer with confidence, so this category is not scored.`,
-          "Document is tagged (StructTreeRoot present). If this is genuinely a very short document, there is simply not enough text here for an automated verdict either way — read it aloud with a screen reader to confirm.",
+          fd("pdf.text_extractability.too_little_text_not_scored", {
+            count: pdfjs.textLength,
+          })`Only ${pdfjs.textLength} characters of extractable text were found — too little to assess the text layer with confidence, so this category is not scored.`,
+          fd("pdf.text_extractability.tagged_too_little_text")(
+            "Document is tagged (StructTreeRoot present). If this is genuinely a very short document, there is simply not enough text here for an automated verdict either way — read it aloud with a screen reader to confirm.",
+          ),
         ],
         explanation: TEXT_EXTRACTABILITY_EXPLANATION,
         helpLinks: TEXT_EXTRACTABILITY_HELP,
       };
     } else {
-      findings.push("No extractable text found, but document has tag structure");
       findings.push(
-        "This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.",
+        fd("pdf.text_extractability.no_text_but_tagged")(
+          "No extractable text found, but document has tag structure",
+        ),
       );
       findings.push(
-        "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR → Recognize Text → In This File).",
+        fd("pdf.text_extractability.possibly_tagged_scan")(
+          "This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.",
+        ),
+      );
+      findings.push(
+        fd("pdf.text_extractability.ocr_fix")(
+          "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR → Recognize Text → In This File).",
+        ),
       );
     }
   } else {
     score = 0;
     if (pdfjs.textLength > 0) {
-      findings.push(`Only ${pdfjs.textLength} characters of extractable text were found`);
-      findings.push("No tag structure found");
       findings.push(
-        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF, so the little text present is exposed to screen readers in order.",
+        fd("pdf.text_extractability.little_text", {
+          count: pdfjs.textLength,
+        })`Only ${pdfjs.textLength} characters of extractable text were found`,
+      );
+      findings.push(fd("pdf.text_extractability.no_tag_structure")("No tag structure found"));
+      findings.push(
+        fd("pdf.text_extractability.little_text_untagged_fix")(
+          "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF, so the little text present is exposed to screen readers in order.",
+        ),
       );
     } else if (pdfjs.imageCount > 0 || qpdf.imageObjectCount > 0) {
-      findings.push("No extractable text found");
-      findings.push("No tag structure found");
+      findings.push(fd("pdf.text_extractability.no_text")("No extractable text found"));
+      findings.push(fd("pdf.text_extractability.no_tag_structure")("No tag structure found"));
       findings.push(
-        "This PDF appears to be a scanned image — it is essentially a photograph of text. Screen readers cannot read it at all.",
+        fd("pdf.text_extractability.scanned_image")(
+          "This PDF appears to be a scanned image — it is essentially a photograph of text. Screen readers cannot read it at all.",
+        ),
       );
       findings.push(
-        "How to fix: (1) Run OCR in Adobe Acrobat: All tools → Scan & OCR → Recognize Text. (2) Then add tags: All tools → Prepare for accessibility → Automatically tag PDF.",
+        fd("pdf.text_extractability.scanned_image_fix")(
+          "How to fix: (1) Run OCR in Adobe Acrobat: All tools → Scan & OCR → Recognize Text. (2) Then add tags: All tools → Prepare for accessibility → Automatically tag PDF.",
+        ),
       );
     } else {
-      findings.push("No text content was found in this document");
-      findings.push("No tag structure found");
       findings.push(
-        "The document contains neither extractable text nor page images — there is no content for a screen reader to read.",
+        fd("pdf.text_extractability.no_content")("No text content was found in this document"),
+      );
+      findings.push(fd("pdf.text_extractability.no_tag_structure")("No tag structure found"));
+      findings.push(
+        fd("pdf.text_extractability.no_text_no_images")(
+          "The document contains neither extractable text nor page images — there is no content for a screen reader to read.",
+        ),
       );
     }
   }
@@ -332,7 +389,9 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
   // (typically OCR/auto-tag output). Advisory only; the tree is still scored.
   if (qpdf.suspectsFlag) {
     findings.push(
-      "Advisory: the document's MarkInfo carries Suspects = true — the producing tool itself marked the tagging as suspect (common after OCR or automatic tagging). Treat the tag structure with extra scrutiny in manual review.",
+      fd("pdf.text_extractability.suspects_flag")(
+        "Advisory: the document's MarkInfo carries Suspects = true — the producing tool itself marked the tagging as suspect (common after OCR or automatic tagging). Treat the tag structure with extra scrutiny in manual review.",
+      ),
     );
   }
 
@@ -347,13 +406,16 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     const { flagged, exempt } = splitNonEmbeddedFonts(qpdf.fonts, pdfjs.visibleTextFontNames);
     const exemptEntries = new Set(exempt);
 
-    findings.push("--- Font Embedding ---");
+    findings.push(fd("pdf.text_extractability.fonts_heading")("--- Font Embedding ---"));
     findings.push(
-      `  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${flagged.length + exempt.length} not embedded`,
+      fd("pdf.text_extractability.fonts_census", {
+        count: embedded,
+        total: qpdf.fonts.length,
+      })`  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${flagged.length + exempt.length} not embedded`,
     );
     for (const font of qpdf.fonts.slice(0, 25)) {
       findings.push(
-        `  ${font.name} — ${
+        fd("pdf.text_extractability.fonts_item")`  ${font.name} — ${
           font.embedded
             ? "embedded"
             : exemptEntries.has(font)
@@ -363,7 +425,11 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
       );
     }
     if (qpdf.fonts.length > 25) {
-      findings.push(`  ... and ${qpdf.fonts.length - 25} more font(s)`);
+      findings.push(
+        fd("pdf.text_extractability.fonts_more", {
+          count: qpdf.fonts.length - 25,
+        })`  ... and ${qpdf.fonts.length - 25} more font(s)`,
+      );
     }
 
     if (flagged.length > 0) {
@@ -377,10 +443,14 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
         .map((f) => f.name)
         .join(", ");
       findings.push(
-        `PDF/UA only — not scored: ${flagged.length} non-embedded font(s) may cause garbled text on systems without ${flagged.length === 1 ? "this font" : "these fonts"}: ${fontNames}${flagged.length > 5 ? ` (+${flagged.length - 5} more)` : ""}. No WCAG success criterion requires font embedding — a substituted font still renders and still reads aloud — so this does not affect your grade. PDF/UA (ISO 14289, clause 7.21) does require it.`,
+        fd("pdf.text_extractability.fonts_not_embedded", {
+          count: flagged.length,
+        })`PDF/UA only — not scored: ${flagged.length} non-embedded font(s) may cause garbled text on systems without ${flagged.length === 1 ? "this font" : "these fonts"}: ${fontNames}${flagged.length > 5 ? ` (+${flagged.length - 5} more)` : ""}. No WCAG success criterion requires font embedding — a substituted font still renders and still reads aloud — so this does not affect your grade. PDF/UA (ISO 14289, clause 7.21) does require it.`,
       );
       findings.push(
-        "How to fix (optional): In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status.",
+        fd("pdf.text_extractability.fonts_not_embedded_fix")(
+          "How to fix (optional): In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status.",
+        ),
       );
     } else if (exempt.length > 0) {
       const exemptNames = exempt
@@ -391,11 +461,15 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
       // apps/web's actionPlan.ts uses /non-embedded font/i to select the
       // "Embed the fonts" fix step, and exempt fonts must never trigger it.
       findings.push(
-        `All fonts used to display text are embedded. ${exempt.length} font ${exempt.length === 1 ? "entry" : "entries"} (${exemptNames}) ${exempt.length === 1 ? "is" : "are"} not embedded but never ${exempt.length === 1 ? "displays" : "display"} visible text — typically leftover whitespace runs from the source word processor — so ${exempt.length === 1 ? "it" : "they"} cannot affect how the document renders or reads.`,
+        fd("pdf.text_extractability.fonts_visible_embedded", {
+          count: exempt.length,
+        })`All fonts used to display text are embedded. ${exempt.length} font ${exempt.length === 1 ? "entry" : "entries"} (${exemptNames}) ${exempt.length === 1 ? "is" : "are"} not embedded but never ${exempt.length === 1 ? "displays" : "display"} visible text — typically leftover whitespace runs from the source word processor — so ${exempt.length === 1 ? "it" : "they"} cannot affect how the document renders or reads.`,
       );
     } else {
       findings.push(
-        "All fonts are embedded — text will render correctly regardless of the user's installed fonts",
+        fd("pdf.text_extractability.fonts_all_embedded")(
+          "All fonts are embedded — text will render correctly regardless of the user's installed fonts",
+        ),
       );
     }
   }
@@ -410,25 +484,37 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
   if (typeof unmappedChars === "number" && unmappedChars > 0) {
     const share = unmappedChars / Math.max(1, pdfjs.textLength);
     const sharePct = Math.round(share * 100);
-    findings.push(`--- Character Mapping (Matterhorn 10) ---`);
     findings.push(
-      `  ${unmappedChars.toLocaleString()} extracted character(s) cannot be mapped to readable text (${sharePct}% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.`,
+      fd(
+        "pdf.text_extractability.unmapped_chars_heading",
+      )`--- Character Mapping (Matterhorn 10) ---`,
+    );
+    findings.push(
+      fd("pdf.text_extractability.unmapped_chars", {
+        count: unmappedChars,
+      })`  ${unmappedChars.toLocaleString()} extracted character(s) cannot be mapped to readable text (${sharePct}% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.`,
     );
     if (unmappedChars >= 100 && share >= 0.05) {
       score = Math.min(score, 50);
       findings.push(
-        "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.",
+        fd("pdf.text_extractability.unmapped_chars_significant")(
+          "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.",
+        ),
       );
     } else if (unmappedChars >= 20) {
       // NOT SCORED (2026-08-29, the legal-only sweep): below the failure
       // band this is usually symbol-font bullets and dingbats — a judgment a
       // person has to make, not a confirmed 1.1.1 failure.
       findings.push(
-        "Advisory — not scored: a count this size is often symbol-font bullets or dingbats, which read as decoration — your grade is not affected. Verify the affected passages read correctly with a screen reader; if they are real words, re-export from the source application.",
+        fd("pdf.text_extractability.unmapped_chars_moderate")(
+          "Advisory — not scored: a count this size is often symbol-font bullets or dingbats, which read as decoration — your grade is not affected. Verify the affected passages read correctly with a screen reader; if they are real words, re-export from the source application.",
+        ),
       );
     } else {
       findings.push(
-        "  Advisory — not scored: a count this small is usually symbol-font bullets or dingbats, which read as decoration. No action needed unless real words are affected.",
+        fd("pdf.text_extractability.unmapped_chars_small")(
+          "  Advisory — not scored: a count this small is usually symbol-font bullets or dingbats, which read as decoration. No action needed unless real words are affected.",
+        ),
       );
     }
   }
@@ -454,23 +540,37 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
       pages.length > 0
         ? ` (page${pages.length === 1 ? "" : "s"} ${pages.join(", ")}${pages.length >= 12 ? ", …" : ""})`
         : "";
-    findings.push(`--- Content Outside the Tag Structure (Matterhorn 01) ---`);
     findings.push(
-      `  ${untaggedChars.toLocaleString()} visible character(s) — ${untaggedPct}% of the page text — are painted outside the tagged content${pageList}. They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.`,
+      fd(
+        "pdf.text_extractability.untagged_content_heading",
+      )`--- Content Outside the Tag Structure (Matterhorn 01) ---`,
+    );
+    findings.push(
+      fd("pdf.text_extractability.untagged_content", {
+        count: untaggedChars,
+        total: totalVisible,
+        pages,
+      })`  ${untaggedChars.toLocaleString()} visible character(s) — ${untaggedPct}% of the page text — are painted outside the tagged content${pageList}. They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.`,
     );
     if (untaggedShare >= 0.1 && untaggedChars >= 200) {
       score = Math.min(score, 50);
       findings.push(
-        "  How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF to bring the untagged content into the structure, then verify the affected pages in the Tags panel — or mark genuinely decorative runs as artifacts.",
+        fd("pdf.text_extractability.untagged_content_major_fix")(
+          "  How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF to bring the untagged content into the structure, then verify the affected pages in the Tags panel — or mark genuinely decorative runs as artifacts.",
+        ),
       );
     } else if (untaggedShare >= 0.02 && untaggedChars >= 50) {
       score = Math.min(score, 85);
       findings.push(
-        "  Review the named pages in Acrobat's Tags panel: tag real content, or mark decorative text (watermarks, crop marks) as artifacts.",
+        fd("pdf.text_extractability.untagged_content_review")(
+          "  Review the named pages in Acrobat's Tags panel: tag real content, or mark decorative text (watermarks, crop marks) as artifacts.",
+        ),
       );
     } else {
       findings.push(
-        "  Advisory — not scored: an amount this small is often stray export residue. Verify the named pages when convenient.",
+        fd("pdf.text_extractability.untagged_content_small")(
+          "  Advisory — not scored: an amount this small is often stray export residue. Verify the named pages when convenient.",
+        ),
       );
     }
   }
@@ -504,12 +604,16 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     // it gets the unscored advisory further down instead (2026-09-02).
     if (pdfjs.titleIsToolGenerated) {
       score += 25;
-      findings.push(`Document title: "${pdfjs.title}"`);
+      findings.push(fd("pdf.title_language.title_present")`Document title: "${pdfjs.title}"`);
       findings.push(
-        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+        fd("pdf.title_language.title_tool_generated")(
+          "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+        ),
       );
       findings.push(
-        'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
+        fd("pdf.title_language.title_tool_generated_fix")(
+          'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
+        ),
       );
     } else if (!qpdf.error && qpdf.displayDocTitle !== true) {
       // (!qpdf.error: with the structure analyzer down the flag state is a
@@ -524,29 +628,43 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
       // shown in properties), the reader just never hears it. Mirrored by
       // the conformance gate — change them together.
       score += 25;
-      findings.push(`Document title: "${pdfjs.title}"`);
+      findings.push(fd("pdf.title_language.title_present")`Document title: "${pdfjs.title}"`);
       findings.push(
-        "The title is set, but the DisplayDocTitle viewer preference is off, so viewers and screen readers announce the FILENAME instead — the same experience as no title. W3C's own PDF technique for 2.4.2 (PDF18) sets this flag.",
+        fd("pdf.title_language.display_doc_title_off")(
+          "The title is set, but the DisplayDocTitle viewer preference is off, so viewers and screen readers announce the FILENAME instead — the same experience as no title. W3C's own PDF technique for 2.4.2 (PDF18) sets this flag.",
+        ),
       );
       findings.push(
-        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
+        fd("pdf.title_language.display_doc_title_off_fix")(
+          "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
+        ),
       );
     } else {
       score += 50;
-      findings.push(`Document title: "${pdfjs.title}" (shown by viewers — DisplayDocTitle is set)`);
+      findings.push(
+        fd(
+          "pdf.title_language.title_present_displayed",
+        )`Document title: "${pdfjs.title}" (shown by viewers — DisplayDocTitle is set)`,
+      );
     }
     if (pdfjs.titleLooksLikeFilename && !pdfjs.titleIsToolGenerated) {
       findings.push(
-        `Advisory — not scored: the title "${pdfjs.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (Document properties → Description → Title).`,
+        fd(
+          "pdf.title_language.title_filename_shaped",
+        )`Advisory — not scored: the title "${pdfjs.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the document, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the document well is a judgment for a person. Consider replacing it with a plain-language title (Document properties → Description → Title).`,
       );
     }
   } else {
-    findings.push("No document title found in metadata");
+    findings.push(fd("pdf.title_language.title_missing")("No document title found in metadata"));
     findings.push(
-      "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → enter a descriptive Title.",
+      fd("pdf.title_language.title_missing_fix")(
+        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → enter a descriptive Title.",
+      ),
     );
     findings.push(
-      'The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., "report_v3_final.pdf").',
+      fd("pdf.title_language.title_missing_why")(
+        'The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., "report_v3_final.pdf").',
+      ),
     );
   }
 
@@ -572,39 +690,57 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     const declaredName = LANGUAGE_NAMES[mismatch.declared] ?? mismatch.declared;
     const detectedName = LANGUAGE_NAMES[mismatch.detected] ?? mismatch.detected;
     findings.push(
-      `The document declares its language as "${langValue}" (${declaredName}), but the text reads as ${detectedName}. A screen reader follows the declaration, so it would pronounce this document with ${declaredName} pronunciation rules throughout — the words come out as ${declaredName} sounds, which is very hard to listen to and often unintelligible.`,
+      fd(
+        "pdf.title_language.language_mismatch",
+      )`The document declares its language as "${langValue}" (${declaredName}), but the text reads as ${detectedName}. A screen reader follows the declaration, so it would pronounce this document with ${declaredName} pronunciation rules throughout — the words come out as ${declaredName} sounds, which is very hard to listen to and often unintelligible.`,
     );
     findings.push(
-      `What the check saw: of ${mismatch.wordCount.toLocaleString()} words sampled, ${mismatch.detectedHits} are common ${detectedName} words and only ${mismatch.declaredHits} are common ${declaredName} words.`,
+      fd(
+        "pdf.title_language.language_mismatch_evidence",
+      )`What the check saw: of ${mismatch.wordCount.toLocaleString()} words sampled, ${mismatch.detectedHits} are common ${detectedName} words and only ${mismatch.declaredHits} are common ${declaredName} words.`,
     );
     findings.push(
-      `How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → set Language to the language the document is actually written in, then save. In Word, set the proofing language for the whole document (Review → Language → Set Proofing Language) before exporting — a single passage marked in another language can otherwise be exported as the language of the entire file.`,
+      fd(
+        "pdf.title_language.language_mismatch_fix",
+      )`How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → set Language to the language the document is actually written in, then save. In Word, set the proofing language for the whole document (Review → Language → Set Proofing Language) before exporting — a single passage marked in another language can otherwise be exported as the language of the entire file.`,
     );
     findings.push(
-      `If part of this document really is in ${declaredName}, that is handled differently: mark just those passages with their own language, and leave the document language as the one most of the text is written in.`,
+      fd(
+        "pdf.title_language.language_mismatch_mixed_note",
+      )`If part of this document really is in ${declaredName}, that is handled differently: mark just those passages with their own language, and leave the document language as the one most of the text is written in.`,
     );
   } else if (hasLang && isPlausibleLanguageTag(langValue)) {
     score += 50;
-    findings.push(`Language declared: ${qpdf.lang || pdfjs.lang}`);
+    findings.push(
+      fd("pdf.title_language.language_declared")`Language declared: ${qpdf.lang || pdfjs.lang}`,
+    );
   } else if (hasLang) {
     score += 25;
     findings.push(
-      `Language declared as "${langValue}" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation. Language codes are short standard identifiers such as "en-US" (US English) or "es" (Spanish), not language names.`,
+      fd(
+        "pdf.title_language.language_unusable",
+      )`Language declared as "${langValue}" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation. Language codes are short standard identifiers such as "en-US" (US English) or "es" (Spanish), not language names.`,
     );
     findings.push(
-      'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → pick the language from the dropdown (or type a standard code such as "en-US"), then save.',
+      fd("pdf.title_language.language_unusable_fix")(
+        'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → pick the language from the dropdown (or type a standard code such as "en-US"), then save.',
+      ),
     );
   } else {
-    findings.push("No language declaration found");
+    findings.push(fd("pdf.title_language.language_missing")("No language declaration found"));
     findings.push(
-      "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → set the Language dropdown.",
+      fd("pdf.title_language.language_missing_fix")(
+        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → set the Language dropdown.",
+      ),
     );
     findings.push(
-      "The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.",
+      fd("pdf.title_language.language_missing_why")(
+        "The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.",
+      ),
     );
   }
 
-  if (pdfjs.author) findings.push(`Author: ${pdfjs.author}`);
+  if (pdfjs.author) findings.push(fd("pdf.title_language.author")`Author: ${pdfjs.author}`);
 
   return {
     id: "title_language",
@@ -787,29 +923,42 @@ function headingContentVerdict(census: HeadingContentCensus | null): {
 } {
   if (!census || census.unusable === 0) return { score: 100, findings: [] };
   const { inspected, empty, fragments, paragraphs, unusable, samples } = census;
-  const findings: string[] = ["--- Do the Headings Read Like Headings? ---"];
+  const findings: string[] = [
+    fd("pdf.heading_structure.content_heading")("--- Do the Headings Read Like Headings? ---"),
+  ];
   if (empty > 0) {
     findings.push(
-      `  ${empty} heading tag(s) carry no text at all — a screen-reader user who jumps to one lands on silence.`,
+      fd("pdf.heading_structure.content_empty", {
+        count: empty,
+      })`  ${empty} heading tag(s) carry no text at all — a screen-reader user who jumps to one lands on silence.`,
     );
   }
   if (fragments > 0) {
     findings.push(
-      `  ${fragments} heading tag(s) hold a fragment rather than a heading — the tag caught part of a sentence, often cut off mid-word${samples.length ? `: ${samples.map((t) => `"${t}"`).join(", ")}` : ""}.`,
+      fd("pdf.heading_structure.content_fragments", {
+        count: fragments,
+      })`  ${fragments} heading tag(s) hold a fragment rather than a heading — the tag caught part of a sentence, often cut off mid-word${samples.length ? `: ${samples.map((t) => `"${t}"`).join(", ")}` : ""}.`,
     );
   }
   if (paragraphs > 0) {
     findings.push(
-      `  ${paragraphs} heading tag(s) hold an entire paragraph. A heading is a signpost; a paragraph read out as one tells a listener nothing about where they are.`,
+      fd("pdf.heading_structure.content_paragraphs", {
+        count: paragraphs,
+      })`  ${paragraphs} heading tag(s) hold an entire paragraph. A heading is a signpost; a paragraph read out as one tells a listener nothing about where they are.`,
     );
   }
   const usable = inspected - unusable;
   const pct = Math.round((100 * usable) / inspected);
   findings.push(
-    `  ${usable} of ${inspected} heading tag(s) (${pct}%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.`,
+    fd("pdf.heading_structure.content_usable_share", {
+      count: usable,
+      total: inspected,
+    })`  ${usable} of ${inspected} heading tag(s) (${pct}%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.`,
   );
   findings.push(
-    "  This is the signature of automatic tagging applied after the fact (Acrobat's Autotag, or combining files that were tagged separately): the tags were placed by shape on the page rather than by meaning. Re-exporting from the source document with its real heading styles fixes it wholesale; repairing it in Acrobat means retagging each one by hand in the Tags panel.",
+    fd("pdf.heading_structure.content_autotag_note")(
+      "  This is the signature of automatic tagging applied after the fact (Acrobat's Autotag, or combining files that were tagged separately): the tags were placed by shape on the page rather than by meaning. Re-exporting from the source document with its real heading styles fixes it wholesale; repairing it in Acrobat means retagging each one by hand in the Tags panel.",
+    ),
   );
 
   if (inspected < HEADING_MIN_INSPECTED || unusable < HEADING_MIN_UNUSABLE) {
@@ -842,23 +991,34 @@ function untaggedHeadingDeduction(
   // same test to Heading styles and titled slides.
   const overwhelmed = headingsOverwhelmed(taggedCount, n);
   const findings = [
-    `${n} line(s) are formatted to look like headings (larger or bold text standing over a section) but are tagged as ordinary paragraphs, not headings — screen-reader users cannot find or jump to those sections. Retag each one as a heading at its level in the outline (in Acrobat's Tags panel, change its <P> tag to H2, H3 …), or apply Heading 1–6 styles in the source document and export the PDF again.`,
-    "--- Lines Styled Like Headings ---",
-    ...(pdfjs.untaggedVisualHeadingSamples ?? [])
-      .slice(0, MAX_UNTAGGED_HEADING_LINES)
-      .map((l) => `  "${truncateHeadingText(l.text)}" (page ${l.page})`),
+    fd("pdf.heading_structure.lookalike_headings", {
+      count: n,
+    })`${n} line(s) are formatted to look like headings (larger or bold text standing over a section) but are tagged as ordinary paragraphs, not headings — screen-reader users cannot find or jump to those sections. Retag each one as a heading at its level in the outline (in Acrobat's Tags panel, change its <P> tag to H2, H3 …), or apply Heading 1–6 styles in the source document and export the PDF again.`,
+    fd("pdf.heading_structure.lookalike_list_heading")("--- Lines Styled Like Headings ---"),
+    ...(pdfjs.untaggedVisualHeadingSamples ?? []).slice(0, MAX_UNTAGGED_HEADING_LINES).map(
+      (l) =>
+        fd("pdf.heading_structure.lookalike_list_item", {
+          pages: [l.page],
+        })`  "${truncateHeadingText(l.text)}" (page ${l.page})`,
+    ),
   ];
   if (n > MAX_UNTAGGED_HEADING_LINES) {
-    findings.push(`  ... and ${n - MAX_UNTAGGED_HEADING_LINES} more line(s)`);
+    findings.push(
+      fd("pdf.heading_structure.lookalike_list_more", {
+        count: n - MAX_UNTAGGED_HEADING_LINES,
+      })`  ... and ${n - MAX_UNTAGGED_HEADING_LINES} more line(s)`,
+    );
   }
   if (overwhelmed) {
     findings.splice(
       1,
       0,
-      overwhelmedHeadingsFinding(taggedCount, n, {
-        real: "heading tag(s)",
-        lookalike: "line(s) that look like headings but are tagged as paragraphs",
-      }),
+      fd("pdf.heading_structure.headings_overwhelmed", { count: n, total: taggedCount + n })(
+        overwhelmedHeadingsFinding(taggedCount, n, {
+          real: "heading tag(s)",
+          lookalike: "line(s) that look like headings but are tagged as paragraphs",
+        }),
+      ),
     );
     return { deduction: 100 - OVERWHELMED_HEADINGS_SCORE, findings };
   }
@@ -911,12 +1071,18 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
       // the author MEANT headings.
       const findings = [
         visualCount === 0
-          ? "No headings were found, and no lines that look like visual section headings (larger or bold text over body text) were detected either, so this document is treated as heading-less by design. If it does have section titles, tag them H1–H6 so screen-reader users can navigate."
-          : `No headings were found. One line looks like a visual heading ("${visualSamples[0] ?? ""}") — a single title does not make sections, so nothing is scored. If the document has more section titles, tag them H1–H6 so screen-reader users can navigate.`,
+          ? fd("pdf.heading_structure.no_headings")(
+              "No headings were found, and no lines that look like visual section headings (larger or bold text over body text) were detected either, so this document is treated as heading-less by design. If it does have section titles, tag them H1–H6 so screen-reader users can navigate.",
+            )
+          : fd(
+              "pdf.heading_structure.no_headings_lone_title",
+            )`No headings were found. One line looks like a visual heading ("${visualSamples[0] ?? ""}") — a single title does not make sections, so nothing is scored. If the document has more section titles, tag them H1–H6 so screen-reader users can navigate.`,
       ];
       if (roleMappedParagraphs.length > 0) {
         findings.push(
-          `Advisory — not scored: heading-like custom tags are mapped to paragraphs in the RoleMap (${roleMappedParagraphs.slice(0, 4).join(", ")}${roleMappedParagraphs.length > 4 ? ` (+${roleMappedParagraphs.length - 4} more)` : ""}). In a document this short your grade is not affected, but mapping them to H1–H6 instead would restore the outline for screen-reader users.`,
+          fd("pdf.heading_structure.rolemap_headings_to_paragraphs_short_doc", {
+            count: roleMappedParagraphs.length,
+          })`Advisory — not scored: heading-like custom tags are mapped to paragraphs in the RoleMap (${roleMappedParagraphs.slice(0, 4).join(", ")}${roleMappedParagraphs.length > 4 ? ` (+${roleMappedParagraphs.length - 4} more)` : ""}). In a document this short your grade is not affected, but mapping them to H1–H6 instead would restore the outline for screen-reader users.`,
         );
       }
       return {
@@ -933,8 +1099,12 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     }
 
     const findings = [
-      "No heading tags found in the document structure",
-      `${visualCount} line(s) look like section headings — larger or bold text over body text (e.g., ${visualSamples
+      fd("pdf.heading_structure.no_heading_tags")(
+        "No heading tags found in the document structure",
+      ),
+      fd("pdf.heading_structure.visual_headings_untagged", {
+        count: visualCount,
+      })`${visualCount} line(s) look like section headings — larger or bold text over body text (e.g., ${visualSamples
         .slice(0, 3)
         .map((t) => `"${t}"`)
         .join(
@@ -944,18 +1114,24 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
 
     if (roleMappedParagraphs.length > 0) {
       findings.push(
-        `Custom heading-like tags are present, but the RoleMap maps them to paragraphs: ${roleMappedParagraphs.slice(0, 4).join(", ")}${roleMappedParagraphs.length > 4 ? ` (+${roleMappedParagraphs.length - 4} more)` : ""}`,
+        fd("pdf.heading_structure.rolemap_headings_to_paragraphs", {
+          count: roleMappedParagraphs.length,
+        })`Custom heading-like tags are present, but the RoleMap maps them to paragraphs: ${roleMappedParagraphs.slice(0, 4).join(", ")}${roleMappedParagraphs.length > 4 ? ` (+${roleMappedParagraphs.length - 4} more)` : ""}`,
       );
     }
 
     if (qpdf.outlineCount > 0 || qpdf.paragraphCount > 0) {
       findings.push(
-        `Bookmarks and paragraph-level structure do not replace true H1–H6 semantics (${qpdf.outlineCount} bookmark(s), ${qpdf.paragraphCount} paragraph-level tag(s))`,
+        fd(
+          "pdf.heading_structure.bookmarks_not_headings",
+        )`Bookmarks and paragraph-level structure do not replace true H1–H6 semantics (${qpdf.outlineCount} bookmark(s), ${qpdf.paragraphCount} paragraph-level tag(s))`,
       );
     }
 
     findings.push(
-      "How to fix: In Adobe Acrobat, open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.",
+      fd("pdf.heading_structure.no_heading_tags_fix")(
+        "How to fix: In Adobe Acrobat, open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.",
+      ),
     );
     return {
       id: "heading_structure",
@@ -971,14 +1147,26 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   }
 
   // Show the heading outline as a compact flow
-  findings.push(`--- Heading Tree ---`);
-  findings.push(`  ${qpdf.headings.map((h) => h.level).join(" → ")}`);
+  findings.push(fd("pdf.heading_structure.tree_heading")`--- Heading Tree ---`);
+  findings.push(
+    fd("pdf.heading_structure.tree_levels", {
+      count: qpdf.headings.length,
+    })`  ${qpdf.headings.map((h) => h.level).join(" → ")}`,
+  );
 
   // The tree above shows LEVELS (from qpdf); this shows each heading's TEXT
   // (from pdfjs's struct-tree walk) so a remediator can see which section is
   // which. Absent when pdfjs could not resolve any heading text.
   if (pdfjs.headingOutline?.length) {
-    findings.push(...headingOutlineLines(pdfjs.headingOutline));
+    findings.push(
+      ...fdEach(headingOutlineLines(pdfjs.headingOutline), (line) =>
+        line.startsWith("---")
+          ? "pdf.heading_structure.outline_heading"
+          : line.startsWith("  ...")
+            ? "pdf.heading_structure.outline_more"
+            : "pdf.heading_structure.outline_item",
+      ),
+    );
   }
 
   // Do those headings read like headings? Levels are only half the outline.
@@ -996,10 +1184,14 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     // documents; requiring numbered levels is PDF/UA 7.4 / Matterhorn 14,
     // not a WCAG 2.1 criterion.
     findings.push(
-      "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — and PDF/UA requires them only for documents that are not strongly structured (ISO 14289-1, 7.4.2/7.4.4).",
+      fd("pdf.heading_structure.generic_h_only")(
+        "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — and PDF/UA requires them only for documents that are not strongly structured (ISO 14289-1, 7.4.2/7.4.4).",
+      ),
     );
     findings.push(
-      "How to fix (optional): In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
+      fd("pdf.heading_structure.generic_h_only_fix")(
+        "How to fix (optional): In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
+      ),
     );
     const untaggedGeneric = untaggedHeadingDeduction(pdfjs, qpdf.headings.length);
     findings.unshift(...untaggedGeneric.findings.slice(0, 1));
@@ -1030,7 +1222,9 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     if (levels[i] > levels[i - 1] + 1) {
       hierarchyBroken = true;
       findings.push(
-        `  Heading hierarchy skip: H${levels[i - 1]} → H${levels[i]} (skipped H${levels[i - 1] + 1})`,
+        fd(
+          "pdf.heading_structure.level_skip",
+        )`  Heading hierarchy skip: H${levels[i - 1]} → H${levels[i]} (skipped H${levels[i - 1] + 1})`,
       );
     }
   }
@@ -1049,7 +1243,9 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   // every heading finding here pointed a reader at the wrong checkpoint.
   if (h1Count > 1) {
     findings.push(
-      `Found ${h1Count} H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading (the document title), with sections demoted to H2 and below, so the outline has a single root.`,
+      fd("pdf.heading_structure.multiple_h1", {
+        count: h1Count,
+      })`Found ${h1Count} H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading (the document title), with sections demoted to H2 and below, so the outline has a single root.`,
     );
   }
 
@@ -1063,10 +1259,14 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   const mixedConventions = genericHCount > 0;
   if (mixedConventions) {
     findings.push(
-      `PDF/UA only — not scored: ${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-007); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.`,
+      fd("pdf.heading_structure.mixed_conventions", {
+        count: genericHCount,
+      })`PDF/UA only — not scored: ${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-007); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.`,
     );
     findings.push(
-      "How to fix (optional): In the Tags panel, change each generic <H> tag to the specific level (H1–H6) that matches its place in the outline.",
+      fd("pdf.heading_structure.mixed_conventions_fix")(
+        "How to fix (optional): In the Tags panel, change each generic <H> tag to the specific level (H1–H6) that matches its place in the outline.",
+      ),
     );
   }
 
@@ -1078,10 +1278,14 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   // Reported, never counted.
   if (hierarchyBroken) {
     findings.unshift(
-      `PDF/UA only — not scored: found ${levels.length} heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.`,
+      fd("pdf.heading_structure.level_order_gaps", {
+        total: levels.length,
+      })`PDF/UA only — not scored: found ${levels.length} heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 14 (Headings)), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.`,
     );
     findings.push(
-      "How to fix (optional): renumber the heading tags so levels never skip — e.g., don't jump from H1 to H3 without an H2 in between.",
+      fd("pdf.heading_structure.level_order_gaps_fix")(
+        "How to fix (optional): renumber the heading tags so levels never skip — e.g., don't jump from H1 to H3 without an H2 in between.",
+      ),
     );
   }
 
@@ -1090,11 +1294,17 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     // judgment is a heuristic (and pdf.js has misattributed heading text
     // before: v1.110.0), so it advises, never scores.
     findings.unshift(
-      `Advisory — not scored: found ${levels.length} heading tags in a sound level order, but some of them may not read as headings — review the outline above by hand. Heuristic judgment only; your grade is not affected.`,
+      fd("pdf.heading_structure.content_may_not_read_as_headings", {
+        total: levels.length,
+      })`Advisory — not scored: found ${levels.length} heading tags in a sound level order, but some of them may not read as headings — review the outline above by hand. Heuristic judgment only; your grade is not affected.`,
     );
   }
 
-  findings.push(`Found ${levels.length} heading tags with logical hierarchy`);
+  findings.push(
+    fd("pdf.heading_structure.headings_found", {
+      count: levels.length,
+    })`Found ${levels.length} heading tags with logical hierarchy`,
+  );
   const untagged = untaggedHeadingDeduction(pdfjs, qpdf.headings.length);
   findings.unshift(...untagged.findings.slice(0, 1));
   findings.push(...untagged.findings.slice(1));
@@ -1173,18 +1383,28 @@ function textFigureAdvisory(pdfjs: PdfjsResult): string[] {
   const out: string[] = [];
   const textFigures = (pdfjs.textBearingFigures ?? []).filter((f) => !f.hasAlt);
   if (textFigures.length > 0) {
-    out.push(`--- Figures That Contain Text ---`);
+    out.push(fd("pdf.alt_text.text_figures_heading")`--- Figures That Contain Text ---`);
     out.push(
-      `${textFigures.length} <Figure> tag(s) without alt text contain readable text — typically Word text boxes, sidebars, SmartArt, or chart title bars exported as figures:`,
+      fd("pdf.alt_text.text_figures", {
+        count: textFigures.length,
+      })`${textFigures.length} <Figure> tag(s) without alt text contain readable text — typically Word text boxes, sidebars, SmartArt, or chart title bars exported as figures:`,
     );
     for (const f of textFigures.slice(0, 10)) {
-      out.push(`  Page ${f.page}: "${f.preview}"`);
+      out.push(
+        fd("pdf.alt_text.text_figures_item", { pages: [f.page] })`  Page ${f.page}: "${f.preview}"`,
+      );
     }
     if (textFigures.length > 10) {
-      out.push(`  ... and ${textFigures.length - 10} more`);
+      out.push(
+        fd("pdf.alt_text.text_figures_more", {
+          count: textFigures.length - 10,
+        })`  ... and ${textFigures.length - 10} more`,
+      );
     }
     out.push(
-      'Do not add alt text to these. A <Figure>\'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it. Instead change the tag so the text is read directly: Tags panel → right-click the <Figure> → Properties → Type → "Section" (or "Paragraph" for a single block of text). In Word, keep body content out of text boxes and shapes — use ordinary paragraphs, headings, and lists. Pictures and charts still need alt text.',
+      fd("pdf.alt_text.text_figures_retag_advice")(
+        'Do not add alt text to these. A <Figure>\'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it. Instead change the tag so the text is read directly: Tags panel → right-click the <Figure> → Properties → Type → "Section" (or "Paragraph" for a single block of text). In Word, keep body content out of text boxes and shapes — use ordinary paragraphs, headings, and lists. Pictures and charts still need alt text.',
+      ),
     );
   }
   return out;
@@ -1280,9 +1500,15 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       grade: getGrade(0),
       severity: "Critical",
       findings: [
-        `${paintedImages} image(s) detected, and every one is marked as an artifact (decorative) — in a document whose tags contain no content at all.`,
-        "That pattern is what marking everything as decoration looks like, not a decision that each picture is decorative, so the images are counted as having no description. A screen reader user is told nothing about any of them.",
-        "How to fix: re-tag the document (All tools → Prepare for accessibility → Automatically tag PDF; classic UI: Tools → Accessibility → Autotag Document), then give every meaningful picture a description (All tools → Prepare for accessibility → Add alternate text) and mark only truly decorative ones as artifacts.",
+        fd("pdf.alt_text.all_artifacted_empty_tree", {
+          count: paintedImages,
+        })`${paintedImages} image(s) detected, and every one is marked as an artifact (decorative) — in a document whose tags contain no content at all.`,
+        fd("pdf.alt_text.all_artifacted_empty_tree_why")(
+          "That pattern is what marking everything as decoration looks like, not a decision that each picture is decorative, so the images are counted as having no description. A screen reader user is told nothing about any of them.",
+        ),
+        fd("pdf.alt_text.all_artifacted_empty_tree_fix")(
+          "How to fix: re-tag the document (All tools → Prepare for accessibility → Automatically tag PDF; classic UI: Tools → Accessibility → Autotag Document), then give every meaningful picture a description (All tools → Prepare for accessibility → Add alternate text) and mark only truly decorative ones as artifacts.",
+        ),
       ],
       explanation: altExplanation,
       helpLinks: altLinks,
@@ -1299,8 +1525,12 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       severity: null,
       notAssessed: true,
       findings: [
-        `${paintedImages} image(s) detected — all are marked as artifacts (decorative) and excluded from the reading order, so no alt text is required.`,
-        "Please verify: a person should confirm that none of these pictures carries information. If one does, it must be tagged as <Figure> with alternate text instead of being hidden — check in Acrobat's Tags panel.",
+        fd("pdf.alt_text.all_artifacted", {
+          count: paintedImages,
+        })`${paintedImages} image(s) detected — all are marked as artifacts (decorative) and excluded from the reading order, so no alt text is required.`,
+        fd("pdf.alt_text.all_artifacted_verify")(
+          "Please verify: a person should confirm that none of these pictures carries information. If one does, it must be tagged as <Figure> with alternate text instead of being hidden — check in Acrobat's Tags panel.",
+        ),
       ],
       explanation: altExplanation,
       helpLinks: altLinks,
@@ -1331,14 +1561,26 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       grade: getGrade(0),
       severity: getSeverity(0),
       findings: [
-        `${untaggedContentImages} content image(s) are painted on the page but none are tagged as <Figure> — they have no alternative text and are missing from the reading order entirely.`,
-        "These are the images left AFTER excluding everything correctly marked as a decorative Artifact, so each one is either content that needs a description or decoration that still needs to be artifacted.",
-        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order. Select each image, then either click Figure and add alternate text (right-click → Edit Alternate Text), or click Background/Artifact if it is purely decorative.",
-        `--- Image Census ---`,
-        `  Tagged <Figure> elements: 0`,
-        `  Content images painted outside any /Artifact run: ${untaggedContentImages}`,
-        `  Total image rendering operations observed: ${pdfjs.imageCount}`,
-        `  Image XObjects in the PDF object graph: ${qpdf.imageObjectCount}`,
+        fd("pdf.alt_text.no_figures_untagged_images", {
+          count: untaggedContentImages,
+        })`${untaggedContentImages} content image(s) are painted on the page but none are tagged as <Figure> — they have no alternative text and are missing from the reading order entirely.`,
+        fd("pdf.alt_text.no_figures_untagged_images_why")(
+          "These are the images left AFTER excluding everything correctly marked as a decorative Artifact, so each one is either content that needs a description or decoration that still needs to be artifacted.",
+        ),
+        fd("pdf.alt_text.no_figures_untagged_images_fix")(
+          "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order. Select each image, then either click Figure and add alternate text (right-click → Edit Alternate Text), or click Background/Artifact if it is purely decorative.",
+        ),
+        fd("pdf.alt_text.census_heading")`--- Image Census ---`,
+        fd("pdf.alt_text.census_tagged_figures")`  Tagged <Figure> elements: 0`,
+        fd("pdf.alt_text.census_untagged_content_images", {
+          count: untaggedContentImages,
+        })`  Content images painted outside any /Artifact run: ${untaggedContentImages}`,
+        fd("pdf.alt_text.census_paint_operations", {
+          count: pdfjs.imageCount,
+        })`  Total image rendering operations observed: ${pdfjs.imageCount}`,
+        fd("pdf.alt_text.census_image_objects", {
+          count: qpdf.imageObjectCount,
+        })`  Image XObjects in the PDF object graph: ${qpdf.imageObjectCount}`,
       ],
       explanation: altExplanation,
       helpLinks: altLinks,
@@ -1349,23 +1591,39 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   // to score automatically (pdfjs failed, or reported no artifact data).
   if (figures.length === 0 && formulaCount === 0 && untaggedImageSignals > 0) {
     const advisoryFindings: string[] = [
-      `${untaggedImageSignals} image-like object(s) detected, but no tagged <Figure> elements were found`,
-      "Automated alt-text scoring was skipped because raw image detection includes decorative graphics, repeated assets, and other non-content imagery that may not require alt text.",
-      "Manual review recommended: open the PDF in Adobe Acrobat or PAC and verify which visual elements are meaningful content images versus decorative artifacts.",
-      `--- Image Review Guidance ---`,
-      `  Tagged figures found: 0`,
-      `  Raw image signals detected: ${untaggedImageSignals}`,
-      `  Content images should be tagged as <Figure> and include meaningful /Alt text`,
-      `  Decorative graphics should be marked as Artifacts so they are removed from the reading order`,
+      fd("pdf.alt_text.image_signals_no_figures", {
+        count: untaggedImageSignals,
+      })`${untaggedImageSignals} image-like object(s) detected, but no tagged <Figure> elements were found`,
+      fd("pdf.alt_text.scoring_skipped_noisy_signals")(
+        "Automated alt-text scoring was skipped because raw image detection includes decorative graphics, repeated assets, and other non-content imagery that may not require alt text.",
+      ),
+      fd("pdf.alt_text.manual_review_recommended")(
+        "Manual review recommended: open the PDF in Adobe Acrobat or PAC and verify which visual elements are meaningful content images versus decorative artifacts.",
+      ),
+      fd("pdf.alt_text.review_guidance_heading")`--- Image Review Guidance ---`,
+      fd("pdf.alt_text.review_tagged_figures")`  Tagged figures found: 0`,
+      fd("pdf.alt_text.review_raw_signals", {
+        count: untaggedImageSignals,
+      })`  Raw image signals detected: ${untaggedImageSignals}`,
+      fd(
+        "pdf.alt_text.review_tag_content_images",
+      )`  Content images should be tagged as <Figure> and include meaningful /Alt text`,
+      fd(
+        "pdf.alt_text.review_artifact_decorative",
+      )`  Decorative graphics should be marked as Artifacts so they are removed from the reading order`,
     ];
     if (qpdf.imageObjectCount > 0) {
       advisoryFindings.push(
-        `  QPDF found ${qpdf.imageObjectCount} image XObject(s) in the PDF object graph`,
+        fd("pdf.alt_text.review_image_objects", {
+          count: qpdf.imageObjectCount,
+        })`  QPDF found ${qpdf.imageObjectCount} image XObject(s) in the PDF object graph`,
       );
     }
     if (pdfjs.imageCount > 0) {
       advisoryFindings.push(
-        `  PDF.js observed ${pdfjs.imageCount} image rendering operation(s) while painting pages`,
+        fd("pdf.alt_text.review_paint_operations", {
+          count: pdfjs.imageCount,
+        })`  PDF.js observed ${pdfjs.imageCount} image rendering operation(s) while painting pages`,
       );
     }
     return {
@@ -1386,12 +1644,18 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     const noImageFindings =
       textBearingNoAlt > 0
         ? [
-            `No images to describe — the only ${textBearingNoAlt === 1 ? "<Figure> tag is" : `${textBearingNoAlt} <Figure> tags are`} text (a Word text box, sidebar, SmartArt or chart title bar exported as a figure), which a screen reader reads as text — this category does not affect the score`,
+            fd("pdf.alt_text.only_text_figures", {
+              count: textBearingNoAlt,
+            })`No images to describe — the only ${textBearingNoAlt === 1 ? "<Figure> tag is" : `${textBearingNoAlt} <Figure> tags are`} text (a Word text box, sidebar, SmartArt or chart title bar exported as a figure), which a screen reader reads as text — this category does not affect the score`,
             ...textFigureAdvisory(pdfjs),
           ]
         : [
-            "No images detected in this document — this category does not affect the score",
-            "If this document does contain images, they may not be properly tagged as <Figure> elements. Verify manually in Adobe Acrobat's Tags panel.",
+            fd("pdf.alt_text.no_images")(
+              "No images detected in this document — this category does not affect the score",
+            ),
+            fd("pdf.alt_text.no_images_verify")(
+              "If this document does contain images, they may not be properly tagged as <Figure> elements. Verify manually in Adobe Acrobat's Tags panel.",
+            ),
           ];
     return {
       id: "alt_text",
@@ -1421,22 +1685,38 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const findings: string[] = [];
 
   if (figures.length > 0 && figuresWithAlt === figures.length) {
-    findings.push(`All ${figures.length} tagged image(s) have alternative text`);
-    findings.push(`--- Image Alt Text Details ---`);
+    findings.push(
+      fd("pdf.alt_text.all_images_have_alt", {
+        count: figures.length,
+        total: figures.length,
+      })`All ${figures.length} tagged image(s) have alternative text`,
+    );
+    findings.push(fd("pdf.alt_text.alt_details_heading")`--- Image Alt Text Details ---`);
     for (let fi = 0; fi < figures.length && fi < 20; fi++) {
       const fig = figures[fi];
       const label = figures.length > 1 ? `Image ${fi + 1}` : "Image";
-      findings.push(`  ${label}: "${fig.altText || "(empty alt)"}"`);
+      findings.push(
+        fd("pdf.alt_text.alt_details_item")`  ${label}: "${fig.altText || "(empty alt)"}"`,
+      );
     }
     if (figures.length > 20) {
-      findings.push(`  ... and ${figures.length - 20} more image(s)`);
+      findings.push(
+        fd("pdf.alt_text.alt_details_more", {
+          count: figures.length - 20,
+        })`  ... and ${figures.length - 20} more image(s)`,
+      );
     }
     // Text-bearing figures are excluded from the census above (they are not
     // missing alt); the retagging advisory still has to reach the author.
     findings.push(...textFigureAdvisory(pdfjs));
   } else if (figures.length > 0) {
-    findings.push(`${figuresWithAlt} of ${figures.length} image(s) have alternative text`);
-    findings.push(`--- Images Missing Alt Text ---`);
+    findings.push(
+      fd("pdf.alt_text.images_with_alt", {
+        count: figuresWithAlt,
+        total: figures.length,
+      })`${figuresWithAlt} of ${figures.length} image(s) have alternative text`,
+    );
+    findings.push(fd("pdf.alt_text.missing_list_heading")`--- Images Missing Alt Text ---`);
     let missingCount = 0;
     // Does this figure paint a picture, or only draw? Known only when both
     // analyzers reported per-figure evidence; otherwise it is not guessed.
@@ -1463,42 +1743,62 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
         const what = figures[fi].altEmpty ? "its /Alt is empty" : "no /Alt attribute";
         findings.push(
           placeholder
-            ? `  Image ${fi + 1}: <Figure> tag — its alt text is only "${placeholder}", a file name, placeholder word or page label, not a description (WCAG failure F30)`
-            : `  Image ${fi + 1}: <Figure> tag — ${what}${kind === "drawn" ? " (a drawn shape, not a picture)" : kind === "picture" ? " (a picture)" : ""}`,
+            ? fd(
+                "pdf.alt_text.missing_list_item_placeholder",
+              )`  Image ${fi + 1}: <Figure> tag — its alt text is only "${placeholder}", a file name, placeholder word or page label, not a description (WCAG failure F30)`
+            : fd(
+                "pdf.alt_text.missing_list_item",
+              )`  Image ${fi + 1}: <Figure> tag — ${what}${kind === "drawn" ? " (a drawn shape, not a picture)" : kind === "picture" ? " (a picture)" : ""}`,
         );
       }
     }
     const drawnMissing = figures.filter((f) => !f.hasAlt && figureKind(f.ref) === "drawn").length;
     const totalMissing = figures.filter((f) => !f.hasAlt).length;
     if (totalMissing > 15) {
-      findings.push(`  ... and ${totalMissing - 15} more image(s) without alt text`);
+      findings.push(
+        fd("pdf.alt_text.missing_list_more", {
+          count: totalMissing - 15,
+        })`  ... and ${totalMissing - 15} more image(s) without alt text`,
+      );
     }
     if (figuresWithAlt > 0) {
-      findings.push(`--- Images With Alt Text ---`);
+      findings.push(fd("pdf.alt_text.with_alt_list_heading")`--- Images With Alt Text ---`);
       let shownCount = 0;
       for (let fi = 0; fi < figures.length && shownCount < 10; fi++) {
         if (figures[fi].hasAlt) {
           shownCount++;
-          findings.push(`  Image ${fi + 1}: "${figures[fi].altText}"`);
+          findings.push(
+            fd("pdf.alt_text.with_alt_list_item")`  Image ${fi + 1}: "${figures[fi].altText}"`,
+          );
         }
       }
       if (figuresWithAlt > 10) {
-        findings.push(`  ... and ${figuresWithAlt - 10} more image(s) with alt text`);
+        findings.push(
+          fd("pdf.alt_text.with_alt_list_more", {
+            count: figuresWithAlt - 10,
+          })`  ... and ${figuresWithAlt - 10} more image(s) with alt text`,
+        );
       }
     }
     findings.push(
-      'How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the "Alternate Text" field.',
+      fd("pdf.alt_text.images_missing_alt_fix")(
+        'How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the "Alternate Text" field.',
+      ),
     );
     if (drawnMissing > 0) {
       // A different fix from a picture's, and the author cannot tell which
       // is which from "8 images have no alt text": a one-page PowerPoint
       // flyer listed its QR code and logo beside six background boxes.
       findings.push(
-        `${drawnMissing} of the image(s) above ${drawnMissing === 1 ? "is a drawn shape" : "are drawn shapes"} — a box, band, line or icon drawn on the page, not a picture. If a shape is only decoration, do not describe it: mark it decorative so a screen reader skips it. In the program that made the file (Word or PowerPoint: right-click the shape → View Alt Text → Mark as decorative), then export the PDF again; or in Acrobat, use Fix reading order to select it and choose Background/Artifact. A shape that carries meaning (an arrow in a diagram) needs a description like any picture.`,
+        fd("pdf.alt_text.drawn_shapes", {
+          count: drawnMissing,
+        })`${drawnMissing} of the image(s) above ${drawnMissing === 1 ? "is a drawn shape" : "are drawn shapes"} — a box, band, line or icon drawn on the page, not a picture. If a shape is only decoration, do not describe it: mark it decorative so a screen reader skips it. In the program that made the file (Word or PowerPoint: right-click the shape → View Alt Text → Mark as decorative), then export the PDF again; or in Acrobat, use Fix reading order to select it and choose Background/Artifact. A shape that carries meaning (an arrow in a diagram) needs a description like any picture.`,
       );
     }
     findings.push(
-      'Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".',
+      fd("pdf.alt_text.good_alt_tip")(
+        'Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".',
+      ),
     );
 
     // Figures that are really text. Word exports text boxes, sidebars,
@@ -1530,43 +1830,69 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const textLineLikeImages = qpdf.textLineLikeImageCount ?? 0;
   const everyImageDescribed = figures.length > 0 && figuresWithAlt === figures.length;
   if (textLineLikeImages > 0 && everyImageDescribed) {
-    findings.push(`--- Some Lettering May Not Be Real Text ---`);
     findings.push(
-      `${textLineLikeImages} image(s) here are shaped like lines of writing rather than like photographs — often a banner or letterhead whose words are part of the artwork. You have described them, which is the right thing to do, so this is a note rather than a problem: a description makes the meaning available to a screen reader, but the words themselves still cannot be searched for, selected, or resized. If that wording matters to readers, consider also having it on the page as ordinary text. Advisory — this does not affect the score.`,
+      fd("pdf.alt_text.text_like_images_heading")`--- Some Lettering May Not Be Real Text ---`,
+    );
+    findings.push(
+      fd("pdf.alt_text.text_like_images_described", {
+        count: textLineLikeImages,
+      })`${textLineLikeImages} image(s) here are shaped like lines of writing rather than like photographs — often a banner or letterhead whose words are part of the artwork. You have described them, which is the right thing to do, so this is a note rather than a problem: a description makes the meaning available to a screen reader, but the words themselves still cannot be searched for, selected, or resized. If that wording matters to readers, consider also having it on the page as ordinary text. Advisory — this does not affect the score.`,
     );
   } else if (textLineLikeImages > 0) {
-    findings.push(`--- Some Lettering May Not Be Real Text ---`);
     findings.push(
-      `${textLineLikeImages} image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos. Graphics that shape usually mean words have been baked into artwork instead of typed as text. Letterheads and banner headings are where this happens most. On screen those words look perfect, which is exactly why it goes unnoticed.`,
+      fd("pdf.alt_text.text_like_images_heading")`--- Some Lettering May Not Be Real Text ---`,
     );
     findings.push(
-      "Why it matters: a picture of a word is not a word. A screen reader has nothing to read out — it sees artwork, not letters. Find-on-this-page cannot search it. It will not rearrange itself when someone zooms in, and it can turn blurry when magnified. None of that is solved by describing the graphic.",
+      fd("pdf.alt_text.text_like_images", {
+        count: textLineLikeImages,
+      })`${textLineLikeImages} image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos. Graphics that shape usually mean words have been baked into artwork instead of typed as text. Letterheads and banner headings are where this happens most. On screen those words look perfect, which is exactly why it goes unnoticed.`,
     );
     findings.push(
-      "How to check this yourself, in about ten seconds: open this PDF and try to select those words with your mouse, as though you were about to copy them. If they highlight, they are real text and you can ignore this note. If nothing highlights, they are artwork.",
+      fd("pdf.alt_text.text_like_images_why")(
+        "Why it matters: a picture of a word is not a word. A screen reader has nothing to read out — it sees artwork, not letters. Find-on-this-page cannot search it. It will not rearrange itself when someone zooms in, and it can turn blurry when magnified. None of that is solved by describing the graphic.",
+      ),
     );
     findings.push(
-      "Documents end up this way for two different reasons, and the reasons need different fixes. (1) The lettering belongs to a logo or letterhead that was pasted in as a graphic — those words were never text and cannot be turned back into text. Make sure the same wording also appears as ordinary text somewhere on the page (the organisation's name in the body or the footer, for example), and mark the graphic itself as decorative so it is not announced as an unexplained image. (2) The lettering is text somebody typed that carries a visual effect — a drop shadow, an outline, a glow, a reflection, or a colour that fades across the letters — and the PDF export flattened it on the way out. That one IS repairable at the source: select the text, remove the effect (in Word: Font → Text Effects) or retype it as plain text in a solid colour, then export again.",
+      fd("pdf.alt_text.text_like_images_self_check")(
+        "How to check this yourself, in about ten seconds: open this PDF and try to select those words with your mouse, as though you were about to copy them. If they highlight, they are real text and you can ignore this note. If nothing highlights, they are artwork.",
+      ),
     );
     findings.push(
-      'Either way, do not simply add a description. A description stands in for the words rather than bringing them back, so the wording still cannot be searched, selected, or resized. Worth knowing: no accessibility checker inside Word or InDesign can warn you about this, because the source file looks perfectly fine there — the words only stop being words when the PDF is produced, which makes the PDF the first place it can be caught. Decorative artwork is marked with the "Background/Artifact" option in Acrobat\'s reading-order tool.',
+      fd("pdf.alt_text.text_like_images_causes")(
+        "Documents end up this way for two different reasons, and the reasons need different fixes. (1) The lettering belongs to a logo or letterhead that was pasted in as a graphic — those words were never text and cannot be turned back into text. Make sure the same wording also appears as ordinary text somewhere on the page (the organisation's name in the body or the footer, for example), and mark the graphic itself as decorative so it is not announced as an unexplained image. (2) The lettering is text somebody typed that carries a visual effect — a drop shadow, an outline, a glow, a reflection, or a colour that fades across the letters — and the PDF export flattened it on the way out. That one IS repairable at the source: select the text, remove the effect (in Word: Font → Text Effects) or retype it as plain text in a solid colour, then export again.",
+      ),
+    );
+    findings.push(
+      fd("pdf.alt_text.text_like_images_not_alt")(
+        'Either way, do not simply add a description. A description stands in for the words rather than bringing them back, so the wording still cannot be searched, selected, or resized. Worth knowing: no accessibility checker inside Word or InDesign can warn you about this, because the source file looks perfectly fine there — the words only stop being words when the PDF is produced, which makes the PDF the first place it can be caught. Decorative artwork is marked with the "Background/Artifact" option in Acrobat\'s reading-order tool.',
+      ),
     );
   }
 
   // Formulas (v1.92.0 — Matterhorn 17). Counted in the coverage figure above;
   // listed here so a formula-bearing document sees exactly what is measured.
   if (formulaCount > 0) {
-    findings.push(`--- Mathematical Formulas (Matterhorn 17) ---`);
+    findings.push(
+      fd("pdf.alt_text.formulas_heading")`--- Mathematical Formulas (Matterhorn 17) ---`,
+    );
     if (formulasMissingAlt === 0) {
       findings.push(
-        `  All ${formulaCount} <Formula> tag(s) carry a text alternative (/Alt or /ActualText).`,
+        fd("pdf.alt_text.formulas_all_have_alt", {
+          count: formulaCount,
+          total: formulaCount,
+        })`  All ${formulaCount} <Formula> tag(s) carry a text alternative (/Alt or /ActualText).`,
       );
     } else {
       findings.push(
-        `  ${formulasMissingAlt} of ${formulaCount} <Formula> tag(s) have no text alternative — a formula's glyphs rarely extract as speakable text, so a screen reader gets nothing usable from the expression itself. Counted against this category's coverage above.`,
+        fd("pdf.alt_text.formulas_missing_alt", {
+          count: formulasMissingAlt,
+          total: formulaCount,
+        })`  ${formulasMissingAlt} of ${formulaCount} <Formula> tag(s) have no text alternative — a formula's glyphs rarely extract as speakable text, so a screen reader gets nothing usable from the expression itself. Counted against this category's coverage above.`,
       );
       findings.push(
-        '  How to fix: In Adobe Acrobat, open the Tags panel → find each <Formula> tag → right-click → Properties → enter the spoken form in the Alternate Text field (e.g., "x equals negative b, plus or minus the square root of b squared minus 4 a c, all over 2 a").',
+        fd("pdf.alt_text.formulas_missing_alt_fix")(
+          '  How to fix: In Adobe Acrobat, open the Tags panel → find each <Formula> tag → right-click → Properties → enter the spoken form in the Alternate Text field (e.g., "x equals negative b, plus or minus the square root of b squared minus 4 a c, all over 2 a").',
+        ),
       );
     }
   }
@@ -1581,16 +1907,22 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     untaggedImageSignals > 0
   ) {
     findings.push(
-      `${untaggedImageSignals} image-like object(s) were also detected but could not be classified as content or decoration — review them manually in Acrobat's Tags panel; they are not counted in this category's coverage.`,
+      fd("pdf.alt_text.image_signals_unclassified", {
+        count: untaggedImageSignals,
+      })`${untaggedImageSignals} image-like object(s) were also detected but could not be classified as content or decoration — review them manually in Acrobat's Tags panel; they are not counted in this category's coverage.`,
     );
   }
 
   if (untaggedInDenominator > 0) {
     findings.push(
-      `${untaggedInDenominator} further content image(s) are painted in the document but are not tagged as <Figure> at all — they are missing from the reading order entirely, which is worse than a figure with no /Alt. They are counted against this category's coverage above.`,
+      fd("pdf.alt_text.untagged_content_images", {
+        count: untaggedInDenominator,
+      })`${untaggedInDenominator} further content image(s) are painted in the document but are not tagged as <Figure> at all — they are missing from the reading order entirely, which is worse than a figure with no /Alt. They are counted against this category's coverage above.`,
     );
     findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order, select each untagged image, then either click Figure and add alternate text, or click Background/Artifact if it is decorative.",
+      fd("pdf.alt_text.untagged_content_images_fix")(
+        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order, select each untagged image, then either click Figure and add alternate text, or click Background/Artifact if it is decorative.",
+      ),
     );
   }
 
@@ -1604,19 +1936,29 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     }
   }
   if (suspicious.length > 0) {
-    findings.push(`--- ⚠ Alt Text Quality Warning ---`);
+    findings.push(fd("pdf.alt_text.suspicious_alt_heading")`--- ⚠ Alt Text Quality Warning ---`);
     findings.push(
-      `  ${suspicious.length} image(s) have alt text that needs review (no score penalty):`,
+      fd("pdf.alt_text.suspicious_alt", {
+        count: suspicious.length,
+      })`  ${suspicious.length} image(s) have alt text that needs review (no score penalty):`,
     );
     for (const s of suspicious.slice(0, 15)) {
       const preview = s.alt.length > 60 ? s.alt.slice(0, 60) + "…" : s.alt;
-      findings.push(`  Image ${s.index}: "${preview}" — ${s.reason}`);
+      findings.push(
+        fd("pdf.alt_text.suspicious_alt_item")`  Image ${s.index}: "${preview}" — ${s.reason}`,
+      );
     }
     if (suspicious.length > 15) {
-      findings.push(`  ... and ${suspicious.length - 15} more suspicious alt text value(s)`);
+      findings.push(
+        fd("pdf.alt_text.suspicious_alt_more", {
+          count: suspicious.length - 15,
+        })`  ... and ${suspicious.length - 15} more suspicious alt text value(s)`,
+      );
     }
     findings.push(
-      `  Review these images and replace auto-generated or encoded alt text with meaningful descriptions.`,
+      fd(
+        "pdf.alt_text.suspicious_alt_review",
+      )`  Review these images and replace auto-generated or encoded alt text with meaningful descriptions.`,
     );
   }
 
@@ -1654,9 +1996,15 @@ function scoreColorContrast(): CategoryResult {
     severity: null,
     notAssessed: true,
     findings: [
-      "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
-      "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
-      "The category is shown so the external practical scoring schema is explicit, but it does not affect the score today.",
+      fd("pdf.color_contrast.not_computed")(
+        "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
+      ),
+      fd("pdf.color_contrast.not_applicable_until_implemented")(
+        "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
+      ),
+      fd("pdf.color_contrast.shown_for_schema")(
+        "The category is shown so the external practical scoring schema is explicit, but it does not affect the score today.",
+      ),
     ],
     explanation:
       "Color contrast checks whether text stands out strongly enough from its background for low-vision users. Unlike web pages, PDFs often require rendered page analysis to determine foreground/background pairs accurately. This analyzer does not yet perform that rendered contrast audit.",
@@ -1691,8 +2039,10 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       grade: null,
       severity: null,
       findings: [
-        `Document has ${pdfjs.pageCount} page(s) — bookmarks are not required for documents under ${ANALYSIS.BOOKMARKS_PAGE_THRESHOLD} pages`,
-        "This category does not affect the score",
+        fd("pdf.bookmarks.not_required_short_document", {
+          count: pdfjs.pageCount,
+        })`Document has ${pdfjs.pageCount} page(s) — bookmarks are not required for documents under ${ANALYSIS.BOOKMARKS_PAGE_THRESHOLD} pages`,
+        fd("pdf.bookmarks.does_not_affect_score")("This category does not affect the score"),
       ],
       explanation: bookmarkExplanation,
       helpLinks: bookmarkLinks,
@@ -1703,11 +2053,15 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const outlineCount = Math.max(qpdf.outlineCount, pdfjs.outlineCount);
 
   if (hasOutlines && outlineCount > 0) {
-    const findings = [`${outlineCount} bookmark(s) found`];
+    const findings = [
+      fd("pdf.bookmarks.bookmarks_found", {
+        count: outlineCount,
+      })`${outlineCount} bookmark(s) found`,
+    ];
     if (qpdf.outlineTitles?.length > 0) {
-      findings.push("--- Bookmark Outline ---");
+      findings.push(fd("pdf.bookmarks.outline_heading")("--- Bookmark Outline ---"));
       for (const title of qpdf.outlineTitles) {
-        findings.push(`  ${title}`);
+        findings.push(fd("pdf.bookmarks.outline_item")`  ${title}`);
       }
     }
     return {
@@ -1737,8 +2091,12 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       grade: "A",
       severity: "No issues found",
       findings: [
-        `Advisory — not scored: this document has ${pdfjs.pageCount} pages and an outline dictionary with no entries — readers see an empty Bookmarks panel and effectively no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them.`,
-        "How to fix (optional): In Adobe Acrobat, go to the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks From Structure).",
+        fd(
+          "pdf.bookmarks.outline_empty",
+        )`Advisory — not scored: this document has ${pdfjs.pageCount} pages and an outline dictionary with no entries — readers see an empty Bookmarks panel and effectively no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them.`,
+        fd("pdf.bookmarks.outline_empty_fix")(
+          "How to fix (optional): In Adobe Acrobat, go to the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks From Structure).",
+        ),
       ],
       explanation: bookmarkExplanation,
       helpLinks: bookmarkLinks,
@@ -1757,8 +2115,12 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     grade: "A",
     severity: "No issues found",
     findings: [
-      `Advisory — not scored: this document has ${pdfjs.pageCount} pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them, and they remain the fastest way for every reader, screen-reader users included, to move around a long PDF.`,
-      "How to fix (optional): In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks From Structure).",
+      fd(
+        "pdf.bookmarks.no_bookmarks",
+      )`Advisory — not scored: this document has ${pdfjs.pageCount} pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them, and they remain the fastest way for every reader, screen-reader users included, to move around a long PDF.`,
+      fd("pdf.bookmarks.no_bookmarks_fix")(
+        "How to fix (optional): In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks From Structure).",
+      ),
     ],
     explanation: bookmarkExplanation,
     helpLinks: bookmarkLinks,
@@ -1795,7 +2157,11 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
       score: null,
       grade: null,
       severity: null,
-      findings: ["No tables detected in this document — this category does not affect the score"],
+      findings: [
+        fd("pdf.table_markup.no_tables")(
+          "No tables detected in this document — this category does not affect the score",
+        ),
+      ],
       explanation: tableExplanation,
       helpLinks: tableLinks,
     };
@@ -1831,7 +2197,7 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   const findings: string[] = [];
 
   // Per-table structural summary — ALL tables, layout ones marked.
-  findings.push(`--- Table Structure Overview ---`);
+  findings.push(fd("pdf.table_markup.overview_heading")`--- Table Structure Overview ---`);
   for (let ti = 0; ti < totalTables; ti++) {
     const t = qpdf.tables[ti];
     const label = totalTables > 1 ? `Table ${ti + 1}` : "Table";
@@ -1853,23 +2219,29 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
     if (t.hasHeaderAssociation) parts.push("/Headers assoc: yes");
     if (isBareGrid(t)) parts.push("no header cells and nothing drawn — layout, not scored");
     else if (!isDataTable(t)) parts.push("single-column — layout, not scored");
-    findings.push(`  ${label}: ${parts.join(" | ")}`);
+    findings.push(fd("pdf.table_markup.overview_item")`  ${label}: ${parts.join(" | ")}`);
   }
 
   const bareGridAdvisory =
     bareGridCount > 0
-      ? `Advisory — not scored: ${bareGridCount} table(s) have no header cells and nothing drawn — no ruled line and no cell fill anywhere in their area — usually a grid used only to line things up, so header cells are not demanded and your grade is not affected. If any of these really presents data, its missing header row IS a WCAG 1.3.1 failure: tag its header cells <TH>.`
+      ? fd("pdf.table_markup.bare_grid_layout", {
+          count: bareGridCount,
+        })`Advisory — not scored: ${bareGridCount} table(s) have no header cells and nothing drawn — no ruled line and no cell fill anywhere in their area — usually a grid used only to line things up, so header cells are not demanded and your grade is not affected. If any of these really presents data, its missing header row IS a WCAG 1.3.1 failure: tag its header cells <TH>.`
       : null;
 
   if (dataTables.length === 0) {
     if (layoutCount > 0) {
       findings.push(
-        `${layoutCount} single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.`,
+        fd("pdf.table_markup.only_layout_tables", {
+          count: layoutCount,
+        })`${layoutCount} single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.`,
       );
     }
     if (bareGridAdvisory) findings.push(bareGridAdvisory);
     findings.push(
-      "If any of these actually presents data relationships, restructure it as a real table with <TH> header cells; if it only positions content, consider whether it needs to be a <Table> at all.",
+      fd("pdf.table_markup.layout_tables_review")(
+        "If any of these actually presents data relationships, restructure it as a real table with <TH> header cells; if it only positions content, consider whether it needs to be a <Table> at all.",
+      ),
     );
     return {
       id: "table_markup",
@@ -1886,7 +2258,10 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
 
   if (layoutCount > 0) {
     findings.push(
-      `${layoutCount} single-column table(s) are treated as layout structures and excluded from the checks below; the ${dataTables.length} multi-column data table(s) are scored.`,
+      fd("pdf.table_markup.layout_tables_excluded", {
+        count: layoutCount,
+        total: totalTables,
+      })`${layoutCount} single-column table(s) are treated as layout structures and excluded from the checks below; the ${dataTables.length} multi-column data table(s) are scored.`,
     );
   }
   if (bareGridAdvisory) findings.push(bareGridAdvisory);
@@ -1901,7 +2276,9 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   }).length;
   if (emptyHeaderTables > 0) {
     findings.push(
-      `Advisory — not scored: ${emptyHeaderTables} table(s) have header cells (<TH>) with no text — the header structure is there, so this is not counted against your grade, but screen readers announce nothing for them. Give each header cell its label.`,
+      fd("pdf.table_markup.empty_header_cells", {
+        count: emptyHeaderTables,
+      })`Advisory — not scored: ${emptyHeaderTables} table(s) have header cells (<TH>) with no text — the header structure is there, so this is not counted against your grade, but screen readers announce nothing for them. Give each header cell its label.`,
     );
   }
 
@@ -1913,29 +2290,52 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   if (withHeaders === n) {
     score += 40;
     const totalTH = dataTables.reduce((sum, t) => sum + t.headerCount, 0);
-    findings.push(`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`);
+    findings.push(
+      fd("pdf.table_markup.all_have_headers", {
+        count: n,
+        total: n,
+      })`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`,
+    );
   } else if (withHeaders > 0) {
     score += 20;
     findings.push(
-      `${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing <TH> tags`,
+      fd("pdf.table_markup.some_missing_headers", {
+        count: n - withHeaders,
+        total: n,
+      })`${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing <TH> tags`,
     );
     for (const { t, i } of scored) {
       if (!t.hasHeaders) {
-        findings.push(`  Table ${i + 1}: 0 <TH> found — all ${t.dataCellCount} cells are <TD>`);
+        findings.push(
+          fd(
+            "pdf.table_markup.missing_headers_item",
+          )`  Table ${i + 1}: 0 <TH> found — all ${t.dataCellCount} cells are <TD>`,
+        );
       }
     }
     findings.push(
-      "Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find header rows → change <TD> to <TH>",
+      fd("pdf.table_markup.some_missing_headers_fix")(
+        "Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find header rows → change <TD> to <TH>",
+      ),
     );
   } else {
     findings.push(
-      `${n} table(s) found but none have header cells — screen readers cannot identify column or row headers`,
+      fd("pdf.table_markup.no_headers", {
+        count: n,
+        total: n,
+      })`${n} table(s) found but none have header cells — screen readers cannot identify column or row headers`,
     );
     for (const { t, i } of scored) {
-      findings.push(`  Table ${i + 1}: ${t.dataCellCount} <TD> cells, 0 <TH> cells`);
+      findings.push(
+        fd(
+          "pdf.table_markup.no_headers_item",
+        )`  Table ${i + 1}: ${t.dataCellCount} <TD> cells, 0 <TH> cells`,
+      );
     }
     findings.push(
-      "Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>",
+      fd("pdf.table_markup.no_headers_fix")(
+        "Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>",
+      ),
     );
   }
 
@@ -1944,22 +2344,33 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   if (withRows === n) {
     score += 20;
     const totalRows = dataTables.reduce((sum, t) => sum + t.rowCount, 0);
-    findings.push(`All ${n} table(s) have proper row structure — ${totalRows} <TR> row(s) total`);
+    findings.push(
+      fd("pdf.table_markup.all_have_rows", {
+        count: n,
+        total: n,
+      })`All ${n} table(s) have proper row structure — ${totalRows} <TR> row(s) total`,
+    );
   } else if (withRows > 0) {
     score += 10;
     for (const { t, i } of scored) {
       if (!t.hasRowStructure) {
         findings.push(
-          `  Table ${i + 1}: missing <TR> row structure — cells are directly under <Table>`,
+          fd(
+            "pdf.table_markup.missing_rows_item",
+          )`  Table ${i + 1}: missing <TR> row structure — cells are directly under <Table>`,
         );
       }
     }
   } else {
     findings.push(
-      "No tables have <TR> row structure — cells are not grouped into rows, which breaks screen reader table navigation",
+      fd("pdf.table_markup.no_row_structure")(
+        "No tables have <TR> row structure — cells are not grouped into rows, which breaks screen reader table navigation",
+      ),
     );
     findings.push(
-      "Fix: In Adobe Acrobat, restructure each table so cells are wrapped in <TR> (Table Row) tags",
+      fd("pdf.table_markup.no_row_structure_fix")(
+        "Fix: In Adobe Acrobat, restructure each table so cells are wrapped in <TR> (Table Row) tags",
+      ),
     );
   }
 
@@ -1994,28 +2405,42 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
     (t) => !associated(t) && t.simpleHeaderLayout && t.scopeMissingCount > 0,
   );
   if (tablesWithHeaders.length === 0) {
-    findings.push("Scope attributes: N/A (no header cells to check)");
+    findings.push(
+      fd("pdf.table_markup.scope_not_applicable")(
+        "Scope attributes: N/A (no header cells to check)",
+      ),
+    );
   } else if (withAssociation === tablesWithHeaders.length) {
     score += 10;
     const scopeOnly = tablesWithHeaders.every((t) => t.hasScope);
     findings.push(
       scopeOnly
-        ? "All <TH> cells have Scope attributes (/Column, /Row, or /Both)"
-        : "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)",
+        ? fd("pdf.table_markup.all_scope_present")(
+            "All <TH> cells have Scope attributes (/Column, /Row, or /Both)",
+          )
+        : fd("pdf.table_markup.all_associated")(
+            "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)",
+          ),
     );
     if (pdfUaOnlyScope.length > 0) {
       const cells = pdfUaOnlyScope.reduce((n, t) => n + t.scopeMissingCount, 0);
       findings.push(
-        `PDF/UA only — not scored: ${cells} header cell(s) across ${pdfUaOnlyScope.length} table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.`,
+        fd("pdf.table_markup.scope_missing_simple_tables", {
+          count: cells,
+        })`PDF/UA only — not scored: ${cells} header cell(s) across ${pdfUaOnlyScope.length} table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.`,
       );
       findings.push(
-        'How to fix (optional): In Adobe Acrobat, All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor → right-click the header cells → Table Cell Properties → set Scope ("Column" for headers along the top, "Row" for headers down the side). From Word, Acrobat\'s PDFMaker add-in (Acrobat tab → Create PDF) writes Scope on marked header cells; Word\'s built-in Save as PDF does not.',
+        fd("pdf.table_markup.scope_missing_simple_tables_fix")(
+          'How to fix (optional): In Adobe Acrobat, All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor → right-click the header cells → Table Cell Properties → set Scope ("Column" for headers along the top, "Row" for headers down the side). From Word, Acrobat\'s PDFMaker add-in (Acrobat tab → Create PDF) writes Scope on marked header cells; Word\'s built-in Save as PDF does not.',
+        ),
       );
     }
     const headersOnly = tablesWithHeaders.filter((t) => !t.hasScope && t.hasHeaderAssociation);
     if (headersOnly.length > 0) {
       findings.push(
-        `Advisory — not scored: ${headersOnly.length} table(s) rely on /Headers associations without /Scope on the <TH> cells. That is complete and spec-correct; adding Scope as well is belt-and-braces for viewers with partial /Headers support.`,
+        fd("pdf.table_markup.headers_attribute_without_scope", {
+          count: headersOnly.length,
+        })`Advisory — not scored: ${headersOnly.length} table(s) rely on /Headers associations without /Scope on the <TH> cells. That is complete and spec-correct; adding Scope as well is belt-and-braces for viewers with partial /Headers support.`,
       );
     }
   } else {
@@ -2025,20 +2450,29 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
     );
     if (withAssociation > 0) score += 5;
     findings.push(
-      `${totalMissing} <TH> cell(s) missing Scope attribute (with no /Headers association either) — and these tables need it: their headers run along more than one edge or contain spanned cells, so which header belongs to which cell cannot be worked out from the table's shape alone. That makes the relationship not programmatically determinable, which is a WCAG 1.3.1 failure, not only a PDF/UA one.`,
+      fd("pdf.table_markup.scope_missing_complex_tables", {
+        count: totalMissing,
+      })`${totalMissing} <TH> cell(s) missing Scope attribute (with no /Headers association either) — and these tables need it: their headers run along more than one edge or contain spanned cells, so which header belongs to which cell cannot be worked out from the table's shape alone. That makes the relationship not programmatically determinable, which is a WCAG 1.3.1 failure, not only a PDF/UA one.`,
     );
     for (const { t, i } of scored) {
       if (t.headerCount > 0 && t.scopeMissingCount > 0 && !scoredAsAssociated(t)) {
         findings.push(
-          `  Table ${i + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`,
+          fd("pdf.table_markup.scope_missing_item", {
+            count: t.scopeMissingCount,
+            total: t.headerCount,
+          })`  Table ${i + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`,
         );
       }
     }
     findings.push(
-      'Fix: which value to set is decided by where the header sits, not by preference. A header at the TOP of a column, labelling everything beneath it, is Scope = "Column". A header at the START of a row, labelling everything across it, is Scope = "Row". A table can need both kinds: in a grid with labels along the top AND down the left side, the top row is Column and the left-hand cells are Row. For the corner cell where the two meet — the one that labels its row and its column at once — the standard provides a third value, Scope = "Both"; an empty corner can simply stay a data cell.',
+      fd("pdf.table_markup.scope_which_value_fix")(
+        'Fix: which value to set is decided by where the header sits, not by preference. A header at the TOP of a column, labelling everything beneath it, is Scope = "Column". A header at the START of a row, labelling everything across it, is Scope = "Row". A table can need both kinds: in a grid with labels along the top AND down the left side, the top row is Column and the left-hand cells are Row. For the corner cell where the two meet — the one that labels its row and its column at once — the standard provides a third value, Scope = "Both"; an empty corner can simply stay a data cell.',
+      ),
     );
     findings.push(
-      'How to set it in Adobe Acrobat: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope. Re-exporting from Word will not add it on its own: Word\'s built-in Save as PDF writes header cells with no Scope at all. Mark the headers in Word (Table Design → "Header Row", plus "First Column" if the left-hand cells are labels too), then either set Scope in Acrobat as above, or export with Acrobat\'s PDFMaker add-in for Word (Acrobat tab → Create PDF), which writes Scope on marked header cells — and check the result.',
+      fd("pdf.table_markup.scope_how_to_set")(
+        'How to set it in Adobe Acrobat: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope. Re-exporting from Word will not add it on its own: Word\'s built-in Save as PDF writes header cells with no Scope at all. Mark the headers in Word (Table Design → "Header Row", plus "First Column" if the left-hand cells are labels too), then either set Scope in Acrobat as above, or export with Acrobat\'s PDFMaker add-in for Word (Acrobat tab → Create PDF), which writes Scope on marked header cells — and check the result.',
+      ),
     );
     // The standards distinction (user request, 2026-08-27). Authors are told
     // by one expert that a file is "100% compliant" and by this report that
@@ -2046,7 +2480,9 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
     // against different rulebooks. Saying so is more useful than letting the
     // reader assume one of the two is simply wrong.
     findings.push(
-      'Which rule does this break? Both, for these tables. PDF/UA — the PDF-specific standard — treats any header cell without Scope as a defect. WCAG asks only that the header-to-data relationship be determinable by software — but in a table with headers on more than one edge, or with spanned cells, it genuinely is not determinable without Scope or Headers. That is why these particular tables are scored: this is a WCAG 1.3.1 failure and not merely a PDF/UA readiness item. (Where a table\'s headers sit along a single edge with nothing spanned, this report says so and does NOT affect your grade — see any "PDF/UA only" note above.)',
+      fd("pdf.table_markup.scope_which_rule")(
+        'Which rule does this break? Both, for these tables. PDF/UA — the PDF-specific standard — treats any header cell without Scope as a defect. WCAG asks only that the header-to-data relationship be determinable by software — but in a table with headers on more than one edge, or with spanned cells, it genuinely is not determinable without Scope or Headers. That is why these particular tables are scored: this is a WCAG 1.3.1 failure and not merely a PDF/UA readiness item. (Where a table\'s headers sit along a single edge with nothing spanned, this report says so and does NOT affect your grade — see any "PDF/UA only" note above.)',
+      ),
     );
   }
 
@@ -2059,20 +2495,26 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   score += 10;
   const withNesting = dataTables.filter((t) => t.hasNestedTable).length;
   if (withNesting === 0) {
-    findings.push("No nested tables detected");
+    findings.push(fd("pdf.table_markup.no_nested_tables")("No nested tables detected"));
   } else {
     for (const { t, i } of scored) {
       if (t.hasNestedTable) {
         findings.push(
-          `  Table ${i + 1}: contains nested <Table> — extremely difficult for screen readers to navigate`,
+          fd(
+            "pdf.table_markup.nested_item",
+          )`  Table ${i + 1}: contains nested <Table> — extremely difficult for screen readers to navigate`,
         );
       }
     }
     findings.push(
-      "PDF/UA only — not scored: a nested table is not a WCAG failure — properly tagged, its relationships are still determinable — so this does not affect your grade. It is, however, genuinely hard to navigate by keyboard and by screen reader.",
+      fd("pdf.table_markup.nested_tables")(
+        "PDF/UA only — not scored: a nested table is not a WCAG failure — properly tagged, its relationships are still determinable — so this does not affect your grade. It is, however, genuinely hard to navigate by keyboard and by screen reader.",
+      ),
     );
     findings.push(
-      "How to fix (optional): Restructure nested tables into a single flat table, or split into separate independent tables",
+      fd("pdf.table_markup.nested_tables_fix")(
+        "How to fix (optional): Restructure nested tables into a single flat table, or split into separate independent tables",
+      ),
     );
   }
 
@@ -2084,14 +2526,24 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   score += 5;
   const withCaption = dataTables.filter((t) => t.hasCaption).length;
   if (withCaption === n) {
-    findings.push(`All ${n} table(s) have <Caption> elements`);
+    findings.push(
+      fd("pdf.table_markup.all_have_captions", {
+        count: n,
+        total: n,
+      })`All ${n} table(s) have <Caption> elements`,
+    );
   } else if (withCaption > 0) {
     findings.push(
-      `${withCaption} of ${n} table(s) have a <Caption>; ${n - withCaption} do not. A caption is optional (not required by WCAG 2.1/2.2), but it helps screen readers announce a table's purpose.`,
+      fd("pdf.table_markup.some_captions", {
+        count: withCaption,
+        total: n,
+      })`${withCaption} of ${n} table(s) have a <Caption>; ${n - withCaption} do not. A caption is optional (not required by WCAG 2.1/2.2), but it helps screen readers announce a table's purpose.`,
     );
   } else {
     findings.push(
-      "No tables have a <Caption> element. A caption is optional (not required by WCAG 2.1/2.2), but adding one as the first child of each <Table> helps screen readers announce the table's purpose.",
+      fd("pdf.table_markup.no_captions")(
+        "No tables have a <Caption> element. A caption is optional (not required by WCAG 2.1/2.2), but adding one as the first child of each <Table> helps screen readers announce the table's purpose.",
+      ),
     );
   }
 
@@ -2099,21 +2551,33 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   const withConsistent = dataTables.filter((t) => t.hasConsistentColumns === true).length;
   const checkable = dataTables.filter((t) => t.hasConsistentColumns !== null).length;
   if (checkable === 0) {
-    findings.push("Column consistency: could not be checked (no row structure)");
+    findings.push(
+      fd("pdf.table_markup.columns_not_checkable")(
+        "Column consistency: could not be checked (no row structure)",
+      ),
+    );
   } else if (withConsistent === checkable) {
     score += 10;
-    findings.push("All tables have consistent column counts across rows");
+    findings.push(
+      fd("pdf.table_markup.columns_consistent")(
+        "All tables have consistent column counts across rows",
+      ),
+    );
   } else {
     for (const { t, i } of scored) {
       if (t.hasConsistentColumns === false) {
         const unique = [...new Set(t.columnCounts)];
         findings.push(
-          `  Table ${i + 1}: inconsistent column counts — rows span [${t.columnCounts.join(", ")}] grid columns (expected uniform ${unique[0]}; ColSpan/RowSpan are already accounted for)`,
+          fd(
+            "pdf.table_markup.columns_inconsistent_item",
+          )`  Table ${i + 1}: inconsistent column counts — rows span [${t.columnCounts.join(", ")}] grid columns (expected uniform ${unique[0]}; ColSpan/RowSpan are already accounted for)`,
         );
       }
     }
     findings.push(
-      "Fix: Ensure every row covers the same number of grid columns — add the missing cells, or set correct /ColSpan//RowSpan attributes on spanning cells.",
+      fd("pdf.table_markup.columns_inconsistent_fix")(
+        "Fix: Ensure every row covers the same number of grid columns — add the missing cells, or set correct /ColSpan//RowSpan attributes on spanning cells.",
+      ),
     );
   }
 
@@ -2138,20 +2602,30 @@ function scoreTableMarkup(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
     score += 5;
     if (withExplicitHeaders > 0) {
       findings.push(
-        `${withExplicitHeaders} table(s) use explicit header-cell associations (/Headers attribute)`,
+        fd("pdf.table_markup.association_headers_attribute", {
+          count: withExplicitHeaders,
+        })`${withExplicitHeaders} table(s) use explicit header-cell associations (/Headers attribute)`,
       );
     } else if (dataTables.some((t) => t.hasScope)) {
-      findings.push("Header cells are programmatically associated with data cells via /Scope");
+      findings.push(
+        fd("pdf.table_markup.association_scope")(
+          "Header cells are programmatically associated with data cells via /Scope",
+        ),
+      );
     } else {
       findings.push(
-        "Header cells are programmatically associated with data cells by the table's shape: the headers run along a single edge with nothing spanned, so there is only one relationship they can express.",
+        fd("pdf.table_markup.association_by_shape")(
+          "Header cells are programmatically associated with data cells by the table's shape: the headers run along a single edge with nothing spanned, so there is only one relationship they can express.",
+        ),
       );
     }
   }
 
   if (withHeaders === 0 && withRows === n) {
     findings.push(
-      "The table has usable row structure, but row structure alone does not create programmatic header relationships.",
+      fd("pdf.table_markup.rows_without_headers_note")(
+        "The table has usable row structure, but row structure alone does not create programmatic header relationships.",
+      ),
     );
   }
 
@@ -2218,7 +2692,11 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
       score: null,
       grade: null,
       severity: null,
-      findings: ["No links found in this document — this category does not affect the score"],
+      findings: [
+        fd("pdf.link_quality.no_links")(
+          "No links found in this document — this category does not affect the score",
+        ),
+      ],
       explanation: linkExplanation,
       helpLinks: linkLinks,
     };
@@ -2283,42 +2761,79 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   const findings: string[] = [];
 
   if (failing === 0 && rawUrls.length === 0 && vague.length === 0 && unattributed.length === 0) {
-    findings.push(`All ${total} link(s) use descriptive text`);
-    findings.push(`--- Link Details ---`);
+    findings.push(
+      fd("pdf.link_quality.all_descriptive", {
+        count: total,
+        total,
+      })`All ${total} link(s) use descriptive text`,
+    );
+    findings.push(fd("pdf.link_quality.details_heading")`--- Link Details ---`);
     for (const { link } of classified.slice(0, 20)) {
-      findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
+      findings.push(
+        fd(
+          "pdf.link_quality.details_item",
+        )`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`,
+      );
     }
     if (total > 20) {
-      findings.push(`  ... and ${total - 20} more link(s)`);
+      findings.push(
+        fd("pdf.link_quality.details_more", {
+          count: total - 20,
+        })`  ... and ${total - 20} more link(s)`,
+      );
     }
   } else {
     if (unnamed.length > 0) {
       findings.push(
-        `${unnamed.length} of ${total} link(s) have no link text at all, so a screen reader announces the link with nothing to identify it. A link is a user interface component, and WCAG 4.1.2 Name, Role, Value (Level A) requires every one of them to carry a name that software can read — there is no surrounding sentence that can supply a name which is absent.`,
+        fd("pdf.link_quality.links_unnamed", {
+          count: unnamed.length,
+          total,
+        })`${unnamed.length} of ${total} link(s) have no link text at all, so a screen reader announces the link with nothing to identify it. A link is a user interface component, and WCAG 4.1.2 Name, Role, Value (Level A) requires every one of them to carry a name that software can read — there is no surrounding sentence that can supply a name which is absent.`,
       );
-      findings.push(`--- Links With No Link Text ---`);
+      findings.push(fd("pdf.link_quality.unnamed_list_heading")`--- Links With No Link Text ---`);
       for (const { link } of unnamed.slice(0, 15)) {
-        findings.push(`  (no text)${linkPageSuffix(link)} → ${link.url}`);
+        findings.push(
+          fd(
+            "pdf.link_quality.unnamed_list_item",
+          )`  (no text)${linkPageSuffix(link)} → ${link.url}`,
+        );
       }
       if (unnamed.length > 15) {
-        findings.push(`  ... and ${unnamed.length - 15} more`);
+        findings.push(
+          fd("pdf.link_quality.unnamed_list_more", {
+            count: unnamed.length - 15,
+          })`  ... and ${unnamed.length - 15} more`,
+        );
       }
     }
     if (vague.length > 0) {
       findings.push(
-        `Advisory — not scored: ${vague.length} of ${total} link(s) use non-descriptive text — a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link's purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.`,
+        fd("pdf.link_quality.vague_text", {
+          count: vague.length,
+          total,
+        })`Advisory — not scored: ${vague.length} of ${total} link(s) use non-descriptive text — a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link's purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.`,
       );
-      findings.push(`--- Links With Non-Descriptive Text ---`);
+      findings.push(
+        fd("pdf.link_quality.vague_list_heading")`--- Links With Non-Descriptive Text ---`,
+      );
       for (const { link } of vague.slice(0, 15)) {
         const t = link.text.trim();
         const why =
           t.replace(/[^a-z0-9]/gi, "").length <= 2
             ? "too short to describe a destination"
             : "vague phrase";
-        findings.push(`  "${t}"${linkPageSuffix(link)} — ${why} → ${link.url}`);
+        findings.push(
+          fd(
+            "pdf.link_quality.vague_list_item",
+          )`  "${t}"${linkPageSuffix(link)} — ${why} → ${link.url}`,
+        );
       }
       if (vague.length > 15) {
-        findings.push(`  ... and ${vague.length - 15} more`);
+        findings.push(
+          fd("pdf.link_quality.vague_list_more", {
+            count: vague.length - 15,
+          })`  ... and ${vague.length - 15} more`,
+        );
       }
     }
     if (untagged.length > 0) {
@@ -2328,44 +2843,87 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
           ? ` (${census} untagged link annotation(s) in all, counting links to other pages of this document.)`
           : "";
       findings.push(
-        `${untagged.length} of ${total} link(s) are not tagged — the link exists on the page, but no <Link> tag wraps it in the structure tree, so a screen reader following the tags never encounters it, and with the tab order set to follow the structure it cannot be tabbed to either.${internalNote}`,
+        fd("pdf.link_quality.links_untagged", {
+          count: untagged.length,
+          total,
+        })`${untagged.length} of ${total} link(s) are not tagged — the link exists on the page, but no <Link> tag wraps it in the structure tree, so a screen reader following the tags never encounters it, and with the tab order set to follow the structure it cannot be tabbed to either.${internalNote}`,
       );
-      findings.push(`--- Links Not Tagged ---`);
+      findings.push(fd("pdf.link_quality.untagged_list_heading")`--- Links Not Tagged ---`);
       for (const link of untagged.slice(0, 10)) {
-        findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
+        findings.push(
+          fd(
+            "pdf.link_quality.untagged_list_item",
+          )`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`,
+        );
       }
       if (untagged.length > 10) {
-        findings.push(`  ... and ${untagged.length - 10} more`);
+        findings.push(
+          fd("pdf.link_quality.untagged_list_more", {
+            count: untagged.length - 10,
+          })`  ... and ${untagged.length - 10} more`,
+        );
       }
       findings.push(
-        "The text shown for an untagged link is read from the page around it and may include neighbouring words.",
+        fd("pdf.link_quality.untagged_text_caveat")(
+          "The text shown for an untagged link is read from the page around it and may include neighbouring words.",
+        ),
       );
       findings.push(
-        'How to fix (optional): In Word, links inside text boxes, shapes, and SmartArt are exported without tags — move that content into the main text flow (or a table) and re-export. In Acrobat: open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element, which wraps the link in a <Link> tag; repeat until no unmarked links remain, then confirm each link\'s text sits inside its <Link> tag.',
+        fd("pdf.link_quality.links_untagged_fix")(
+          'How to fix (optional): In Word, links inside text boxes, shapes, and SmartArt are exported without tags — move that content into the main text flow (or a table) and re-export. In Acrobat: open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element, which wraps the link in a <Link> tag; repeat until no unmarked links remain, then confirm each link\'s text sits inside its <Link> tag.',
+        ),
       );
     }
     if (rawUrls.length > 0) {
-      findings.push(`--- Raw URL Link Text (advisory — not penalized) ---`);
       findings.push(
-        `${rawUrls.length} link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.`,
+        fd(
+          "pdf.link_quality.raw_urls_heading",
+        )`--- Raw URL Link Text (advisory — not penalized) ---`,
+      );
+      findings.push(
+        fd("pdf.link_quality.raw_urls", {
+          count: rawUrls.length,
+          total,
+        })`${rawUrls.length} link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.`,
       );
       for (const { link } of rawUrls.slice(0, 10)) {
-        findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
+        findings.push(
+          fd(
+            "pdf.link_quality.raw_urls_item",
+          )`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`,
+        );
       }
       if (rawUrls.length > 10) {
-        findings.push(`  ... and ${rawUrls.length - 10} more`);
+        findings.push(
+          fd("pdf.link_quality.raw_urls_more", {
+            count: rawUrls.length - 10,
+          })`  ... and ${rawUrls.length - 10} more`,
+        );
       }
     }
     if (unattributed.length > 0) {
       findings.push(
-        `Advisory — not scored: ${unattributed.length} link(s) expose no text this tool could attribute — often rotated text, or an image-only link. If one of these is genuinely an image with no alternative text, that is a WCAG 4.1.2 / 1.1.1 failure (F89); rotated text reads fine and merely defeats automated attribution. This tool cannot tell the two apart, so your grade is not affected — verify these by hand.`,
+        fd("pdf.link_quality.text_unattributable", {
+          count: unattributed.length,
+          total,
+        })`Advisory — not scored: ${unattributed.length} link(s) expose no text this tool could attribute — often rotated text, or an image-only link. If one of these is genuinely an image with no alternative text, that is a WCAG 4.1.2 / 1.1.1 failure (F89); rotated text reads fine and merely defeats automated attribution. This tool cannot tell the two apart, so your grade is not affected — verify these by hand.`,
       );
-      findings.push(`--- Links With No Attributable Text ---`);
+      findings.push(
+        fd("pdf.link_quality.unattributable_list_heading")`--- Links With No Attributable Text ---`,
+      );
       for (const link of unattributed.slice(0, 10)) {
-        findings.push(`  (no attributable text)${linkPageSuffix(link)} → ${link.url}`);
+        findings.push(
+          fd(
+            "pdf.link_quality.unattributable_list_item",
+          )`  (no attributable text)${linkPageSuffix(link)} → ${link.url}`,
+        );
       }
       if (unattributed.length > 10) {
-        findings.push(`  ... and ${unattributed.length - 10} more`);
+        findings.push(
+          fd("pdf.link_quality.unattributable_list_more", {
+            count: unattributed.length - 10,
+          })`  ... and ${unattributed.length - 10} more`,
+        );
       }
     }
     // The attributable links still get their summary when the ONLY thing
@@ -2381,24 +2939,41 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
       descriptive.length === attributable.length
     ) {
       findings.push(
-        `${descriptive.length} of ${attributable.length} attributable link(s) use descriptive text`,
+        fd("pdf.link_quality.attributable_all_descriptive", {
+          count: descriptive.length,
+          total: attributable.length,
+        })`${descriptive.length} of ${attributable.length} attributable link(s) use descriptive text`,
       );
     }
     if (descriptive.length > 0) {
-      findings.push(`--- Links With Descriptive Text ---`);
+      findings.push(
+        fd("pdf.link_quality.descriptive_list_heading")`--- Links With Descriptive Text ---`,
+      );
       for (const { link } of descriptive.slice(0, 10)) {
-        findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
+        findings.push(
+          fd(
+            "pdf.link_quality.descriptive_list_item",
+          )`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`,
+        );
       }
       if (descriptive.length > 10) {
-        findings.push(`  ... and ${descriptive.length - 10} more descriptive link(s)`);
+        findings.push(
+          fd("pdf.link_quality.descriptive_list_more", {
+            count: descriptive.length - 10,
+          })`  ... and ${descriptive.length - 10} more descriptive link(s)`,
+        );
       }
     }
     if (vague.length > 0) {
       findings.push(
-        "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
+        fd("pdf.link_quality.vague_text_context_note")(
+          "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
+        ),
       );
       findings.push(
-        "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit the text via the Edit tool (All tools → Edit a PDF; classic UI: Tools → Edit PDF).",
+        fd("pdf.link_quality.vague_text_fix")(
+          "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit the text via the Edit tool (All tools → Edit a PDF; classic UI: Tools → Edit PDF).",
+        ),
       );
     }
   }
@@ -2447,7 +3022,11 @@ function scoreFormAccessibility(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryR
       score: null,
       grade: null,
       severity: null,
-      findings: ["No form fields found in this document — this category does not affect the score"],
+      findings: [
+        fd("pdf.form_accessibility.no_fields")(
+          "No form fields found in this document — this category does not affect the score",
+        ),
+      ],
       explanation: formExplanation,
       helpLinks: formLinks,
     };
@@ -2457,7 +3036,11 @@ function scoreFormAccessibility(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryR
   let score = Math.floor((withLabels / qpdf.formFields.length) * 100);
   const findings: string[] = [];
 
-  findings.push(`${qpdf.formFields.length} form field(s) detected`);
+  findings.push(
+    fd("pdf.form_accessibility.fields_detected", {
+      count: qpdf.formFields.length,
+    })`${qpdf.formFields.length} form field(s) detected`,
+  );
 
   // Untagged widgets (v1.94.0 — Matterhorn 28, the untagged-link mechanics
   // applied to form fields): a visible widget no structure element references
@@ -2477,52 +3060,95 @@ function scoreFormAccessibility(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryR
     // score; an all-untagged form drives it to 0.
     score = Math.min(score, Math.floor(((totalWidgets - untaggedWidgets!) / totalWidgets) * 100));
     findings.push(
-      `${untaggedWidgets} of ${totalWidgets} visible form-field widget(s) are not referenced from the tag structure — no structure element points at them (no OBJR), so a screen reader following the tags never reaches those fields, whatever their tooltips say.`,
+      fd("pdf.form_accessibility.widgets_untagged", {
+        count: untaggedWidgets,
+        total: totalWidgets,
+      })`${untaggedWidgets} of ${totalWidgets} visible form-field widget(s) are not referenced from the tag structure — no structure element points at them (no OBJR), so a screen reader following the tags never reaches those fields, whatever their tooltips say.`,
     );
     findings.push(
-      'How to fix: In Adobe Acrobat, open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Annotations" → Find → Tag Element, so each field is wrapped in a <Form> tag at its reading position; then re-check the tab order.',
+      fd("pdf.form_accessibility.widgets_untagged_fix")(
+        'How to fix: In Adobe Acrobat, open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Annotations" → Find → Tag Element, so each field is wrapped in a <Form> tag at its reading position; then re-check the tab order.',
+      ),
     );
   }
 
   if (qpdf.hasXfa && !qpdf.needsRendering) {
     findings.push(
-      "Advisory — not scored: this is a static XFA form. The conventional PDF content audited here is exactly what viewers display, but the embedded XFA template layer itself was not separately audited.",
+      fd("pdf.form_accessibility.static_xfa")(
+        "Advisory — not scored: this is a static XFA form. The conventional PDF content audited here is exactly what viewers display, but the embedded XFA template layer itself was not separately audited.",
+      ),
     );
   }
 
   if (withLabels === qpdf.formFields.length) {
-    findings.push(`All fields have accessible tooltip labels (TU)`);
-    findings.push(`--- Form Field Details ---`);
+    findings.push(
+      fd("pdf.form_accessibility.all_labeled", {
+        count: withLabels,
+        total: qpdf.formFields.length,
+      })`All fields have accessible tooltip labels (TU)`,
+    );
+    findings.push(fd("pdf.form_accessibility.details_heading")`--- Form Field Details ---`);
     for (const field of qpdf.formFields.slice(0, 20)) {
-      findings.push(`  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`);
+      findings.push(
+        fd(
+          "pdf.form_accessibility.labeled_item",
+        )`  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`,
+      );
     }
     if (qpdf.formFields.length > 20) {
-      findings.push(`  ... and ${qpdf.formFields.length - 20} more field(s)`);
+      findings.push(
+        fd("pdf.form_accessibility.details_more", {
+          count: qpdf.formFields.length - 20,
+        })`  ... and ${qpdf.formFields.length - 20} more field(s)`,
+      );
     }
   } else {
-    findings.push(`${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`);
-    findings.push(`--- Unlabeled Form Fields ---`);
+    findings.push(
+      fd("pdf.form_accessibility.fields_unlabeled", {
+        count: qpdf.formFields.length - withLabels,
+        total: qpdf.formFields.length,
+      })`${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`,
+    );
+    findings.push(
+      fd("pdf.form_accessibility.unlabeled_list_heading")`--- Unlabeled Form Fields ---`,
+    );
     const unlabeled = qpdf.formFields.filter((f) => !f.hasTU);
     for (const field of unlabeled.slice(0, 20)) {
       findings.push(
-        `  ${field.name ? `"${field.name}"` : "(unnamed)"} — missing /TU tooltip label`,
+        fd(
+          "pdf.form_accessibility.unlabeled_item",
+        )`  ${field.name ? `"${field.name}"` : "(unnamed)"} — missing /TU tooltip label`,
       );
     }
     if (unlabeled.length > 20) {
-      findings.push(`  ... and ${unlabeled.length - 20} more unlabeled field(s)`);
+      findings.push(
+        fd("pdf.form_accessibility.unlabeled_list_more", {
+          count: unlabeled.length - 20,
+        })`  ... and ${unlabeled.length - 20} more unlabeled field(s)`,
+      );
     }
     if (withLabels > 0) {
-      findings.push(`--- Labeled Form Fields ---`);
+      findings.push(fd("pdf.form_accessibility.labeled_list_heading")`--- Labeled Form Fields ---`);
       const labeled = qpdf.formFields.filter((f) => f.hasTU);
       for (const field of labeled.slice(0, 10)) {
-        findings.push(`  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`);
+        findings.push(
+          fd(
+            "pdf.form_accessibility.labeled_item",
+          )`  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`,
+        );
       }
       if (labeled.length > 10) {
-        findings.push(`  ... and ${labeled.length - 10} more labeled field(s)`);
+        findings.push(
+          fd("pdf.form_accessibility.labeled_list_more", {
+            count: labeled.length - 10,
+          })`  ... and ${labeled.length - 10} more labeled field(s)`,
+        );
       }
     }
     findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Prepare a form (classic UI: Tools → Prepare Form), then right-click each field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.",
+      fd("pdf.form_accessibility.fields_unlabeled_fix")(
+        "How to fix: In Adobe Acrobat, open All tools → Prepare a form (classic UI: Tools → Prepare Form), then right-click each field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.",
+      ),
     );
   }
 
@@ -2566,9 +3192,15 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       grade: "F",
       severity: "Critical",
       findings: [
-        "No structure tree present — reading order cannot be determined",
-        "Without a tag structure, screen readers fall back to the raw drawing order, which may not match the visual layout at all.",
-        "How to fix: First add tags (All tools → Prepare for accessibility → Automatically tag PDF), then use Fix reading order (classic UI: Tools → Accessibility → Reading Order) to verify and correct the sequence.",
+        fd("pdf.reading_order.no_struct_tree")(
+          "No structure tree present — reading order cannot be determined",
+        ),
+        fd("pdf.reading_order.no_struct_tree_effect")(
+          "Without a tag structure, screen readers fall back to the raw drawing order, which may not match the visual layout at all.",
+        ),
+        fd("pdf.reading_order.no_struct_tree_fix")(
+          "How to fix: First add tags (All tools → Prepare for accessibility → Automatically tag PDF), then use Fix reading order (classic UI: Tools → Accessibility → Reading Order) to verify and correct the sequence.",
+        ),
       ],
       explanation: readingExplanation,
       helpLinks: readingLinks,
@@ -2588,9 +3220,15 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       grade: "F",
       severity: "Critical",
       findings: [
-        "The document has a tag structure, but it contains no content — every word sits outside the tags — so it gives no reading order at all.",
-        "Screen readers fall back to the raw drawing order, exactly as in an untagged file, which may not match the visual layout.",
-        "How to fix: re-tag the document (All tools → Prepare for accessibility → Automatically tag PDF), check in the Tags panel that the body text appears under the tags, then use Fix reading order to verify the sequence.",
+        fd("pdf.reading_order.struct_tree_empty")(
+          "The document has a tag structure, but it contains no content — every word sits outside the tags — so it gives no reading order at all.",
+        ),
+        fd("pdf.reading_order.struct_tree_empty_effect")(
+          "Screen readers fall back to the raw drawing order, exactly as in an untagged file, which may not match the visual layout.",
+        ),
+        fd("pdf.reading_order.struct_tree_empty_fix")(
+          "How to fix: re-tag the document (All tools → Prepare for accessibility → Automatically tag PDF), check in the Tags panel that the body text appears under the tags, then use Fix reading order to verify the sequence.",
+        ),
       ],
       explanation: readingExplanation,
       helpLinks: readingLinks,
@@ -2598,10 +3236,20 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
   }
 
   const findings: string[] = [];
-  findings.push(`Structure tree depth: ${qpdf.structTreeDepth} level(s)`);
-  findings.push(`Content items (MCIDs): ${qpdf.contentOrder.length}`);
   findings.push(
-    `Pages: ${qpdf.totalPageCount} | Paragraphs: ${qpdf.paragraphCount} | Headings: ${qpdf.headings.length}`,
+    fd("pdf.reading_order.tree_depth", {
+      count: qpdf.structTreeDepth,
+    })`Structure tree depth: ${qpdf.structTreeDepth} level(s)`,
+  );
+  findings.push(
+    fd("pdf.reading_order.content_items", {
+      count: qpdf.contentOrder.length,
+    })`Content items (MCIDs): ${qpdf.contentOrder.length}`,
+  );
+  findings.push(
+    fd(
+      "pdf.reading_order.structure_census",
+    )`Pages: ${qpdf.totalPageCount} | Paragraphs: ${qpdf.paragraphCount} | Headings: ${qpdf.headings.length}`,
   );
 
   // Check tree depth (flat = bad)
@@ -2611,10 +3259,14 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
     // so 1.3.2 is satisfiable and nothing here is a confirmed WCAG failure.
     // Depth is a quality signal, reported, never counted.
     findings.push(
-      "Advisory — not scored: the structure tree is flat (no meaningful nesting) — the document has tags in a single sequence rather than a nested hierarchy of sections. That sequence still gives assistive technology a reading order, so your grade is not affected, but nesting makes long documents far easier to navigate.",
+      fd("pdf.reading_order.flat_tree")(
+        "Advisory — not scored: the structure tree is flat (no meaningful nesting) — the document has tags in a single sequence rather than a nested hierarchy of sections. That sequence still gives assistive technology a reading order, so your grade is not affected, but nesting makes long documents far easier to navigate.",
+      ),
     );
     findings.push(
-      "How to fix (optional): Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
+      fd("pdf.reading_order.flat_tree_fix")(
+        "How to fix (optional): Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
+      ),
     );
     return {
       id: "reading_order",
@@ -2638,10 +3290,15 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
   // Rigorous verdict when we have enough data.
   if (rigorous.score !== null) {
     findings.push(
-      `Reading-order fidelity: ${rigorous.similarityPct}% (${rigorous.pagesAnalyzed} of ${qpdf.totalPageCount} page(s) compared)`,
+      fd("pdf.reading_order.fidelity", {
+        count: rigorous.pagesAnalyzed,
+        total: qpdf.totalPageCount,
+      })`Reading-order fidelity: ${rigorous.similarityPct}% (${rigorous.pagesAnalyzed} of ${qpdf.totalPageCount} page(s) compared)`,
     );
     findings.push(
-      `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong. Image (Figure) runs are excluded from the comparison — exporters paint images by z-order (typically last), which says nothing about reading order.`,
+      fd(
+        "pdf.reading_order.fidelity_method",
+      )`Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong. Image (Figure) runs are excluded from the comparison — exporters paint images by z-order (typically last), which says nothing about reading order.`,
     );
     if (rigorous.pagesWithDrift > 0) {
       // Name the pages: a count alone gives an author nothing to open.
@@ -2650,7 +3307,10 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
         .map((d) => `page ${d.page} (${d.similarityPct}%)`);
       const more = rigorous.driftPages.length - shown.length;
       findings.push(
-        `${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match): ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}. Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
+        fd("pdf.reading_order.pages_with_drift", {
+          count: rigorous.pagesWithDrift,
+          pages: rigorous.driftPages.map((d) => d.page),
+        })`${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match): ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}. Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
       );
     }
     // FORMS ARE NOT SCORED ON THIS METRIC (v1.107.0). Draw order and reading
@@ -2670,10 +3330,14 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
     const formFieldCount = qpdf.hasAcroForm ? qpdf.formFields.length : 0;
     if (formFieldCount > 0) {
       findings.push(
-        `Not scored for this document: it is a form (${formFieldCount} field(s)). In a form the two orders are expected to disagree — field captions and widgets are painted in a later pass, so a correctly tagged form, whose tags sit in logical reading position rather than paint position, would score worst. Measuring it here would punish the right answer.`,
+        fd("pdf.reading_order.form_not_scored", {
+          count: formFieldCount,
+        })`Not scored for this document: it is a form (${formFieldCount} field(s)). In a form the two orders are expected to disagree — field captions and widgets are painted in a later pass, so a correctly tagged form, whose tags sit in logical reading position rather than paint position, would score worst. Measuring it here would punish the right answer.`,
       );
       findings.push(
-        "How to check reading order in a form: tab through it with the keyboard and confirm focus moves in the order a person would fill it in, then read it with a screen reader. Acrobat's Order panel shows the tagged sequence.",
+        fd("pdf.reading_order.form_manual_check")(
+          "How to check reading order in a form: tab through it with the keyboard and confirm focus moves in the order a person would fill it in, then read it with a screen reader. Acrobat's Order panel shows the tagged sequence.",
+        ),
       );
       return {
         id: "reading_order",
@@ -2697,7 +3361,9 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       // is not automatically wrong" — so the measurement cannot support a
       // deduction. Reported for manual review, never counted.
       findings.push(
-        `Advisory — not scored: the tagged order agreed with the content stream's draw order on ${rigorous.similarityPct}% of comparable content. Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so this cannot be scored automatically and your grade is not affected. Verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.`,
+        fd(
+          "pdf.reading_order.order_divergence",
+        )`Advisory — not scored: the tagged order agreed with the content stream's draw order on ${rigorous.similarityPct}% of comparable content. Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so this cannot be scored automatically and your grade is not affected. Verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.`,
       );
     }
     return {
@@ -2714,10 +3380,14 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
   }
 
   findings.push(
-    "Automated reading-order verification could not be performed: the structure tree and content-stream MCID sequences did not overlap sufficiently for a meaningful comparison.",
+    fd("pdf.reading_order.not_verifiable")(
+      "Automated reading-order verification could not be performed: the structure tree and content-stream MCID sequences did not overlap sufficiently for a meaningful comparison.",
+    ),
   );
   findings.push(
-    "Manual review recommended: verify the tag order in Adobe Acrobat's Reading Order / Order panels or in PAC before publishing.",
+    fd("pdf.reading_order.manual_review_recommended")(
+      "Manual review recommended: verify the tag order in Adobe Acrobat's Reading Order / Order panels or in PAC before publishing.",
+    ),
   );
 
   return {

@@ -88,6 +88,24 @@ const remediationEnv = {
 /** The API's own cap — see THE CAPS above. Overrides restartPolicy's. */
 const API_MAX_MEMORY = "768M";
 
+// GRACEFUL STOP (API only). On stop / restart PM2 sends SIGINT and, by
+// default, SIGKILLs 1.6 seconds later — so every deploy used to cut off the
+// audits that were running. The API now handles the signal
+// (apps/api/src/services/shutdown.ts): it refuses new requests with 503 +
+// Retry-After, lets the ones in flight finish for up to
+// SHUTDOWN.DRAIN_DEADLINE_MS (30 s), closes its browsers and database, and
+// exits; a backstop exits it SHUTDOWN.FORCE_EXIT_GRACE_MS (5 s) after that.
+//
+// kill_timeout must stay ABOVE those two added together, or PM2 kills the
+// process while it is still finishing. ecosystemConfig.test.ts compares this
+// number with audit.config.ts and fails when it is too small.
+//
+// An idle API still stops at once; the wait is only ever as long as the work
+// in flight. Like every option here, a changed value reaches a registered
+// process only after `pm2 delete` + `pm2 start` (see the top of this file).
+/** Milliseconds PM2 waits after the stop signal before SIGKILL. */
+const API_KILL_TIMEOUT_MS = 40000;
+
 const restartPolicy = {
   max_memory_restart: "512M",
   restart_delay: 3000,
@@ -122,6 +140,7 @@ module.exports = {
       watch: false,
       ...restartPolicy,
       max_memory_restart: API_MAX_MEMORY,
+      kill_timeout: API_KILL_TIMEOUT_MS,
     },
     {
       name: "file-audit-web",

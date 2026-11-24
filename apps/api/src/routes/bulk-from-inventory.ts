@@ -7,7 +7,9 @@ import { analyzeDocument, detectFileType } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure, sha256Hex } from "../services/auditLog.js";
 import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
 import { validateUrlForFetch } from "../services/urlPolicy.js";
-import { SHARED_REPORTS } from "#config";
+import { ANALYSIS, BULK_INVENTORY, DEPLOY, SHARED_REPORTS } from "#config";
+import { mapAnalyzeError } from "../services/analyzeCore.js";
+import type { ApiErrorCode } from "../services/apiError.js";
 import db from "../db/sqlite.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
@@ -19,10 +21,30 @@ const router: IRouter = Router();
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_INVENTORY_BYTES = 5 * 1024 * 1024; // 5 MB NDJSON cap
-const MAX_FILE_BYTES = 25 * 1024 * 1024; // match ANALYSIS.MAX_FILE_SIZE_MB; applies to any of the four supported formats, not just PDF
-const MAX_FILES_PER_REQUEST = 100; // cap to keep requests reasonable
-const FETCH_TIMEOUT_MS = 30_000; // matches SCHEDULED_CHECKS.FETCH_TIMEOUT_MS
+// All four live in the root config (BULK_INVENTORY, ANALYSIS) — they used to
+// be literals here, where the per-file cap had to be kept equal to
+// ANALYSIS.MAX_FILE_SIZE_MB by hand.
+const MAX_INVENTORY_BYTES = BULK_INVENTORY.MAX_INVENTORY_BYTES; // NDJSON cap (text/plain)
+const MAX_FILE_BYTES = ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024; // same cap as an upload; any of the four formats
+const MAX_FILES_PER_REQUEST = BULK_INVENTORY.MAX_FILES_PER_REQUEST;
+const FETCH_TIMEOUT_MS = BULK_INVENTORY.FETCH_TIMEOUT_MS;
+
+/** The web origin report links are built on — the same resolution
+ *  /api/audit-url uses, so both endpoints return the same link shape. */
+function getReportBaseUrl(): string {
+  return process.env.NODE_ENV === "production" ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL;
+}
+
+/**
+ * The shareable report PAGE for a stored report: `<web origin>/report/<id>`,
+ * exactly what /api/audit-url returns. This endpoint used to return the
+ * relative API path `/api/reports/<id>` (the JSON, not the page), so a fleet
+ * tool had to build the link itself. `reportId` is unchanged for callers
+ * that already do. Exported for tests.
+ */
+export function buildReportUrl(id: string): string {
+  return `${getReportBaseUrl()}/report/${id}`;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,6 +66,23 @@ interface InvalidEntry {
   error: string;
 }
 
+/**
+ * The machine code for one entry's analysis failure — from the SAME mapping
+ * every other analysis path uses (services/analyzeCore.ts mapAnalyzeError),
+ * so a password-protected document is FILE_ENCRYPTED here as it is on
+ * /api/analyze. `record: false`: this route records its own failure rows.
+ * The human-readable line still comes from mapEntryError, unchanged.
+ * Exported for tests.
+ */
+export function entryErrorCode(err: unknown): ApiErrorCode {
+  return mapAnalyzeError(
+    (err ?? {}) as { status?: number; code?: string; message?: string; killed?: boolean },
+    undefined,
+    false,
+    { source: "url", record: false },
+  ).body.code;
+}
+
 interface BulkResult {
   sha256?: string;
   path: string;
@@ -53,6 +92,8 @@ interface BulkResult {
   reportId?: string;
   reportUrl?: string;
   error?: string;
+  /** Stable machine code for `error` (services/apiError.ts) — additive. */
+  errorCode?: ApiErrorCode;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +108,22 @@ interface BulkResult {
 // prefixed onto the returned string) without the raw detail. Mirrors the
 // generic per-entry catch-all's F2 fix further below — same rationale, this
 // is the SafeFetchError-specific catch, which F2 didn't touch.
+/** Machine code for a per-entry fetch failure. */
+function fetchErrorCode(code: string): ApiErrorCode {
+  switch (code) {
+    case "malformed_url":
+    case "redirect_invalid":
+    case "private_ip":
+      return "URL_NOT_ALLOWED";
+    case "timeout":
+      return "TIMEOUT";
+    case "oversized":
+      return "FILE_TOO_LARGE";
+    default:
+      return "FETCH_FAILED";
+  }
+}
+
 function curateSafeFetchMessage(code: string): string {
   switch (code) {
     case "malformed_url":
@@ -331,6 +388,7 @@ router.post(
         sha256: bad.sha256,
         path: bad.path,
         error: bad.error,
+        errorCode: "INVALID_REQUEST",
       }));
 
       // Stop when the client has gone (review 2026-11-12). A batch is up to
@@ -390,6 +448,7 @@ router.post(
                 reason: "fetch-failed",
               });
               result.error = `${e.code}: ${curateSafeFetchMessage(e.code)}`;
+              result.errorCode = fetchErrorCode(e.code);
               results.push(result);
               continue;
             }
@@ -406,6 +465,7 @@ router.post(
               reason: "fetch-failed",
             });
             result.error = `fetch failed: ${fetched.status} ${fetched.statusText}`;
+            result.errorCode = "FETCH_FAILED";
             results.push(result);
             continue;
           }
@@ -423,6 +483,7 @@ router.post(
           if (!fileType) {
             result.error =
               "fetched content is not a supported document (matches none of PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)";
+            result.errorCode = "UNSUPPORTED_TYPE";
             results.push(result);
             continue;
           }
@@ -480,7 +541,7 @@ router.post(
           });
 
           result.reportId = id;
-          result.reportUrl = `/api/reports/${id}`;
+          result.reportUrl = buildReportUrl(id);
         } catch (err: any) {
           // v1.88.0: record the failed audit before mapping the error to the
           // per-entry message. null = capacity (503), recorded nowhere.
@@ -503,6 +564,7 @@ router.post(
           // analyze-url.ts map the same codes to HTTP statuses) instead of
           // aborting the batch.
           const mapped = mapEntryError(err);
+          result.errorCode = err?.name === "AbortError" ? "TIMEOUT" : entryErrorCode(err);
           if (mapped) {
             result.error = mapped;
           } else {
@@ -513,6 +575,7 @@ router.post(
             // the detail server-side only.
             console.error("Bulk-from-inventory per-entry analysis error:", err);
             result.error = "Analysis failed for this item.";
+            result.errorCode = "INTERNAL";
           }
         }
 

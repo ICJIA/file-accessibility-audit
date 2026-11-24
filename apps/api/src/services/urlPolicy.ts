@@ -133,7 +133,9 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
   switch (err.code) {
     case "malformed_url":
     case "redirect_invalid":
-      res.status(400).json({ error: "URL not allowed", details: err.message });
+      res
+        .status(400)
+        .json({ error: "URL not allowed", details: err.message, code: "URL_NOT_ALLOWED" });
       return;
     case "private_ip":
       // SSRF block. 400 to the client; the details message names the
@@ -142,6 +144,7 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
       res.status(400).json({
         error: "URL resolves to a private/reserved address",
         details: err.message,
+        code: "URL_NOT_ALLOWED",
       });
       return;
     case "oversized":

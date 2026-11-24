@@ -3,20 +3,33 @@
     v-if="visible && current"
     role="region"
     aria-label="Site announcement"
-    class="mb-6 flex items-start gap-3 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-raised)] px-4 py-3"
+    class="announcement mb-4 sm:mb-6 sm:flex sm:items-start sm:gap-3 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-raised)] px-3 py-2.5 sm:px-4 sm:py-3"
   >
+    <!-- Narrow screens: the badge floats left so the "What's New" label
+         shares its line and the text takes the full width beneath — a phone
+         shows the badge, two sentences and the links and nothing else (see
+         the scoped style). From `sm` up it is the original three-column row. Source order (badge, text, dismiss)
+         is the reading and focus order at every width. -->
     <span
-      class="mt-0.5 shrink-0 rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-300"
+      class="announcement-badge mt-0.5 shrink-0 rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-300"
       >{{ current.badge }}</span
     >
-    <p class="flex-1 text-sm text-[var(--text-secondary)] leading-relaxed">
+    <p
+      class="announcement-body flex-1 min-w-0 text-sm text-[var(--text-secondary)] leading-snug sm:leading-relaxed"
+    >
       <!-- Standing label (user request, matching the fleet site's banner): the
            entry text alone read as static site copy — visitors didn't realize
            it described a recent change. -->
-      <span class="block text-xs font-bold uppercase tracking-wide text-[var(--text-heading)] mb-1"
+      <span
+        class="announcement-label block text-xs font-bold uppercase tracking-wide text-[var(--text-heading)] mb-1"
         >What's New</span
       >
-      <!-- The OPENING of the entry, not all of it. Entries run to ~900
+      <!-- TWO SENTENCES AT MOST (owner's rule, 2026-11-24). An entry's own
+           hand-written `summary` when it has one; otherwise the opening
+           sentences of its full text. Either way the full entry is on
+           /announcements, reached by "Read the full update".
+
+           History: the OPENING of the entry, not all of it. Entries run to ~900
            characters and this banner sits directly above the drop zone, so
            the full text pushed the tool itself off the first screen. The cut
            is at a sentence boundary and /announcements has the whole thing —
@@ -83,11 +96,18 @@
     </p>
     <button
       type="button"
-      class="shrink-0 rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors"
+      class="announcement-dismiss shrink-0 rounded-md p-1 text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors"
       aria-label="Dismiss announcement"
       @click="dismiss"
     >
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg
+        class="w-4 h-4"
+        aria-hidden="true"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
     </button>
@@ -107,6 +127,9 @@ const announcements = (pub.announcements ?? []) as Array<{
   id: string;
   badge: string;
   text: string;
+  /** Hand-written banner text — two sentences at most. Optional: older
+   *  entries have none and are cut from `text` instead. */
+  summary?: string;
   linkText?: string;
   linkTo?: string;
   /** Set true when linkTo is a server route rather than a Vue page. */
@@ -130,7 +153,16 @@ const current = announcements.find(
 // Computed once alongside `current`, for the same reason: runtimeConfig.public
 // is static after hydration. Falls back to an untruncated empty summary when
 // there is no announcement, so the template can read it without a guard.
-const summary = summarizeAnnouncement(current?.text ?? "");
+//
+// An entry's own `summary` wins: it is written for the banner, where the
+// opening sentences of the full text often are not. It is still passed
+// through the summarizer, so a summary that runs past the sentence limit is
+// cut like anything else rather than trusted — and it always offers "Read
+// the full update", because the full entry says more than its summary does.
+const ownSummary = String(current?.summary ?? "").trim();
+const summary = ownSummary
+  ? { text: summarizeAnnouncement(ownSummary).text, truncated: ownSummary !== current?.text }
+  : summarizeAnnouncement(current?.text ?? "");
 
 // Rendered during SSR by DEFAULT, then hidden on mount if this visitor has
 // dismissed it.
@@ -183,3 +215,34 @@ function dismiss() {
   }
 }
 </script>
+
+<style scoped>
+/* Narrow screens only. The badge floats left, so the "What's New" label (the
+   first line of the paragraph) sits beside it and every later line runs the
+   full width. The dismiss button is lifted into the top right corner so it
+   does not take a column of its own. */
+@media (max-width: 639px) {
+  .announcement {
+    position: relative;
+    padding-right: 2.5rem;
+  }
+  .announcement::after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+  .announcement-badge {
+    float: left;
+    margin: 0 0.5rem 0.25rem 0;
+  }
+  .announcement-label {
+    line-height: 1.5rem;
+    margin-bottom: 0.125rem;
+  }
+  .announcement-dismiss {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.375rem;
+  }
+}
+</style>

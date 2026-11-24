@@ -1299,3 +1299,60 @@ describe("privileged_window — the current hourly budget line (2026-11-04)", ()
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Landmarks. The page was a bare <div>: axe reported `landmark-one-main`, and
+// `region` for the link bar, the <h1> and the status strip.
+// ---------------------------------------------------------------------------
+describe("status page landmarks", () => {
+  const page = renderStatusHtml(PAYLOAD);
+  const count = (re: RegExp) => page.match(re)?.length ?? 0;
+
+  it("has exactly one <main>, opened and closed once", () => {
+    expect(count(/<main\b/g)).toBe(1);
+    expect(count(/<\/main>/g)).toBe(1);
+  });
+
+  it("puts the two links in a banner <header>, as a labelled <nav>, before <main>", () => {
+    expect(count(/<header\b/g)).toBe(1);
+    const header = page.slice(page.indexOf("<header>"), page.indexOf("</header>"));
+    expect(header).toContain('<nav class="bar" aria-label="Status page links">');
+    expect(header).toContain("View raw JSON");
+    expect(page.indexOf("</header>")).toBeLessThan(page.indexOf("<main>"));
+  });
+
+  it("keeps the h1, the strip and every card inside <main>", () => {
+    const start = page.indexOf("<main>");
+    const end = page.indexOf("</main>");
+    const inside = (needle: string) => {
+      const at = page.indexOf(needle);
+      expect(at, needle).toBeGreaterThan(start);
+      expect(at, needle).toBeLessThan(end);
+    };
+    inside("<h1>Service status</h1>");
+    inside('class="strip"');
+    inside('id="raw-h"');
+    expect(page.lastIndexOf("<details")).toBeLessThan(end);
+    expect(page.indexOf("<details")).toBeGreaterThan(start);
+    // Nothing visible is left outside a landmark.
+    const body = page.slice(page.indexOf("<body>") + 6, page.indexOf("</body>"));
+    const outside = body
+      .replace(/<header>[\s\S]*<\/header>/, "")
+      .replace(/<main>[\s\S]*<\/main>/, "")
+      .replace(/<\/?div[^>]*>/g, "")
+      .trim();
+    expect(outside).toBe("");
+  });
+
+  it("adds no redundant landmark roles", () => {
+    expect(page).not.toMatch(/role="(main|banner|navigation|contentinfo)"/);
+  });
+
+  it("the landmark markup does not carry the monitor keyword on a healthy page", () => {
+    const healthy = renderStatusHtml({ status: "ok", version: "1.0.0", uptime_seconds: 5 });
+    const start = healthy.indexOf("<body>");
+    const shell = healthy.slice(start, healthy.indexOf("</h1>"));
+    expect(shell).not.toMatch(/degraded/i);
+    expect(healthy.slice(healthy.indexOf("<body>"))).not.toMatch(/degraded/i);
+  });
+});

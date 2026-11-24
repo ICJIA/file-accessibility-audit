@@ -599,6 +599,7 @@ export async function analyzeWithPdfjs(
           );
         }
       } catch {}
+      releasePage(page);
     }
     if (result.textBearingFigures!.length > MAX_TEXT_BEARING_FIGURES) {
       result.textBearingFigures!.length = MAX_TEXT_BEARING_FIGURES;
@@ -795,6 +796,9 @@ export async function analyzeWithPdfjs(
         result.contentStreamMcidsByPage[i] = pageMcids;
       }
       if (paintsPageSizedContentImage && emptyPageSet.has(i)) imageOnlyPages.push(i);
+      // Everything this page contributes has been copied out by now (bold
+      // fonts are resolved above, straight after getOperatorList).
+      releasePage(page);
     }
     result.imageOnlyPages = imageOnlyPages;
     result.imageCount = imageCount;
@@ -836,6 +840,25 @@ export async function analyzeWithPdfjs(
   }
 
   return result;
+}
+
+/**
+ * Let go of one page's decoded images and cached operator list once the page
+ * has been read. Without this pdf.js keeps every page's `objs` and operator
+ * list alive until `doc.destroy()`, so peak memory grew with the page count.
+ *
+ * Safe between pages: `PDFPageProxy.cleanup()` (pdfjs-dist 4.10) clears only
+ * that page's own `objs` and intent states. Fonts and cross-page images live
+ * in the document-wide `commonObjs`, which it does not touch, so a later
+ * page's font-name and bold lookups still resolve. It is called at the end of
+ * the iteration rather than in a `finally` because a page that throws ends the
+ * whole extraction, and `doc.destroy()` in the caller's `finally` releases
+ * everything then.
+ */
+function releasePage(page: any): void {
+  try {
+    page?.cleanup?.();
+  } catch {}
 }
 
 // Title shape lives in titleShape.ts (shared by every format since

@@ -100,13 +100,24 @@ async function mountSettled() {
   return wrapper;
 }
 
+// useHead is called with a getter; resolve it to read the head the page sets.
+type Head = {
+  title: string;
+  meta: Array<Record<string, string>>;
+  link: Array<Record<string, string>>;
+};
+let lastHead: (() => Head) | null = null;
+
 beforeEach(() => {
   fetchResult = { data: ref(PAYLOAD), pending: ref(false), error: ref(null) };
   useFetchMock.mockClear();
   (globalThis as any).useFetch = useFetchMock;
   (globalThis as any).useRoute = () => ({ params: { id: "abc123def456" } });
   (globalThis as any).useColorMode = () => ({ value: "dark", preference: "dark" });
-  (globalThis as any).useHead = () => {};
+  lastHead = null;
+  (globalThis as any).useHead = (input: () => Head) => {
+    lastHead = input;
+  };
 });
 
 // ---------------------------------------------------------------------------
@@ -307,5 +318,45 @@ describe("pages/page-report/[id].vue — error states", () => {
     };
     const wrapper = await mountSettled();
     expect(wrapper.text()).toContain("not found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Head and heading for an unlisted link
+// ---------------------------------------------------------------------------
+describe("pages/page-report/[id].vue — head for an unlisted report", () => {
+  it("names the audited page, is noindex, and carries its own canonical", async () => {
+    await mountSettled();
+    const head = lastHead!();
+    expect(head.title).toBe("Page audit — ICJIA | Example Research Article");
+    expect(head.meta).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+    expect(head.link).toEqual([
+      { rel: "canonical", href: "https://audit.example.test/page-report/abc123def456" },
+    ]);
+  });
+
+  it("the error state has an <h1> and a truthful title", async () => {
+    fetchResult = { data: ref(null), pending: ref(false), error: ref({ statusCode: 404 }) };
+    const wrapper = await mountSettled();
+    expect(wrapper.find("h1").text()).toBe("Report Not Available");
+    expect(wrapper.find("h2").exists()).toBe(false);
+    expect(lastHead!().title).toBe("Report not available");
+    expect(lastHead!().meta).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+  });
+
+  it("sets the real HTTP status on the server, and only there", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(path.resolve(here, "../pages/page-report/[id].vue"), "utf-8");
+    expect(src).toMatch(
+      /if \(import\.meta\.server\) \{\s*const httpStatus = sharedReportErrorStatus\(error\.value\);/,
+    );
+    expect(src).toMatch(/setResponseStatus\(event, httpStatus\)/);
+  });
+
+  it("the theme button is a named, typed button with a hidden glyph", async () => {
+    const wrapper = await mountSettled();
+    const toggle = wrapper.find('button[aria-label^="Switch to"]');
+    expect(toggle.attributes("type")).toBe("button");
+    for (const svg of toggle.findAll("svg")) expect(svg.attributes("aria-hidden")).toBe("true");
   });
 });

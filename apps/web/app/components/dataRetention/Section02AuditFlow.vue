@@ -63,18 +63,22 @@ Node.js garbage collector reclaims the buffer
       PDF/UA validator) is configured, a PDF audit also writes its own short-lived, randomly named
       temp copy — separate from qpdf's, but following the same pattern and lifecycle — so veraPDF
       can produce the PDF/UA machine-check verdict (PDF/UA-1, or PDF/UA-2 when the document declares
-      it), and that copy is likewise deleted within the same request, even when the check fails. For
-      a Word, PowerPoint, or Excel file, analysis runs inside a dedicated child Node.js process —
-      spawned fresh for that request and terminated immediately afterward — which unzips and parses
-      the in-memory buffer directly with JSZip and fast-xml-parser (see § 5); no temporary file is
-      ever created for these formats. Since v1.100.0 the web page usually drives an audit through a
-      progress variant of this same pipeline (it shows per-step status while you wait); the one
-      retention difference is that the finished report — the same result the synchronous path
-      returns, never the file — waits in server process memory until the page collects it, for at
-      most 10 minutes, and delivery removes it immediately. The uploaded file's own lifetime is
-      unchanged. In every case, the uploaded content does not persist on disk, in a cache, in a log
-      file, or in any other location. The only thing a browser-upload audit produces is metadata in
-      the
+      it), and that copy is likewise deleted within the same request, even when the check fails.
+      Both copies are written to one folder that only the service's own account can open. If the
+      service is stopped in the middle of an audit — a restart during a deploy, for example — the
+      copy that was in use can be left behind; the service deletes any such leftover when it next
+      starts, and the cleanup that runs in the background deletes any temp copy older than 15
+      minutes. For a Word, PowerPoint, or Excel file, analysis runs inside a dedicated child Node.js
+      process — spawned fresh for that request and terminated immediately afterward — which unzips
+      and parses the in-memory buffer directly with JSZip and fast-xml-parser (see § 5); no
+      temporary file is ever created for these formats. Since v1.100.0 the web page usually drives
+      an audit through a progress variant of this same pipeline (it shows per-step status while you
+      wait); the one retention difference is that the finished report — the same result the
+      synchronous path returns, never the file — waits in server process memory until the page
+      collects it, for at most 10 minutes, and delivery removes it immediately. The uploaded file's
+      own lifetime is unchanged. In every case, the uploaded content does not persist on disk, in a
+      cache, in a log file, or in any other location. The only thing a browser-upload audit produces
+      is metadata in the
       <code class="text-xs font-mono">audit_log</code> table — described in § 8 — data about the
       file, never the file, and nothing about the caller (event type, filename, score, grade,
       timestamp, and SHA-256 hash of the file's bytes; the schema has no email, IP-address, or

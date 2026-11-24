@@ -1,11 +1,10 @@
 import { Router, Request, Response, type IRouter } from "express";
-import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { runUrlAudit } from "../services/urlAuditPipeline.js";
 import { classifyAuditFailure } from "../services/auditFailure.js";
-import { setBusyRetryAfter } from "../services/busy.js";
+import { mapUrlAnalyzeError, sendMappedAnalyzeError } from "../services/analyzeCore.js";
 import { sealReport } from "../services/reportSeal.js";
 
 const router: IRouter = Router();
@@ -42,7 +41,27 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
     if (!outcome.ok) return;
     const { buf, filename, contentHash } = outcome;
 
-    const result = await analyzeDocument(buf, filename);
+    // Analysis failures map through the SAME function the upload routes use
+    // (services/analyzeCore.ts): a password-protected or corrupt document by
+    // URL answers 422, exactly as the same file uploaded does. This route
+    // used to keep its own copy of the chain, which lacked those branches and
+    // answered 500.
+    let result;
+    try {
+      result = await analyzeDocument(buf, filename);
+    } catch (err) {
+      sendMappedAnalyzeError(
+        res,
+        mapUrlAnalyzeError(err, {
+          eventType: "analyze-url",
+          url,
+          filename,
+          buffer: buf,
+          privileged,
+        }),
+      );
+      return;
+    }
 
     // Canonical audit-log write so this URL-audited content counts
     // for the remediation gate (v1.20.1+). Doing it after analyzePDF
@@ -62,6 +81,7 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
     // app's ?url= prefill path does exactly that) — services/reportSeal.ts.
     res.json(sealReport(result));
   } catch (err: any) {
+    // Anything that is NOT an analysis failure (those are mapped above):
     // v1.88.0: record the failed audit. `url` and `privileged` are declared
     // inside the try, so read them from the request again here; the classifier
     // returns null for capacity (503), which records nothing.
@@ -73,82 +93,6 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
         filename: req.body.url,
         reason: failure,
       });
-    }
-
-    // Server busy (semaphore timeout)
-    if (err?.status === 503) {
-      setBusyRetryAfter(res);
-      res.status(503).json({
-        error: "The server is busy processing other files.",
-        details: "Please wait a moment and try again.",
-      });
-      return;
-    }
-
-    // DOCX auditing disabled via DOCX_ENABLED=false
-    if (err?.code === "DOCX_DISABLED") {
-      res.status(415).json({
-        error: "Word (.docx) auditing is currently disabled.",
-        details:
-          "This server is not configured to audit Word files. Contact the administrator to enable it.",
-      });
-      return;
-    }
-
-    // DOCX could not be parsed (corrupt or not a real Word package)
-    if (err?.code === "DOCX_PARSE_FAILED") {
-      res.status(422).json({
-        error: "The fetched Word document could not be read.",
-        details:
-          "The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.",
-      });
-      return;
-    }
-
-    // PPTX auditing disabled via PPTX_ENABLED=false
-    if (err?.code === "PPTX_DISABLED") {
-      res.status(415).json({
-        error: "PowerPoint (.pptx) auditing is currently disabled.",
-        details:
-          "This server is not configured to audit PowerPoint files. Contact the administrator to enable it.",
-      });
-      return;
-    }
-
-    // PPTX could not be parsed (corrupt or not a real PowerPoint package)
-    if (err?.code === "PPTX_PARSE_FAILED") {
-      res.status(422).json({
-        error: "The fetched PowerPoint file could not be read.",
-        details:
-          "The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.",
-      });
-      return;
-    }
-
-    // XLSX auditing disabled via XLSX_ENABLED=false
-    if (err?.code === "XLSX_DISABLED") {
-      res.status(415).json({
-        error: "Excel (.xlsx) auditing is currently disabled.",
-        details:
-          "This server is not configured to audit Excel files. Contact the administrator to enable it.",
-      });
-      return;
-    }
-
-    // XLSX could not be parsed (corrupt or not a real Excel package)
-    if (err?.code === "XLSX_PARSE_FAILED") {
-      res.status(422).json({
-        error: "The fetched Excel file could not be read.",
-        details:
-          "The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.",
-      });
-      return;
-    }
-
-    // Timeout
-    if (err?.code === "ETIMEDOUT" || err?.killed) {
-      res.status(504).json({ ...AUDIT_TIMEOUT_MESSAGE });
-      return;
     }
 
     // Log the detail server-side only — never echo raw err.message to the

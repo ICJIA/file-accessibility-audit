@@ -2,8 +2,9 @@
   <div class="min-h-screen bg-[var(--surface-body)] text-[var(--text-primary)]">
     <main class="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
       <!-- Loading -->
-      <div v-if="pending" class="text-center py-20">
+      <div v-if="pending" class="text-center py-20" role="status">
         <div
+          aria-hidden="true"
           class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
         />
         <p class="text-[var(--text-muted)]">Loading report...</p>
@@ -14,9 +15,11 @@
         <div
           class="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4"
         >
-          <span class="text-3xl">!</span>
+          <span class="text-3xl" aria-hidden="true">!</span>
         </div>
-        <h2 class="text-xl font-semibold text-[var(--status-error)] mb-2">Report Not Available</h2>
+        <!-- <h1>, not <h2>: in this state it is the only heading on the page,
+             and a page whose outline starts at level 2 has no top. -->
+        <h1 class="text-xl font-semibold text-[var(--status-error)] mb-2">Report Not Available</h1>
         <p class="text-[var(--text-muted)] text-sm">{{ errorMessage }}</p>
       </div>
 
@@ -24,6 +27,7 @@
       <div v-else-if="data">
         <div class="flex justify-end items-center gap-2 mb-4">
           <button
+            type="button"
             class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
             :aria-label="
               colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
@@ -37,6 +41,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -51,6 +56,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -256,6 +262,7 @@
 
 <script setup lang="ts">
 import { useTokenColors } from "~/composables/useTokenColors";
+import { sharedReportErrorStatus, sharedReportHead } from "~/utils/sharedReportHead";
 
 definePageMeta({ layout: false });
 
@@ -306,6 +313,16 @@ interface PageReportResponse {
 }
 
 const { data, pending, error } = await useFetch<PageReportResponse>(`/api/reports/${id}`);
+
+// Server-rendered (the fetch above is awaited in setup), so a report that
+// does not exist or has expired answers with the real status instead of
+// "200 OK" around an error message. Server only: on the client there is no
+// response left to set a status on.
+if (import.meta.server) {
+  const httpStatus = sharedReportErrorStatus(error.value);
+  const event = httpStatus ? useRequestEvent() : undefined;
+  if (httpStatus && event) setResponseStatus(event, httpStatus);
+}
 
 const errorMessage = computed(() => {
   if (!error.value) return "";
@@ -396,13 +413,22 @@ function formatDate(dateStr: string): string {
   });
 }
 
-useHead({
+// An unlisted link: noindex, its own canonical (not the home page's), and a
+// title that names what was audited. pageTitle and url come from the AUDITED
+// page — untrusted text — and reach the document only through useHead, which
+// escapes them.
+const headTitle = computed(() => {
   // Reads data directly, not the report computed — that one assumes data is
   // set, which the 404/410/error states never satisfy.
-  title: computed(() => {
-    const r = data.value?.report;
-    const subject = r?.pageTitle || r?.url || "Shared report";
-    return `Page audit — ${subject}`;
-  }),
+  const r = data.value?.report;
+  if (!r && error.value) return "Report not available";
+  const subject = r?.pageTitle || r?.url || "Shared report";
+  return `Page audit — ${subject}`;
 });
+useHead(() =>
+  sharedReportHead(
+    headTitle.value,
+    `${String(config.public.siteUrl)}/page-report/${encodeURIComponent(id)}`,
+  ),
+);
 </script>

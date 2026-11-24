@@ -20,6 +20,39 @@ export interface WcagCriterion {
   level: "A" | "AA";
 }
 
+/**
+ * What a finding line IS, independent of its wording. The first four are the
+ * author's classification of the rule; the last three are layout conventions
+ * the string itself has always carried and the report card already reads
+ * (apps/web findings.ts): two leading spaces = a technical "signal" line,
+ * `---` = a section divider, "How to fix:" / "Tip:" / "Note:" = guidance.
+ */
+export type FindingKind = "failure" | "advisory" | "pass" | "info" | "howto" | "signal" | "divider";
+
+/**
+ * The structured twin of one `findings` string (schemaVersion 1).
+ *
+ * `code` is a stable, dotted, lowercase identifier —
+ * `<format>.<category>.<what>` — registered in findingCodes.ts. Codes are an
+ * API: once shipped a code never changes meaning, and removing or renaming
+ * one is a breaking change. Wording variants of one condition (singular /
+ * plural, different counts) share a code; the numbers go in `count`/`total`.
+ */
+export interface FindingDetail {
+  code: string;
+  kind: FindingKind;
+  /** The finding string itself, byte-for-byte (`findings[i]`). */
+  text: string;
+  /** How many things the finding is about (images, tables, links…). */
+  count?: number;
+  /** Out of how many, when the finding is a share. */
+  total?: number;
+  /** 1-based page numbers, when the finding names pages. */
+  pages?: number[];
+  /** WCAG success criteria the finding bears on, e.g. ["1.1.1"]. */
+  sc?: string[];
+}
+
 export interface CategoryResult {
   id: string;
   label: string;
@@ -28,6 +61,12 @@ export interface CategoryResult {
   grade: string | null;
   severity: string | null;
   findings: string[];
+  /**
+   * Machine-readable twin of `findings`, index-aligned 1:1 (same length,
+   * `findingDetails[i].text === findings[i]`). Optional: stored and shared
+   * reports created before schemaVersion 1 do not carry it.
+   */
+  findingDetails?: FindingDetail[];
   explanation: string;
   helpLinks: HelpLink[];
   /**
@@ -237,8 +276,18 @@ export interface AnalysisResult {
   scoringMode?: ScoringMode;
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfileResult>>;
   conformance?: ConformanceVerdict;
+  /** Version of the result's SHAPE (integer, starts at 1 — the release that
+   *  added `findingDetails`). Absent on reports stored before it existed. */
+  schemaVersion?: number;
+  /** Version of the audit engine that computed this result (the analyzer
+   *  package's version). Absent on reports stored before it existed. */
+  engineVersion?: string;
   /** PDF-only. */
   pdfUa?: PdfUaSignals;
+  /** PDF-only: which generation of Matterhorn engine censuses produced this
+   *  result (v1.94.0 writes 2). Absent on reports stored before the
+   *  censuses — mirrors ScoringResult in packages/analyzer scoring/common.ts. */
+  matterhornCensusGeneration?: number;
   /** Present only for PDF results. */
   pdfMetadata?: PdfMetadata;
   /** Present only for DOCX results. */

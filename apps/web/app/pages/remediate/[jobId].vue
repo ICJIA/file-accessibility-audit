@@ -24,6 +24,11 @@ import {
   rememberDownloaded,
   wasDownloadedInThisTab,
 } from "~/utils/remediationDownload";
+import {
+  outcomeAnnouncement,
+  stepAnnouncement,
+  type RemediationOutcomeKind,
+} from "~/utils/remediationAnnouncements";
 
 const wcagVersion = useWcag().version;
 
@@ -32,8 +37,6 @@ const wcagVersion = useWcag().version;
 // dual-mode toggle was retired — PDF/UA conformance is now surfaced via
 // the veraPDF Pass/Fail badge below the score (when veraPDF is configured).
 const AUDIT_MODE = "strict" as const;
-
-definePageMeta({ middleware: [] });
 
 // Each remediation result page is a private, per-user, session-bound
 // URL (UUID jobId + one-time download token in the query string).
@@ -52,7 +55,14 @@ const downloadToken = String(route.query.t ?? "");
 
 // The download token doubles as the status/receipt read credential in
 // anonymous mode (C5) — the API returns 404 on these reads without it.
-const { status, receipt, error, loading, isTerminal } = useRemediationJob(jobId, downloadToken);
+const { status, receipt, error, loading, isTerminal, lostContact } = useRemediationJob(
+  jobId,
+  downloadToken,
+);
+
+function reloadPage(): void {
+  window.location.reload();
+}
 
 // ------------------------------------------------------------------
 // Category comparison (drives "What we fixed" / "Still needs review")
@@ -406,6 +416,69 @@ const isVisuallyComplete = computed(() => {
 });
 
 // ------------------------------------------------------------------
+// Screen-reader announcements and focus
+// ------------------------------------------------------------------
+// Everything on this page used to change silently: the steps ticked by, the
+// progress view was swapped for the results, and a person who could not see
+// the screen was told none of it. Now:
+//   - one polite status region (always in the DOM, so it is registered
+//     before its text changes) speaks each step ONCE, when the step changes
+//     — not on every poll;
+//   - when the progress view gives way to an outcome, focus moves to that
+//     outcome's heading (the pattern pages/index.vue uses for audit results)
+//     and the region states the outcome.
+// Focus only moves for someone who was watching the job run. A person who
+// opens a finished or expired link lands at the top of the page as usual.
+const stepNames = stepOrder.map((name) => stepLabels[name] ?? name);
+const liveMessage = ref("");
+const progressValueText = computed(() =>
+  stepAnnouncement(Math.max(displayedStageIdx.value, 0), stepNames),
+);
+
+watch(displayedStageIdx, (idx) => {
+  // While the job is really running. A job that was already finished when
+  // the page opened still walks the steps as a short animation; reading four
+  // steps aloud in a second would only delay the result.
+  const s = status.value?.status;
+  if (idx < 0 || (s !== "pending" && s !== "running")) return;
+  liveMessage.value = stepAnnouncement(idx, stepNames);
+});
+
+let sawRunning = false;
+watch(
+  isVisuallyRunning,
+  (running) => {
+    if (running) sawRunning = true;
+  },
+  { immediate: true },
+);
+
+/** The outcome whose heading is actually on screen right now. */
+const outcomeShown = computed<RemediationOutcomeKind | null>(() => {
+  if (isVisuallyRunning.value) return null;
+  const s = status.value?.status;
+  if (s === "failed") return "failed";
+  if (s === "complete") {
+    return isVisuallyComplete.value && receipt.value?.inputAudit && receipt.value?.outputAudit
+      ? "complete"
+      : null;
+  }
+  if (s === "expired") return "expired";
+  return null;
+});
+
+watch(outcomeShown, (kind) => {
+  if (!kind || !sawRunning) return;
+  liveMessage.value = outcomeAnnouncement(kind, {
+    before: status.value?.inputScore,
+    after: status.value?.outputScore,
+  });
+  nextTick(() => {
+    document.querySelector<HTMLElement>("[data-outcome-heading]")?.focus();
+  });
+});
+
+// ------------------------------------------------------------------
 // The single-use download
 // ------------------------------------------------------------------
 // The server deletes the remediated PDF as soon as a download begins. The
@@ -614,12 +687,25 @@ function labelForEvent(name: string): string {
       Loading job status…
     </div>
 
+    <!-- The page's one status region. Always rendered (never v-if) so that
+         assistive technology has registered it before its text changes;
+         see "Screen-reader announcements and focus" in the script. -->
+    <p class="sr-only" role="status" aria-live="polite" data-testid="remediation-live">
+      {{ liveMessage }}
+    </p>
+
     <!-- Running -->
     <section v-if="isVisuallyRunning" class="border border-[var(--border)] rounded-lg p-6 mb-6">
       <h2 class="text-lg font-medium mb-4">Processing your PDF…</h2>
       <ol class="space-y-3">
-        <li v-for="name in stepOrder" :key="name" class="flex items-center gap-3 text-sm">
+        <li
+          v-for="name in stepOrder"
+          :key="name"
+          class="flex items-center gap-3 text-sm"
+          :aria-current="stepState(name) === 'active' ? 'step' : undefined"
+        >
           <span
+            aria-hidden="true"
             class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
             :class="{
               'bg-emerald-600 text-white': stepState(name) === 'done',
@@ -636,10 +722,28 @@ function labelForEvent(name: string): string {
             }"
           >
             {{ stepLabels[name] }}
+            <!-- The tick and the dot are decoration; the state is said in words. -->
+            <span class="sr-only">
+              {{
+                stepState(name) === "done"
+                  ? "(done)"
+                  : stepState(name) === "active"
+                    ? "(in progress)"
+                    : "(not started)"
+              }}
+            </span>
           </span>
         </li>
       </ol>
-      <div class="mt-6 w-full bg-[var(--border)] rounded-full h-2 overflow-hidden">
+      <div
+        class="mt-6 w-full bg-[var(--border)] rounded-full h-2 overflow-hidden"
+        role="progressbar"
+        aria-label="Remediation progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="displayedProgressPct"
+        :aria-valuetext="progressValueText"
+      >
         <div
           class="h-full bg-blue-600 transition-all"
           :style="{ width: `${displayedProgressPct}%` }"
@@ -650,8 +754,12 @@ function labelForEvent(name: string): string {
 
     <!-- Complete: before/after ScoreCards side-by-side -->
     <section v-if="isVisuallyComplete && receipt?.inputAudit && receipt?.outputAudit" class="mb-6">
-      <h2 class="text-emerald-400 text-center text-base font-medium mb-4">
-        ✓ Auto-remediation complete
+      <h2
+        data-outcome-heading
+        tabindex="-1"
+        class="text-emerald-400 text-center text-base font-medium mb-4"
+      >
+        <span aria-hidden="true">✓</span> Auto-remediation complete
       </h2>
 
       <!-- AFTER (shown first — the result, infographic-style banner) -->
@@ -666,6 +774,7 @@ function labelForEvent(name: string): string {
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2.5"
+              aria-hidden="true"
             >
               <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
@@ -726,8 +835,10 @@ function labelForEvent(name: string): string {
             </a>
           </div>
 
-          <!-- Three-heuristic comparison (visible by default — primary
-               comparison story) -->
+          <!-- Score comparison: ONE row, the strict score before and after.
+               (It once compared three scoring heuristics; the other two were
+               retired with the dual-mode toggle, and the labels now say what
+               is actually here.) -->
           <div v-if="heuristicRows.length > 0" class="mt-6 pt-6 border-t border-emerald-700/30">
             <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-1">
               Score comparison
@@ -738,14 +849,16 @@ function labelForEvent(name: string): string {
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
                 <caption class="sr-only">
-                  Score comparison by heuristic, before and after remediation
+                  Score before and after remediation
                 </caption>
                 <thead>
                   <tr class="text-left text-[var(--text-muted)] border-b border-emerald-700/30">
-                    <th scope="col" class="py-2 pr-4 font-medium">Heuristic</th>
+                    <th scope="col" class="py-2 pr-4 font-medium">Score</th>
                     <th scope="col" class="py-2 pr-4 font-medium">Before</th>
                     <th scope="col" class="py-2 pr-4 font-medium">After</th>
-                    <th scope="col" class="py-2 font-medium">Δ</th>
+                    <th scope="col" class="py-2 font-medium">
+                      <span aria-hidden="true">Δ</span><span class="sr-only">Change</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1022,8 +1135,8 @@ function labelForEvent(name: string): string {
                 class="rounded-lg border border-amber-600/50 bg-amber-950/30 p-3 text-xs text-amber-200 leading-relaxed"
               >
                 <strong class="text-amber-100">This file can be downloaded once.</strong>
-                {{ " " }}As soon as the download starts, the copy on our server is deleted — so save
-                it somewhere you can find it again. If you need another copy later, rerun the
+                {{ " " }}As soon as the download finishes, the copy on our server is deleted — so
+                save it somewhere you can find it again. If you need another copy later, rerun the
                 remediation.
               </p>
               <!-- Why-keep-the-name explainer (always visible). -->
@@ -1178,6 +1291,7 @@ function labelForEvent(name: string): string {
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -1419,6 +1533,7 @@ function labelForEvent(name: string): string {
           viewBox="0 0 24 24"
           stroke="currentColor"
           stroke-width="2"
+          aria-hidden="true"
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25 12 15.75 4.5 8.25" />
         </svg>
@@ -1542,7 +1657,7 @@ function labelForEvent(name: string): string {
       v-if="status && status.status === 'failed'"
       class="border border-amber-700/50 bg-amber-950/20 rounded-lg p-6 mb-6"
     >
-      <h2 class="text-lg font-medium mb-3 text-amber-400">
+      <h2 data-outcome-heading tabindex="-1" class="text-lg font-medium mb-3 text-amber-400">
         Auto-remediation didn't help this time
       </h2>
       <p class="text-sm mb-4">
@@ -1608,7 +1723,9 @@ function labelForEvent(name: string): string {
            event log tells them apart, so the explanation can be the true one:
            "you already downloaded it" is not "it timed out". -->
       <template v-if="downloadState === 'downloaded'">
-        <h2 class="text-lg font-medium mb-3">This file has already been downloaded</h2>
+        <h2 data-outcome-heading tabindex="-1" class="text-lg font-medium mb-3">
+          This file has already been downloaded
+        </h2>
         <p data-testid="expired-downloaded" class="text-sm text-[var(--text-muted)]">
           The remediated PDF can be downloaded once, and it was. The copy on our server was deleted
           when that download started — look for it in the Downloads folder of the browser that
@@ -1616,7 +1733,9 @@ function labelForEvent(name: string): string {
         </p>
       </template>
       <template v-else>
-        <h2 class="text-lg font-medium mb-3">This job has expired</h2>
+        <h2 data-outcome-heading tabindex="-1" class="text-lg font-medium mb-3">
+          This job has expired
+        </h2>
         <p data-testid="expired-retention" class="text-sm text-[var(--text-muted)]">
           The remediated PDF was not downloaded in time and was deleted after the retention window.
           Audit your PDF again and rerun remediation if you still need it.
@@ -1624,12 +1743,26 @@ function labelForEvent(name: string): string {
       </template>
     </section>
 
-    <!-- Error from the polling itself -->
+    <!-- Error from the polling itself. role="alert" (assertive): it appears
+         without the visitor doing anything, and nothing else would tell a
+         screen-reader user the page has stopped making progress. When the
+         poller has given up (lostContact) the way forward is a reload, so
+         the button is right here. -->
     <section
       v-if="error"
+      role="alert"
+      data-testid="remediation-poll-error"
       class="border border-red-700/50 bg-red-950/20 rounded-lg p-4 mb-6 text-sm"
     >
-      {{ error }}
+      <p>{{ error }}</p>
+      <button
+        v-if="lostContact"
+        type="button"
+        class="mt-3 rounded-md border border-[var(--border-input)] px-3 py-1.5 text-sm font-medium text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+        @click="reloadPage"
+      >
+        Reload this page
+      </button>
     </section>
 
     <!-- Receipt panel (any terminal state) -->

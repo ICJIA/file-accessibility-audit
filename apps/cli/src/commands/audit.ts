@@ -1,5 +1,6 @@
-import { readFileSync, existsSync, statSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
 import { analyzeDocument, type AnalysisResult } from "@file-audit/analyzer";
 import {
   RESET,
@@ -13,35 +14,58 @@ import {
   checkQpdf,
 } from "../lib/colors.js";
 import { VERSION } from "../version.js";
+import { clampConcurrency, withBusyRetry } from "./publist.js";
+import { collectInputs, type InputFile } from "../audit/inputs.js";
+import { helpText, loadConfig, mergeOptions, parseFlags } from "../audit/options.js";
+import {
+  baselineFor,
+  confirmedFailureCount,
+  evaluateGates,
+  loadBaseline,
+  writeBaseline,
+  type Baseline,
+} from "../audit/gates.js";
+import { toCsv, toJson, toJunit, toNdjson, toSarif } from "../audit/formats.js";
+import {
+  EXIT,
+  REPORT_SCHEMA_VERSION,
+  TOOL_NAME,
+  UsageError,
+  type AuditEntry,
+  type AuditOptions,
+  type AuditReport,
+} from "../audit/types.js";
 
-export function printResult(result: AnalysisResult): void {
+/** The human-readable report for one file, one string per printed line. */
+export function resultLines(result: AnalysisResult): string[] {
+  const out: string[] = [];
   const line = "\u2501";
   const thinLine = "\u2500";
 
-  console.log("");
-  console.log(
+  out.push("");
+  out.push(
     `${BOLD}${line.repeat(3)} ${result.filename} ${line.repeat(Math.max(1, 55 - result.filename.length))}${RESET}`,
   );
-  console.log("");
+  out.push("");
 
   const gc = gradeColor(result.grade);
-  console.log(
+  out.push(
     `  ${BOLD}Score:${RESET} ${gc}${result.overallScore}/100${RESET}  ${BOLD}Grade:${RESET} ${gc}${result.grade}${RESET} (${gradeLabel(result.grade)})`,
   );
-  console.log(
+  out.push(
     `  ${BOLD}Type:${RESET} ${result.fileType.toUpperCase()}   ${BOLD}Pages:${RESET} ${result.pageCount}`,
   );
-  console.log("");
+  out.push("");
 
   const colLabel = 24;
   const colScore = 7;
   // No per-category letter (2026-09-01): a letter beside a category score
   // gets read as the DOCUMENT's grade. Score keeps the band colour; the
   // overall "Grade:" line above is the only letter printed.
-  console.log(
+  out.push(
     `  ${BOLD}${padRight("Category", colLabel)}${padRight("Score", colScore)}Severity${RESET}`,
   );
-  console.log(`  ${DIM}${thinLine.repeat(colLabel + colScore + 10)}${RESET}`);
+  out.push(`  ${DIM}${thinLine.repeat(colLabel + colScore + 10)}${RESET}`);
 
   for (const cat of result.categories) {
     const scoreStr = cat.score !== null ? String(cat.score) : "N/A";
@@ -49,112 +73,242 @@ export function printResult(result: AnalysisResult): void {
     const sc = gradeColor(cat.grade);
     const sevc = severityColor(cat.severity);
 
-    console.log(
+    out.push(
       `  ${padRight(cat.label, colLabel)}` +
         `${sc}${padRight(scoreStr, colScore)}${RESET}` +
         `${sevc}${sevStr}${RESET}`,
     );
   }
 
-  console.log("");
-  console.log(`  ${DIM}${result.executiveSummary}${RESET}`);
-  console.log("");
-  console.log(`${BOLD}${line.repeat(58)}${RESET}`);
+  out.push("");
+  out.push(`  ${DIM}${result.executiveSummary}${RESET}`);
+  out.push("");
+  out.push(`${BOLD}${line.repeat(58)}${RESET}`);
+  return out;
 }
 
-function printJsonResults(results: AnalysisResult[]): void {
-  console.log(JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
+export function printResult(result: AnalysisResult): void {
+  for (const line of resultLines(result)) console.log(line);
 }
 
-function printHelp(): void {
-  console.log(`
-${BOLD}a11y-audit${RESET} — PDF & Office accessibility analyzer
-
-${BOLD}Usage:${RESET}
-  a11y-audit <file.pdf|.docx|.pptx|.xlsx> [more ...]   Analyze PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files
-  a11y-audit report.pdf --json             Output raw JSON
-  a11y-audit report.pdf --threshold 80     Exit 1 if score < 80
-  a11y-audit publist                       Audit ICJIA publication list
-  a11y-audit --help                        Show this help
-  a11y-audit --version                     Show version
-
-${BOLD}Options:${RESET}
-  --json            Output results as JSON
-  --threshold <n>   Minimum passing score (0-100, default: 0)
-  --help, -h        Show help
-  --version, -v     Show version
-
-${BOLD}Examples:${RESET}
-  a11y-audit report.pdf
-  a11y-audit docs/*.pdf --threshold 80
-  a11y-audit report.pdf --json | jq '.overallScore'
-  a11y-audit publist
-  a11y-audit publist --output results.csv
-`);
+/** Seams for the test suite; a real run passes nothing. */
+export interface AuditRuntime {
+  /** Stands in for the working directory: relative paths, the config file,
+   *  and the paths printed in reports are all resolved against it. */
+  cwd?: string;
+  /** Waits between retries when the engine reports it is busy. */
+  busyRetryDelaysMs?: readonly number[];
 }
 
-interface ParsedArgs {
-  files: string[];
-  json: boolean;
-  threshold: number;
-  help: boolean;
-  version: boolean;
+// eslint-disable-next-line no-control-regex
+const ANSI = /\x1b\[[0-9;]*m/g;
+
+function usageExit(err: UsageError): never {
+  console.error(`${RED}Error: ${err.message}${RESET}`);
+  console.error(`Run ${BOLD}a11y-audit --help${RESET} for usage`);
+  process.exit(EXIT.USAGE);
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
-  const result: ParsedArgs = { files: [], json: false, threshold: 0, help: false, version: false };
-  let i = 0;
-  while (i < argv.length) {
-    const arg = argv[i];
-    if (arg === "--json") {
-      result.json = true;
-    } else if (arg === "--threshold") {
-      i++;
-      const val = parseInt(argv[i], 10);
-      if (isNaN(val) || val < 0 || val > 100) {
-        console.error(`${RED}Error: --threshold must be a number between 0 and 100${RESET}`);
-        process.exit(2);
-      }
-      result.threshold = val;
-    } else if (arg === "--help" || arg === "-h") {
-      result.help = true;
-    } else if (arg === "--version" || arg === "-v") {
-      result.version = true;
-    } else if (arg === "--") {
-      // ignore -- separator from pnpm
-    } else if (arg.startsWith("-")) {
-      console.error(`${RED}Error: Unknown option: ${arg}${RESET}`);
-      process.exit(2);
-    } else {
-      result.files.push(arg);
+/** Run `fn` over `items`, `limit` at a time, keeping results in input order. */
+async function mapPool<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index], index);
     }
-    i++;
-  }
-  return result;
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }
 
-export async function runAudit(argv: string[]): Promise<void> {
-  const args = parseArgs(argv);
+function errorEntry(
+  input: InputFile,
+  partial: Pick<AuditEntry, "sha256" | "bytes">,
+  err: unknown,
+): AuditEntry {
+  const e = err as { message?: unknown; code?: unknown } | null;
+  const raw = String(e?.message ?? err);
+  const encrypted = raw === "encrypted";
+  return {
+    path: input.path,
+    filename: basename(input.absPath),
+    ...partial,
+    status: "error",
+    fileType: null,
+    pageCount: null,
+    score: null,
+    grade: null,
+    conformance: null,
+    confirmedFailures: null,
+    passed: null,
+    gateFailures: [],
+    baseline: null,
+    error: {
+      code: encrypted ? "encrypted" : typeof e?.code === "string" ? e.code : "analysis_failed",
+      message: encrypted ? "password-protected and cannot be analyzed" : raw,
+    },
+    analysis: null,
+  };
+}
 
-  if (args.help) {
-    printHelp();
-    process.exit(0);
+async function auditOne(
+  input: InputFile,
+  options: AuditOptions,
+  baseline: Baseline | null,
+  runtime: AuditRuntime,
+): Promise<AuditEntry> {
+  const partial: Pick<AuditEntry, "sha256" | "bytes"> = { sha256: null, bytes: null };
+  try {
+    const buffer = readFileSync(input.absPath);
+    partial.bytes = buffer.length;
+    partial.sha256 = createHash("sha256").update(buffer).digest("hex");
+    const filename = basename(input.absPath);
+    // The engine admits a fixed number of analyses at once and refuses the
+    // rest as "busy". The pool never asks for more than that, so the retry is
+    // a seatbelt — but a document must never be lost to it.
+    const analysis = await withBusyRetry(
+      () => analyzeDocument(buffer, filename),
+      runtime.busyRetryDelaysMs,
+    );
+    const known = options.updateBaseline ? null : baselineFor(baseline, input.path, partial.sha256);
+    const gateFailures = options.updateBaseline ? [] : evaluateGates(analysis, options, known);
+    return {
+      path: input.path,
+      filename,
+      ...partial,
+      status: "ok",
+      fileType: analysis.fileType,
+      pageCount: analysis.pageCount,
+      score: analysis.overallScore,
+      grade: analysis.grade,
+      conformance: analysis.conformance?.status ?? null,
+      confirmedFailures: confirmedFailureCount(analysis),
+      passed: gateFailures.length === 0,
+      gateFailures,
+      baseline: known ? { score: known.score, delta: analysis.overallScore - known.score } : null,
+      error: null,
+      analysis,
+    };
+  } catch (err) {
+    return errorEntry(input, partial, err);
+  }
+}
+
+export function buildReport(entries: AuditEntry[], options: AuditOptions): AuditReport {
+  const ok = entries.filter((e) => e.status === "ok");
+  const scores = ok.map((e) => e.score).filter((s): s is number => s !== null);
+  const failed = ok.filter((e) => e.passed === false).length;
+  const errors = entries.length - ok.length;
+  const grades: Record<string, number> = {};
+  for (const e of ok) if (e.grade) grades[e.grade] = (grades[e.grade] ?? 0) + 1;
+  return {
+    schemaVersion: REPORT_SCHEMA_VERSION,
+    tool: { name: TOOL_NAME, version: VERSION },
+    summary: {
+      files: entries.length,
+      analysed: ok.length,
+      errors,
+      passed: ok.length - failed,
+      failed,
+      averageScore: scores.length
+        ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+        : null,
+      lowestScore: scores.length ? Math.min(...scores) : null,
+      grades,
+      gates: {
+        failUnder: options.failUnder,
+        failOn: options.failOn,
+        failOnConformance: options.failOnConformance,
+        baseline: options.baseline,
+      },
+      exitCode: failed > 0 ? EXIT.GATE_FAILED : errors > 0 ? EXIT.ANALYSIS_ERROR : EXIT.OK,
+    },
+    results: entries,
+  };
+}
+
+/** The lines that say which files failed a gate, and why. */
+function failureLines(report: AuditReport): string[] {
+  const failed = report.results.filter((e) => e.passed === false);
+  if (failed.length === 0) return [];
+  const lines = [
+    "",
+    `${RED}${BOLD}FAILED:${RESET} ${failed.length} of ${report.summary.files} file(s) did not pass`,
+  ];
+  for (const e of failed) {
+    for (const g of e.gateFailures) lines.push(`  ${RED}${e.path}: ${g.message}${RESET}`);
+  }
+  return lines;
+}
+
+function textReport(report: AuditReport): string[] {
+  const lines: string[] = [];
+  for (const e of report.results) {
+    if (e.analysis) lines.push(...resultLines(e.analysis));
+  }
+  const s = report.summary;
+  if (s.files > 1) {
+    lines.push("");
+    lines.push(
+      `${BOLD}Summary:${RESET} ${s.files} files · ${s.passed} passed · ${s.failed} failed · ` +
+        `${s.errors} could not be audited` +
+        (s.averageScore !== null ? ` · average score ${s.averageScore}` : ""),
+    );
+  }
+  lines.push(...failureLines(report));
+  return lines;
+}
+
+export async function runAudit(argv: string[], runtime: AuditRuntime = {}): Promise<void> {
+  const cwd = runtime.cwd ?? process.cwd();
+  let options: AuditOptions;
+  let inputs: InputFile[];
+  let baseline: Baseline | null = null;
+  let baselineFile: string | null = null;
+
+  try {
+    const flags = parseFlags(argv);
+    if (flags.help) {
+      console.log(helpText({ bold: BOLD, dim: DIM, reset: RESET }));
+      process.exit(EXIT.OK);
+    }
+    if (flags.version) {
+      console.log(`a11y-audit v${VERSION}`);
+      process.exit(EXIT.OK);
+    }
+    const config = flags.noConfig ? { file: null, options: {} } : loadConfig(cwd, flags.configPath);
+    options = mergeOptions(config.options, flags.options);
+    if (options.paths.length === 0) throw new UsageError("No files specified");
+
+    inputs = await collectInputs(options.paths, { cwd, exclude: options.exclude });
+    if (inputs.length === 0 && !options.allowEmpty) {
+      throw new UsageError(
+        `No PDF, Word, PowerPoint or Excel files found in: ${options.paths.join(", ")} ` +
+          `(pass --allow-empty if that is expected)`,
+      );
+    }
+
+    if (options.baseline) {
+      baselineFile = resolve(cwd, options.baseline);
+      // --update-baseline may be creating the file for the first time.
+      if (!options.updateBaseline || existsSync(baselineFile)) {
+        baseline = loadBaseline(baselineFile);
+      }
+    }
+  } catch (err) {
+    if (err instanceof UsageError) usageExit(err);
+    throw err;
   }
 
-  if (args.version) {
-    console.log(`a11y-audit v${VERSION}`);
-    process.exit(0);
-  }
-
-  if (args.files.length === 0) {
-    console.error(`${RED}Error: No files specified${RESET}`);
-    console.error(`Run ${BOLD}a11y-audit --help${RESET} for usage`);
-    process.exit(2);
-  }
-
-  // qpdf is only needed for PDF analysis; a .docx-only run doesn't require it.
-  const hasPdf = args.files.some((f) => f.toLowerCase().endsWith(".pdf"));
-  if (hasPdf && !checkQpdf()) {
+  // qpdf is only needed for PDFs; an Office-only run does not require it.
+  if (inputs.some((f) => f.looksLikePdf) && !checkQpdf()) {
     console.error(`${RED}Error: qpdf is not installed or not found in PATH${RESET}`);
     console.error("");
     console.error("Install qpdf:");
@@ -163,86 +317,78 @@ export async function runAudit(argv: string[]): Promise<void> {
     console.error(`  Fedora:  ${BOLD}sudo dnf install qpdf${RESET}`);
     console.error("");
     console.error(`Or set the QPDF_PATH environment variable to the qpdf binary location.`);
-    process.exit(1);
+    process.exit(EXIT.USAGE);
   }
 
-  // Validate all files exist before starting analysis
-  for (const file of args.files) {
-    const filePath = resolve(file);
-    if (!existsSync(filePath)) {
-      console.error(`${RED}Error: File not found: ${filePath}${RESET}`);
-      process.exit(2);
-    }
-    if (!statSync(filePath).isFile()) {
-      console.error(`${RED}Error: Not a file: ${filePath}${RESET}`);
-      process.exit(2);
-    }
-    const lower = file.toLowerCase();
-    if (
-      !lower.endsWith(".pdf") &&
-      !lower.endsWith(".docx") &&
-      !lower.endsWith(".pptx") &&
-      !lower.endsWith(".xlsx")
-    ) {
+  const concurrency = clampConcurrency(options.concurrency);
+  if (concurrency < options.concurrency && !options.quiet) {
+    console.error(
+      `${DIM}--concurrency ${options.concurrency} is more than the engine runs at once; using ${concurrency}.${RESET}`,
+    );
+  }
+
+  const showProgress = !options.quiet && inputs.length > 1 && process.stderr.isTTY === true;
+  let done = 0;
+  const entries = await mapPool(inputs, concurrency, async (input) => {
+    const entry = await auditOne(input, options, baseline, runtime);
+    done++;
+    if (entry.error) {
       console.error(
-        `${RED}Error: Not a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file: ${file}${RESET}`,
+        entry.error.code === "encrypted"
+          ? `${RED}Error: ${entry.path} is password-protected and cannot be analyzed${RESET}`
+          : `${RED}Error analyzing ${entry.path}: ${entry.error.message}${RESET}`,
       );
-      process.exit(2);
+    } else if (showProgress) {
+      console.error(
+        `${DIM}[${done}/${inputs.length}] ${entry.path}  ${entry.score} ${entry.grade}${RESET}`,
+      );
     }
+    return entry;
+  });
+
+  const report = buildReport(entries, options);
+
+  if (options.updateBaseline && baselineFile) {
+    const count = writeBaseline(baselineFile, entries, baseline, { cwd, version: VERSION });
+    if (!options.quiet) console.error(`Baseline written: ${count} file(s) → ${baselineFile}`);
   }
 
-  const results: AnalysisResult[] = [];
-  let hasError = false;
-
-  for (const file of args.files) {
-    const filePath = resolve(file);
-    const filename = basename(file);
-
-    try {
-      const buffer = readFileSync(filePath);
-      const result = await analyzeDocument(buffer, filename);
-      results.push(result);
-    } catch (err: any) {
-      hasError = true;
-      if (err.message === "encrypted") {
-        console.error(
-          `${RED}Error: ${filename} is password-protected and cannot be analyzed${RESET}`,
-        );
-      } else {
-        console.error(`${RED}Error analyzing ${filename}: ${err.message}${RESET}`);
-      }
-    }
+  let content: string;
+  switch (options.format) {
+    case "json":
+      content = toJson(report);
+      break;
+    case "ndjson":
+      content = toNdjson(report);
+      break;
+    case "csv":
+      content = toCsv(report);
+      break;
+    case "junit":
+      content = toJunit(report, options.failOn);
+      break;
+    case "sarif":
+      content = toSarif(report);
+      break;
+    default:
+      content = textReport(report).join("\n");
   }
 
-  if (results.length === 0) {
-    process.exit(1);
+  if (options.output) {
+    const file = resolve(cwd, options.output);
+    mkdirSync(dirname(file), { recursive: true });
+    const body = options.format === "text" ? content.replace(ANSI, "") : content;
+    writeFileSync(file, body.endsWith("\n") ? body : body + "\n");
+    if (!options.quiet) console.error(`Report written: ${file}`);
+  } else if (content.length > 0) {
+    console.log(content);
   }
 
-  if (args.json) {
-    printJsonResults(results);
-  } else {
-    for (const result of results) {
-      printResult(result);
-    }
+  // A machine-readable report (or one written to a file) leaves nothing on
+  // the screen to say WHY the run failed — say it on the error stream.
+  if ((options.format !== "text" || options.output) && !options.quiet) {
+    for (const line of failureLines(report)) if (line) console.error(line);
   }
 
-  if (hasError) {
-    process.exit(1);
-  }
-
-  if (args.threshold > 0) {
-    const failing = results.filter((r) => r.overallScore < args.threshold);
-    if (failing.length > 0) {
-      if (!args.json) {
-        console.log("");
-        console.log(
-          `${RED}${BOLD}FAILED:${RESET} ${failing.length} file(s) scored below threshold of ${args.threshold}:`,
-        );
-        for (const f of failing) {
-          console.log(`  ${RED}${f.filename}: ${f.overallScore}${RESET}`);
-        }
-      }
-      process.exit(1);
-    }
-  }
+  if (report.summary.exitCode !== EXIT.OK) process.exit(report.summary.exitCode);
 }

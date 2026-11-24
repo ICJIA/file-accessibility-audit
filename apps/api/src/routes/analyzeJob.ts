@@ -32,6 +32,7 @@ import {
 } from "../services/analyzeJobs.js";
 import { sealReport } from "../services/reportSeal.js";
 import { setBusyRetryAfter } from "../services/busy.js";
+import { inFlight } from "../services/shutdown.js";
 import { ANALYZE_JOB, REMEDIATION } from "#config";
 
 const router: IRouter = Router();
@@ -39,6 +40,7 @@ const router: IRouter = Router();
 const BUSY_BODY = {
   error: "The server is busy processing other files.",
   details: "Please wait a moment and try again.",
+  code: "SERVER_BUSY",
 };
 
 /**
@@ -106,12 +108,16 @@ router.post(
     try {
       // retryBusyMs: a full analysis line must not fail a JOB — the page is
       // only polling and cannot retry — so the job waits for a place itself.
-      const result = await performAudit(
-        file.buffer,
-        file.originalname,
-        privileged,
-        (step, state) => markStep(id, step, state),
-        { retryBusyMs: ANALYZE_JOB.BUSY_RETRY_TOTAL_MS },
+      // Tracked as in-flight work: the response has already gone (202), so
+      // without this a shutdown would see nothing left to wait for.
+      const result = await inFlight.track(
+        performAudit(
+          file.buffer,
+          file.originalname,
+          privileged,
+          (step, state) => markStep(id, step, state),
+          { retryBusyMs: ANALYZE_JOB.BUSY_RETRY_TOTAL_MS },
+        ),
       );
       // Sealed like the synchronous path's response, so a result collected
       // through the poll can be shared (services/reportSeal.ts).

@@ -12,7 +12,10 @@
  *
  * Contracts (errorLog.test.ts):
  *   - entry = "<ISO UTC seconds> [error|warn] <util.format(args)>\n" — exactly
- *     what the terminal shows, an Error's stack included;
+ *     what the terminal shows, an Error's stack included; a line logged while
+ *     a request is being handled carries "[req <id>]" after the level, the
+ *     random id that request's X-Request-Id header returned (never anything
+ *     about the caller — services/requestContext.ts);
  *   - one file per LOCAL (DEPLOY.LOCAL_TIME_ZONE) day, 0600 in a 0700 dir;
  *   - a day's file stops at maxBytesPerDay after one notice line;
  *   - nothing here ever throws: a write failure notifies stderr once (via the
@@ -30,6 +33,7 @@ import { join } from "node:path";
 import { format } from "node:util";
 import { ACTIVITY_EXPORT } from "#config";
 import { datedFileName, localDate, parseDatedFileName } from "./activityDays.js";
+import { currentRequestId } from "./requestContext.js";
 
 export type ErrorLogLevel = "error" | "warn";
 
@@ -63,8 +67,16 @@ function stamp(ms: number): string {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-export function formatErrorLogEntry(level: ErrorLogLevel, args: unknown[], nowMs: number): string {
-  return `${stamp(nowMs)} [${level}] ${format(...(args as [unknown, ...unknown[]]))}\n`;
+export function formatErrorLogEntry(
+  level: ErrorLogLevel,
+  args: unknown[],
+  nowMs: number,
+  /** The request being handled when the line was logged, if any
+   *  (services/requestContext.ts) — the value of its X-Request-Id header. */
+  requestId?: string,
+): string {
+  const tag = requestId ? `[req ${requestId}] ` : "";
+  return `${stamp(nowMs)} [${level}] ${tag}${format(...(args as [unknown, ...unknown[]]))}\n`;
 }
 
 export function installErrorLogTee(opts: ErrorLogOptions): ErrorLogTee {
@@ -109,7 +121,7 @@ export function installErrorLogTee(opts: ErrorLogOptions): ErrorLogTee {
       const d = localDate(ms, opts.timeZone);
       if (d !== day) rollover(d);
       if (offForDay === d) return;
-      const entry = formatErrorLogEntry(level, args, ms);
+      const entry = formatErrorLogEntry(level, args, ms, currentRequestId());
       if (bytes + Buffer.byteLength(entry) > opts.maxBytesPerDay) {
         append(d, `${stamp(ms)} ${LIMIT_NOTICE}\n`);
         offForDay = d;

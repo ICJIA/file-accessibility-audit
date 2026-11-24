@@ -84,6 +84,12 @@ function deferredAnalyze() {
     reject: (e: unknown) => void;
   }> = [];
   fetchMock.mockImplementation((url: string, opts: { body?: FormData; signal?: AbortSignal }) => {
+    // The batch tries the job endpoints first (2026-11-24). This mocked
+    // deployment has none, so every file falls back to /api/analyze — the
+    // request these tests settle by hand.
+    if (url === "/api/analyze-job") {
+      return Promise.reject(Object.assign(new Error("nf"), { status: 404 }));
+    }
     if (url !== "/api/analyze") return Promise.resolve({});
     const name = (opts.body!.get("file") as File).name;
     return new Promise((resolve, reject) => {

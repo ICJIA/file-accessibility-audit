@@ -37,7 +37,7 @@
       </h2>
 
       <!-- Batch file switcher — the scoreboard of per-file report cards.
-           Owns the tablist semantics AND the completion message (there is no
+           Owns the file-switching buttons AND the completion message (there is no
            separate banner: the element that announces "N reports" is the one
            used to switch between them). -->
       <BatchFileSwitcher
@@ -46,6 +46,27 @@
         :active-index="activeTabIndex"
         @switch="switchTab"
       />
+
+      <!-- Every file in the batch side by side, sortable by score, with a
+           CSV to take away. Above the per-file report it switches between. -->
+      <BatchSummaryTable
+        v-if="batchItems.length > 1"
+        :items="batchItems"
+        :active-index="activeTabIndex"
+        @view="switchTab"
+      />
+
+      <!-- A finished batch too large for this tab's storage is lost on a
+           reload; say so, since the browser's own leave-page prompt cannot
+           say why. -->
+      <p
+        v-if="batchUnsaved"
+        data-testid="batch-unsaved-note"
+        class="mb-6 rounded-lg border border-[var(--border)] bg-[var(--surface-card)] px-4 py-2 text-xs text-[var(--text-secondary)]"
+      >
+        These reports are kept only while this page stays open. Download the summary or the reports
+        you need before you reload or close the tab.
+      </p>
 
       <!-- Active tab error. An alert when the reader switches to this tab —
            but NOT at the moment a batch finishes on it: focus has just moved
@@ -150,6 +171,18 @@
           </button>
         </div>
 
+        <!-- Before and after. Shown open, with its own heading, when this
+             upload re-checks a file already checked in this tab; otherwise a
+             control for adding an earlier report (a JSON export or a share
+             link). Outside the exported subtree: it is about two reports,
+             not part of this one. -->
+        <ReportComparison
+          :result="result"
+          :earlier="isBatchMode ? null : earlierResult"
+          :recheck-of="!isBatchMode && earlierResult ? result.filename : null"
+          @dismiss="dismissComparison"
+        />
+
         <!-- Report content — the exact subtree the HTML export snapshots, so
              the download is identical to the live results. Interactive-only
              controls inside are marked data-export-exclude. -->
@@ -191,7 +224,9 @@
                 data-export-exclude
               >
                 <RemediateButton
+                  :key="remediateKey"
                   :file="activeFile"
+                  :expected-file="activeExpectedFile"
                   :input-score="result?.overallScore ?? null"
                   :categories="result?.categories"
                 />
@@ -294,7 +329,9 @@
               data-export-exclude
             >
               <RemediateButton
+                :key="remediateKey"
                 :file="activeFile"
+                :expected-file="activeExpectedFile"
                 :input-score="result?.overallScore ?? null"
                 :categories="result?.categories"
               />
@@ -399,7 +436,7 @@
               </UButton>
             </div>
             <p class="text-xs text-[var(--text-muted)] mt-2 text-center">
-              Creates a public link anyone can view. Expires in 365 days.
+              Creates a public link anyone can view. Expires in {{ shareExpiryDays }} days.
             </p>
             <!-- role="alert": the message appears without a page change, so
                  it has to announce itself. Focus stays on the button, which
@@ -612,12 +649,21 @@
     <div v-else>
       <AnnouncementBanner />
 
-      <div class="mb-8 text-center">
+      <div class="mb-5 sm:mb-6 text-center">
         <h2 class="text-xl sm:text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]">
           {{ heroTitle }}
         </h2>
-        <p class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed">
-          Upload a {{ heroUploadNoun }} to get an instant accessibility score that counts only
+        <!-- Two short sentences (2026-11-24): what you upload and what you
+             get; then the standard the grade measures. It was one 90-word
+             sentence that led with WCAG 2.2's criteria for interactive forms
+             — true, and not what a first-time visitor needs before the drop
+             zone. That nuance has its own page, linked on the line below. -->
+        <p
+          class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed"
+          data-testid="hero-intro"
+        >
+          Upload a {{ heroUploadNoun }} and get an accessibility grade with a plain-language list of
+          what to fix. The grade measures
           <a
             href="https://www.w3.org/WAI/WCAG21/quickref/"
             target="_blank"
@@ -641,17 +687,21 @@
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >IITAA 2.1</a
           >
-          require. The audit checks up to nine categories — text extractability, heading structure,
-          alt text, table markup, and more — plus
-          <a
-            href="https://www.w3.org/WAI/WCAG22/quickref/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
-            >WCAG 2.2</a
-          >'s newer criteria — flagged for manual review on documents with interactive forms, marked
-          as beyond the standard being measured, and never counted — and returns a detailed report
-          with actionable findings.
+          require.
+        </p>
+        <p class="mt-2 text-sm text-[var(--text-muted)]" data-testid="hero-links">
+          <NuxtLink
+            to="/sample-report"
+            :prefetch="false"
+            class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >See a sample report</NuxtLink
+          >{{ " " }}<span aria-hidden="true">·</span>{{ " " }}
+          <NuxtLink
+            to="/wcag-2-2"
+            :prefetch="false"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >What about WCAG 2.2?</NuxtLink
+          >
         </p>
       </div>
 
@@ -668,6 +718,9 @@
       </Transition>
 
       <DropZone @file-selected="analyzeFile" @files-selected="analyzeBatch" />
+
+      <!-- The same audit, for a document that is already on the web. -->
+      <UrlAuditForm @submit="analyzeUrl" />
     </div>
 
     <LazyTechnicalExplainer hydrate-on-visible />
@@ -778,9 +831,8 @@
         <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Files retained</div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Uploaded files exist on the server only as long as the pipeline requires. Audited files:
-          in-memory, gone in seconds. Remediated outputs: deleted on first download or 30-minute
-          TTL, then
-          <code class="font-mono text-[10px]">fs.stat</code>-verified absent.
+          in-memory, gone in seconds. Remediated outputs: deleted on first download or after 30
+          minutes — and the deletion is then checked, not assumed.
         </p>
       </div>
 
@@ -797,8 +849,12 @@
           services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
           veraPDF) is entirely open source — no per-document fees, no SDK licensing. Page views are
           counted by ICJIA's own self-hosted, cookie-free
+          <!-- :prefetch="false" — /data-retention is a ~600 KB chunk, and a
+               link in a tile at the bottom of the home page is no reason to
+               download it for every visitor. -->
           <NuxtLink
             to="/data-retention"
+            :prefetch="false"
             class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >Plausible</NuxtLink
           >
@@ -860,7 +916,17 @@ import {
   saveFinishedAudit,
   saveRunningAudit,
 } from "~/utils/auditSession";
-import { ANALYZE_JOB } from "../../../../audit.config";
+import UrlAuditForm from "~/components/UrlAuditForm.vue";
+import BatchSummaryTable from "~/components/BatchSummaryTable.vue";
+import ReportComparison from "~/components/ReportComparison.vue";
+import {
+  clearPreviousResult,
+  readPreviousResult,
+  savePreviousResult,
+} from "~/utils/comparePrevious";
+import { clearBatchSession, readBatchSession, saveBatchSession } from "~/utils/batchSession";
+import { describeUrlAuditError } from "~/utils/urlAudit";
+import { ANALYZE_JOB, SHARED_REPORTS } from "../../../../audit.config";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
 
@@ -882,17 +948,25 @@ const heroTitle = computed(() =>
     : "Check your PDFs for accessibility",
 );
 const heroUploadNoun = computed(() => `${uploadNoun(uploadFlags.value)} file`);
+// How long a share link lives — read from the one place that decides it
+// (audit.config.ts SHARED_REPORTS.EXPIRY_DAYS), not typed out twice here.
+const shareExpiryDays = SHARED_REPORTS.EXPIRY_DAYS;
 
 interface BatchItem {
   id: string;
   filename: string;
   // Nulled out once the item reaches a terminal state (done/error/cancelled)
-  // to free the in-memory File — see processNext()/the queued-item sweep
-  // below, both of which null it out after use.
+  // to free the in-memory File — utils/batchRun.ts does it. So on a finished
+  // batch this is ALWAYS null; see activeFile / activeExpectedFile below.
   file: File | null;
+  /** The file's size in bytes — kept after the File is freed, so a file
+   *  re-selected for repair can be checked against the one that was audited. */
+  fileSize: number | null;
   status: "queued" | "processing" | "done" | "error" | "cancelled";
   result: AnalysisResult | null;
   error: PrefillError | null;
+  /** Set by runBatch while this file waits out a busy server. */
+  note?: string | null;
 }
 
 // The batch run currently OWNING the page, if any. Each run gets its own
@@ -983,7 +1057,43 @@ function fileTypeFromName(name: string): "pdf" | "docx" | "pptx" | "xlsx" | null
 }
 const singleResult = ref<AnalysisResult | null>(null);
 const singleFile = ref<File | null>(null);
+// The size of the single file that was audited, when this page load saw it.
+const singleFileSize = ref<number | null>(null);
 const analysisError = ref<PrefillError | null>(null);
+
+// --- Before and after (2026-11-24) ---
+// When a file is uploaded again under the same name in this tab, the report
+// it replaces is kept so the new one can say what changed.
+//   lastSingleResult — the most recent single report this tab produced. It
+//     outlives Reset on purpose: "Reset, then upload the fixed file" is the
+//     ordinary way to re-check. Memory only; gone with the page.
+//   earlierResult    — the earlier report being compared against RIGHT NOW,
+//     set when the new upload's filename matches. Also kept in this tab's
+//     sessionStorage (utils/comparePrevious.ts) so a reload keeps the
+//     comparison, exactly as the current report is kept.
+// Nothing is sent anywhere, and a different filename drops both.
+let lastSingleResult: AnalysisResult | null = null;
+const earlierResult = ref<AnalysisResult | null>(null);
+const sameName = (a: string, b: string) =>
+  a.normalize("NFC").toLowerCase() === b.normalize("NFC").toLowerCase();
+function dismissComparison() {
+  earlierResult.value = null;
+  clearPreviousResult();
+}
+/** Call when a single report arrives for `filename`. */
+function offerComparison(response: AnalysisResult) {
+  const candidate = lastSingleResult;
+  if (candidate && candidate !== response && sameName(candidate.filename, response.filename)) {
+    earlierResult.value = candidate;
+    savePreviousResult({
+      result: candidate as unknown as Record<string, any>,
+      appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    });
+  } else {
+    dismissComparison();
+  }
+  lastSingleResult = response;
+}
 
 // Focus target for post-analysis focus management (Task F6) — see the
 // sr-only <h2 ref="resultsHeadingRef"> at the top of the results template.
@@ -1009,15 +1119,37 @@ const result = computed(() => {
   return singleResult.value;
 });
 
-// Active File — used by RemediateButton. In batch mode each tab carries
-// its own File; the button targets whichever tab is currently selected
-// so the user can remediate each batch entry independently.
+// Active File — used by RemediateButton. Held only for a single-file upload
+// made in this page load. In a batch it is ALWAYS null: runBatch frees each
+// File the moment its audit finishes (utils/batchRun.ts — up to
+// BATCH.MAX_FILES documents of 25 MB each do not belong in memory), and a
+// report restored after a reload never had one. RemediateButton then asks
+// for the file again and checks the answer against `activeExpectedFile`.
 const activeFile = computed<File | null>(() => {
   if (isBatchMode.value) {
     return activeItem.value?.file || null;
   }
   return singleFile.value;
 });
+// What the page still knows about the audited file once the File itself is
+// gone: its name, and its size when it was uploaded in this page load.
+// RemediateButton refuses a re-selected file that does not match.
+const activeExpectedFile = computed(() => {
+  if (!result.value) return null;
+  if (isBatchMode.value) {
+    const item = activeItem.value;
+    return item ? { name: item.filename, size: item.fileSize ?? null } : null;
+  }
+  return { name: result.value.filename, size: singleFile.value?.size ?? singleFileSize.value };
+});
+// One RemediateButton instance per report: its title and language fields are
+// seeded from the report, and a reused instance kept document A's title on
+// screen while document B's file was sent.
+const remediateKey = computed(() =>
+  isBatchMode.value
+    ? `batch:${activeItem.value?.id ?? activeTabIndex.value}`
+    : `single:${result.value?.filename ?? ""}`,
+);
 
 const hasAnyResult = computed(() => {
   if (isBatchMode.value) {
@@ -1076,10 +1208,22 @@ onMounted(async () => {
     appVersion: String(runtimeConfig.public.appVersion ?? ""),
     ttlMs: ANALYZE_JOB.TTL_MS,
   });
-  if (!session) return;
+  if (!session) {
+    restoreBatch();
+    return;
+  }
 
   if (session.kind === "result") {
     singleResult.value = session.result;
+    lastSingleResult = session.result;
+    // A re-check's earlier report, if this tab was showing a comparison.
+    const previous = readPreviousResult({
+      appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    });
+    earlierResult.value =
+      previous && sameName(String(previous.filename), session.result.filename)
+        ? (previous as unknown as AnalysisResult)
+        : null;
     // The File itself is not storable — not serialisable, and a 7 MB PDF
     // would blow the quota that the report barely fits inside. The one
     // consumer, RemediateButton, already handles a null file by opening a
@@ -1111,6 +1255,7 @@ onMounted(async () => {
     );
     if (singleRun !== run) return;
     singleResult.value = response;
+    lastSingleResult = response;
     saveFinishedAudit({
       result: response,
       filename: session.filename,
@@ -1131,6 +1276,72 @@ onMounted(async () => {
   } finally {
     if (singleRun === run) endSingleRun();
   }
+});
+
+// --- A finished batch across a page load (2026-11-24) ---
+// Only a single report used to survive a reload; a batch of 25 audits was
+// gone the moment the tab refreshed. A finished batch is now kept in this
+// tab's sessionStorage the same way (utils/batchSession.ts) — when it fits.
+// When it does not, `batchUnsaved` turns on the browser's leave-page prompt
+// and a line of text that says why.
+const batchUnsaved = ref(false);
+const BATCH_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+function persistBatch() {
+  const finished = batchItems.value.filter(
+    (i) => i.status === "done" || i.status === "error" || i.status === "cancelled",
+  );
+  if (batchItems.value.length < 2 || finished.length !== batchItems.value.length) return;
+  const saved = saveBatchSession({
+    items: batchItems.value.map((i) => ({
+      id: i.id,
+      filename: i.filename,
+      fileSize: i.fileSize,
+      status: i.status as "done" | "error" | "cancelled",
+      result: i.result as Record<string, any> | null,
+      error: i.error,
+    })),
+    activeIndex: activeTabIndex.value,
+    savedAt: Date.now(),
+    appVersion: String(runtimeConfig.public.appVersion ?? ""),
+  });
+  // Nothing to lose when no file produced a report.
+  batchUnsaved.value = !saved && batchItems.value.some((i) => i.status === "done");
+}
+
+function restoreBatch() {
+  const stored = readBatchSession({
+    now: Date.now(),
+    appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    ttlMs: BATCH_SESSION_TTL_MS,
+  });
+  if (!stored) return;
+  batchItems.value = stored.items.map((i) => ({
+    id: i.id,
+    filename: i.filename,
+    // The File was freed when its audit finished and was never storable.
+    file: null,
+    fileSize: i.fileSize,
+    status: i.status,
+    result: i.result as AnalysisResult | null,
+    error: i.error,
+  }));
+  activeTabIndex.value = stored.activeIndex;
+  batchProcessing.value = false;
+}
+
+function warnBeforeUnload(e: BeforeUnloadEvent) {
+  e.preventDefault();
+  // Legacy browsers need a value; the text itself is never shown.
+  e.returnValue = "";
+}
+watch(batchUnsaved, (on) => {
+  if (typeof window === "undefined") return;
+  if (on) window.addEventListener("beforeunload", warnBeforeUnload);
+  else window.removeEventListener("beforeunload", warnBeforeUnload);
+});
+onBeforeUnmount(() => {
+  if (typeof window !== "undefined") window.removeEventListener("beforeunload", warnBeforeUnload);
 });
 
 /** Put the single-file processing state back to idle. Only ever called by
@@ -1164,31 +1375,86 @@ watch(
   },
 );
 
-// --- Prefill: auto-analyze a PDF from the ?prefill=<url> query param ---
-// filecap-cli generates audit links of the form:
-//   https://audit.icjia.app/?prefill=https%3A%2F%2Fexample.com%2Freport.pdf
-// On page load usePrefill reads the param, calls POST /api/analyze-url,
-// and feeds the result into the same single-file UI used for uploads.
-usePrefill({
-  onStart(url) {
-    processing.value = true;
-    analysisError.value = null;
-    singleResult.value = null;
-    batchItems.value = [];
-    processingStage.value = `Fetching ${url}…`;
-  },
-  onResult(result) {
-    processingStage.value = "Building report…";
-    singleResult.value = result;
+// --- Checking a document by its web address ---
+// Two ways in, one run: the "check a document by link" field under the drop
+// zone, and ?prefill=<url> (filecap-cli builds audit links of the form
+//   https://audit.icjia.app/?prefill=https%3A%2F%2Fexample.com%2Freport.pdf ).
+// Both call analyzeUrl(), which POSTs /api/analyze-url and feeds the answer
+// into the same single-file UI an upload uses.
+//
+// It runs under the SAME ownership as an upload (beginSingleRun): its own
+// AbortController, and it writes to the page only while it is still
+// `singleRun`. The prefill path used to have neither — a reset mid-request
+// left the overlay up and the report still arrived on the cleared page.
+async function analyzeUrl(url: string) {
+  // A batch still running is superseded, exactly as an upload supersedes it.
+  batchRun?.controller.abort();
+  batchRun = null;
+  batchProcessing.value = false;
+  batchJustFinished.value = false;
+
+  processing.value = true;
+  analysisError.value = null;
+  if (singleResult.value) lastSingleResult = singleResult.value;
+  earlierResult.value = null;
+  singleResult.value = null;
+  singleFile.value = null;
+  singleFileSize.value = null;
+  batchItems.value = [];
+  activeTabIndex.value = 0;
+  clearShare();
+  // A report saved by an earlier upload must not come back on reload in
+  // place of the one being made now.
+  clearAuditSession();
+  clearBatchSession();
+  batchUnsaved.value = false;
+
+  const run = beginSingleRun();
+  // The server reports nothing until it is done, so the overlay narrates the
+  // one real milestone there is.
+  processingRotate.value = false;
+  processingFileType.value = null;
+  processingFilename.value = null;
+  processingSteps.value = null;
+  processingStage.value = `Fetching ${url}…`;
+  try {
+    const response = await $fetch<AnalysisResult>("/api/analyze-url", {
+      method: "POST",
+      body: { url },
+      credentials: "include",
+      signal: run.controller.signal,
+    });
+    // Reset, or replaced by a newer audit, while this one was in flight.
+    if (singleRun !== run) return;
+    singleResult.value = response;
+    offerComparison(response);
+    // Kept for this tab like an uploaded file's report, so a reload — which
+    // no longer re-runs ?prefill= — still shows it.
+    saveFinishedAudit({
+      result: response,
+      filename: response.filename,
+      savedAt: Date.now(),
+      appVersion: String(runtimeConfig.public.appVersion ?? ""),
+    });
     focusResultsHeading();
-  },
+  } catch (err: unknown) {
+    if (singleRun !== run) return; // reset — the page has moved on
+    // Says, in plain words, when the site is not one that can be checked by
+    // link — and that uploading the file always works.
+    analysisError.value = describeUrlAuditError(err);
+  } finally {
+    if (singleRun === run) {
+      endSingleRun();
+      processingStage.value = "";
+    }
+  }
+}
+
+usePrefill({
+  onUrl: analyzeUrl,
   onError(err) {
-    // Normalised like every other failure, so a non-JSON error body can
-    // never leave the alert without a message.
+    // Normalised like every other failure, so the alert always has a message.
     analysisError.value = describeAnalysisError({ data: err });
-  },
-  onDone() {
-    processing.value = false;
   },
 });
 
@@ -1196,9 +1462,14 @@ usePrefill({
 async function analyzeFile(file: File) {
   processing.value = true;
   analysisError.value = null;
+  if (singleResult.value) lastSingleResult = singleResult.value;
+  earlierResult.value = null;
   singleResult.value = null;
   singleFile.value = file;
+  singleFileSize.value = file.size;
   batchItems.value = [];
+  clearBatchSession();
+  batchUnsaved.value = false;
 
   const run = beginSingleRun();
   const { signal } = run.controller;
@@ -1251,6 +1522,8 @@ async function analyzeFile(file: File) {
     // Reset while this audit was in flight: its answer belongs to no one.
     if (singleRun !== run) return;
     singleResult.value = response;
+    // The same filename as the last report in this tab: show what changed.
+    offerComparison(response);
     // The server deletes a finished job the moment a page collects it, so
     // from here on this browser is the only place the report exists. Keeping
     // it means a visitor who reads the report, checks the status page, and
@@ -1294,6 +1567,12 @@ async function analyzeBatch(files: File[]) {
     endSingleRun();
   }
   batchJustFinished.value = false;
+  // The page now belongs to this batch: no earlier report or batch may come
+  // back in its place on a reload.
+  clearAuditSession();
+  clearBatchSession();
+  batchUnsaved.value = false;
+  dismissComparison();
 
   singleResult.value = null;
   analysisError.value = null;
@@ -1305,6 +1584,7 @@ async function analyzeBatch(files: File[]) {
     id: `batch-${i}-${Date.now()}`,
     filename: file.name,
     file,
+    fileSize: file.size,
     status: "queued",
     result: null,
     error: null,
@@ -1314,20 +1594,39 @@ async function analyzeBatch(files: File[]) {
   // this run does after that lands on a list the page no longer shows.
   const items = batchItems.value;
 
+  // Each file goes through the same JOB endpoints a single upload uses: the
+  // upload returns at once and the page polls for the answer, so a slow
+  // document cannot outlast a proxy's read timeout the way one long
+  // synchronous request can. If this deployment has no job endpoints (deploy
+  // skew), every file in the batch falls back to the synchronous endpoint —
+  // found out once, on the first file, not once per file.
+  let jobsUnsupported = false;
+  const analyzeSync = (file: File, signal: AbortSignal) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return $fetch<AnalysisResult>("/api/analyze", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+      signal,
+    });
+  };
+
   await runBatch<AnalysisResult, PrefillError>({
     items,
     signal: run.controller.signal,
-    // Matches MAX_CONCURRENT_ANALYSES on the API.
+    // Matches MAX_CONCURRENT_ANALYSES on the API. A 429 or 503 is waited out
+    // and the file tried again — see utils/batchRun.ts.
     concurrency: 2,
-    analyze: (file, signal) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      return $fetch<AnalysisResult>("/api/analyze", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-        signal,
-      });
+    analyze: async (file, signal) => {
+      if (jobsUnsupported) return analyzeSync(file, signal);
+      try {
+        return await analyzeWithProgress(file, $fetch as never, () => {}, { signal });
+      } catch (jobErr: any) {
+        if (!jobErr?.jobUnsupported) throw jobErr;
+        jobsUnsupported = true;
+        return analyzeSync(file, signal);
+      }
     },
     describeError: describeAnalysisError,
   });
@@ -1343,6 +1642,7 @@ async function analyzeBatch(files: File[]) {
   if (firstDone >= 0) activeTabIndex.value = firstDone;
 
   batchJustFinished.value = true;
+  persistBatch();
   focusBatchDoneHeading();
 }
 
@@ -1377,10 +1677,16 @@ function switchTab(idx: number) {
   batchJustFinished.value = false;
   activeTabIndex.value = idx;
   clearShare(); // Reset share state on tab switch
+  // Remember which report was open, so a reload returns to it.
+  if (!batchProcessing.value && !batchUnsaved.value) persistBatch();
 }
 
 function scrollToExport() {
-  document.getElementById("export-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Programmatic scrolling honours "reduce motion": jump, do not glide.
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  document
+    .getElementById("export-section")
+    ?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
 }
 
 function clearResults() {
@@ -1396,7 +1702,20 @@ function clearResults() {
   }
   batchJustFinished.value = false;
   clearAuditSession();
+  clearBatchSession();
+  batchUnsaved.value = false;
+  // Kept in memory for a re-check of the same filename; the stored copy of
+  // any comparison goes with everything else Reset clears.
+  if (singleResult.value) lastSingleResult = singleResult.value;
+  dismissComparison();
   singleResult.value = null;
+  singleFile.value = null;
+  singleFileSize.value = null;
+  // Belt and braces: every single-file run (upload, rejoin, link) is a
+  // `singleRun` and was ended above, but nothing may leave the overlay up
+  // after a reset.
+  processing.value = false;
+  processingStage.value = "";
   analysisError.value = null;
   batchItems.value = [];
   activeTabIndex.value = 0;
@@ -1477,17 +1796,10 @@ function emailShareUrl() {
       // asserts no grade gate creeps back in here.
       `(The score covers automated checks only — roughly the 30–40% of accessibility a machine can test; a person still needs to confirm the rest, starting with a screen reader.)\n\n` +
       `View the full report:\n${shareUrl.value}\n\n` +
-      `This link expires in 365 days.`,
+      `This link expires in ${shareExpiryDays} days.`,
   );
   window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
 }
-
-// ------------------------------------------------------------------
-// Mermaid diagram sources for the Technical Details expandable.
-// Kept deliberately simple — flowchart TD only, short labels, no
-// subgraphs, no HTML-in-labels. The standalone /technical-details
-// page uses the same diagrams. Reliability over richness.
-// ------------------------------------------------------------------
 </script>
 
 <style scoped>

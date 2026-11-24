@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { REMEDIATION } from "#config";
+import { auditTempDir } from "@file-audit/analyzer/tempDir";
 import { runVeraPdf, type VeraPdfVerdict } from "./veraPdf.js";
 
 /** The verdict returned whenever no check could be run at all. */
@@ -90,6 +91,12 @@ function releaseSlot(): void {
   else active--;
 }
 
+/** The trailing `signal` argument for runVeraPdf — present only when there
+ *  is one, so a call without it is exactly the call it has always been. */
+function signalArg(signal: AbortSignal | undefined): [] | [AbortSignal] {
+  return signal ? [signal] : [];
+}
+
 /**
  * Which PDF/UA flavour a buffer declares (v1.94.0). XMP metadata streams are
  * typically stored uncompressed precisely so byte scanners can find them, so
@@ -115,7 +122,7 @@ export function detectPdfUaFlavour(buffer: Buffer): "ua1" | "ua2" {
 /**
  * Run veraPDF's PDF/UA check against an in-memory PDF buffer.
  *
- * Writes a short-lived temp copy (same TMP_DIR||/tmp + UUID.pdf pattern the
+ * Writes a short-lived temp copy (same temp directory + UUID.pdf pattern the
  * qpdf audit path already uses and the privacy docs already disclose), runs
  * veraPDF, and deletes it in `finally`. Never throws; returns available:false
  * (with no temp file) when veraPDF isn't configured or no slot was free.
@@ -131,7 +138,7 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
  * Run the PDF/UA check — and, when enabled (v1.97.0), veraPDF's
  * machine-testable WCAG 2.2 profile — against an in-memory PDF buffer.
  *
- * ONE temp copy serves both runs (same TMP_DIR||/tmp + UUID.pdf pattern the
+ * ONE temp copy serves both runs (same temp directory + UUID.pdf pattern the
  * qpdf audit path uses and the privacy docs disclose), deleted in `finally`
  * after both settle. Each JVM takes its own concurrency slot and the two run
  * CONCURRENTLY; under saturation each degrades independently to
@@ -153,6 +160,15 @@ export async function runVeraPdfChecksOnBuffer(
      *  fires only when the WCAG pass is actually wanted. */
     onUa?: (state: "running" | "done") => void;
     onWcag?: (state: "running" | "done") => void;
+    /**
+     * Abort the checks: the audit they belong to has already been refused or
+     * has failed (the analysis line was full, the PDF is encrypted), so the
+     * verdict would be thrown away. A queued run gives its slot straight
+     * back; a running JVM is killed. Without this the JVM kept the only
+     * veraPDF slot for up to VERAPDF_AUDIT_TIMEOUT_MS on an audit nobody
+     * would receive.
+     */
+    signal?: AbortSignal;
   },
 ): Promise<{ pdfUa: VeraPdfVerdict; wcag: VeraPdfVerdict | null }> {
   const wantWcag = opts.wcag;
@@ -176,10 +192,18 @@ export async function runVeraPdfChecksOnBuffer(
     // not run" (v1.91.0) rather than failing the audit the user asked for.
     return { pdfUa: unavailable(), wcag: wcagFallback };
   }
+  // Aborted while it waited for the slot: hand it back, write nothing.
+  if (opts.signal?.aborted) {
+    releaseSlot();
+    return { pdfUa: unavailable(), wcag: wcagFallback };
+  }
 
-  const tmpDir = process.env.TMP_DIR || "/tmp";
-  const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
+  let tmpPath = "";
   try {
+    // The dedicated owner-only temp directory (packages/analyzer tempDir.ts):
+    // what a killed process leaves there is deleted at startup and by the
+    // retention sweep.
+    tmpPath = path.join(auditTempDir(), `${randomUUID()}.pdf`);
     fs.writeFileSync(tmpPath, buffer, { mode: 0o600 });
   } catch {
     releaseSlot();
@@ -209,7 +233,13 @@ export async function runVeraPdfChecksOnBuffer(
   if (wantWcag) opts.onWcag?.("running");
   const uaRun = (async (): Promise<VeraPdfVerdict> => {
     try {
-      return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour, undefined);
+      return await runVeraPdf(
+        tmpPath,
+        REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS,
+        flavour,
+        undefined,
+        ...signalArg(opts.signal),
+      );
     } catch {
       return {
         available: true,
@@ -227,12 +257,17 @@ export async function runVeraPdfChecksOnBuffer(
 
   const wcagRun = (async (): Promise<VeraPdfVerdict | null> => {
     if (!wcagRunnable) return wcagFallback;
+    if (opts.signal?.aborted) return unavailable(WCAG_PROFILE_LABEL);
     if (!(await acquireSlot())) return unavailable(WCAG_PROFILE_LABEL);
     try {
-      return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour, {
-        path: WCAG_PROFILE_PATH,
-        label: WCAG_PROFILE_LABEL,
-      });
+      if (opts.signal?.aborted) return unavailable(WCAG_PROFILE_LABEL);
+      return await runVeraPdf(
+        tmpPath,
+        REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS,
+        flavour,
+        { path: WCAG_PROFILE_PATH, label: WCAG_PROFILE_LABEL },
+        ...signalArg(opts.signal),
+      );
     } catch {
       return {
         available: true,

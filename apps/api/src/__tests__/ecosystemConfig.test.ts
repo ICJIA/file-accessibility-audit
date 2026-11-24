@@ -14,6 +14,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { SHUTDOWN } from "#config";
 
 const root = resolve(__dirname, "../../../..");
 const cjsRequire = createRequire(import.meta.url);
@@ -25,6 +26,7 @@ interface PmApp {
   args: string;
   interpreter: string;
   max_memory_restart: string;
+  kill_timeout?: number;
 }
 
 const ecosystem = cjsRequire(resolve(root, "ecosystem.config.cjs")) as { apps: PmApp[] };
@@ -62,6 +64,18 @@ describe("ecosystem.config.cjs starts each server directly", () => {
       expect(a.interpreter).toBe("none");
     },
   );
+
+  // The API drains in-flight audits on a stop signal (services/shutdown.ts);
+  // PM2's default kill_timeout is 1.6 s, which would SIGKILL it mid-drain.
+  it("gives the API time to stop gracefully: kill_timeout above its drain deadline + grace", () => {
+    const api = app("file-audit-api");
+    expect(api.kill_timeout).toBe(40_000);
+    expect(api.kill_timeout!).toBeGreaterThan(
+      SHUTDOWN.DRAIN_DEADLINE_MS + SHUTDOWN.FORCE_EXIT_GRACE_MS,
+    );
+    // The web app (Nitro) has no drain of its own; it keeps PM2's default.
+    expect(app("file-audit-web").kill_timeout).toBeUndefined();
+  });
 
   it("gives the API a higher memory cap than the web app", () => {
     expect(app("file-audit-api").max_memory_restart).toBe("768M");

@@ -1,7 +1,8 @@
 /**
  * Polls the remediation job status endpoint until the job reaches a
- * terminal state (complete / failed / expired). Auto-cleans the
- * interval when the consuming component unmounts.
+ * terminal state (complete / failed / expired), or until a bounded run of
+ * unanswered checks ends in `lostContact`. Cleans up its timer and its
+ * visibility listener when the consuming component unmounts.
  *
  * The receipt (lifecycle events) is fetched once on completion, since
  * the full event log only matters at the end — there's no need to
@@ -132,6 +133,10 @@ interface UseRemediationJobReturn {
   error: Ref<string | null>;
   loading: Ref<boolean>;
   isTerminal: Ref<boolean>;
+  /** True once the poller has given up after a run of unanswered status
+   *  checks. NOT a job outcome — the job may still be running on the server —
+   *  so `isTerminal` stays false; the page tells the visitor to reload. */
+  lostContact: Ref<boolean>;
 }
 
 // 1 s keeps the progress view fresh (the remediate page runs a
@@ -144,19 +149,50 @@ interface UseRemediationJobReturn {
 // exponentially up to POLL_BACKOFF_MAX_MS.
 const POLL_INTERVAL_MS = 1000;
 const POLL_BACKOFF_MAX_MS = 8000;
+/** How many status checks in a row may fail before the page stops asking.
+ *  With the backoff above that is a little under a minute of silence. The
+ *  same bound utils/analyzeJob.ts puts on the audit poll: a loop that retries
+ *  forever keeps a dead tab hitting the server every 8 s until it is closed. */
+export const MAX_CONSECUTIVE_POLL_FAILURES = 8;
+/** A Retry-After is honoured, but never for longer than this. */
+const RETRY_AFTER_MAX_MS = 30_000;
+/** Cadence while the tab is hidden. Nobody is watching the progress bar, and
+ *  the job runs on the server either way; the poll catches up the moment the
+ *  tab is shown again. */
+export const HIDDEN_POLL_INTERVAL_MS = 10_000;
 const TERMINAL_STATES = new Set<RemediationStatus>(["complete", "failed", "expired"]);
+
+/** Shown when the status checks stay unanswered. Says what happened and what
+ *  to do next. */
+export const REMEDIATION_LOST_CONTACT_MESSAGE =
+  "We lost contact with the remediation service. Several status checks in a row went unanswered, so this page stopped checking. This is a connection or server problem, not a problem with your file. Your job may still be running: wait a minute, then reload this page to try again.";
+
+/** Retry-After in ms (delta-seconds or an HTTP date), or null. Same reading
+ *  as utils/analyzeJob.ts. */
+function retryAfterMs(err: unknown): number | null {
+  const headers = (err as { response?: { headers?: unknown } } | null)?.response?.headers;
+  let raw: unknown;
+  if (headers && typeof (headers as Headers).get === "function") {
+    raw = (headers as Headers).get("retry-after");
+  } else if (headers && typeof headers === "object") {
+    raw = (headers as Record<string, unknown>)["retry-after"];
+  }
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  const seconds = Number(raw);
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(raw) - Date.now();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  return Math.min(ms, RETRY_AFTER_MAX_MS);
+}
 
 /**
  * @param jobId Job id returned by POST /api/remediate.
  * @param token The job's download token, from the SAME creation response
  *   (threaded through the result page's `?t=` query param — see
- *   pages/remediate/[jobId].vue). The API requires this on status/receipt
- *   reads whenever the caller isn't a logged-in owner (AUTH.REQUIRE_LOGIN
- *   off, or the job has no owner email — see routes/remediate.ts); an
- *   unauthorized read returns 404 rather than leaking job existence.
- *   Optional so a caller with no token still gets the pre-C5 URLs
- *   unchanged (e.g. an old bookmarked link with no `?t=`, or a future
- *   logged-in-only flow that doesn't need one).
+ *   pages/remediate/[jobId].vue). It is the only credential a job has: the
+ *   API authorizes status and receipt reads by it and answers 404 without
+ *   it, so a job's existence is never disclosed to a caller who lacks it.
+ *   Optional only so a link with no `?t=` still makes the request and gets
+ *   that 404 ("Remediation job not found.") instead of throwing here.
  */
 export function useRemediationJob(jobId: string, token?: string): UseRemediationJobReturn {
   const status = ref<JobStatus | null>(null);
@@ -164,12 +200,17 @@ export function useRemediationJob(jobId: string, token?: string): UseRemediation
   const error = ref<string | null>(null);
   const loading = ref(true);
   const isTerminal = ref(false);
+  const lostContact = ref(false);
 
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
 
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
   let delayMs = POLL_INTERVAL_MS;
+  let failures = 0;
+  let inFlight = false;
+
+  const tabHidden = (): boolean => typeof document !== "undefined" && document.hidden;
 
   function stop(): void {
     stopped = true;
@@ -177,16 +218,36 @@ export function useRemediationJob(jobId: string, token?: string): UseRemediation
       clearTimeout(timeoutHandle);
       timeoutHandle = null;
     }
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    }
   }
 
   function scheduleNext(): void {
     if (stopped || isTerminal.value) return;
+    // A hidden tab never polls faster than the hidden cadence; a backoff or
+    // Retry-After longer than that still wins.
+    const wait = tabHidden() ? Math.max(delayMs, HIDDEN_POLL_INTERVAL_MS) : delayMs;
     timeoutHandle = setTimeout(() => {
+      timeoutHandle = null;
       void pollOnce();
-    }, delayMs);
+    }, wait);
+  }
+
+  /** Back in view: ask now instead of sitting out the rest of a hidden-tab
+   *  wait. Only while the poller is healthy — a pending backoff or
+   *  Retry-After is the server asking for room, and is left to run. */
+  function onVisibilityChange(): void {
+    if (stopped || tabHidden() || inFlight || failures > 0) return;
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
+    void pollOnce();
   }
 
   async function pollOnce(): Promise<void> {
+    inFlight = true;
     try {
       const data = await $fetch<JobStatus>(`/api/remediate/${jobId}/status${tokenQuery}`, {
         credentials: "include",
@@ -194,6 +255,7 @@ export function useRemediationJob(jobId: string, token?: string): UseRemediation
       status.value = data;
       error.value = null;
       delayMs = POLL_INTERVAL_MS;
+      failures = 0;
       if (TERMINAL_STATES.has(data.status)) {
         isTerminal.value = true;
         stop();
@@ -218,8 +280,22 @@ export function useRemediationJob(jobId: string, token?: string): UseRemediation
         stop();
         return;
       }
-      // Back off on any failure so a struggling server isn't hammered.
+      failures++;
+      if (failures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+        // Give up asking — but this is NOT an answer about the job, which
+        // may be healthy on the server. `isTerminal` stays false so the page
+        // never renders it as an outcome; a reload starts a fresh poller.
+        lostContact.value = true;
+        error.value = REMEDIATION_LOST_CONTACT_MESSAGE;
+        loading.value = false;
+        stop();
+        return;
+      }
+      // Back off on any failure so a struggling server isn't hammered; the
+      // server's own Retry-After, when it sends one, is the better number.
       delayMs = Math.min(delayMs * 2, POLL_BACKOFF_MAX_MS);
+      const asked = retryAfterMs(e);
+      if (asked !== null) delayMs = Math.max(delayMs, asked);
       if (err.status !== 429) {
         // A 429 is throttling feedback aimed at this poller, not a job
         // failure — retry quietly. (Errors surfaced here stay visible
@@ -227,15 +303,18 @@ export function useRemediationJob(jobId: string, token?: string): UseRemediation
         error.value = err.data?.error ?? (e as Error).message;
       }
       loading.value = false;
+    } finally {
+      inFlight = false;
     }
     scheduleNext();
   }
 
   onMounted(() => {
+    document.addEventListener("visibilitychange", onVisibilityChange);
     void pollOnce();
   });
 
   onBeforeUnmount(stop);
 
-  return { status, receipt, error, loading, isTerminal };
+  return { status, receipt, error, loading, isTerminal, lostContact };
 }

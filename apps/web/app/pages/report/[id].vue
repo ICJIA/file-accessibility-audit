@@ -2,8 +2,9 @@
   <div class="min-h-screen bg-[var(--surface-body)] text-[var(--text-primary)]">
     <main class="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
       <!-- Loading -->
-      <div v-if="pending" class="text-center py-20">
+      <div v-if="pending" class="text-center py-20" role="status">
         <div
+          aria-hidden="true"
           class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
         />
         <p class="text-[var(--text-muted)]">Loading report...</p>
@@ -14,9 +15,11 @@
         <div
           class="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4"
         >
-          <span class="text-3xl">!</span>
+          <span class="text-3xl" aria-hidden="true">!</span>
         </div>
-        <h2 class="text-xl font-semibold text-[var(--status-error)] mb-2">Report Not Available</h2>
+        <!-- <h1>, not <h2>: in this state it is the only heading on the page,
+             and a page whose outline starts at level 2 has no top. -->
+        <h1 class="text-xl font-semibold text-[var(--status-error)] mb-2">Report Not Available</h1>
         <p class="text-[var(--text-muted)] text-sm">{{ errorMessage }}</p>
       </div>
 
@@ -38,8 +41,12 @@
           <div class="text-center mb-8">
             <!-- The theme button stays a small right-aligned control; the
                  view chooser is now full width below it. -->
-            <div class="flex justify-end items-center gap-2 mb-4">
+            <!-- data-export-exclude: this row sits inside data-report-content,
+                 so without it the HTML download carried a theme button that
+                 could do nothing in a file with no script. -->
+            <div data-export-exclude class="flex justify-end items-center gap-2 mb-4">
               <button
+                type="button"
                 class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                 :aria-label="
                   colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
@@ -53,6 +60,7 @@
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -67,6 +75,7 @@
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -278,6 +287,7 @@
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 stroke-width="2"
+                aria-hidden="true"
               >
                 <path
                   stroke-linecap="round"
@@ -319,6 +329,7 @@ import ReportVisualView from "~/components/ReportVisualView.vue";
 import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import type { AnalysisResult } from "@file-audit/shared";
+import { sharedReportErrorStatus, sharedReportHead } from "~/utils/sharedReportHead";
 
 definePageMeta({ layout: false });
 
@@ -346,6 +357,25 @@ interface SharedReportResponse {
 }
 
 const { data, pending, error } = await useFetch<SharedReportResponse>(`/api/reports/${id}`);
+
+// This page is server-rendered (the fetch above is awaited in setup), so a
+// report that does not exist or has expired can and should answer with the
+// real status instead of "200 OK" around an error message. Server only: on
+// the client there is no response left to set a status on.
+if (import.meta.server) {
+  const httpStatus = sharedReportErrorStatus(error.value);
+  const event = httpStatus ? useRequestEvent() : undefined;
+  if (httpStatus && event) setResponseStatus(event, httpStatus);
+}
+
+// The filename is user-supplied. It is sanitised when the report is stored,
+// and it reaches the document only as text through useHead, which escapes it.
+const headTitle = computed(() => {
+  const name = data.value?.report?.filename;
+  if (name) return `Accessibility report: ${name}`;
+  return error.value ? "Report not available" : "Accessibility report";
+});
+useHead(() => sharedReportHead(headTitle.value, `${auditUrl}/report/${encodeURIComponent(id)}`));
 
 const errorMessage = computed(() => {
   if (!error.value) return "";

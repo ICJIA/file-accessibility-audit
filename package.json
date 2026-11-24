@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.175.6",
+  "version": "1.176.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -32,7 +32,9 @@
     "synthetic-office-controls": "tsx --tsconfig scripts/tsconfig.json scripts/synthetic-office-controls.ts",
     "encoding-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/encoding-invariance.ts",
     "office-encoding-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/office-encoding-invariance.ts",
-    "audit-corpus": "tsx --tsconfig scripts/tsconfig.json scripts/audit-corpus.ts"
+    "audit-corpus": "tsx --tsconfig scripts/tsconfig.json scripts/audit-corpus.ts",
+    "release": "tsx scripts/release.ts",
+    "e2e": "tsx scripts/e2e-smoke.ts"
   },
   "engines": {
     "node": ">=22"

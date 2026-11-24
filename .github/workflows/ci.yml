@@ -14,10 +14,22 @@ on:
 permissions:
   contents: read
 
+# One run per branch or pull request at a time (2026-11-24). A second push
+# to the same ref makes the first run's answer irrelevant; before this, both
+# ran to the end and the older one could finish last, leaving a stale result
+# as the newest status. Tag refs are never cancelled: a run for a release tag
+# is the record of that release.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   test:
     name: Lint, typecheck, build, test
     runs-on: ubuntu-latest
+    # A normal run takes about 7 minutes. Without a limit a hung step holds a
+    # runner for GitHub's default of 6 hours.
+    timeout-minutes: 25
     steps:
       # Third-party actions are pinned to full commit SHAs, not moving tags
       # (2026-09-02 security pass): a tag like `v7` can be re-pointed at any
@@ -46,6 +58,16 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Known advisories in what production actually runs (2026-11-24). The
+      # scan was a manual step of every security review; nothing stopped a
+      # push that brought in a high-severity advisory. Fails on HIGH or
+      # CRITICAL only — moderate and low findings are triaged by hand under
+      # the dependency playbook and recorded in the security log. Needs the
+      # npm registry: a registry outage fails this step, and a re-run is the
+      # fix.
+      - name: Dependency advisories (production, high and critical)
+        run: pnpm audit --prod --audit-level high
 
       - name: Lint
         run: pnpm lint
@@ -146,3 +168,60 @@ jobs:
       # headers, contrast pairs). Its first run found seven parser defects.
       - name: Office encoding invariance (same meaning, every legal form)
         run: pnpm office-encoding-invariance
+
+  # ---------------------------------------------------------------------
+  # Browser smoke + accessibility check of the app itself (2026-11-24).
+  #
+  # The unit suites mount components in happy-dom and call routes
+  # in-process; nothing loaded the built pages in a real browser. This job
+  # builds the app, starts the API and the web server, and with headless
+  # Chromium uploads a fixture PDF through the real file input, waits for
+  # the grade, downloads the JSON export, and runs axe-core (WCAG 2.1 A/AA)
+  # on every public page — see scripts/e2e-smoke.ts.
+  #
+  # A separate job, after `test`: a red unit suite should not also spend a
+  # build here, and a browser flake must be tellable apart from a failing
+  # test at a glance.
+  #
+  # No new dependency: puppeteer and @axe-core/puppeteer are already
+  # dependencies of apps/api. Chromium is the build puppeteer downloads; the
+  # explicit install step makes that download a named step with its own
+  # error, rather than a side effect of `pnpm install` that a cached store
+  # can skip. The script launches Chromium with --no-sandbox, which GitHub's
+  # Ubuntu runners require.
+  # ---------------------------------------------------------------------
+  e2e:
+    name: Browser smoke + accessibility (axe)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The upload step audits a real PDF, which needs qpdf.
+      - name: Install qpdf
+        run: sudo apt-get update -q && sudo apt-get install -y -q qpdf && qpdf --version
+
+      - name: Install Chromium for puppeteer
+        run: pnpm --filter api exec puppeteer browsers install chrome
+
+      - name: Build
+        run: pnpm build
+
+      - name: Browser smoke + accessibility
+        run: pnpm e2e

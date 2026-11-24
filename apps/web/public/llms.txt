@@ -56,6 +56,9 @@ The application exposes a REST API. There are no accounts and no sign-in: every 
 - POST /api/reports - Create a shareable report link (JSON body: `{ "report": ... }`)
 - GET /api/reports/:id - Retrieve a shared report by ID
 - GET /api/health - Health check endpoint
+- GET /api/openapi.json - Machine-readable description (OpenAPI 3.1) of every public endpoint
+
+Every error response is JSON with an `error` message and a stable machine-readable `code` (for example `FILE_ENCRYPTED`, `RATE_LIMITED`, `URL_NOT_ALLOWED`). Every response carries an `X-Request-Id` header.
 
 ## Links
 

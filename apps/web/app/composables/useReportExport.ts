@@ -72,7 +72,6 @@ export function useReportExport() {
       config.public.wcagUnderstandingBase ?? "https://www.w3.org/WAI/WCAG22/Understanding/",
     ),
   };
-  const exporting = ref(false);
   const sharing = ref(false);
   const shareUrl = ref<string | null>(null);
   const shareError = ref<string | null>(null);
@@ -121,13 +120,108 @@ export function useReportExport() {
   }
 
   /**
+   * Make a cloned report honest as a STATIC file. The download ships no
+   * script, so every control that needs one is dead weight a keyboard user
+   * still has to Tab through, and a screen reader still announces as a
+   * button. Nothing focusable may remain that does nothing:
+   *
+   *   - a <button> (or role="button") becomes plain text in a <span>, keeping
+   *     its classes and children so it looks the same. The one exception is a
+   *     button that only exists to carry a CSS tooltip (aria-describedby →
+   *     role="tooltip", e.g. NaCell): focusing it still reveals the tooltip
+   *     with no script, so it still does something and is kept;
+   *   - disclosure state (aria-expanded / aria-controls / aria-pressed) is
+   *     removed with the control that owned it — the content is simply there;
+   *   - form controls are disabled, which also takes them out of the tab order;
+   *   - a tabindex that made a non-control focusable is removed.
+   *
+   * Links and native <details>/<summary> are left alone: they work unaided.
+   *
+   * `live` is the on-page element the clone was taken from; it is read only
+   * for the computed display / text-align a <button> gets from the browser
+   * and a <span> would not.
+   */
+  function makeStatic(clone: HTMLElement, live: HTMLElement): void {
+    const CONTROLS = 'button, [role="button"]';
+    const liveControls = Array.from(live.querySelectorAll<HTMLElement>(CONTROLS));
+    const cloneControls = Array.from(clone.querySelectorAll<HTMLElement>(CONTROLS));
+
+    clone.querySelectorAll("[data-export-exclude]").forEach((n) => n.remove());
+    clone.querySelectorAll("details").forEach((d) => (d.open = true));
+
+    cloneControls.forEach((control, i) => {
+      if (!clone.contains(control)) return; // went with an excluded subtree
+      const carriesTooltip = (control.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .some(
+          (id) =>
+            clone.querySelector(`[id="${id.replace(/["\\]/g, "\\$&")}"]`)?.getAttribute("role") ===
+            "tooltip",
+        );
+      if (control.tagName === "BUTTON" && carriesTooltip) return;
+
+      const text = document.createElement("span");
+      for (const attr of Array.from(control.attributes)) {
+        if (
+          /^(type|role|tabindex|disabled|name|value|form|autofocus|aria-expanded|aria-controls|aria-pressed|aria-haspopup|aria-disabled)$/.test(
+            attr.name,
+          )
+        ) {
+          continue;
+        }
+        text.setAttribute(attr.name, attr.value);
+      }
+      // An aria-label on a role-less <span> is ignored or misread; the
+      // visible text is the content now.
+      if ((control.textContent ?? "").trim()) text.removeAttribute("aria-label");
+      const source = liveControls.length === cloneControls.length ? liveControls[i] : undefined;
+      if (source && typeof getComputedStyle === "function") {
+        const cs = getComputedStyle(source);
+        if (cs.display) text.style.display = cs.display;
+        if (cs.textAlign) text.style.textAlign = cs.textAlign;
+      }
+      while (control.firstChild) text.appendChild(control.firstChild);
+      control.replaceWith(text);
+    });
+
+    clone.querySelectorAll("[aria-expanded], [aria-controls], [aria-pressed]").forEach((n) => {
+      if (n.tagName === "SUMMARY") return;
+      n.removeAttribute("aria-expanded");
+      n.removeAttribute("aria-controls");
+      n.removeAttribute("aria-pressed");
+    });
+    clone
+      .querySelectorAll<HTMLElement>("input, select, textarea")
+      .forEach((n) => n.setAttribute("disabled", ""));
+    clone.querySelectorAll<HTMLElement>("[tabindex]").forEach((n) => {
+      if (/^(A|BUTTON|SUMMARY|INPUT|SELECT|TEXTAREA)$/.test(n.tagName)) return;
+      n.removeAttribute("tabindex");
+    });
+  }
+
+  /**
    * Snapshot the LIVE rendered report — the `[data-report-content]` subtree —
    * to a self-contained HTML file, so the download is identical to what's on
    * screen rather than a hand-built re-render that can drift. Everything is
    * expanded first (the file needs no interaction), interactive-only controls
-   * (`[data-export-exclude]`) are dropped, and the app's stylesheet + color
-   * mode are inlined so it renders anywhere. Returns false (→ buildHtml
-   * fallback) when there is no live DOM (SSR / programmatic use).
+   * (`[data-export-exclude]`) are dropped, every remaining control that would
+   * be dead without script is turned into static text (makeStatic), and the
+   * app's stylesheet + color mode are inlined so it renders anywhere. Returns
+   * false (→ buildHtml fallback) when there is no live DOM (SSR /
+   * programmatic use).
+   *
+   * WHY THE LIVE PAGE IS STILL CLICKED. Expanding on the clone alone is not
+   * possible: the collapsed sections (IssuesSummary rows, the technical
+   * report, the Basic/Advanced signal toggles) render their bodies with
+   * `v-if`, so a collapsed body does not exist in the DOM to be cloned — only
+   * the component can produce it. The clicks are therefore kept, and what is
+   * guaranteed instead is that the page is put back: the restore runs in a
+   * `finally` (a failure while building the file can no longer leave the page
+   * expanded), it clicks back only a toggle that actually opened and is still
+   * on the page (so a toggle that ignored the first click is not flipped the
+   * wrong way by a second), and focus and scroll position are returned to
+   * where the visitor had them.
    */
   async function snapshotReport(result: ReportResult): Promise<boolean> {
     if (typeof document === "undefined") return false;
@@ -142,27 +236,26 @@ export function useReportExport() {
     // (no JS) could never re-expand the rest. Those bodies are instead forced
     // visible by the `.plan-step-body` CSS rule below, and the live page's
     // accordion state is left untouched (they're excluded from `toggles`, so
-    // the restore loop at the end never scrambles them either).
+    // the restore at the end never scrambles them either).
     const toggles = Array.from(el.querySelectorAll<HTMLElement>('[aria-expanded="false"]')).filter(
       (t) => !(t.getAttribute("aria-controls") ?? "").startsWith("plan-step-"),
     );
-    toggles.forEach((t) => t.click());
-    // Let Vue flush the resulting v-if renders before we clone.
-    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    const focused = document.activeElement as HTMLElement | null;
+    const scroll =
+      typeof window !== "undefined" ? { x: window.scrollX, y: window.scrollY } : { x: 0, y: 0 };
+    const nextPaint = () =>
+      new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
-    const clone = el.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll("[data-export-exclude]").forEach((n) => n.remove());
-    clone.querySelectorAll("details").forEach((d) => (d.open = true));
-    // Every toggle still collapsed in the clone at this point is a plan step
-    // deliberately skipped above — its body is forced visible by the CSS rule
-    // below, so normalize its ARIA state to match rather than shipping a
-    // static document that claims to be collapsed while showing its content.
-    clone
-      .querySelectorAll('[aria-expanded="false"]')
-      .forEach((n) => n.setAttribute("aria-expanded", "true"));
+    try {
+      toggles.forEach((t) => t.click());
+      // Let Vue flush the resulting v-if renders before we clone.
+      await nextPaint();
 
-    const css = collectAppCss();
-    const doc = `<!DOCTYPE html>
+      const clone = el.cloneNode(true) as HTMLElement;
+      makeStatic(clone, el);
+
+      const css = collectAppCss();
+      const doc = `<!DOCTYPE html>
 <html lang="en" class="${escapeHtml(document.documentElement.className)}">
 <head>
 <meta charset="utf-8">
@@ -180,8 +273,9 @@ export function useReportExport() {
      inline style each carried at the moment of export (only the currently
      open step, or nothing, would otherwise show). */
   .plan-step-body, .tech-report-body { display: block !important; }
-  /* The export is static (no JS): neutralize the now-inert click affordances
-     while leaving pure-CSS hover tooltips (NaCell) and native <details> working. */
+  /* The export is static (no JS). Controls that needed script are already
+     plain text (makeStatic); the only buttons left carry a pure-CSS tooltip
+     (NaCell), which still opens on hover and on keyboard focus. */
   .report-export button { cursor: default; }
 </style>
 </head>
@@ -190,13 +284,25 @@ export function useReportExport() {
 </body>
 </html>`;
 
-    downloadBlob(
-      new Blob([doc], { type: "text/html;charset=utf-8" }),
-      `${baseFilename(result)}.html`,
-    );
-
-    // Restore the live page's original collapse state.
-    toggles.forEach((t) => t.click());
+      downloadBlob(
+        new Blob([doc], { type: "text/html;charset=utf-8" }),
+        `${baseFilename(result)}.html`,
+      );
+    } finally {
+      // Put the live page back exactly as it was — see the note above.
+      for (const t of toggles) {
+        if (t.isConnected && t.getAttribute("aria-expanded") === "true") t.click();
+      }
+      if (focused && focused.isConnected && document.activeElement !== focused) {
+        focused.focus({ preventScroll: true });
+      }
+      if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+        await nextPaint();
+        if (window.scrollX !== scroll.x || window.scrollY !== scroll.y) {
+          window.scrollTo(scroll.x, scroll.y);
+        }
+      }
+    }
     return true;
   }
 
@@ -308,7 +414,6 @@ export function useReportExport() {
     sharedReport,
     sharing,
     clearShare,
-    exporting,
     copyAiAnalysis,
     aiCopied,
     buildAiAnalysisText,

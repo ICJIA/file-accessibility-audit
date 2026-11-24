@@ -1,52 +1,11 @@
 import { runAudit } from "./commands/audit.js";
 import { runPublist } from "./commands/publist.js";
+import { helpText } from "./audit/options.js";
 import { RESET, BOLD, DIM, RED } from "./lib/colors.js";
 import { VERSION } from "./version.js";
 
 function printHelp(): void {
-  console.log(`
-${BOLD}a11y-audit${RESET} — PDF, Word, PowerPoint & Excel accessibility analyzer
-
-${BOLD}Commands:${RESET}
-  a11y-audit <file.pdf|.docx|.pptx|.xlsx> [more ...]   Analyze local files
-  a11y-audit publist                       Audit ICJIA publication list
-
-${BOLD}File analysis options:${RESET}
-  --json            Output results as JSON
-  --threshold <n>   Minimum passing score (0-100, exit 1 if below)
-
-${BOLD}Publist options:${RESET}
-  --force              Clear cache and re-audit all publications from scratch
-  --clear              Clear cache only (use after files have been remediated)
-  --from <file>        Use a local JSON publication list instead of API
-  --output, -o <path>  CSV output path (default: ./publist-audit.csv)
-  --concurrency, -c    Parallel analyses (default and max: the scoring engine's limit)
-
-${BOLD}General:${RESET}
-  --help, -h        Show this help
-  --version, -v     Show version
-
-${BOLD}Quick start:${RESET}
-  ${DIM}# Audit a single file (PDF, Word, PowerPoint, or Excel)${RESET}
-  a11y-audit report.pdf
-
-  ${DIM}# Any supported format works the same way${RESET}
-  a11y-audit slides.pptx
-
-  ${DIM}# Run a full ICJIA publication audit (first time)${RESET}
-  a11y-audit publist
-
-  ${DIM}# Re-run — only audits new publications added since last run${RESET}
-  ${DIM}# (after an upgrade, everything: cached scores belong to one engine version)${RESET}
-  a11y-audit publist
-
-  ${DIM}# Files were remediated — clear cache and re-audit everything${RESET}
-  a11y-audit publist --force
-
-${BOLD}Reports:${RESET}
-  Each publist run saves a dated CSV to ./reports/ for audit trail.
-  The latest results are always at ./publist-audit.csv (or --output path).
-`);
+  console.log(helpText({ bold: BOLD, dim: DIM, reset: RESET }));
 }
 
 async function main(): Promise<void> {
@@ -65,7 +24,10 @@ async function main(): Promise<void> {
 
   if (sub === "publist") {
     await runPublist(args.slice(1));
+  } else if (sub === "audit") {
+    await runAudit(args.slice(1));
   } else {
+    // No command word: the arguments are paths to audit (the original form).
     await runAudit(args);
   }
 }

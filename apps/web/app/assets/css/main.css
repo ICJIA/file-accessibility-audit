@@ -215,6 +215,58 @@ body {
 }
 
 /* -----------------------------------------------------------------
+ * Skip link (layouts/default.vue) — first focusable element on every
+ * page. Off-screen until it takes focus, then pinned top-left above the
+ * header. Colours come from the theme tokens, so the pair is the page's
+ * own heading-on-card contrast in dark and in light mode; the ring uses
+ * --link, which both themes define against their own background.
+ * --------------------------------------------------------------- */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 100;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--link);
+  background: var(--surface-card);
+  color: var(--text-heading);
+  font-weight: 600;
+  text-decoration: underline;
+  transform: translateY(-200%);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--link);
+  outline-offset: 2px;
+}
+
+/* -----------------------------------------------------------------
+ * Reduced motion — ONE global rule. A visitor who asks the system for
+ * less motion gets no spinning, pulsing, sliding or smooth scrolling
+ * anywhere, including in components that never thought about it.
+ * Durations are cut to near-zero rather than `animation: none` so that
+ * animationend / transitionend still fire for any code waiting on them,
+ * and a spinner simply rests in place. Programmatic scrolls ask
+ * utils/motion.ts for their `behavior`, since an explicit
+ * `behavior: "smooth"` in script overrides this stylesheet.
+ * --------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -----------------------------------------------------------------
  * Print stylesheet — used when the user picks the "PDF (browser
  * print)" export from the report toolbar. Hides chrome, switches to
  * a light color scheme so ink-on-paper / save-to-PDF output is
@@ -227,10 +279,17 @@ body {
     background: #ffffff !important;
     color: #000000 !important;
   }
-  /* Hide the global site chrome that adds no value on paper. */
-  header[role="banner"],
+  /* Hide the global site chrome that adds no value on paper.
+     .site-header / .site-footer are the classes on the layout's <header>
+     and <footer> (layouts/default.vue). These selectors used to be
+     header[role="banner"] / footer[role="contentinfo"], which matched
+     nothing — the native elements carry no role attribute, and should not —
+     so the chrome printed on every "Save as PDF". layoutLandmarks.test.ts
+     fails if the selector and the markup drift apart again. */
+  .site-header,
   nav,
-  footer[role="contentinfo"],
+  .site-footer,
+  .skip-link,
   .print-hide,
   button {
     display: none !important;

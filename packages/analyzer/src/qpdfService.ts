@@ -5,6 +5,7 @@ import path from "node:path";
 import { ANALYSIS } from "#config";
 import { buildChildSpawnEnv } from "./childSpawnEnv.js";
 import { placeholderAltOf } from "./placeholderAlt.js";
+import { auditTempDir } from "./tempDir.js";
 // Pure struct-tree walkers (reference normalization/resolution, the RoleMap
 // tag mapper, and the table/heading tree walkers) live in their own module —
 // see qpdfStructTree.ts for the v1.34.0 structural-split rationale. This file
@@ -381,7 +382,7 @@ export function countTextLineLikeImages(widths: readonly number[]): number {
 }
 
 export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
-  const tmpDir = process.env.TMP_DIR || "/tmp";
+  const tmpDir = auditTempDir();
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
 
   try {
@@ -411,7 +412,7 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
 }
 
 export async function analyzeWithQpdfAsync(buffer: Buffer): Promise<QpdfResult> {
-  const tmpDir = process.env.TMP_DIR || "/tmp";
+  const tmpDir = auditTempDir();
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
 
   try {
@@ -561,9 +562,41 @@ function emptyQpdfResult(error: string | null): ParsedQpdfResult {
   };
 }
 
+/**
+ * `QpdfResult.error` when qpdf's JSON was larger than ANALYSIS.QPDF_MAX_BUFFER.
+ *
+ * Kept apart from "QPDF parsing failed" so an operator can tell "this
+ * document's object graph is bigger than the buffer — raise QPDF_MAX_BUFFER"
+ * from "qpdf could not read this file". Downstream code only tests `error`
+ * for truthiness, so both produce the same partial ("structure analyzer
+ * failed") result and the same score.
+ */
+export const QPDF_OUTPUT_TOO_LARGE_ERROR = "QPDF output exceeded the size limit";
+
+/** Node stopped reading the child's stdout because it passed `maxBuffer`:
+ *  execFile reports ERR_CHILD_PROCESS_STDIO_MAXBUFFER, execFileSync ENOBUFS. */
+function isMaxBufferOverflow(err: any): boolean {
+  return err?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" || err?.code === "ENOBUFS";
+}
+
 function handleQpdfError(err: any): QpdfResult {
-  if (err.stderr?.includes("encrypted") || err.message?.includes("encrypted")) {
+  // Current qpdf (11.x) says "invalid password" for a file that needs a
+  // password to open; older builds said "encrypted". Both mean the same.
+  if (
+    /encrypted|invalid password/i.test(String(err.stderr ?? "")) ||
+    /encrypted|invalid password/i.test(String(err.message ?? ""))
+  ) {
     throw new Error("encrypted");
+  }
+  // Checked BEFORE the timeout branch: Node kills the child when the buffer
+  // overflows, and execFileSync's ENOBUFS error carries signal SIGTERM, which
+  // would otherwise be reported as a timeout.
+  if (isMaxBufferOverflow(err)) {
+    console.warn(
+      `qpdf: JSON output exceeded QPDF_MAX_BUFFER (${ANALYSIS.QPDF_MAX_BUFFER} bytes); ` +
+        "structure checks skipped for this document. Raise ANALYSIS.QPDF_MAX_BUFFER in audit.config.ts if this is a legitimate file.",
+    );
+    return emptyQpdfResult(QPDF_OUTPUT_TOO_LARGE_ERROR);
   }
   if (err.killed || err.signal === "SIGTERM") {
     const error = new Error("QPDF timeout") as any;

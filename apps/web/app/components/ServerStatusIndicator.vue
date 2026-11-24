@@ -34,42 +34,74 @@ const degraded = ref<string[]>([]);
 const systems = ref<HealthSystem[]>([]);
 let timer: ReturnType<typeof setTimeout> | null = null;
 let consecutiveFailures = 0;
+let probing = false;
+let stopped = false;
 
+// What a probe's answer does and does not establish:
+//
+//   200 + a verdict            -> ok / degraded
+//   5xx, or no answer at all   -> down. The service failed, or could not be
+//                                 reached (timeout, connection refused).
+//   anything else              -> UNKNOWN, still checking. A 429 is the rate
+//                                 limiter talking to THIS tab — proof the
+//                                 service is up and answering, and no reading
+//                                 of its health. The same goes for a 4xx, a
+//                                 redirect, or a 200 whose body is not the
+//                                 health payload (a proxy's page). None of
+//                                 them is "offline", and the header used to
+//                                 say exactly that for every one of them.
 async function probe(): Promise<void> {
+  let res: Response;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
-    const res = await fetch("/api/health", {
+    res = await fetch("/api/health", {
       method: "GET",
       signal: ctrl.signal,
       credentials: "same-origin",
       cache: "no-store",
     });
-    clearTimeout(t);
-    if (res.ok) {
-      const json = (await res.json().catch(() => null)) as {
-        status?: string;
-        uptime?: string;
-        degraded?: string[];
-        systems?: HealthSystem[];
-      } | null;
-      if (json?.status === "ok" || json?.status === "degraded") {
-        status.value = json.status === "degraded" ? "degraded" : "ok";
-        uptime.value = json.uptime ?? null;
-        degraded.value = Array.isArray(json.degraded) ? json.degraded : [];
-        systems.value = Array.isArray(json.systems)
-          ? json.systems.filter((s) => s && typeof s.label === "string")
-          : [];
-        consecutiveFailures = 0;
-      } else {
-        markDown();
-      }
-    } else {
-      markDown();
-    }
   } catch {
     markDown();
+    return;
+  } finally {
+    clearTimeout(t);
   }
+  if (!res.ok) {
+    if (typeof res.status === "number" && res.status >= 500) markDown();
+    else markUnknown();
+    return;
+  }
+  const json = (await res.json().catch(() => null)) as {
+    status?: string;
+    uptime?: string;
+    degraded?: string[];
+    systems?: HealthSystem[];
+  } | null;
+  if (json?.status === "ok" || json?.status === "degraded") {
+    status.value = json.status === "degraded" ? "degraded" : "ok";
+    uptime.value = json.uptime ?? null;
+    degraded.value = Array.isArray(json.degraded) ? json.degraded : [];
+    systems.value = Array.isArray(json.systems)
+      ? json.systems.filter((s) => s && typeof s.label === "string")
+      : [];
+    consecutiveFailures = 0;
+  } else {
+    markUnknown();
+  }
+}
+
+/** The service answered, but not with a verdict. Nothing is asserted — not
+ *  "online", not "offline" — and the last-known system states are dropped for
+ *  the same reason markDown drops them. Not counted as a failure: the fast
+ *  retry exists for a service that is not answering, and hurrying after a 429
+ *  is precisely what the rate limiter is asking this tab not to do. */
+function markUnknown(): void {
+  status.value = "unknown";
+  uptime.value = null;
+  degraded.value = [];
+  systems.value = [];
+  consecutiveFailures = 0;
 }
 
 function markDown(): void {
@@ -91,48 +123,61 @@ function clearTimer(): void {
 
 // Self-scheduling poll loop. Uses setTimeout (not setInterval) so each
 // tick can pick a fresh delay based on the current state:
-//   - status === 'ok'                       → POLL_OK_MS (slow)
-//   - status !== 'ok' && retries < cap      → POLL_RETRY_MS (fast)
-//   - status !== 'ok' && retries >= cap     → POLL_OK_MS (slow, give up retrying fast)
+//   - ok / degraded / unknown-but-answering → POLL_OK_MS (slow)
+//   - down && retries < cap                 → POLL_RETRY_MS (fast)
+//   - down && retries >= cap                → POLL_OK_MS (slow, give up retrying fast)
 //
-// This is what fixes the "stuck gray on first dev-server launch" case:
-// the very first probe sometimes loses the race against the Nitro proxy
+// The fast retry is what fixes the "stuck gray on first dev-server launch"
+// case: the very first probe sometimes loses the race against the Nitro proxy
 // fully wiring up `/api/**`. Old code waited 20s for the next attempt;
 // new code retries within 2.5s.
+//
+// NOTHING IS SCHEDULED WHILE THE TAB IS HIDDEN. A tab left open in the
+// background used to ask every 20 s, for hours, to keep a light current that
+// nobody could see. The loop simply stops; becoming visible probes once and
+// starts it again. `probing` keeps a visibility change that lands mid-probe
+// from starting a second loop beside the first.
+function tabHidden(): boolean {
+  return typeof document !== "undefined" && document.visibilityState === "hidden";
+}
+
 async function scheduleNext(): Promise<void> {
+  if (stopped || probing) return;
   clearTimer();
-  await probe();
+  if (tabHidden()) return;
+  probing = true;
+  try {
+    await probe();
+  } finally {
+    probing = false;
+  }
+  if (stopped || tabHidden()) return;
   const delay =
-    status.value === "ok"
-      ? POLL_OK_MS
-      : consecutiveFailures <= MAX_FAST_RETRIES
-        ? POLL_RETRY_MS
-        : POLL_OK_MS;
+    status.value === "down" && consecutiveFailures <= MAX_FAST_RETRIES ? POLL_RETRY_MS : POLL_OK_MS;
   timer = setTimeout(() => {
     void scheduleNext();
   }, delay);
 }
 
 function handleVisibilityChange(): void {
-  if (typeof document === "undefined") return;
-  if (document.visibilityState === "visible") {
-    // Tab re-focused — probe right now (don't wait out the current sleep).
-    void scheduleNext();
+  if (tabHidden()) {
+    // Hidden — stop asking until someone can see the answer.
+    clearTimer();
+    return;
   }
+  // Shown again — probe right now (don't wait out a sleep that was cancelled).
+  void scheduleNext();
 }
 
 onMounted(() => {
   void scheduleNext();
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-  }
+  document.addEventListener("visibilitychange", handleVisibilityChange);
 });
 
 onBeforeUnmount(() => {
+  stopped = true;
   clearTimer();
-  if (typeof document !== "undefined") {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 });
 
 const dotClass = computed(() => {
@@ -153,6 +198,8 @@ const statusText = computed(() => {
   // Not "online" — the whole point is that this is no longer the same state.
   if (status.value === "degraded") return "degraded — see status";
   if (status.value === "down") return "audit server offline";
+  // Unknown: before the first answer, or after an answer that was not a
+  // verdict (a 429, say). Never "offline" — that has not been established.
   return "audit server…";
 });
 
@@ -221,7 +268,7 @@ const tipIntro = computed(() => {
     return "Something needs attention. Click for the full status page.";
   if (status.value === "down")
     return "The audit service is not answering, so nothing below could be checked. The status page may still explain why.";
-  return "Checking the audit service…";
+  return "Still checking the audit service — no answer about its health yet.";
 });
 </script>
 

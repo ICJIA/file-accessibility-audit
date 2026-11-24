@@ -27,9 +27,13 @@
  * longer pending/running".
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import { closeSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { REMEDIATION } from "#config";
+import { DEPLOY, REMEDIATION } from "#config";
+import { localDate } from "./activityDays.js";
+import { activityLogDir } from "./dataDir.js";
+import { errorLogFileName } from "./errorLog.js";
 import { buildChildSpawnEnv } from "./childSpawnEnv.js";
 import { jobDirFor, purgeJobDir, recordEvent } from "./remediationEvents.js";
 import {
@@ -136,17 +140,63 @@ export function reconcileWorkers(now: number = Date.now()): number {
 }
 
 /**
+ * Where a worker's stderr goes: appended to TODAY's application error log
+ * (logs/errors-YYYY-MM-DD.log — the file services/errorLog.ts writes, 0600 in
+ * a 0700 directory, pruned by the retention sweep after
+ * ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS like every other day's file).
+ *
+ * The worker used to be started with all three streams discarded, so a
+ * worker that died while starting — a missing module, a loader error, out of
+ * memory — left nothing anywhere: the job simply failed with "the
+ * remediation worker stopped before finishing". A file, not a pipe: the
+ * worker is detached and outlives an API restart, and a pipe to a parent
+ * that has gone would break it.
+ *
+ * Returns an open descriptor the caller must close after spawn, or "ignore"
+ * when the log cannot be opened (the worker must still start). Exported for
+ * tests.
+ */
+export function openWorkerStderr(nowMs: number = Date.now()): number | "ignore" {
+  try {
+    const dir = activityLogDir();
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const file = path.join(dir, errorLogFileName(localDate(nowMs, DEPLOY.LOCAL_TIME_ZONE)));
+    return openSync(file, "a", 0o600);
+  } catch {
+    return "ignore";
+  }
+}
+
+/**
  * Start the detached worker for one job. Exported for the spawn-env test and
  * re-exported from routes/remediate.ts (its historical home).
  */
 export function spawnWorker(jobId: string): ChildProcess {
+  const stderr = openWorkerStderr();
+  try {
+    return startWorker(jobId, stderr);
+  } finally {
+    // The child has its own copy of the descriptor; the API does not keep one
+    // open per job.
+    if (typeof stderr === "number") {
+      try {
+        closeSync(stderr);
+      } catch {
+        // already closed
+      }
+    }
+  }
+}
+
+function startWorker(jobId: string, stderr: number | "ignore"): ChildProcess {
   // Detached child so the parent (API) doesn't have to wait. tsx is the
   // runtime loader used by both `pnpm dev` (`tsx watch`) and `pnpm start`
   // (`node --import tsx`); we pass it explicitly here so the worker
   // launches the same way regardless of how the parent was started.
   const child = spawn(process.execPath, ["--import", "tsx", WORKER_PATH, jobId], {
     detached: true,
-    stdio: "ignore",
+    // stdin and stdout discarded; stderr to the error log (openWorkerStderr).
+    stdio: ["ignore", "ignore", stderr],
     // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
     // worker parses an attacker-controlled PDF, so it must not hold the
     // API's secrets while still getting everything it needs to boot

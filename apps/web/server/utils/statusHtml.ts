@@ -980,7 +980,7 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
 .v.str{color:#7ee787}
 .v.num{color:#ffa657}
 .v.bool{color:#d2a8ff}
-.v.null{color:#6e7681}
+.v.null{color:#8b949e}
 /* Light-scheme pill colours were darkened 2026-08-31: at #1a7f37 / #9a6700 /
    #d1242f they measured 4.19, 4.05 and 4.22 against their own tinted
    backgrounds over #f6f8fa — all three below the 4.5 that WCAG 1.4.3 AA asks
@@ -1021,7 +1021,7 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  details.card>summary:hover h2,details.card>summary:focus-visible h2{color:#0969da}
  details.card>summary:focus-visible{outline-color:#0969da}
  .k{color:#0550ae}.p{color:#6e7781}
- .v.str{color:#0a7b28}.v.num{color:#953800}.v.bool{color:#6639ba}.v.null{color:#6e7781}
+ .v.str{color:#0a7b28}.v.num{color:#953800}.v.bool{color:#6639ba}.v.null{color:#59636e}
 }
 `.trim();
 
@@ -1315,6 +1315,13 @@ export function renderBackup(body: Record<string, unknown>): string {
  * reader who lands here from a monitor alert, a bookmark, or a pasted link
  * has no path into the app at all. The name is passed in rather than
  * hardcoded so it follows BRANDING.APP_SHORT_NAME through a rebrand.
+ *
+ * LANDMARKS. The two links sit in a <header> (banner) as a labelled <nav>;
+ * the heading, the status strip and every card sit in ONE <main>. The page
+ * used to be a bare <div>, so axe reported landmark-one-main, and region for
+ * the link bar, the <h1> and the strip. No landmark, class, id or attribute
+ * here may contain the monitor keyword (see the note at the top of this
+ * file): the uptime monitor matches it anywhere in the response body.
  */
 export function renderStatusHtml(
   body: Record<string, unknown>,
@@ -1338,7 +1345,8 @@ export function renderStatusHtml(
 </head>
 <body>
 <div class="wrap">
-<div class="bar"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
+<header><nav class="bar" aria-label="Status page links"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></nav></header>
+<main>
 <h1>Service status</h1>
 ${renderStatusStrip(body)}
 ${renderEngines(body)}
@@ -1360,6 +1368,7 @@ ${fold({
   open: true,
   body: `<div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>`,
 })}
+</main>
 </div>
 </body>
 </html>`;

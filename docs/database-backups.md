@@ -12,13 +12,16 @@ working tree, where a `git clean -xdf` would delete it.
 | Piece | Path | Role |
 | --- | --- | --- |
 | Core | `apps/api/scripts/backup-db.mjs` | SQLite **online backup** via better-sqlite3's `db.backup()` — safe while the API is writing. Verifies `PRAGMA integrity_check` and the `audit_log` row count on the snapshot, gzips it, rotates old snapshots, writes `last-backup.json`. Plain JS: needs only `node`, no pnpm/tsx, so it runs under cron's minimal PATH. |
-| Cron wrapper | `scripts/backup-db.sh` | Resolves the repo from its own location, probes for `node`, pins cwd to `apps/api` (so a relative `DB_PATH` means what it means under PM2), runs the core. |
-| Restore | `scripts/restore-db.sh` | Verifies the snapshot **before** touching anything, sets the current DB aside (including `-wal`/`-shm` — a stale WAL next to a restored main file corrupts it), then swaps the snapshot in. Nothing is deleted. |
+| Cron wrapper | `scripts/backup-db.sh` | Resolves the repo from its own location, probes for `node`, pins cwd to `apps/api` (so a relative `DB_PATH` means what it means under PM2), runs the core, then copies the report-seal key beside the snapshots (mode 0600). |
+| Restore | `scripts/restore-db.sh` | Verifies the snapshot **before** touching anything, sets the current DB aside (including `-wal`/`-shm` — a stale WAL next to a restored main file corrupts it), then swaps the snapshot in. Nothing is deleted. Puts the report-seal key back only when the database directory has none. |
 | Tests | `apps/api/src/__tests__/backup.test.ts` | 8 tests pinning the safety properties below. |
 
 ## What a snapshot contains (and why anyone asks)
 
-A snapshot is a copy of `audit.db` and nothing else. Concretely: one `audit_log`
+A snapshot is a copy of `audit.db` and nothing else. (One other file sits
+beside the snapshots since 2026-11-24: a copy of the report-seal key — a
+server secret, not data about anyone; see "The report-seal key" below.)
+Concretely: one `audit_log`
 row per audit and per refused upload — timestamp, sanitized file name, score,
 grade, content hash: **metadata about the audit event**, data about the file,
 never the file — plus `shared_reports` rows for reports someone chose to share
@@ -128,20 +131,169 @@ integrity ok, with a deliberately planted stale `-wal` correctly set aside.
 Re-run this drill (against a scratch target path, second argument of
 `restore-db.sh`) whenever the backup code changes.
 
-## What this does and doesn't protect against
+## The two layers
 
-| Scenario | Covered? |
-| --- | --- |
-| Bad deploy, fat-fingered `git clean`, app bug corrupting the DB | ✅ restore last night's snapshot, precisely and fast |
-| Disk corruption on the DB file | ✅ (snapshots are integrity-checked at creation) |
-| **Droplet loss** (destroyed/unbootable) | ✅ via DigitalOcean's own droplet backups (enabled, daily) — coarser and slower (whole-droplet restore), but it exists |
+There are two backups, and they answer different questions.
 
-The two layers are complementary: DO's droplet backup answers "the server is
-gone", this script answers "the database needs to go back to last night"
-without rebuilding a droplet. If proper offsite copies of the DB alone are
-ever wanted, `rclone copy /home/forge/backups/audit-db spaces:audit-backups`
-as a second Scheduler job (plus a Spaces bucket + rclone config) is the
-next step.
+| | Layer 1 — SQLite snapshots | Layer 2 — DigitalOcean droplet backups |
+| --- | --- | --- |
+| What it copies | The database only (`audit.db`), plus one copy of the report-seal key | The whole server disk: system, checkout, database, the snapshots, `/etc/environment` |
+| Where it lives | On the **same server**, in `/home/forge/audit.icjia.app/backups` | In DigitalOcean's backup storage, in the **same DigitalOcean account** |
+| How often | Nightly (Forge Scheduler), and once before every deploy (`backups/pre-deploy/`) | Daily |
+| How much is kept | The 5 newest nightly, the 3 newest pre-deploy | Set on DigitalOcean's side, outside this repository |
+| Run by | This repository's scripts | DigitalOcean. **Confirmed enabled and running daily by the server's owner on 2026-11-24** |
+| Restores | The database alone, in about a minute | The whole machine, to the state of the last daily backup |
+| Checked by | `/status` shows the last snapshot's age; marked stale after 30 hours | Nothing in this repository can see it — check the droplet's Backups tab |
+
+### What each one covers
+
+| What went wrong | Layer 1 | Layer 2 | Notes |
+| --- | --- | --- | --- |
+| A migration or an app bug damaged the database | Yes | Yes, but coarse | Use layer 1: the pre-deploy snapshot, or last night's |
+| `git clean -xdf` or a slip of the hand deleted `apps/api/data` | Yes | Yes, but coarse | Snapshots are outside the checkout |
+| The database file is corrupt on disk | Yes | Probably | Snapshots are integrity-checked when made |
+| The server's disk failed, or the droplet was destroyed or will not boot | **No** — the snapshots were on that disk | Yes | Restore the droplet; up to 24 hours of audit records are lost |
+| The server was broken into and files were changed | Not safely — the snapshots were within reach | Yes, from a backup taken before the break-in | Rotate `API_PRIVILEGED_TOKEN` and the seal key afterwards |
+| The DigitalOcean account was lost, closed, or its backups deleted | **No** | **No** | **Neither layer covers this.** See "The gap" below |
+| A record must come back from more than 5 nights ago | No | Only within DigitalOcean's own retention | By design: the retention policy says snapshots are kept about 5 days |
+
+### What a droplet restore costs
+
+A droplet backup is a picture of the whole disk at one moment in the day.
+Restoring it puts **everything** back to that moment:
+
+- up to 24 hours of audit records, saved reports and remediation history made
+  since the backup are gone;
+- the checkout goes back to whatever commit was deployed then — run
+  `./rebuild.sh` afterwards to return to the current release;
+- the on-server snapshots go back too, so the newest one after a restore is
+  from before the backup.
+
+Use it for "the server is gone", never for "the database needs to go back a
+day" — layer 1 does that without touching anything else.
+
+### The gap
+
+Both layers sit inside one DigitalOcean account. Losing the account, or a
+mistake made with full access to it, loses both. Nothing copies the database
+anywhere else today.
+
+Closing the gap means a third copy somewhere that account cannot reach — for
+example a second Scheduler job that encrypts the newest snapshot and uploads it
+to object storage held under a different account. That is **not set up**. It
+would also change a published statement: the data-retention policy and the
+README say snapshots stay on the server, so the policy text has to change in
+the same release as the job. It is the owner's decision.
+
+## The report-seal key
+
+`apps/api/data/report-seal.key` is 32 random bytes the API creates on first
+start (mode 0600), beside the database. Every audit result the API returns
+carries a seal made with it, and `POST /api/reports` — saving a report so it
+can be shared — refuses a result whose seal does not verify
+(`apps/api/src/services/reportSeal.ts`).
+
+**What losing it means, exactly.** The seal is checked only at the moment a
+report is saved. So:
+
+- reports already saved keep working — their links are not affected;
+- the API makes a new key at its next start and carries on;
+- an audit result that was issued under the old key and is still open in
+  someone's browser can no longer be saved or shared. The page says to run the
+  audit again. That is the whole loss.
+
+It is small, but it is avoidable, so the key travels with the backups:
+
+- `scripts/backup-db.sh` copies it to `<backup dir>/report-seal.key` (mode
+  0600) on every run. One copy, replaced each time; it is not inside a
+  snapshot file and is not rotated. Nothing is copied when the deployment
+  supplies `REPORT_SEAL_SECRET` instead of a key file.
+- `scripts/restore-db.sh` puts that copy back **only if the database directory
+  has no key**. It never replaces a key that is there.
+- A droplet restore brings the key back with the rest of the disk.
+
+The key is a secret. It is never logged, and it must not be pasted into a
+ticket or an email. Anyone holding it could make a hand-written result pass as
+one this server produced.
+
+## Recovery
+
+### The database needs to go back (layer 1)
+
+```bash
+ssh forge@audit.icjia.app
+cd ~/audit.icjia.app/file-accessibility-audit
+ls -lt ../backups/ ../backups/pre-deploy/        # choose a snapshot
+pm2 stop file-audit-api
+./scripts/restore-db.sh ../backups/audit-<date>.db.gz
+pm2 start file-audit-api
+curl -s http://127.0.0.1:5103/api/health          # then open /status and one saved report
+```
+
+The script verifies the snapshot before touching anything and moves the
+current database aside as `audit.db.pre-restore-<timestamp>` (with its
+`-wal`/`-shm`). To undo a restore, stop the API and move that file back.
+
+If the restored database is **older than the code** expects, the API applies
+the missing migrations when it starts — that is normal. If it is **newer** than
+the code (a restore after a rolled-back deploy), deploy the matching release.
+
+### The server is gone (layer 2)
+
+1. In DigitalOcean: the droplet → **Backups** → choose the newest backup →
+   restore to this droplet, or create a new droplet from it.
+2. If it is a new droplet, its IP address is different: point the DNS record
+   for the site at it, and check Forge still manages the server.
+3. SSH in. `pm2 status` — both apps should come back by themselves
+   (`pm2 resurrect` if they do not).
+4. `cd ~/audit.icjia.app/file-accessibility-audit && ./rebuild.sh --check`,
+   then `./rebuild.sh` to return to the current release.
+5. Open `/status`: the engines, the disk, and the backup row.
+6. Run the nightly backup once by hand so the newest snapshot is current.
+7. From a development machine: `pnpm prod-sentinels`.
+
+If no droplet backup can be used, rebuild from nothing with `docs/runbook.md`.
+The audit history is then lost; the checker itself is not.
+
+## Restore drill — twice a year
+
+A backup that has never been restored is a hope. Do this in **January and
+July**, and write the date and the result in the table below.
+
+Layer 1, on the server, against a scratch path — the live database is never
+touched:
+
+- [ ] `ls -lt ../backups/` shows a snapshot from the last 24 hours.
+- [ ] `/status` shows the backup row as current, not stale.
+- [ ] `mkdir -m 700 ~/restore-drill` — a private scratch directory.
+- [ ] `./scripts/restore-db.sh ../backups/audit-<newest>.db.gz ~/restore-drill/audit.db`
+      finishes without an error and prints the snapshot's integrity result and
+      row count. (With a second argument the script restores to that path; the
+      API does not need to be stopped.)
+- [ ] The row count is close to the live one (`/status` shows it).
+- [ ] The script reported "Report-seal key restored from …" — the copy beside
+      the snapshots exists and can be put back.
+- [ ] `ls -l ../backups/report-seal.key` shows `-rw-------`.
+- [ ] `rm -rf ~/restore-drill` — it holds a copy of the database and the key.
+
+Layer 2, in DigitalOcean:
+
+- [ ] The droplet's Backups tab shows a backup from the last 24 hours.
+- [ ] Create a **new** droplet from the newest backup (never restore over the
+      live one for a drill).
+- [ ] SSH to it by IP address. `pm2 status` shows both apps;
+      `curl -s http://127.0.0.1:5103/api/health` answers.
+- [ ] `sqlite3 ~/audit.icjia.app/file-accessibility-audit/apps/api/data/audit.db "SELECT MAX(created_at) FROM audit_log;"`
+      is within a day of the backup time. (No `sqlite3` on the server? Open
+      the drill droplet's `/status` through an SSH tunnel instead and read the
+      audit counts.)
+- [ ] **Destroy the drill droplet.** It holds a copy of the database and the
+      privileged token.
+
+| Date | Layer 1 | Layer 2 | Notes |
+| --- | --- | --- | --- |
+| 2026-08-05 | Passed (development database: 68 rows in, 68 rows out, stale `-wal` set aside) | Not drilled | First drill |
+| | | | |
 
 Retention note (documented in the public data-retention policy, v1.3): only
 the `BACKUP_KEEP_COUNT` (5) newest snapshots are retained, so with nightly

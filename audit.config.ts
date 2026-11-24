@@ -240,34 +240,77 @@ export const WCAG_22_NEW_AA = [
 // improvement, PREPEND a new entry (index 0 is rendered). Dismissal is
 // permanent per `id` (stored client-side); bump the `id` to re-show.
 //
-// Entries are written at full length for the /announcements archive; the
-// landing-page banner shows only the first ANNOUNCEMENT_BANNER_SENTENCES of
-// them and links through for the rest (see below).
+// THE BANNER RULE (owner's instruction, 2026-11-24): the landing-page banner
+// shows TWO SENTENCES AT MOST. Every new entry therefore carries two texts:
+//
+//   summary — what the banner shows. At most two short sentences and at most
+//             40 words (aim for 35 or fewer). Date-neutral: never "today" or
+//             "this week", because the banner stays up long after the day it
+//             was written. Plain language, no version numbers.
+//   text    — the full story, shown whole on the /announcements archive.
+//
+// AnnouncementBanner.test.ts fails the build when the newest entry's banner
+// text breaks the rule. An older entry without a `summary` falls back to the
+// first ANNOUNCEMENT_BANNER_SENTENCES sentences of its `text` (see below), so
+// the two-sentence limit holds either way.
 // ---------------------------------------------------------------------------
 
 /**
- * How many sentences of an announcement the landing-page banner shows before
- * it cuts off and offers "Read the full update".
+ * How many sentences of an announcement's full `text` the landing-page banner
+ * shows when the entry has no hand-written `summary` — and the most sentences
+ * a hand-written `summary` may have.
  *
- * Entries run long — the newest is nearly 900 characters, twelve lines above
- * the drop zone — and the banner is the first thing on the page, so the full
- * text pushed the actual tool down. The cut is always at a SENTENCE boundary:
- * a half-sentence reads as a rendering bug, and the archive is one click away.
+ * The banner is the first thing on the page; at four sentences (~130 words)
+ * it filled the whole first screen of a phone and pushed the tool itself
+ * down. The cut is always at a SENTENCE boundary: a half-sentence reads as a
+ * rendering bug, and the archive is one click away.
  *
- * SAFE TO CHANGE: Yes — any integer ≥ 1. Purely how much of the newest entry
- * the banner shows; the /announcements archive always shows every entry in
- * full and is unaffected. A single very long sentence still shows in full,
- * because there is no earlier boundary to cut at.
+ * SAFE TO CHANGE: With care — the owner's rule is two sentences at most, so
+ * 1 or 2 only. The /announcements archive always shows every entry in full
+ * and is unaffected. A single very long sentence still shows in full, because
+ * there is no earlier boundary to cut at — which is why new entries write a
+ * `summary` instead of relying on the cut.
  */
-export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
+export const ANNOUNCEMENT_BANNER_SENTENCES = 2;
+
+/**
+ * The most words the newest entry's banner text may have (its `summary`, or
+ * the cut opening of its `text` when it has none). Enforced by
+ * AnnouncementBanner.test.ts.
+ *
+ * SAFE TO CHANGE: Downward only — the banner must stay short.
+ */
+export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "whole-app-review-2026-11-24",
+    badge: "New",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "You can now check up to 25 files at once, check a document by its link, and see what changed when you re-check a fixed file. A sample report shows what you get before you upload anything.",
+    text: "A review of the whole site, and what came out of it. New: you can check up to 25 files at once and download a summary of the batch as a spreadsheet (CSV); you can check a document on an approved government site by pasting its link; when you upload a fixed file again under the same name, the report shows what changed, check by check; and a sample report shows what you get before you upload anything. Fixed: an interrupted download of a repaired PDF can now be tried again, because the file is deleted when the download finishes rather than when it starts; repairing one file from a batch can no longer carry another file's title; a password-protected PDF is now reported as password-protected in every case; and the repair page now tells screen-reader users what is happening at each step. Easier to use: this banner is now two sentences at most, the page has a skip link, printed reports no longer include the site's header and footer, and the count on each report now says exactly how many scored checks passed. For people who automate: every error from the service now carries a stable code, the service describes itself at /api/openapi.json, and the command-line checker can gate a build on a score. No document's score changed.",
+    linkText: "See a sample report",
+    linkTo: "/sample-report",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 24, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "todays-review-summary-2026-11-18",
     badge: "Improved",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "Fix steps were checked again against Microsoft's and Adobe's help pages, and scoring is stricter where it was too generous. Automatic repair now asks for the document's title and language.",
     text: "Today's review, in one place: every fix step was checked again against Microsoft's and Adobe's own help pages, and the wrong ones are corrected. Scoring is stricter where it was too generous: hiding pictures no longer raises a PDF's grade, two Excel checks that never checked anything no longer count, and findings based on how text looks are marked \"Likely, please verify\". Automatic repair now asks for the document's title and language, and every finding from a full security review is fixed. Separately, the web-page check, a service for automated tools through the privileged API rather than part of this site, had stopped working for about a week and is fixed. Each change is described in full in the updates below.",
-    linkText: "All of today's updates",
-    linkTo: "/announcements",
+    // No link of its own: it pointed at /announcements, which the banner's
+    // "Read the full update" and "See all updates" links already reach.
+    linkText: "",
+    linkTo: "",
     /** In-app route — an ordinary router link. */
     linkExternal: false,
     wcagRefs: [],
@@ -2789,15 +2832,35 @@ export const STATUS = {
 
 export const BATCH = {
   /**
-   * Maximum number of files in a single batch upload.
-   * Files are processed sequentially server-side to avoid memory spikes.
+   * The most files one batch may hold — THE one number. The drop zone
+   * enforces it, the copy under the drop zone quotes it ("up to 25 files"),
+   * and both read it from here (apps/web: runtimeConfig.public.batchMaxFiles,
+   * with this constant as the fallback). It was 3 here while the drop zone
+   * hard-coded 5: a dead value in the single source of truth.
    *
-   * SAFE TO CHANGE: Yes — but more files = longer processing time.
-   * At ~5–10 seconds per PDF, 3 files means up to ~30 seconds of
-   * sequential processing. Don't exceed 20 without also implementing
-   * a background job queue.
+   * WHY 25 FITS (checked 2026-11-24 against RATE_LIMITS below):
+   *   - Each file is ONE request against RATE_LIMITS.analyze (500 / hour /
+   *     IP for a caller with no token). A full batch is 25 of the 500 — 5% —
+   *     so twenty full batches fit in an hour from one address, which leaves
+   *     room for an agency whose staff all share one outbound IP.
+   *   - RATE_LIMITS.global is 100 requests / minute / IP. A batch sends at
+   *     most 25 uploads in a minute; the progress polls (one a second per
+   *     file in flight) are exempt from `global` and have their own
+   *     600 / minute cap, of which two files in flight use 120.
+   *   - The server runs 2 analyses at a time (MAX_CONCURRENT_ANALYSES), so
+   *     the page sends at most 2 files at once and waits on each. A 429 or
+   *     503 is not a failed file: the page waits for the server's
+   *     Retry-After and tries that file again (apps/web utils/batchRun.ts).
+   *   - Memory: the page frees each File as soon as its audit finishes, and
+   *     the server holds at most the 2 uploads in flight.
+   *
+   * SAFE TO CHANGE: Yes — but more files = a longer wait (a design-heavy PDF
+   * can take 30 seconds or more; 25 of them, two at a time, several
+   * minutes). Keep MAX_FILES × (expected retries) well under
+   * RATE_LIMITS.analyze.anon, or the tail of a batch will sit in
+   * rate-limit waits.
    */
-  MAX_FILES: 3,
+  MAX_FILES: 25,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -3324,4 +3387,115 @@ export const REMEDIATION = {
    * SAFE TO CHANGE: Yes.
    */
   VERAPDF_PATH: (process.env.REMEDIATION_VERAPDF_PATH || null) as string | null,
+} as const;
+
+// ---------------------------------------------------------------------------
+// API process shutdown (SIGTERM / SIGINT)
+// ---------------------------------------------------------------------------
+export const SHUTDOWN = {
+  /**
+   * How long the API waits, after a stop signal, for requests and audits that
+   * are already running to finish before it exits anyway, in milliseconds.
+   * While it waits it accepts no new work: new requests get 503 with
+   * `Retry-After`.
+   *
+   * SAFE TO CHANGE: Yes — but `kill_timeout` for file-audit-api in
+   * ecosystem.config.cjs must stay ABOVE DRAIN_DEADLINE_MS +
+   * FORCE_EXIT_GRACE_MS, or PM2 kills the process before it has finished
+   * (ecosystemConfig.test.ts fails when the two disagree). A longer deadline
+   * loses fewer in-flight audits on a deploy and makes a restart slower by up
+   * to the same amount.
+   */
+  DRAIN_DEADLINE_MS: 30_000,
+
+  /**
+   * Extra time allowed after the deadline for the last steps (closing page-audit
+   * browsers and the database) before the process is ended outright, in
+   * milliseconds.
+   *
+   * SAFE TO CHANGE: Yes — see DRAIN_DEADLINE_MS for the PM2 pairing.
+   */
+  FORCE_EXIT_GRACE_MS: 5_000,
+
+  /**
+   * The `Retry-After` value, in seconds, sent with the 503 a request receives
+   * while the process is shutting down. A restart is normally back within a
+   * few seconds.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  RETRY_AFTER_S: 15,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Short-lived temp copies of documents (qpdf and veraPDF read from a file)
+// ---------------------------------------------------------------------------
+export const TEMP_FILES = {
+  /**
+   * A temp copy older than this is deleted by the retention sweep, in
+   * milliseconds. Each copy is normally deleted the moment its tool has
+   * finished (seconds); this bound covers the cases where that never ran —
+   * the process was killed mid-audit.
+   *
+   * SAFE TO CHANGE: Yes — but keep it well above the longest time a tool may
+   * legitimately hold a copy (ANALYSIS.QPDF_TIMEOUT_MS and
+   * REMEDIATION.VERAPDF_QUEUE_TIMEOUT_MS + VERAPDF_AUDIT_TIMEOUT_MS), or the
+   * sweep could delete a file that is still being read.
+   */
+  MAX_AGE_MS: 15 * 60_000,
+
+  /**
+   * At startup, temp copies older than this are deleted at once, in
+   * milliseconds. Not zero on purpose: remediation workers are separate
+   * processes that survive an API restart and use the same directory, so a
+   * copy written in the last few seconds may belong to one that is still
+   * running. Anything that young and abandoned is removed by the sweep once
+   * it passes MAX_AGE_MS.
+   *
+   * SAFE TO CHANGE: Yes. Keep it above a few seconds.
+   */
+  BOOT_PURGE_MIN_AGE_MS: 60_000,
+} as const;
+
+// ---------------------------------------------------------------------------
+// POST /api/bulk-from-inventory limits
+// ---------------------------------------------------------------------------
+export const BULK_INVENTORY = {
+  /**
+   * Largest NDJSON inventory accepted, in bytes. Reached only when the
+   * inventory is sent as `text/plain` (the body parser accepts 5 MB of text);
+   * a JSON request body is capped at JSON_BODY_LIMIT_BYTES first.
+   *
+   * SAFE TO CHANGE: Yes. It is also the text/plain body-parser limit
+   * (apps/api/src/middleware/bodyParsers.ts reads it).
+   */
+  MAX_INVENTORY_BYTES: 5 * 1024 * 1024,
+
+  /**
+   * Largest JSON request body the API accepts, in bytes — every JSON
+   * endpoint, not only this one (apps/api/src/middleware/bodyParsers.ts reads
+   * it). It lives here because the bulk endpoint is the one whose callers run
+   * into it: an inventory sent inside a JSON body stops at this size, and the
+   * 413 that answers it says so and points at text/plain.
+   *
+   * SAFE TO CHANGE: Yes — but a shared report is posted back as JSON
+   * (POST /api/reports), so do not lower it below the size of a large report;
+   * and nginx's `client_max_body_size` must allow it.
+   */
+  JSON_BODY_LIMIT_BYTES: 1024 * 1024,
+
+  /**
+   * Most inventory entries audited in one request. Entries are fetched and
+   * analyzed one after another, so this bounds how long one request can run.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_FILES_PER_REQUEST: 100,
+
+  /**
+   * Per-file fetch timeout, in milliseconds.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  FETCH_TIMEOUT_MS: 30_000,
 } as const;

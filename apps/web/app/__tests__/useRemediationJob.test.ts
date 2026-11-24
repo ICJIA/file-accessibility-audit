@@ -2,7 +2,12 @@ import "./test-helpers";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { defineComponent, h } from "vue";
 import { mount } from "@vue/test-utils";
-import { useRemediationJob } from "../composables/useRemediationJob";
+import {
+  HIDDEN_POLL_INTERVAL_MS,
+  MAX_CONSECUTIVE_POLL_FAILURES,
+  REMEDIATION_LOST_CONTACT_MESSAGE,
+  useRemediationJob,
+} from "../composables/useRemediationJob";
 
 // ---------------------------------------------------------------------------
 // Unit tests for the useRemediationJob polling composable.
@@ -42,6 +47,10 @@ function runningStatus(over: Record<string, unknown> = {}) {
 }
 
 const fetchMock = vi.fn();
+// Every mounted poller is unmounted after its test: each one listens for
+// `visibilitychange` on the shared document, so a leftover from an earlier
+// test would answer a later test's event.
+const mounted: Array<{ unmount: () => void }> = [];
 
 function mountComposable(jobId = "job-1", token?: string) {
   let out!: ReturnType<typeof useRemediationJob>;
@@ -52,6 +61,7 @@ function mountComposable(jobId = "job-1", token?: string) {
     },
   });
   const wrapper = mount(Comp);
+  mounted.push(wrapper);
   return { wrapper, out };
 }
 
@@ -62,6 +72,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const w of mounted.splice(0)) w.unmount();
   vi.useRealTimers();
 });
 
@@ -274,5 +285,142 @@ describe("useRemediationJob: job-token passthrough (C5 anonymous-mode authorizat
     expect(fetchMock).toHaveBeenCalledWith("/api/remediate/job-1/status", {
       credentials: "include",
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The poller must be able to give up. It used to retry any persistent non-404
+// failure every 8 s for as long as the tab stayed open, hidden or not.
+// ---------------------------------------------------------------------------
+describe("useRemediationJob: bounded failures, Retry-After, hidden tabs", () => {
+  function setHidden(hidden: boolean) {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+  afterEach(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+  });
+
+  it("stops after a bounded run of consecutive failures and reports lost contact", async () => {
+    fetchMock.mockRejectedValue({ status: 503, data: { error: "Service unavailable" } });
+    const { out } = mountComposable();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(out.lostContact.value).toBe(false);
+    expect(out.error.value).toBe("Service unavailable");
+
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_CONSECUTIVE_POLL_FAILURES);
+    expect(out.lostContact.value).toBe(true);
+    expect(out.error.value).toBe(REMEDIATION_LOST_CONTACT_MESSAGE);
+    expect(out.error.value).toMatch(/reload this page/);
+    // Not an answer about the job: it must never render as an outcome.
+    expect(out.isTerminal.value).toBe(false);
+    expect(out.loading.value).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_CONSECUTIVE_POLL_FAILURES);
+  });
+
+  it("gives up on sustained 429s too, and on requests that never get an answer", async () => {
+    fetchMock.mockRejectedValue(RATE_LIMITED);
+    const a = mountComposable();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(a.out.lostContact.value).toBe(true);
+
+    fetchMock.mockReset();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    const b = mountComposable();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(b.out.lostContact.value).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_CONSECUTIVE_POLL_FAILURES);
+  });
+
+  it("a success in between resets the run of failures", async () => {
+    let n = 0;
+    fetchMock.mockImplementation(async () => {
+      n++;
+      // Every 5th check answers; the run never reaches the bound.
+      if (n % 5 === 0) return runningStatus();
+      throw { status: 502, data: { error: "Bad gateway" } };
+    });
+    const { out } = mountComposable();
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(out.lostContact.value).toBe(false);
+    expect(n).toBeGreaterThan(MAX_CONSECUTIVE_POLL_FAILURES * 2);
+  });
+
+  it("honours Retry-After when it asks for longer than the backoff", async () => {
+    fetchMock
+      .mockRejectedValueOnce({
+        status: 429,
+        data: {},
+        response: { headers: new Headers({ "retry-after": "5" }) },
+      })
+      .mockResolvedValue(runningStatus());
+    mountComposable();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("caps an unreasonable Retry-After at 30 seconds", async () => {
+    fetchMock
+      .mockRejectedValueOnce({
+        status: 503,
+        data: {},
+        response: { headers: { "retry-after": "3600" } },
+      })
+      .mockResolvedValue(runningStatus());
+    mountComposable();
+
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("slows to the hidden cadence while the tab is hidden, and asks at once when shown", async () => {
+    fetchMock.mockImplementation(async () => runningStatus());
+    mountComposable();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    setHidden(true);
+    // The wait already scheduled (1 s) runs out, then the hidden cadence applies.
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(HIDDEN_POLL_INTERVAL_MS - 1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    // Shown again part-way through a hidden wait: one check now, then 1 s.
+    await vi.advanceTimersByTimeAsync(3_000);
+    setHidden(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("removes its visibility listener on unmount and when the job ends", async () => {
+    const remove = vi.spyOn(document, "removeEventListener");
+    fetchMock.mockImplementation(async () => runningStatus());
+    const { wrapper } = mountComposable();
+    await vi.advanceTimersByTimeAsync(0);
+    wrapper.unmount();
+    expect(remove.mock.calls.some(([type]) => type === "visibilitychange")).toBe(true);
+
+    const calls = fetchMock.mock.calls.length;
+    setHidden(true);
+    setHidden(false);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fetchMock.mock.calls.length).toBe(calls);
+    remove.mockRestore();
   });
 });

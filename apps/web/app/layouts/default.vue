@@ -1,6 +1,19 @@
 <template>
   <div>
-    <header class="border-b border-[var(--border)] px-3 sm:px-6 py-4">
+    <!-- Skip link: the FIRST focusable element on every page (WCAG 2.4.1).
+         Hidden until it takes keyboard focus, then drawn on top of the header
+         (styles: .skip-link in main.css, which follows the theme tokens so it
+         reads in dark and light mode alike). It stays a real <a href> so it
+         works before hydration; the handler only makes the focus move certain
+         and keeps the hash out of the router's way. -->
+    <a href="#main-content" class="skip-link" @click.prevent="skipToMain">Skip to main content</a>
+    <!-- .site-header / .site-footer are what the print stylesheet hides
+         (main.css). They are classes, not role="banner"/"contentinfo": a
+         <header>/<footer> at this level already IS that landmark, and the
+         old print selectors keyed on roles this markup never carried — so
+         the site chrome printed on every "Save as PDF". Pinned by
+         layoutLandmarks.test.ts. -->
+    <header class="site-header border-b border-[var(--border)] px-3 sm:px-6 py-4">
       <!-- Wider than <main> on purpose (max-w-6xl vs 4xl): the nav rows carry
            seven items and were forcing labels to wrap in half at laptop
            widths ("What's / New"). Chrome may run wide; prose may not. -->
@@ -103,6 +116,7 @@
           </nav>
           <!-- Color mode toggle -->
           <button
+            type="button"
             class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
             :aria-label="
               colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
@@ -112,6 +126,7 @@
             <svg
               v-if="colorMode.value === 'dark'"
               class="w-4 h-4"
+              aria-hidden="true"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -126,6 +141,7 @@
             <svg
               v-else
               class="w-4 h-4"
+              aria-hidden="true"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -144,11 +160,18 @@
       </div>
     </header>
 
-    <main class="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8">
+    <!-- The skip link's target. tabindex="-1" lets it take focus from script
+         without joining the tab order; the outline is dropped because a ring
+         around the whole page body marks nothing a reader needs marked. -->
+    <main
+      id="main-content"
+      tabindex="-1"
+      class="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8 focus:outline-none"
+    >
       <slot />
     </main>
 
-    <footer class="border-t border-[var(--border)] px-3 sm:px-6 py-4">
+    <footer class="site-footer border-t border-[var(--border)] px-3 sm:px-6 py-4">
       <!-- max-w-6xl + flex-wrap + nowrap labels: rows wrap as WHOLE items,
            never mid-label (see the header note; pinned by trustPage.test.ts). -->
       <div class="mx-auto max-w-6xl">
@@ -160,7 +183,7 @@
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors whitespace-nowrap"
           >
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path
                 d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
               />
@@ -181,6 +204,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -196,6 +220,7 @@
             description="How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel documents"
           >
             <button
+              type="button"
               class="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
             >
               <svg
@@ -204,6 +229,7 @@
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 stroke-width="2"
+                aria-hidden="true"
               >
                 <path
                   stroke-linecap="round"
@@ -223,12 +249,21 @@
                       documents
                     </p>
                   </div>
+                  <!-- Icon-only: the name comes from aria-label, and the glyph
+                       is hidden so it is not read as an unnamed image.
+                       The dialog itself is Nuxt UI's UModal (Reka Dialog):
+                       role="dialog", labelled and described by the title /
+                       description props above, focus moved in and trapped,
+                       Escape closes, focus returned to the "Scoring" button. -->
                   <button
-                    class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors"
+                    type="button"
+                    aria-label="Close scoring rubric"
+                    class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors cursor-pointer"
                     @click="close"
                   >
                     <svg
                       class="w-5 h-5"
+                      aria-hidden="true"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -387,6 +422,7 @@
                           viewBox="0 0 24 24"
                           stroke="currentColor"
                           stroke-width="2"
+                          aria-hidden="true"
                         >
                           <path
                             stroke-linecap="round"
@@ -427,6 +463,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -473,6 +510,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -488,6 +526,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -509,6 +548,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -523,6 +563,7 @@
               viewBox="0 0 24 24"
               stroke="currentColor"
               stroke-width="2"
+              aria-hidden="true"
             >
               <path
                 stroke-linecap="round"
@@ -554,6 +595,15 @@ const colorMode = useColorMode();
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
+}
+
+/** The skip link. Focus goes to <main> itself (tabindex="-1"), so the next
+ *  Tab lands on the first control inside the page content. */
+function skipToMain() {
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  main.focus();
+  main.scrollIntoView({ block: "start" });
 }
 
 // Weights come straight from the engine's strict profile so this modal can

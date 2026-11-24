@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.176.0] - 2026-11-24
+
+### Added
+
+- **Whole-app review: larger batches, check by link, before-and-after, sample report; restarts and downloads made safe.** A fresh review of the whole application and the changes that came out of it. New for visitors: batches of up to 25 files with a summary table and a CSV download; a 'check a document by link' field on the home page; a before-and-after comparison when a fixed file is checked again; and a sample report at /sample-report. The What's New banner is now two sentences at most (enforced by a test). Fixed: the API now shuts down gracefully instead of dropping audits in flight; temp copies of PDFs live in a dedicated owner-only folder that is purged at start and swept by age; a HEAD request or an interrupted transfer no longer uses up the one-time download of a repaired PDF; repairing one file of a batch can no longer carry another file's title; password-protected PDFs are reported as such on every path; URL audits return the same errors as uploads. The site's own accessibility: a skip link, announcements and focus handling on the repair page, a named modal close button, print rules that hide site chrome, a global reduced-motion rule, landmarks and contrast on /status, and a heading-order fix on /technical-details. For integrators: every error body carries a stable `code`, `GET /api/openapi.json` describes the API and is test-pinned to the mounted routes, responses carry `X-Request-Id`, and every finding now has a stable machine-readable code (`findingDetails`) beside its unchanged text, with `schemaVersion` and `engineVersion` on results. The command-line tool accepts folders and globs, writes JSON, NDJSON, CSV, JUnit and SARIF, gates on score, severity, conformance or a baseline, and uses distinct exit codes. Tooling: `pnpm release`, `pnpm e2e` (a real-browser upload plus axe on every page, also in CI), a version-sync test, automatic rollback in `rebuild.sh`, a runbook, an nginx template, and a backups document that states both layers. No document's score changed: the score ledger (369 rows) and all eight accuracy gates are unchanged.
+
+### Notes
+
+- Tests 5,380 across 303 files (API 2,867 · Web 2,341 · CLI 172).
+
 ## [1.175.6] - 2026-11-18
 
 ### Changed

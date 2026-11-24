@@ -76,10 +76,13 @@ export type RemediatedPdfResult =
     };
 
 export const DOWNLOAD_GONE_MESSAGE =
-  "This file is no longer on the server. It can be downloaded once, and it is deleted as soon as a download starts or its time on the server runs out. To get another copy, audit your PDF again and rerun the remediation.";
+  "This file is no longer on the server. It can be downloaded once, and it is deleted as soon as a download finishes or its time on the server runs out. To get another copy, audit your PDF again and rerun the remediation.";
 
 function failureMessage(status: number | null): string {
   if (status === 410) return DOWNLOAD_GONE_MESSAGE;
+  if (status === 409) {
+    return "This file is already being downloaded in another tab or window. Wait for that download to finish.";
+  }
   if (status === 403) {
     return "This download link is not valid for this file. Return to the audit page and run the remediation again.";
   }

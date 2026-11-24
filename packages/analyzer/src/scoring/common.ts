@@ -21,6 +21,11 @@ import { detectLanguageMismatch, LANGUAGE_NAMES } from "../languagePlausibility.
 import type { LanguageMismatch } from "../languagePlausibility.js";
 import type { ConformanceVerdict } from "./conformance.js";
 import { generateSummary } from "./summary.js";
+import { fd } from "./findingDetails.js";
+
+// Finding codes (findingDetails.ts) — re-exported so the four scorers import
+// their tagging helpers from the same place as everything else they share.
+export { fd, fdEach, withFindingDetails, type FindingMeta } from "./findingDetails.js";
 
 // Machine-checkable PDF/UA-1 (ISO 14289-1) signals, summarized for the report's
 // "Conformance signals" panel. These are SIGNALS, not a conformance verdict —
@@ -118,6 +123,14 @@ export interface ScoringResult {
    *  a stored report from before the censuses must never render "No
    *  machine-detected issues" for a check that never existed (RB-review F7). */
   matterhornCensusGeneration?: number;
+  /** Version of the result's shape — RESULT_SCHEMA_VERSION (packages/shared);
+   *  1 is the release that added `findingDetails` to every category. Always
+   *  set by the four scorers (withFindingDetails); optional in the type only
+   *  because stored reports and hand-built results predate it. */
+  schemaVersion?: number;
+  /** The analyzer package's version at the time this result was computed.
+   *  Always set by the four scorers; optional for the same reason. */
+  engineVersion?: string;
 }
 
 /**
@@ -495,20 +508,49 @@ export function officeLanguageFindings(
   noun: "document" | "presentation",
   howToFixMismatch: string,
 ): string[] {
+  // Finding codes are per format; the noun says which format is asking.
+  const code =
+    noun === "document"
+      ? ({
+          unusable: "docx.title_language.language_unusable",
+          unusableFix: "docx.title_language.language_unusable_fix",
+          mismatch: "docx.title_language.language_mismatch",
+          evidence: "docx.title_language.language_mismatch_evidence",
+          mismatchFix: "docx.title_language.language_mismatch_fix",
+          mixed: "docx.title_language.language_mismatch_mixed_note",
+        } as const)
+      : ({
+          unusable: "pptx.title_language.language_unusable",
+          unusableFix: "pptx.title_language.language_unusable_fix",
+          mismatch: "pptx.title_language.language_mismatch",
+          evidence: "pptx.title_language.language_mismatch_evidence",
+          mismatchFix: "pptx.title_language.language_mismatch_fix",
+          mixed: "pptx.title_language.language_mismatch_mixed_note",
+        } as const);
   if (verdict.kind === "unusable") {
     return [
-      `Language declared as "${declared}" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation. Language codes are short standard identifiers such as "en-US" (US English) or "es" (Spanish), not language names.`,
-      `How to fix: Word and PowerPoint only ever write standard codes, so a value like this comes from the program that generated the file. Set the language there to a standard code such as "en-US" and regenerate the ${noun}.`,
+      fd(
+        code.unusable,
+      )`Language declared as "${declared}" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation. Language codes are short standard identifiers such as "en-US" (US English) or "es" (Spanish), not language names.`,
+      fd(
+        code.unusableFix,
+      )`How to fix: Word and PowerPoint only ever write standard codes, so a value like this comes from the program that generated the file. Set the language there to a standard code such as "en-US" and regenerate the ${noun}.`,
     ];
   }
   const m = verdict.mismatch;
   const declaredName = languageName(m.declared);
   const detectedName = languageName(m.detected);
   return [
-    `The ${noun} declares its language as "${declared}" (${declaredName}), but the text reads as ${detectedName}. A screen reader follows the declaration, so it would pronounce this ${noun} with ${declaredName} pronunciation rules throughout — the words come out as ${declaredName} sounds, which is very hard to listen to and often unintelligible.`,
-    `What the check saw: of ${m.wordCount.toLocaleString()} words sampled, ${m.detectedHits} are common ${detectedName} words and only ${m.declaredHits} are common ${declaredName} words — and ${detectedName} is not declared anywhere in the file.`,
-    `How to fix: ${howToFixMismatch}`,
-    `If part of this ${noun} really is in ${declaredName}, that is handled differently: mark just the other passages with their own language, and leave the ${noun} language as the one most of the text is written in.`,
+    fd(
+      code.mismatch,
+    )`The ${noun} declares its language as "${declared}" (${declaredName}), but the text reads as ${detectedName}. A screen reader follows the declaration, so it would pronounce this ${noun} with ${declaredName} pronunciation rules throughout — the words come out as ${declaredName} sounds, which is very hard to listen to and often unintelligible.`,
+    fd(
+      code.evidence,
+    )`What the check saw: of ${m.wordCount.toLocaleString()} words sampled, ${m.detectedHits} are common ${detectedName} words and only ${m.declaredHits} are common ${declaredName} words — and ${detectedName} is not declared anywhere in the file.`,
+    fd(code.mismatchFix)`How to fix: ${howToFixMismatch}`,
+    fd(
+      code.mixed,
+    )`If part of this ${noun} really is in ${declaredName}, that is handled differently: mark just the other passages with their own language, and leave the ${noun} language as the one most of the text is written in.`,
   ];
 }
 

@@ -49,6 +49,7 @@ const idle = () => ({
   activityFilesWritten: 0,
   activityFilesPruned: 0,
   errorLogFilesPruned: 0,
+  tempFilesPurged: 0,
   errors: [] as Array<{ step: string; message: string }>,
 });
 
@@ -61,7 +62,7 @@ describe("summarizeCleanup", () => {
       expiredOutputs: 2,
     });
     expect(line).toBe(
-      "[sweep] activity files: 364 written, 0 pruned · error logs pruned: 0 · audit_log rows purged: 12 · shared reports purged: 0 · remediation: 2 expired, 0 stuck, 0 orphans, 0 queue-expired, 0 job dirs purged, 0 jobs purged, 0 events purged · errors: 0",
+      "[sweep] activity files: 364 written, 0 pruned · error logs pruned: 0 · audit_log rows purged: 12 · shared reports purged: 0 · temp files purged: 0 · remediation: 2 expired, 0 stuck, 0 orphans, 0 queue-expired, 0 job dirs purged, 0 jobs purged, 0 events purged · errors: 0",
     );
     expect(line).not.toContain("\n");
   });

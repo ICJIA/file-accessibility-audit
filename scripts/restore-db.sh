@@ -70,5 +70,30 @@ done
 
 mv "$TMP_RESTORE" "$TARGET"
 echo "==> Restored $SNAPSHOT -> $TARGET"
+
+# The report-seal key (see scripts/backup-db.sh). It lives beside the database
+# and is copied beside the snapshots. If the database directory has NO key —
+# a restore onto a new disk — and the snapshot's directory holds the copy, put
+# it back, so results issued before the loss can still be saved. An existing
+# key is never replaced: it is the one the running service has been sealing
+# with.
+KEY_TARGET="$(dirname "$TARGET")/report-seal.key"
+KEY_BACKUP="$(dirname "$SNAPSHOT")/report-seal.key"
+# A pre-deploy snapshot lives one level down (backups/pre-deploy/); the nightly
+# copy of the key, if that directory has none, is in its parent.
+if [ ! -f "$KEY_BACKUP" ] && [ -f "$(dirname "$(dirname "$SNAPSHOT")")/report-seal.key" ]; then
+  KEY_BACKUP="$(dirname "$(dirname "$SNAPSHOT")")/report-seal.key"
+fi
+if [ -f "$KEY_TARGET" ]; then
+  echo "==> Report-seal key already present beside the database; left as it is"
+elif [ -f "$KEY_BACKUP" ]; then
+  (umask 077 && cp "$KEY_BACKUP" "$KEY_TARGET" && chmod 600 "$KEY_TARGET")
+  echo "==> Report-seal key restored from $KEY_BACKUP (mode 0600)"
+else
+  echo "==> No report-seal key beside the database and none beside the snapshot."
+  echo "    The API will create a new one when it starts. Saved reports are not"
+  echo "    affected; an audit result still open in a browser from before this"
+  echo "    restore can no longer be saved — it has to be run again."
+fi
 echo "==> Next: pm2 start file-audit-api   (then check /status and spot-check history)"
 echo "==> The previous database is preserved at $TARGET.pre-restore-$STAMP"

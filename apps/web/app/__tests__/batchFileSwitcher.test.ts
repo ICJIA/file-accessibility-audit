@@ -49,17 +49,30 @@ function mountSwitcher(overrides: { activeIndex?: number } = {}) {
 }
 
 describe("BatchFileSwitcher", () => {
-  it("renders one tab card per file inside an accessible tablist", () => {
+  it("renders one button per file inside a labelled group", () => {
     const wrapper = mountSwitcher();
-    const tablist = wrapper.find('[role="tablist"]');
-    expect(tablist.exists()).toBe(true);
-    expect(tablist.attributes("aria-label")).toBe("3 file results");
-    expect(wrapper.findAll('[role="tab"]')).toHaveLength(3);
+    const group = wrapper.find('[role="group"]');
+    expect(group.exists()).toBe(true);
+    expect(group.attributes("aria-label")).toBe("3 file results");
+    expect(group.findAll("button")).toHaveLength(3);
+    for (const b of group.findAll("button")) expect(b.attributes("type")).toBe("button");
+  });
+
+  it("does not claim to be a tablist (it has no panel, no aria-controls, no arrow keys)", () => {
+    // The honest pattern for what this is. A tablist promises a tabpanel
+    // wired by aria-controls and arrow-key movement; the report these
+    // buttons switch lives in the page, so none of that was ever true here.
+    const html = mountSwitcher()
+      .html()
+      .replace(/<!--[\s\S]*?-->/g, "");
+    expect(html).not.toMatch(/role="(tablist|tab|tabpanel)"/);
+    expect(html).not.toContain("aria-selected");
+    expect(html).not.toContain("aria-controls");
   });
 
   it("shows the grade letter and the score out of 100 on finished cards", () => {
     const wrapper = mountSwitcher();
-    const tabs = wrapper.findAll('[role="tab"]');
+    const tabs = wrapper.findAll("button");
     expect(tabs[0]!.text()).toContain("annual-report.pdf");
     expect(tabs[0]!.text()).toContain("B");
     expect(tabs[0]!.text()).toContain("89");
@@ -67,12 +80,25 @@ describe("BatchFileSwitcher", () => {
     expect(tabs[1]!.text()).toContain("100");
   });
 
-  it("marks only the active card as selected", () => {
+  it("marks only the active card as current", () => {
     const wrapper = mountSwitcher({ activeIndex: 1 });
-    const tabs = wrapper.findAll('[role="tab"]');
-    expect(tabs[0]!.attributes("aria-selected")).toBe("false");
-    expect(tabs[1]!.attributes("aria-selected")).toBe("true");
-    expect(tabs[2]!.attributes("aria-selected")).toBe("false");
+    const tabs = wrapper.findAll("button");
+    expect(tabs[0]!.attributes("aria-current")).toBeUndefined();
+    expect(tabs[1]!.attributes("aria-current")).toBe("true");
+    expect(tabs[2]!.attributes("aria-current")).toBeUndefined();
+  });
+
+  it("names the grade and score in words, and hides the status glyphs", () => {
+    const wrapper = mountSwitcher();
+    const first = wrapper.findAll("button")[0]!;
+    // textContent is what a button's accessible name is computed from.
+    expect(first.element.textContent!.replace(/\s+/g, " ")).toContain("Grade B");
+    expect(first.element.textContent!.replace(/\s+/g, " ")).toContain("Score 89/100");
+    // No aria-label on a role-less <span>/<svg>: it is ignored or misread.
+    expect(wrapper.html()).not.toMatch(/<(span|svg)[^>]*aria-label=/);
+    for (const svg of wrapper.findAll("svg")) {
+      expect(svg.attributes("aria-hidden")).toBe("true");
+    }
   });
 
   it("gives every card — active or not — the same visible card chrome", () => {
@@ -81,7 +107,7 @@ describe("BatchFileSwitcher", () => {
     // chrome. Every card must carry the shared card class with real border
     // and surface.
     const wrapper = mountSwitcher();
-    const tabs = wrapper.findAll('[role="tab"]');
+    const tabs = wrapper.findAll("button");
     for (const tab of tabs) {
       expect(tab.classes()).toContain("batch-file-card");
     }
@@ -89,13 +115,13 @@ describe("BatchFileSwitcher", () => {
 
   it("emits switch with the card's index on click", async () => {
     const wrapper = mountSwitcher();
-    await wrapper.findAll('[role="tab"]')[1]!.trigger("click");
+    await wrapper.findAll("button")[1]!.trigger("click");
     expect(wrapper.emitted("switch")).toEqual([[1]]);
   });
 
   it("labels an errored file honestly instead of showing a grade", () => {
     const wrapper = mountSwitcher();
-    const errorTab = wrapper.findAll('[role="tab"]')[2]!;
+    const errorTab = wrapper.findAll("button")[2]!;
     expect(errorTab.text()).toContain("broken.pdf");
     expect(errorTab.text()).toContain("Couldn't analyze");
     expect(errorTab.text()).not.toContain("/100");
@@ -107,7 +133,7 @@ describe("BatchFileSwitcher", () => {
     const wrapper = mount(BatchFileSwitcher, {
       props: { items: items as any, activeIndex: 0 },
     });
-    expect(wrapper.findAll('[role="tab"]')[2]!.text()).toContain("Cancelled");
+    expect(wrapper.findAll("button")[2]!.text()).toContain("Cancelled");
   });
 
   it("folds the completion message into the header instead of a separate banner", () => {
@@ -126,7 +152,7 @@ describe("index page wiring", () => {
     const source = fs.readFileSync(path.resolve(__dirname, "../pages/index.vue"), "utf-8");
     expect(source).toContain("<BatchFileSwitcher");
     expect(source).toContain('@switch="switchTab"');
-    // The page no longer owns a tablist or the dismissible completion banner.
+    // The page owns neither a tablist nor the dismissible completion banner.
     expect(source).not.toContain('role="tablist"');
     expect(source).not.toContain("showBatchBanner");
   });

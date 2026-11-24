@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { QPDF_BIN } from "@file-audit/analyzer/qpdfService";
 import { GRADE_THRESHOLDS } from "#config";
 
 export const RESET = "\x1b[0m";
@@ -54,15 +55,17 @@ export function padRight(str: string, len: number): string {
   return str.length >= len ? str : str + " ".repeat(len - str.length);
 }
 
+/**
+ * Is qpdf runnable? Probes the SAME binary the engine will run (its exported
+ * QPDF_BIN: $QPDF_PATH, else `qpdf` on PATH, else the Homebrew locations) —
+ * this used to keep its own copy of that search list, and a copy can drift
+ * into reporting "installed" for a binary the engine would never use.
+ */
 export function checkQpdf(): boolean {
-  const paths = ["qpdf", "/opt/homebrew/bin/qpdf", "/usr/local/bin/qpdf"];
-  if (process.env.QPDF_PATH) paths.unshift(process.env.QPDF_PATH);
-
-  for (const p of paths) {
-    try {
-      execFileSync(p, ["--version"], { stdio: "ignore" });
-      return true;
-    } catch {}
+  try {
+    execFileSync(QPDF_BIN, ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
   }
-  return false;
 }

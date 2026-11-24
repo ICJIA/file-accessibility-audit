@@ -12,6 +12,28 @@
       <p class="text-xs text-[var(--status-error)]">{{ validationError }}</p>
     </div>
 
+    <!-- Files left out of a mixed selection, and why. They used to vanish:
+         drop a PDF, a .doc and a .zip and only the PDF appeared, with no
+         word about the other two. A POLITE live region — it is information
+         about a selection that otherwise worked, not an error to interrupt
+         with — and always in the DOM so the announcement is reliable. -->
+    <div role="status" aria-live="polite" data-testid="skipped-files">
+      <div
+        v-if="skippedFiles.length"
+        class="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-left"
+      >
+        <p class="text-xs font-medium text-[var(--text-heading)]">
+          {{ skippedFiles.length === 1 ? "1 file was" : `${skippedFiles.length} files were` }}
+          left out:
+        </p>
+        <ul class="mt-1 space-y-0.5 text-xs text-[var(--text-secondary)]">
+          <li v-for="s in skippedFiles" :key="s.name" class="break-words">
+            <span class="font-medium">{{ s.name }}</span> — {{ s.reason }}
+          </li>
+        </ul>
+      </div>
+    </div>
+
     <!-- Staged file list (shown when multiple files selected but not yet submitted) -->
     <div v-if="stagedFiles.length > 0" class="mb-4">
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4">
@@ -20,13 +42,22 @@
             {{ stagedFiles.length }} {{ stagedFiles.length === 1 ? "file" : "files" }} selected
           </p>
           <button
-            class="text-xs text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors"
+            type="button"
+            class="text-xs text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
             @click="clearStaged"
           >
             Clear all
           </button>
         </div>
-        <ul class="space-y-2">
+        <!-- Scrolls inside the card once the list is long: a full batch is
+             BATCH.MAX_FILES rows, and the Analyze button must stay in reach.
+             tabindex + label so a keyboard user can scroll it (WCAG 2.1.1). -->
+        <ul
+          class="space-y-2 max-h-72 overflow-y-auto pr-1"
+          tabindex="0"
+          aria-label="Files selected"
+          data-testid="staged-files"
+        >
           <li
             v-for="(f, i) in stagedFiles"
             :key="i"
@@ -35,13 +66,21 @@
             <span class="text-[var(--text-secondary)] truncate mr-3">{{ f.name }}</span>
             <div class="flex items-center gap-2 flex-shrink-0">
               <span class="text-xs text-[var(--text-muted)]">{{ formatSize(f.size) }}</span>
+              <!-- Named for the file it removes: a list of buttons that all
+                   say "Remove file" tells a screen-reader user nothing about
+                   which row each one belongs to. `title` alone is not a
+                   dependable accessible name. -->
               <button
-                class="text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors"
-                title="Remove file"
+                type="button"
+                class="rounded p-0.5 text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+                :aria-label="`Remove ${f.name}`"
+                :title="`Remove ${f.name}`"
+                data-testid="remove-staged"
                 @click="removeStaged(i)"
               >
                 <svg
                   class="w-4 h-4"
+                  aria-hidden="true"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -58,12 +97,14 @@
         </div>
         <div class="mt-3 flex gap-2 justify-center">
           <button
-            class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
+            type="button"
+            class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-medium transition-colors"
             @click="submitStaged"
           >
             Analyze {{ stagedFiles.length }} {{ stagedFiles.length === 1 ? "File" : "Files" }}
           </button>
           <button
+            type="button"
             class="px-4 py-2 rounded-lg border border-[var(--border-input)] text-[var(--text-secondary)] text-sm hover:bg-[var(--surface-hover)] transition-colors"
             @click="openPicker"
           >
@@ -128,12 +169,12 @@
             {{ dragging ? dropLabelActive : dropLabelIdle }}
           </span>
           <!-- The hidden words complete the spoken name — "…or click to browse
-               for files to audit — up to 5 files, max 25 MB each" — while the
+               for files to audit — up to (the limit) files, max 25 MB each" — while the
                visible label still opens it, so speech input can say what it
                sees (WCAG 2.5.3). -->
           <span class="block text-sm text-[var(--text-muted)] mt-1">
-            or click to browse<span class="sr-only"> for files to audit</span> — up to 5 files, max
-            25 MB each
+            or click to browse<span class="sr-only"> for files to audit</span> — up to
+            {{ MAX_FILES }} files, max 25 MB each
           </span>
           <!-- v1.99.0 (user request): set the timing expectation up front —
                a design-heavy PDF measured ~26 s in production, and a silent
@@ -168,14 +209,21 @@ import {
   uploadNounWithExts,
   unsupportedFormatHint,
 } from "~/utils/uploadFormats";
+import { BATCH } from "../../../../audit.config";
 
-// Must match the advertised copy below ("up to 5 files") — they drifted once
-// (copy said 5, limit was 3) and users hit "Maximum 3 files allowed" under a
-// label promising five. dropZoneLimits.test.ts pins both sides.
-const MAX_FILES = 5;
 const MAX_SIZE = 25 * 1024 * 1024;
 
 const config = useRuntimeConfig();
+// ONE number, from audit.config.ts BATCH.MAX_FILES (via runtimeConfig, with
+// the constant itself as the fallback). The limit and the copy that quotes
+// it both read this, so they cannot drift — they did once (copy said 5,
+// limit was 3: "Maximum 3 files allowed" under a label promising five), and
+// then the config said 3 while this file hard-coded 5.
+// dropZoneLimits.test.ts pins both sides to the constant.
+const MAX_FILES = (() => {
+  const n = Number(config.public.batchMaxFiles);
+  return Number.isInteger(n) && n > 0 ? n : BATCH.MAX_FILES;
+})();
 // Word / PowerPoint / Excel support can each be turned off server-side
 // (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false"); mirror that in the
 // dropzone so we never invite a file the API will reject.
@@ -199,6 +247,8 @@ const dragCounter = ref(0);
 const fileInput = ref<HTMLInputElement | null>(null);
 const stagedFiles = ref<File[]>([]);
 const validationError = ref("");
+// Files from the last selection that were not accepted, with the reason.
+const skippedFiles = ref<Array<{ name: string; reason: string }>>([]);
 
 // Prevent browser from opening dropped files anywhere on the page
 onMounted(() => {
@@ -244,9 +294,25 @@ function handleFileInput(e: Event) {
 
 function processFiles(files: File[]) {
   validationError.value = "";
+  skippedFiles.value = [];
 
   const exts = uploadExtensions(uploadFlags.value);
-  const accepted = files.filter((f) => exts.some((ext) => f.name.toLowerCase().endsWith(ext)));
+  const isSupported = (f: File) => exts.some((ext) => f.name.toLowerCase().endsWith(ext));
+  const accepted = files.filter(isSupported);
+  if (accepted.length > 0 && accepted.length < files.length) {
+    // A MIXED selection: the supported files carry on, and the rest are
+    // named with the reason — the same specific advice a lone unsupported
+    // file gets (convert a .doc; a CSV cannot be checked), or the plain
+    // list of what can be.
+    skippedFiles.value = files
+      .filter((f) => !isSupported(f))
+      .map((f) => ({
+        name: f.name,
+        reason:
+          unsupportedFormatHint(f.name) ||
+          `Not a supported file type. This tool checks ${uploadNounWithExts(uploadFlags.value)} files.`,
+      }));
+  }
   if (accepted.length === 0) {
     // A legacy binary Office file (.doc/.xls/.ppt/.rtf) or a CSV gets
     // specific, actionable copy instead of the generic unsupported-formats
@@ -288,6 +354,7 @@ function removeStaged(index: number) {
 function clearStaged() {
   stagedFiles.value = [];
   validationError.value = "";
+  skippedFiles.value = [];
 }
 
 function submitStaged() {

@@ -589,7 +589,11 @@ describe("POST /api/remediate — wiring over real HTTP (findings 1, 9a)", () =>
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await upload(Buffer.from("hello"), "notes.txt", "text/plain");
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Only PDF files are accepted" });
+    // The message is unchanged; the stable machine code rides beside it.
+    expect(await res.json()).toEqual({
+      error: "Only PDF files are accepted",
+      code: "UNSUPPORTED_TYPE",
+    });
     // An expected client error: one warn line, no error-log entry, no stack.
     expect(error).not.toHaveBeenCalled();
     expect(warn.mock.calls.flat().join(" ")).toMatch(/\[api\] 400 /);

@@ -18,6 +18,8 @@ import {
   applyWcagCriteria,
   type ScoringResult,
   placeholderAltFinding,
+  fd,
+  withFindingDetails,
 } from "./common.js";
 import { drawnShapeFinding } from "../ooxml.js";
 import { evaluateXlsxConformance } from "./conformance.js";
@@ -85,14 +87,22 @@ function scoreXlsxText(a: XlsxAnalysis): CategoryResult {
   // screenshot. The claim is now keyed to evidence.
   if (a.totalCellsWithValue === 0) {
     const findings = [
-      "No cell values were found in this workbook's visible sheets, so the usual Excel guarantee — extractable text in real cells — does not apply here.",
+      fd("xlsx.text_extractability.no_cell_values")(
+        "No cell values were found in this workbook's visible sheets, so the usual Excel guarantee — extractable text in real cells — does not apply here.",
+      ),
     ];
     if (a.textBoxCount > 0) {
       findings.push(
-        `${a.textBoxCount} drawing text box(es) hold this workbook's text content. Text boxes float over the grid and are not reached by cell navigation — move important narrative into real cells where possible.`,
+        fd("xlsx.text_extractability.text_boxes_hold_content", {
+          count: a.textBoxCount,
+        })`${a.textBoxCount} drawing text box(es) hold this workbook's text content. Text boxes float over the grid and are not reached by cell navigation — move important narrative into real cells where possible.`,
       );
     }
-    findings.push("Text extractability was not assessed for this workbook.");
+    findings.push(
+      fd("xlsx.text_extractability.not_assessed")(
+        "Text extractability was not assessed for this workbook.",
+      ),
+    );
     return xlsxCategory(
       "text_extractability",
       "Text Extractability",
@@ -105,11 +115,15 @@ function scoreXlsxText(a: XlsxAnalysis): CategoryResult {
     );
   }
   const findings = [
-    `${a.totalCellsWithValue.toLocaleString()} cell(s) contain extractable, selectable values — unlike a scanned image, this content is always available to assistive technology.`,
+    fd("xlsx.text_extractability.cells_extractable", {
+      count: a.totalCellsWithValue,
+    })`${a.totalCellsWithValue.toLocaleString()} cell(s) contain extractable, selectable values — unlike a scanned image, this content is always available to assistive technology.`,
   ];
   if (a.textBoxCount > 0) {
     findings.push(
-      `Note: ${a.textBoxCount} drawing text box(es) also hold text that cell-based checks do not audit.`,
+      fd("xlsx.text_extractability.text_boxes_not_audited", {
+        count: a.textBoxCount,
+      })`Note: ${a.textBoxCount} drawing text box(es) also hold text that cell-based checks do not audit.`,
     );
   }
   return xlsxCategory(
@@ -134,30 +148,42 @@ function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
   const shape = hasTitle ? classifyTitleShape(a.metadata.title!) : null;
   const findings: string[] = [];
   if (hasTitle) {
-    findings.push(`Workbook title: "${a.metadata.title}"`);
+    findings.push(fd("xlsx.title_language.title_present")`Workbook title: "${a.metadata.title}"`);
     if (shape === "tool-generated") {
       findings.push(
-        "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the workbook name, so partial credit only.",
+        fd("xlsx.title_language.title_tool_generated")(
+          "The title is a filename or tool-generated string rather than a descriptive title — screen readers announce it as the workbook name, so partial credit only.",
+        ),
       );
       findings.push(
-        'How to fix: In Excel: File → Info → Properties → Title — replace it with a descriptive title (e.g., "FY26 Grant Ledger").',
+        fd("xlsx.title_language.title_tool_generated_fix")(
+          'How to fix: In Excel: File → Info → Properties → Title — replace it with a descriptive title (e.g., "FY26 Grant Ledger").',
+        ),
       );
     } else if (shape === "filename-shaped") {
       findings.push(
-        `Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the workbook, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the workbook well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
+        fd(
+          "xlsx.title_language.title_filename_shaped",
+        )`Advisory — not scored: the title "${a.metadata.title}" reads like a filename or export string (underscores, hyphen chains, a timestamp or hash) but still names the workbook, so WCAG 2.4.2 is satisfied as far as a machine can tell — whether it describes the workbook well is a judgment for a person. Consider replacing it with a plain-language title (File → Info → Properties → Title).`,
       );
     }
   } else if (coreUnreadable) {
     findings.push(
-      "The workbook's title could not be read — the file's core-properties part is unparseable, so it is not scored.",
+      fd("xlsx.title_language.title_unreadable")(
+        "The workbook's title could not be read — the file's core-properties part is unparseable, so it is not scored.",
+      ),
     );
   } else {
     findings.push(
-      "No workbook title is set. In Excel: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this file uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
+      fd("xlsx.title_language.title_missing")(
+        "No workbook title is set. In Excel: File → Info → Properties → Title. Why it matters: when the file is open, screen readers such as NVDA and JAWS read its file name, but the Title is what a PDF or web page made from this file uses as its title — the name a screen reader announces there — and the U.S. Access Board's testing baseline requires a Title in every document. It is a one-minute fix. On a Mac: File → Properties → Summary → Title.",
+      ),
     );
   }
   findings.push(
-    "Excel does not store a document language, so WCAG 3.1.1 (Language of Page) is not automatically assessed for Excel workbooks.",
+    fd("xlsx.title_language.language_not_stored")(
+      "Excel does not store a document language, so WCAG 3.1.1 (Language of Page) is not automatically assessed for Excel workbooks.",
+    ),
   );
   return xlsxCategory(
     "title_language",
@@ -181,7 +207,7 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
       "Sheet Names",
       XLSX.SCORING_WEIGHTS.sheet_names,
       null,
-      ["No visible sheets were found."],
+      [fd("xlsx.sheet_names.no_visible_sheets")("No visible sheets were found.")],
       'Descriptive sheet names (not Excel defaults like "Sheet1") are the workbook\'s navigation — screen-reader users hear them when switching sheets.',
       [XLSX_HELP.sheetNames],
       false,
@@ -194,15 +220,23 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
   // never counted.
   const findings =
     defaultNamed.length === 0
-      ? [`All ${visible.length} visible sheet(s) have descriptive names.`]
+      ? [
+          fd("xlsx.sheet_names.all_descriptive", {
+            count: visible.length,
+          })`All ${visible.length} visible sheet(s) have descriptive names.`,
+        ]
       : defaultNamed.map(
           (s) =>
-            `Advisory — not scored: rename "${s.name}" to describe its contents — your grade is not affected, but sheet names are the workbook's navigation and screen-reader users hear them when switching sheets.`,
+            fd(
+              "xlsx.sheet_names.default_name",
+            )`Advisory — not scored: rename "${s.name}" to describe its contents — your grade is not affected, but sheet names are the workbook's navigation and screen-reader users hear them when switching sheets.`,
         );
   const hiddenCount = a.sheets.length - visible.length;
   if (hiddenCount > 0) {
     findings.push(
-      `Note: ${hiddenCount} hidden sheet(s) were excluded from this audit — hidden sheets are not presented to any reader, so their content, images, and styles do not drive findings (v1.95.0 disclosure).`,
+      fd("xlsx.sheet_names.hidden_sheets_excluded", {
+        count: hiddenCount,
+      })`Note: ${hiddenCount} hidden sheet(s) were excluded from this audit — hidden sheets are not presented to any reader, so their content, images, and styles do not drive findings (v1.95.0 disclosure).`,
     );
   }
   // NOT ASSESSED, not 100 (user decision 2026-11-18, decision 3): nothing
@@ -210,7 +244,9 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
   // padded every workbook's average. It is reported in full and kept out of
   // the grade.
   findings.push(
-    "Reported, not graded: whether a sheet name is descriptive enough is a judgment for a person, so this check never changes the grade.",
+    fd("xlsx.sheet_names.reported_not_graded")(
+      "Reported, not graded: whether a sheet name is descriptive enough is a judgment for a person, so this check never changes the grade.",
+    ),
   );
   return xlsxCategory(
     "sheet_names",
@@ -232,7 +268,7 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
       "Table Markup",
       XLSX.SCORING_WEIGHTS.table_markup,
       null,
-      ["No tables or sizable data ranges were found."],
+      [fd("xlsx.table_markup.no_tables_or_data")("No tables or sizable data ranges were found.")],
       "Data laid out as a real Excel Table (with a header row) lets screen readers announce the relevant column header as a user moves across cells. Plain ranges of typed cells carry no such structure.",
       [XLSX_HELP.tables],
       false,
@@ -240,7 +276,11 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
   }
 
   let score = 100;
-  const findings: string[] = [`${a.tables.length} defined table(s) found.`];
+  const findings: string[] = [
+    fd("xlsx.table_markup.defined_tables_found", {
+      count: a.tables.length,
+    })`${a.tables.length} defined table(s) found.`,
+  ];
   // Headers that label nothing (2026-10-06, user decision: reported, never
   // scored): a header row still carrying the names Excel invents when a range
   // becomes a table without one. The structure exists, so 1.3.1 is met.
@@ -253,7 +293,9 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
       3,
     );
     findings.push(
-      `Advisory — not scored: ${defaultNamed.length} table(s) still carry Excel's default header names (${examples.map((n) => `"${n}"`).join(", ")}) — the header row exists, so this is not counted against your grade, but its names say nothing about the columns. Type a real name into each header cell.`,
+      fd("xlsx.table_markup.default_header_names", {
+        count: defaultNamed.length,
+      })`Advisory — not scored: ${defaultNamed.length} table(s) still carry Excel's default header names (${examples.map((n) => `"${n}"`).join(", ")}) — the header row exists, so this is not counted against your grade, but its names say nothing about the columns. Type a real name into each header cell.`,
     );
   }
 
@@ -278,14 +320,18 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
       .map((t) => (t.hasHeaderRow ? 100 : UNHEADERED_DATA_TABLE_SCORE));
     score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
     findings.push(
-      `${headerless.length} table(s) have no header row: ${headerless
+      fd("xlsx.table_markup.no_header_row", {
+        count: headerless.length,
+      })`${headerless.length} table(s) have no header row: ${headerless
         .map((t) => `"${t.name}" on "${t.sheetName}"`)
         .join(", ")}. In Excel: select the table → Table Design → check "Header Row".`,
     );
   }
   if (singleColumnHeaderless.length > 0) {
     findings.push(
-      `Advisory — not scored: ${singleColumnHeaderless.length} single-column table(s) have the header row off (${singleColumnHeaderless
+      fd("xlsx.table_markup.single_column_no_header", {
+        count: singleColumnHeaderless.length,
+      })`Advisory — not scored: ${singleColumnHeaderless.length} single-column table(s) have the header row off (${singleColumnHeaderless
         .map((t) => `"${t.name}" on "${t.sheetName}"`)
         .join(
           ", ",
@@ -306,18 +352,24 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
     // may not move the grade. (Defined tables WITHOUT a header row remain
     // scored and attributed: that is mechanical.) Reported, never counted.
     findings.push(
-      "Advisory — not scored: worksheet data is laid out as plain cell ranges with no defined Excel Table anywhere — your grade is not affected (whether a range is a data table is a judgment a person has to make), but a defined Table lets screen readers announce column headers while navigating. In Excel: select each data range → Insert → Table.",
+      fd("xlsx.table_markup.plain_ranges_no_table")(
+        "Advisory — not scored: worksheet data is laid out as plain cell ranges with no defined Excel Table anywhere — your grade is not affected (whether a range is a data table is a judgment a person has to make), but a defined Table lets screen readers announce column headers while navigating. In Excel: select each data range → Insert → Table.",
+      ),
     );
   } else if (datafulWithoutTable) {
     findings.push(
-      "Note — not scored: some worksheet data sits outside the defined table(s) as plain ranges. Consider Insert → Table for those ranges too.",
+      fd("xlsx.table_markup.data_outside_tables")(
+        "Note — not scored: some worksheet data sits outside the defined table(s) as plain ranges. Consider Insert → Table for those ranges too.",
+      ),
     );
   }
 
   const pivotSheets = a.sheets.filter((s) => !s.hidden && s.hasPivot);
   if (pivotSheets.length > 0) {
     findings.push(
-      `Note — not scored: ${pivotSheets.length} sheet(s) contain pivot tables (${pivotSheets
+      fd("xlsx.table_markup.pivot_tables", {
+        count: pivotSheets.length,
+      })`Note — not scored: ${pivotSheets.length} sheet(s) contain pivot tables (${pivotSheets
         .map((s) => `"${s.name}"`)
         .join(", ")}). Pivots cannot become Excel Tables; verify their readability manually.`,
     );
@@ -333,7 +385,9 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
   );
   if (farStart.length > 0) {
     findings.push(
-      `Note — not scored: on ${farStart
+      fd("xlsx.table_markup.data_starts_far_from_a1", {
+        count: farStart.length,
+      })`Note — not scored: on ${farStart
         .map(
           (s) =>
             `"${s.name}" data begins at row ${s.firstDataRow ?? "?"}, column ${s.firstDataCol ?? "?"}`,
@@ -347,7 +401,9 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
   const mergedSheets = a.sheets.filter((s) => !s.hidden && s.mergedRangeCount > 0);
   if (mergedSheets.length > 0) {
     findings.push(
-      `Note — not scored: ${mergedSheets.length} sheet(s) contain merged cells (${mergedSheets
+      fd("xlsx.table_markup.merged_cells", {
+        count: mergedSheets.length,
+      })`Note — not scored: ${mergedSheets.length} sheet(s) contain merged cells (${mergedSheets
         .map((s) => `"${s.name}": ${s.mergedRangeCount}`)
         .join(
           ", ",
@@ -360,8 +416,9 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
   // 2026-11-18, decision 3). Whether a block of cells is a data table needs
   // a person; the advisory above says how to make it one.
   if (a.tables.length === 0) {
-    findings[0] =
-      'No defined Excel Table was found, so whether this workbook\'s data has header rows could not be checked automatically — this category does not count toward the grade. A person should check that each block of data has a header row, and turn it into a table (Insert → Table → "My table has headers").';
+    findings[0] = fd("xlsx.table_markup.not_checkable_no_defined_table")(
+      'No defined Excel Table was found, so whether this workbook\'s data has header rows could not be checked automatically — this category does not count toward the grade. A person should check that each block of data has a header row, and turn it into a table (Insert → Table → "My table has headers").',
+    );
     return xlsxCategory(
       "table_markup",
       "Table Markup",
@@ -392,7 +449,7 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
       "Alt Text on Images",
       XLSX.SCORING_WEIGHTS.alt_text,
       null,
-      ["No images were found."],
+      [fd("xlsx.alt_text.no_images")("No images were found.")],
       "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [XLSX_HELP.altText],
       false,
@@ -407,7 +464,11 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
       "Alt Text on Images",
       XLSX.SCORING_WEIGHTS.alt_text,
       null,
-      ["All images are marked decorative, so none require alt text."],
+      [
+        fd("xlsx.alt_text.all_decorative")(
+          "All images are marked decorative, so none require alt text.",
+        ),
+      ],
       "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [XLSX_HELP.altText],
       false,
@@ -417,20 +478,28 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
   // shareScore (packages/shared, 2026-10-05) — the one rule in every format.
   const score = shareScore(nonDec.length - missingAlt.length, nonDec.length);
   const findings = [
-    `${nonDec.length - missingAlt.length} of ${nonDec.length} meaningful image(s) have alt text.`,
+    fd("xlsx.alt_text.images_with_alt", {
+      count: nonDec.length - missingAlt.length,
+      total: nonDec.length,
+    })`${nonDec.length - missingAlt.length} of ${nonDec.length} meaningful image(s) have alt text.`,
   ];
   if (missingAlt.length > 0) {
     findings.push(
-      `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
+      fd("xlsx.alt_text.images_missing_alt", {
+        count: missingAlt.length,
+        total: nonDec.length,
+      })`${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
     const placeholders = placeholderAltFinding(missingAlt);
-    if (placeholders) findings.push(placeholders);
+    if (placeholders) findings.push(fd("xlsx.alt_text.placeholder_alt")(placeholders));
     const drawnShapes = drawnShapeFinding(missingAlt, "Excel");
-    if (drawnShapes) findings.push(drawnShapes);
+    if (drawnShapes) findings.push(fd("xlsx.alt_text.drawn_shapes")(drawnShapes));
     const titleOnly = nonDec.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {
       findings.push(
-        `${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title.`,
+        fd("xlsx.alt_text.title_only", {
+          count: titleOnly,
+        })`${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title.`,
       );
     }
   }
@@ -452,7 +521,9 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
   const unchecked =
     unresolvedRuns > 0
       ? [
-          `Advisory — not scored: ${unresolvedRuns} more cell style(s) could not be checked — automatic colors, patterned or gradient fills, cells inside a styled table, and sheets with a background picture are not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
+          fd("xlsx.color_contrast.styles_unchecked", {
+            count: unresolvedRuns,
+          })`Advisory — not scored: ${unresolvedRuns} more cell style(s) could not be checked — automatic colors, patterned or gradient fills, cells inside a styled table, and sheets with a background picture are not assessed, so the result above does not cover them. Check those by eye or with a contrast checker.`,
         ]
       : [];
   if (checkedRuns === 0) {
@@ -462,7 +533,9 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.color_contrast,
       null,
       [
-        "No cell style with a resolvable font color was found to check — against its solid fill, or the white grid when the cell has no fill. (Literal, theme-based, and legacy indexed colors are all resolved; automatic colors, patterned or gradient fills, and sheets with a background picture are not.)",
+        fd("xlsx.color_contrast.nothing_checkable")(
+          "No cell style with a resolvable font color was found to check — against its solid fill, or the white grid when the cell has no fill. (Literal, theme-based, and legacy indexed colors are all resolved; automatic colors, patterned or gradient fills, and sheets with a background picture are not.)",
+        ),
       ],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color is set — against the cell's solid fill, or the white grid when the cell has no fill.",
       [XLSX_HELP.contrast],
@@ -475,7 +548,12 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       "Color Contrast",
       XLSX.SCORING_WEIGHTS.color_contrast,
       100,
-      [`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`, ...unchecked],
+      [
+        fd("xlsx.color_contrast.all_pass", {
+          count: checkedRuns,
+        })`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`,
+        ...unchecked,
+      ],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color is set — against the cell's solid fill, or the white grid when the cell has no fill.",
       [XLSX_HELP.contrast],
     );
@@ -487,8 +565,13 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
   const score = Math.min(85, Math.round(((checkedRuns - failing.length) / checkedRuns) * 100));
   const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
   const findings = [
-    `${checkedRuns} cell style(s) checked; ${failing.length} below the WCAG contrast minimum.`,
-    `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+    fd("xlsx.color_contrast.below_minimum", {
+      count: failing.length,
+      total: checkedRuns,
+    })`${checkedRuns} cell style(s) checked; ${failing.length} below the WCAG contrast minimum.`,
+    fd(
+      "xlsx.color_contrast.lowest_ratio",
+    )`Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
     ...unchecked,
   ];
   return xlsxCategory(
@@ -509,7 +592,7 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
       "Link Quality",
       XLSX.SCORING_WEIGHTS.link_quality,
       null,
-      ["No hyperlinks were found."],
+      [fd("xlsx.link_quality.no_links")("No hyperlinks were found.")],
       "Link text should describe the destination. Empty link text and raw URLs are unhelpful out of context.",
       [XLSX_HELP.overview],
       false,
@@ -526,7 +609,9 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.link_quality,
       null,
       [
-        `${a.links.length} link(s) found, but their text could not be resolved from the file — link quality was not assessed.`,
+        fd("xlsx.link_quality.text_unresolved", {
+          count: a.links.length,
+        })`${a.links.length} link(s) found, but their text could not be resolved from the file — link quality was not assessed.`,
       ],
       "Link text should describe the destination. Empty link text and raw URLs are unhelpful out of context.",
       [XLSX_HELP.overview],
@@ -553,21 +638,31 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
   const rawUrls = assessable.filter((l) => classifyLinkText(l.text) === "rawUrl");
   const score = shareScore(assessable.length - unnamed.length, assessable.length);
   const findings = [
-    `${assessable.length} link(s) assessed; ${unnamed.length} with no link text at all.`,
+    fd("xlsx.link_quality.links_assessed", {
+      count: unnamed.length,
+      total: assessable.length,
+    })`${assessable.length} link(s) assessed; ${unnamed.length} with no link text at all.`,
   ];
   if (unresolvedCount > 0) {
     findings.push(
-      `${unresolvedCount} additional link(s) had no resolvable text in the file and were not assessed.`,
+      fd("xlsx.link_quality.some_text_unresolved", {
+        count: unresolvedCount,
+      })`${unresolvedCount} additional link(s) had no resolvable text in the file and were not assessed.`,
     );
   }
   if (unnamed.length > 0) {
     findings.push(
-      `${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In Excel: right-click the cell → Edit Link, and type a descriptive phrase in "Text to display".`,
+      fd("xlsx.link_quality.links_unnamed", {
+        count: unnamed.length,
+        total: assessable.length,
+      })`${unnamed.length} link(s) have no link text, so a screen reader announces the link with nothing to identify it. In Excel: right-click the cell → Edit Link, and type a descriptive phrase in "Text to display".`,
     );
   }
   if (vague.length > 0) {
     findings.push(
-      `Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
+      fd("xlsx.link_quality.vague_text", {
+        count: vague.length,
+      })`Advisory — not scored against you: ${vague.length} link(s) use non-descriptive text (${vague
         .slice(0, 5)
         .map((l) => `"${l.text}"`)
         .join(
@@ -577,7 +672,9 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
   }
   if (rawUrls.length > 0) {
     findings.push(
-      `Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.`,
+      fd("xlsx.link_quality.raw_urls", {
+        count: rawUrls.length,
+      })`Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.`,
     );
   }
   return xlsxCategory(
@@ -598,10 +695,14 @@ function scoreXlsxForms(a: XlsxAnalysis): CategoryResult {
   const findings =
     controls > 0
       ? [
-          `${controls} legacy form/OLE control(s) were detected on visible sheets. Their labels and keyboard behavior are not automatically assessed — verify with Excel's own Accessibility Checker and a screen reader.`,
+          fd("xlsx.form_accessibility.controls_detected", {
+            count: controls,
+          })`${controls} legacy form/OLE control(s) were detected on visible sheets. Their labels and keyboard behavior are not automatically assessed — verify with Excel's own Accessibility Checker and a screen reader.`,
         ]
       : [
-          "No form controls were detected on visible sheets. Interactive form semantics are not automatically assessed in this version.",
+          fd("xlsx.form_accessibility.no_controls")(
+            "No form controls were detected on visible sheets. Interactive form semantics are not automatically assessed in this version.",
+          ),
         ];
   return xlsxCategory(
     "form_accessibility",
@@ -638,6 +739,10 @@ function buildXlsxCategories(a: XlsxAnalysis): CategoryResult[] {
  * adobeParity signals, so it flows through the existing report UI unchanged.
  */
 export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
+  return withFindingDetails("xlsx", () => scoreXlsxUncoded(analysis));
+}
+
+function scoreXlsxUncoded(analysis: XlsxAnalysis): ScoringResult {
   const categories = buildXlsxCategories(analysis);
   const warnings: string[] = [];
   const unparsed = analysis.unparsedSheets ?? [];
@@ -656,6 +761,7 @@ export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
         .slice(0, 5)
         .map((n) => `"${n}"`)
         .join(", ")}${unparsed.length > 5 ? ` and ${unparsed.length - 5} more` : ""}`,
+      "xlsx",
     );
   }
   const conformance = evaluateXlsxConformance(analysis);

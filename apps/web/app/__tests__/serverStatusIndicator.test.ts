@@ -277,3 +277,185 @@ describe("tooltip contrast, measured on both themes", () => {
     expect(source).not.toContain("text-red-500");
   });
 });
+
+// ---------------------------------------------------------------------------
+// What a probe establishes — and when it is worth asking at all.
+//
+// The header said "audit server offline" for ANY non-200, a 429 included: the
+// rate limiter answering this tab was reported as the service being down. And
+// the probe ran every 20 s in tabs nobody was looking at.
+// ---------------------------------------------------------------------------
+describe("probe outcomes: offline only when that is what was established", () => {
+  function mockResponse(status: number, payload: unknown = {}): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => payload,
+      })),
+    );
+  }
+
+  it("a 429 is 'still checking', never offline", async () => {
+    mockResponse(429, { error: "Too many requests" });
+    const w = await mountIndicator();
+    expect(w.text()).not.toContain("offline");
+    expect(w.text()).toContain("audit server…");
+    expect(w.find('[data-testid="server-status-tooltip"]').text()).toContain("Still checking");
+  });
+
+  it.each([400, 403, 404])("a %i is not offline either", async (code) => {
+    mockResponse(code);
+    const w = await mountIndicator();
+    expect(w.text()).not.toContain("offline");
+    expect(w.text()).toContain("audit server…");
+  });
+
+  it("a 200 that is not the health payload asserts nothing", async () => {
+    mockResponse(200, { hello: "proxy" });
+    const w = await mountIndicator();
+    expect(w.text()).not.toContain("offline");
+    expect(w.text()).not.toContain("online");
+  });
+
+  it.each([500, 502, 503, 504])("a %i IS offline", async (code) => {
+    mockResponse(code);
+    const w = await mountIndicator();
+    expect(w.text()).toContain("audit server offline");
+  });
+
+  it("no answer at all IS offline", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    const w = await mountIndicator();
+    expect(w.text()).toContain("audit server offline");
+  });
+
+  it("drops last-known system states when an answer is not a verdict", async () => {
+    let n = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        ++n === 1
+          ? { ok: true, status: 200, json: async () => ({ status: "ok", systems: SYSTEMS }) }
+          : { ok: false, status: 429, json: async () => ({}) },
+      ),
+    );
+    vi.useFakeTimers();
+    try {
+      wrapper = mount(ServerStatusIndicator, { attachTo: document.body });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(wrapper.text()).toContain("Database");
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(wrapper.text()).not.toContain("Database");
+      expect(wrapper.text()).not.toContain("offline");
+    } finally {
+      wrapper?.unmount();
+      wrapper = null;
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("polling: paced by state, paused in hidden tabs, cleaned up on unmount", () => {
+  let visibility: "visible" | "hidden" = "visible";
+  function setVisibility(v: "visible" | "hidden") {
+    visibility = v;
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+  function fetchSpy(status: number, payload: unknown) {
+    const spy = vi.fn(async () => ({
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => payload,
+    }));
+    vi.stubGlobal("fetch", spy);
+    return spy;
+  }
+  async function mountWithTimers() {
+    vi.useFakeTimers();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibility,
+    });
+    wrapper = mount(ServerStatusIndicator, { attachTo: document.body });
+    await vi.advanceTimersByTimeAsync(0);
+  }
+  afterEach(() => {
+    wrapper?.unmount();
+    wrapper = null;
+    visibility = "visible";
+    vi.useRealTimers();
+  });
+
+  it("checks every 20 s when healthy", async () => {
+    const spy = fetchSpy(200, { status: "ok", systems: SYSTEMS });
+    await mountWithTimers();
+    expect(spy).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(spy).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not hurry after a 429 — that is what the limiter is asking for", async () => {
+    const spy = fetchSpy(429, {});
+    await mountWithTimers();
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(spy).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries quickly only while the service is not answering, then settles", async () => {
+    const spy = fetchSpy(503, {});
+    await mountWithTimers();
+    await vi.advanceTimersByTimeAsync(2_500 * 5);
+    expect(spy).toHaveBeenCalledTimes(6);
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(spy).toHaveBeenCalledTimes(6);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(spy).toHaveBeenCalledTimes(7);
+  });
+
+  it("stops asking while the tab is hidden and probes once when it is shown", async () => {
+    const spy = fetchSpy(200, { status: "ok", systems: SYSTEMS });
+    await mountWithTimers();
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    setVisibility("hidden");
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    setVisibility("visible");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(spy).toHaveBeenCalledTimes(2);
+    // …and the ordinary cadence resumes: one loop, not two.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not probe at all when mounted in a background tab", async () => {
+    visibility = "hidden";
+    const spy = fetchSpy(200, { status: "ok", systems: SYSTEMS });
+    await mountWithTimers();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("clears its timer and listener on unmount", async () => {
+    const spy = fetchSpy(200, { status: "ok", systems: SYSTEMS });
+    await mountWithTimers();
+    wrapper!.unmount();
+    wrapper = null;
+    setVisibility("hidden");
+    setVisibility("visible");
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});

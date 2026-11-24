@@ -53,6 +53,13 @@ async function main() {
   });
   procs.push(api);
 
+  // The web "dev" script (apps/web/package.json) passes `--host localhost`
+  // on purpose — do not drop it. With no --host flag and no HOST / NUXT_HOST /
+  // NITRO_HOST exported, Nuxt resolves `devServer.host` to an empty object and
+  // @nuxt/cli 4.0.1 then calls `.toLowerCase()` on it: the dev server dies at
+  // start with "options.hostname.toLowerCase is not a function" (reproduced
+  // 2026-11-24 from a clean shell after a frozen-lockfile install). package.json
+  // cannot hold comments, so the reason lives here, beside the only launcher.
   const web = spawn("pnpm", ["--filter", "web", "dev"], {
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],

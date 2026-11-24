@@ -16,8 +16,18 @@
       </p>
     </div>
 
+    <!-- A labelled GROUP of ordinary buttons, with aria-current on the one
+         whose report is showing — not a tablist. This used to declare
+         role="tablist"/"tab", which is a promise of three things it never
+         delivered: a role="tabpanel" wired to each tab by aria-controls,
+         arrow-key movement between tabs, and a single tab stop. The report
+         these buttons switch lives in the page, not here, so a screen reader
+         announced "tab, 1 of 3" and then offered no panel and ignored the
+         arrow keys. Buttons that each take a Tab stop and say which one is
+         current are exactly what this is. (aria-current rather than
+         aria-pressed: pressing the current card again does not un-press it.) -->
     <div
-      role="tablist"
+      role="group"
       :aria-label="`${items.length} file results`"
       class="grid gap-2"
       style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"
@@ -33,8 +43,8 @@
              text on a transparent gradient, and users simply did not see
              them (the "I don't see the second tab" report, 2026-08-17). -->
         <button
-          role="tab"
-          :aria-selected="activeIndex === idx"
+          type="button"
+          :aria-current="activeIndex === idx ? 'true' : undefined"
           :aria-describedby="tooltipId"
           class="batch-file-card flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-all w-full min-w-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
           :class="
@@ -54,7 +64,7 @@
               color: gradeColor(item.result.grade),
               backgroundColor: withAlpha(gradeColor(item.result.grade), 10),
             }"
-            :aria-label="`Grade ${item.result.grade}`"
+            ><span class="sr-only">Grade{{ " " }}</span
             >{{ item.result.grade }}</span
           >
           <span
@@ -69,7 +79,7 @@
             <svg
               v-if="item.status === 'error'"
               class="w-5 h-5"
-              aria-label="Error"
+              aria-hidden="true"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -84,7 +94,7 @@
             <svg
               v-else
               class="w-5 h-5"
-              aria-label="Cancelled"
+              aria-hidden="true"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -111,6 +121,7 @@
             <span
               v-if="item.status === 'done' && item.result"
               class="block text-xs text-[var(--text-muted)] tabular-nums"
+              ><span class="sr-only">Score{{ " " }}</span
               >{{ item.result.overallScore }}<span class="opacity-70">/100</span></span
             >
             <span v-else-if="item.status === 'error'" class="block text-xs text-red-500"
