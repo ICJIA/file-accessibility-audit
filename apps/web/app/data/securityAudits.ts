@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.178.2",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation and one client-side export — the AI-assistant text builder, the rule that shows its panel, one colour in the category bars.",
+    body: [
+      {
+        kind: "p",
+        html: "This release improves the summary you can copy into an AI assistant: it now lists every issue the report found, not only the most serious ones, and says what the tool could not check. The summary is still put together in your own browser and goes nowhere unless you copy and paste it yourself. We also changed one colour on the report so a category with nothing to fix shows in green. Nothing about what the tool does with your file changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.178.1",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation and build tooling — date formatting on server-rendered reports, two style values, the CI workflow pins, README images.",
     body: [

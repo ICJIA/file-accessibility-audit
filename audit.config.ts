@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "ai-text-every-issue-2026-11-25",
+    badge: "Improved",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "The summary you can copy into an AI assistant now lists every issue in the report, not only the most serious ones. It also says what passed and what this tool could not check.",
+    text: "The summary you can copy into an AI assistant (For Use with AI Assistants, at the end of a report) now lists every issue the report found. Before, it counted only Critical and Moderate categories, and a Minor category could be left out. It now lists the failing categories from most to least serious, then any category that lost points without failing WCAG 2.1, then the categories that lost no points, and finally what this tool could not check, such as color contrast in a PDF. It also asks the assistant to say what it was able to see in your file, because many assistants can read a document's text but not its tags. One more change: in Where the points went, a category with nothing to fix is now drawn in green. It was grey, which looked as if it had not been scored.",
+    linkText: "See a sample report",
+    linkTo: "/sample-report",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 25, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "new-look-verdict-first-2026-11-25",
     badge: "New",
     /** What the landing-page banner shows — two sentences at most, see THE

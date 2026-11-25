@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.178.2] - 2026-11-25
+
+### Fixed
+
+- **The text for AI assistants lists every issue; passing categories are drawn in green.** The "For Use with AI Assistants" text counted only Critical and Moderate categories. A Minor category that lost points without a confirmed WCAG 2.1 failure was left out of the text, and when that was the only kind of issue the panel was hidden altogether. The panel also promised "Passing categories", which the text never listed. The text now carries a Minor count in its header; the failing categories sorted Critical, Moderate, Minor; a separate section for categories that lost points with no confirmed failure (labelled as recommended, never as failures); the scored categories that lost no points; and what the tool could not check, category by category and criterion by criterion, with an instruction not to report any of it as passing or as failing. Two requests were added at the end: say what you were actually able to inspect in the file (an assistant that can read only text and page images cannot see tags, reading order or alt text), and explain how to check each unchecked item by hand. The priority request now covers every severity instead of "the Critical items". A finding whose quoted alt text carries blank lines stays on one line. Also: in "Where the points went", a category with nothing to fix draws its bar and status in green instead of grey, which read as "not scored"; grey is kept for the categories that really are not scored. No scoring changed.
+
+### Notes
+
+- Tests 5,506 across 308 files (API 2,878 · Web 2,456 · CLI 172).
+
 ## [1.178.1] - 2026-11-25
 
 ### Fixed
