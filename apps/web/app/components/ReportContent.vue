@@ -605,7 +605,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import {
   gradeColor,
   severityColor,
@@ -751,7 +751,14 @@ function toggleAdvanced(catId: string): void {
 // Extracted to utils/documentMetadata.ts (2026-08-16), where the Visual
 // view's About-this-document card shares the same field inventory and the
 // same date formatting — one builder, so the two views cannot drift.
-const metadataItems = computed(() => metadataItemsFor(props.result));
+// UTC until mounted, then the reader's own time zone — see formatMetaDate.
+const metadataHydrated = ref(false);
+onMounted(() => {
+  metadataHydrated.value = true;
+});
+const metadataItems = computed(() =>
+  metadataItemsFor(props.result, metadataHydrated.value ? undefined : "UTC"),
+);
 const metadataTieIn = computed(() => sourceTieInLine(props.result));
 
 function catColor(cat: { grade?: string | null }): string {

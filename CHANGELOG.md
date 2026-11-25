@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.178.1] - 2026-11-25
+
+### Fixed
+
+- **Report dates agree between server and browser; follow-ups to the new look.** A server-rendered report (the sample report, every shared report) wrote the document's Created and Last Modified times, and a shared report's "Shared on" date, in the server's time zone, and the browser then re-wrote them in the reader's — Vue reported the difference as a hydration mismatch on every such page, and a report shared in the evening, US time, briefly showed the next day's date. The first render on both sides now uses UTC and says so ("June 22, 2023 at 11:32 AM UTC"); once the page has mounted the date is shown in the reader's own time zone, as before. Verified with the server's clock set to UTC and the browser in America/Chicago: no mismatch warning, and the date settles on local time. Also in this release, already on the site since the v1.178.0 follow-up commits: a real gutter between the verdict strip and the "What it cannot check" block; the note under an open fix step is 14px instead of 11px, and the WCAG chip beside it 12px instead of 10px; the og:image draws the grade block as the report does (white letter on the brand blue). CI: `actions/setup-node` 7.0.0 → 7.1.0 and `pnpm/action-setup` 6.0.10 → 6.1.1, in every place both workflows use them, each pinned to the commit its release tag resolves to. README: new screenshots of the home page, the trust page and the report's check-by-hand section, and the three status-page screenshots retaken after the redesign with their descriptions rewritten.
+
+### Notes
+
+- Tests 5,502 across 308 files (API 2,878 · Web 2,452 · CLI 172).
+
 ## [1.178.0] - 2026-11-25
 
 ### Changed

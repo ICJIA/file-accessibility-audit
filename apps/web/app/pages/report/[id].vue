@@ -417,11 +417,23 @@ const errorMessage = computed(() => {
   return "Unable to load this report. Please try again later.";
 });
 
+// This page is rendered on the server and then again in the browser. A date
+// written in "whoever is running the code"'s time zone differs between the two
+// whenever the report was shared in the evening, US time — the server (UTC)
+// says the next day — and Vue reports the difference as a hydration mismatch.
+// So: UTC, and labelled as UTC, for the server render and the first browser
+// render; the reader's own time zone once the page has mounted.
+const hydrated = ref(false);
+onMounted(() => {
+  hydrated.value = true;
+});
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  const text = new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
+    ...(hydrated.value ? {} : { timeZone: "UTC" }),
   });
+  return hydrated.value ? text : `${text} (UTC)`;
 }
 </script>

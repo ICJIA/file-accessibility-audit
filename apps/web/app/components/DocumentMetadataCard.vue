@@ -81,7 +81,11 @@ const props = defineProps<{
   result: Record<string, any> | null;
 }>();
 
-const items = computed(() => metadataItemsFor(props.result));
+// Dates are written in UTC for the server render and the first browser render
+// (identical on both sides, so nothing mismatches on hydration), then in the
+// reader's own time zone once mounted. See formatMetaDate.
+const hydrated = ref(false);
+const items = computed(() => metadataItemsFor(props.result, hydrated.value ? undefined : "UTC"));
 const tieIn = computed(() => sourceTieInLine(props.result));
 
 /** The three facts the action plan below actually depends on: what made the
@@ -110,6 +114,7 @@ const onAfterPrint = () => {
   if (propsDisclosure.value) propsDisclosure.value.open = openBeforePrint;
 };
 onMounted(() => {
+  hydrated.value = true;
   window.addEventListener("beforeprint", onBeforePrint);
   window.addEventListener("afterprint", onAfterPrint);
 });

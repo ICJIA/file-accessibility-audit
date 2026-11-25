@@ -16,23 +16,43 @@ export interface MetadataItem {
   value: string | null;
 }
 
-export function formatMetaDate(iso: string | null | undefined): string | null {
+/**
+ * A stored timestamp as a readable date and time.
+ *
+ * Without `timeZone` it is written in the time zone of whoever is running the
+ * code — the reader's, in a browser. That is what a reader wants, but it is
+ * NOT stable between the server and the browser: the server rendered a file
+ * created at 11:32 UTC as "11:32 AM" and the browser re-rendered it as
+ * "6:32 AM", which Vue reports as a hydration mismatch on every server-rendered
+ * report (the sample report, shared reports; found 2026-11-25).
+ *
+ * So a component that is rendered on the server passes "UTC" for its first
+ * render — identical on both sides, and labelled as UTC so it is true as
+ * written — and switches to the reader's own zone once it has mounted.
+ */
+export function formatMetaDate(iso: string | null | undefined, timeZone?: string): string | null {
   if (!iso) return null;
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString("en-US", {
+    const text = d.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      ...(timeZone ? { timeZone } : {}),
     });
+    return timeZone === "UTC" ? `${text} UTC` : text;
   } catch {
     return iso;
   }
 }
 
-export function metadataItemsFor(result: Record<string, any> | null | undefined): MetadataItem[] {
+export function metadataItemsFor(
+  result: Record<string, any> | null | undefined,
+  /** Passed through to formatMetaDate — see the note there. */
+  timeZone?: string,
+): MetadataItem[] {
   if (!result) return [];
 
   // PDF takes priority whenever present, unconditionally — matches the
@@ -48,8 +68,8 @@ export function metadataItemsFor(result: Record<string, any> | null | undefined)
       { label: "Author", value: pdf.author },
       { label: "Subject", value: pdf.subject },
       { label: "Keywords", value: pdf.keywords },
-      { label: "Created", value: formatMetaDate(pdf.creationDate) },
-      { label: "Last Modified", value: formatMetaDate(pdf.modDate) },
+      { label: "Created", value: formatMetaDate(pdf.creationDate, timeZone) },
+      { label: "Last Modified", value: formatMetaDate(pdf.modDate, timeZone) },
       { label: "Encrypted", value: pdf.isEncrypted ? "Yes" : "No" },
     ];
   }

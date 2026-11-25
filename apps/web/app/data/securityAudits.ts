@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.178.1",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation and build tooling — date formatting on server-rendered reports, two style values, the CI workflow pins, README images.",
+    body: [
+      {
+        kind: "p",
+        html: "This release fixes how dates are shown on reports and tidies a few details of the new design. Until now a report page could briefly show a document's creation time in our server's time zone before switching to yours; it now shows the time in UTC, labelled as UTC, for that first moment, and then in your own time zone. We also updated two of the tools our automated checks run on, after confirming each one is the version its publisher released. Nothing about what the tool does with your file changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.178.0",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation only — the web app's stylesheet, templates and layout, and the release tooling's social-card template.",
     body: [
