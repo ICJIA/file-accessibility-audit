@@ -22,6 +22,10 @@ const props = defineProps<{
   // Raw stored JSON on the shared page — keep loose, guard in the util.
   // (@typescript-eslint/no-explicit-any is off repo-wide — see eslint.config.mjs.)
   result: Record<string, any>;
+  /** The host already provides the fold and the heading (the Visual report's
+   *  "More in this report" row, 2026-11-25): draw the content only — no card,
+   *  no toggle of its own, always open. */
+  embedded?: boolean;
 }>();
 
 const open = ref(false);
@@ -62,10 +66,13 @@ const MAX_EVIDENCE_PER_ROW = 5;
 <template>
   <section
     v-if="projection"
-    class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6"
+    :class="
+      embedded ? '' : 'rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6'
+    "
     data-testid="matterhorn-report-panel"
   >
     <button
+      v-if="!embedded"
       type="button"
       class="flex w-full items-center justify-between gap-3 text-left"
       :aria-expanded="open"
@@ -89,14 +96,14 @@ const MAX_EVIDENCE_PER_ROW = 5;
       </span>
     </button>
 
-    <div v-if="open" class="mt-4">
-      <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+    <div v-if="open || embedded" :class="embedded ? '' : 'mt-4'">
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
         This is a different grouping of the findings already in this report — it adds nothing to the
         score and takes nothing from it. It exists so you (or a remediation vendor who works from
         PAC or the Matterhorn Protocol) can see where this document stands on each checkpoint.
       </p>
       <p
-        class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
+        class="mt-2 text-sm text-[var(--text-secondary)] leading-relaxed"
         data-testid="matterhorn-law-linkage"
       >
         <strong class="text-[var(--text-secondary)]"

@@ -773,3 +773,36 @@ describe("the law-linkage paragraph (v1.97.0, user request)", () => {
     expect(p.text()).toMatch(/what professional checkers like PAC actually test/);
   });
 });
+
+// User request, 2026-11-25: the checkpoints are a row in the Visual report's
+// "More in this report" list, named for the tool people know them by.
+describe("the checkpoints as a row of the Visual report", () => {
+  it("embedded: no card, no toggle of its own, content shown without a click", () => {
+    const w = mount(MatterhornReportPanel, { props: { result: pdfReport(), embedded: true } });
+    expect(w.find('[data-testid="matterhorn-report-toggle"]').exists()).toBe(false);
+    const panel = w.get('[data-testid="matterhorn-report-panel"]');
+    expect(panel.classes()).not.toContain("rounded-xl");
+    expect(panel.text()).toMatch(/different grouping of the findings/);
+    w.unmount();
+  });
+
+  it("not embedded: unchanged — folded behind its own toggle", () => {
+    const w = mount(MatterhornReportPanel, { props: { result: pdfReport() } });
+    expect(w.find('[data-testid="matterhorn-report-toggle"]').exists()).toBe(true);
+    expect(w.text()).not.toMatch(/different grouping of the findings/);
+    w.unmount();
+  });
+
+  it("the Visual report folds it in a native row, for PDF reports only", () => {
+    const view = readFileSync(
+      path.resolve(__dirname, "../components/ReportVisualView.vue"),
+      "utf8",
+    );
+    expect(view).toMatch(
+      /<details v-if="hasMatterhorn" class="pk-more" data-testid="more-matterhorn">[\s\S]*?PDF\/UA checkpoints \(what PAC tests\)[\s\S]*?<MatterhornReportPanel embedded :result="result"/,
+    );
+    expect(view).toContain("buildMatterhornProjection(props.result ?? {}) !== null");
+    // Exactly one instance in the Visual view: the row, not a second card.
+    expect(view.match(/<MatterhornReportPanel/g)).toHaveLength(1);
+  });
+});

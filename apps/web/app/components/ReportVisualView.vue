@@ -279,17 +279,30 @@
         />
       </details>
 
-      <!-- Both of these fold themselves: the Matterhorn regrouping (v1.93.0;
-           self-hides for non-PDF reports; never a second score) and the full
-           technical report. -->
-      <MatterhornReportPanel :result="result" class="mt-6 mb-6" />
+      <!-- The Matterhorn regrouping (v1.93.0; never a second score) as a
+           row of its own, like the three above (user request, 2026-11-25).
+           It was a separate card below them with its own toggle, and a
+           reader who knows these checks by the name of the tool that runs
+           them — PAC — did not find it. PDF reports only: the projection is
+           null for everything else, and an empty row would be a dead end. -->
+      <details v-if="hasMatterhorn" class="pk-more" data-testid="more-matterhorn">
+        <summary>
+          <span class="pk-more-title">PDF/UA checkpoints (what PAC tests)</span>
+          <span class="pk-more-hint"
+            >This file against the 31 Matterhorn checkpoints — reported, never scored</span
+          >
+        </summary>
+        <MatterhornReportPanel embedded :result="result" class="mb-6" />
+      </details>
+
+      <!-- The full technical report folds itself. -->
 
       <TechnicalReport
         v-model:open="techOpen"
         :result="result"
         :verapdf-url="verapdfUrl"
         :wcag-version="wcag.version"
-        class="mb-10"
+        class="mt-6 mb-10"
       />
 
       <!-- Before and after, where the page offers it. -->
@@ -310,6 +323,7 @@ import DocumentMetadataCard from "~/components/DocumentMetadataCard.vue";
 import PrintPlanButton from "~/components/PrintPlanButton.vue";
 import CategoryBars from "~/components/CategoryBars.vue";
 import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
+import { buildMatterhornProjection } from "~/utils/matterhornReport";
 import TechnicalReport from "~/components/TechnicalReport.vue";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { failingCategoryIds } from "~/utils/publicationStatus";
@@ -368,6 +382,10 @@ const countsLine = computed<string | null>(() => {
   );
 });
 // Category id → its step's number in the plan, so each bar can point at its fix.
+// Whether there is anything to put in the checkpoints row: the same test the
+// panel uses to hide itself (null for non-PDF and category-less reports).
+const hasMatterhorn = computed(() => buildMatterhornProjection(props.result ?? {}) !== null);
+
 const stepRanks = computed<Record<string, number>>(() =>
   Object.fromEntries(planSteps.value.map((st) => [st.categoryId, st.rank])),
 );
