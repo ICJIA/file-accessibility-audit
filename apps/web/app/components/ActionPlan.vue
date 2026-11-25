@@ -219,7 +219,7 @@
                 </div>
 
                 <p
-                  class="text-[11px] leading-relaxed text-[var(--text-muted)] mt-2 mb-0"
+                  class="text-sm leading-relaxed text-[var(--text-secondary)] mt-3 mb-0"
                   role="note"
                 >
                   {{ FIX_STEPS_VERSION_NOTE }}
@@ -241,7 +241,7 @@
                     :href="criterionHref(wcagRef.sc) || undefined"
                     :target="criterionHref(wcagRef.sc) ? '_blank' : undefined"
                     :rel="criterionHref(wcagRef.sc) ? 'noopener noreferrer' : undefined"
-                    class="text-[10px] font-mono text-[var(--link-hover)] bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5"
+                    class="text-xs font-mono text-[var(--link-hover)] bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5"
                     :class="
                       criterionHref(wcagRef.sc) ? 'underline hover:text-[var(--text-heading)]' : ''
                     "
