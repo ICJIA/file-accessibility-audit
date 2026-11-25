@@ -264,12 +264,32 @@ describe("index.vue — AI analysis panel (finding 7)", () => {
     wrapper.unmount();
   });
 
-  it("stays hidden when nothing is failing", async () => {
+  // Until 2026-11-25 a Minor category with no confirmed failure hid the panel,
+  // and the text left it out: "lists all issues, not just critical" (user).
+  it("is offered when the only issue is a Minor category that lost points", async () => {
     const wrapper = mountIndex();
     await analyzeSingle(
       wrapper,
       report({
         categories: [minorCat],
+        conformance: {
+          status: "no-automated-failures",
+          headline: "",
+          failures: [],
+          notAssessed: [],
+        },
+      }),
+    );
+    expect(wrapper.find('[data-testid="ai-analysis-panel"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("stays hidden when no category lost points", async () => {
+    const wrapper = mountIndex();
+    await analyzeSingle(
+      wrapper,
+      report({
+        categories: [{ ...minorCat, score: 100, grade: "A", severity: "Pass" }],
         conformance: {
           status: "no-automated-failures",
           headline: "",

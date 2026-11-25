@@ -1,6 +1,7 @@
 import "./test-helpers";
 import { describe, it, expect } from "vitest";
 import { buildAiAnalysis } from "../composables/useReportExport";
+import { aiAnalysisHasFixes } from "~/utils/exportFormats/aiAnalysis";
 
 function baseResult(overrides: any = {}) {
   return {
@@ -181,6 +182,13 @@ describe("buildAiAnalysis", () => {
       );
       expect(out).toContain("Verdict: Accessible");
       expect(out).toContain("No WCAG 2.1 remediation is needed");
+      // …and the Minor category is still listed (2026-11-25): it lost points,
+      // so it is an issue — but in its own section, never among the failures.
+      expect(out).toContain("## Failing categories (0)");
+      const lower = out.split("## Lost points, no confirmed WCAG 2.1 failure (1")[1]!;
+      expect(lower).toContain("### Alt Text — 92/100 (Minor)");
+      expect(lower).toContain("Minor advisory only.");
+      expect(lower).not.toContain("criteria this category");
     });
   });
 
@@ -214,7 +222,7 @@ describe("buildAiAnalysis", () => {
     expect(out).toContain("Moderate issues: 1");
   });
 
-  it("lists only failing categories (omits passing and N/A)", () => {
+  it("lists every issue: failing worst-first, then passing and unchecked in their own sections", () => {
     const out = buildAiAnalysis(baseResult());
     expect(out).toContain("## Failing categories (2 to fix)");
     expect(out).toContain("Alt Text");
@@ -222,9 +230,51 @@ describe("buildAiAnalysis", () => {
     // Passing and N/A categories must not appear as headings or category entries
     expect(out).not.toContain("## What's working");
     expect(out).not.toContain("## What's not working");
-    expect(out).not.toContain("Text Extractability");
-    expect(out).not.toContain("Not applicable");
-    expect(out).not.toContain("Form Accessibility");
+    // Critical before Moderate, whatever order the report lists them in.
+    expect(out.indexOf("### Alt Text")).toBeLessThan(out.indexOf("### Heading Structure"));
+    // A passing or unscored category is never a "###" entry — it is one line
+    // in the section that says what it is (the panel promised these; until
+    // 2026-11-25 the text left them out).
+    expect(out).not.toContain("### Text Extractability");
+    expect(out).not.toContain("### Form Accessibility");
+    const fine = out.split("## Scored categories that lost no points (1)")[1]!;
+    expect(fine).toContain("- Text Extractability — 90/100");
+    const unchecked = out.split("## Not checked by this tool")[1]!;
+    expect(unchecked).toContain("- Form Accessibility — not applicable to this file");
+    expect(out).toContain("- Minor issues: 0");
+  });
+
+  it("lists what the tool could not check, criterion by criterion", () => {
+    const out = buildAiAnalysis(
+      baseResult({
+        conformance: {
+          status: "fail",
+          failures: [],
+          notAssessed: [
+            { sc: "1.4.3", name: "Contrast (Minimum)", level: "AA", reason: "Not measured." },
+          ],
+          headline: "",
+        },
+      }),
+    );
+    const unchecked = out.split("## Not checked by this tool")[1]!;
+    expect(unchecked).toContain("- WCAG 1.4.3 Contrast (Minimum) (Level AA) — Not measured.");
+    expect(unchecked).toContain("Do not report any of it as passing or as failing");
+  });
+
+  it("keeps a finding on one line when the quoted alt text carries blank lines", () => {
+    const base = baseResult();
+    base.categories[1].findings = ['Image 1: "A picture\n\nDescription automatically generated"'];
+    const out = buildAiAnalysis(base);
+    expect(out).toContain('- Image 1: "A picture Description automatically generated"');
+  });
+
+  it("offers the panel for a report whose only issues are Minor", () => {
+    const minor = { score: 92, severity: "Minor" };
+    expect(aiAnalysisHasFixes({ categories: [minor] } as any)).toBe(true);
+    expect(aiAnalysisHasFixes({ categories: [{ score: 100, severity: "Pass" }] } as any)).toBe(
+      false,
+    );
   });
 
   it("includes findings for failing categories", () => {

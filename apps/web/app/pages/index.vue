@@ -591,15 +591,15 @@
               </li>
               <li class="flex items-start gap-2">
                 <span class="text-purple-400 mt-0.5">•</span
-                ><span>Passing categories (what's working)</span>
+                ><span>Every category that lost points — Critical, Moderate and Minor</span>
               </li>
               <li class="flex items-start gap-2">
                 <span class="text-purple-400 mt-0.5">•</span
-                ><span>Failing categories with findings and WCAG 2.1 references</span>
+                ><span>The findings and the WCAG 2.1 criteria each one fails</span>
               </li>
               <li class="flex items-start gap-2">
                 <span class="text-purple-400 mt-0.5">•</span
-                ><span>A set of remediation questions for the AI to answer</span>
+                ><span>What passed, what this tool could not check, and questions for the AI</span>
               </li>
             </ul>
 

@@ -79,6 +79,52 @@ function appendExtraCredit(lines: string[], result: ReportResult): void {
   }
 }
 
+/** A finding as one bullet: alt text quoted from a file can carry blank lines,
+ *  which end the Markdown list item and strand the rest as a paragraph. */
+function oneLine(text: string): string {
+  return text.replace(/\s*\n\s*/g, " ");
+}
+
+/**
+ * What is fine and what was never looked at. Without these an assistant has
+ * only the defects, and tends either to invent problems in the categories it
+ * was not told about or to call the file accessible once the list is done —
+ * when colour contrast, for one, may never have been measured.
+ */
+function appendCoverage(
+  lines: string[],
+  result: ReportResult,
+  clean: ReportResult["categories"],
+  unscored: ReportResult["categories"],
+): void {
+  if (clean.length) {
+    lines.push(`## Scored categories that lost no points (${clean.length})`);
+    lines.push("");
+    for (const c of clean) lines.push(`- ${c.label} — ${c.score}/100`);
+    lines.push("");
+  }
+  const notAssessed = Array.isArray(result.conformance?.notAssessed)
+    ? result.conformance.notAssessed
+    : [];
+  if (unscored.length || notAssessed.length) {
+    lines.push(`## Not checked by this tool — a person still has to check these`);
+    lines.push("");
+    lines.push(
+      `Nothing below was scored, so the score and verdict above say nothing about it either way. Do not report any of it as passing or as failing.`,
+    );
+    lines.push("");
+    for (const c of unscored) {
+      lines.push(
+        `- ${c.label} — ${c.notAssessed ? "not assessed for this file" : "not applicable to this file"}`,
+      );
+    }
+    for (const n of notAssessed) {
+      lines.push(`- WCAG ${n.sc} ${n.name} (Level ${n.level}) — ${n.reason}`);
+    }
+    lines.push("");
+  }
+}
+
 /**
  * Whether the AI hand-off has anything to ask for help with — the SAME test
  * buildAiAnalysis uses to choose its "failing categories" form over its
@@ -93,8 +139,12 @@ export function aiAnalysisHasFixes(
   const categories = Array.isArray(result.categories) ? result.categories : [];
   // The shared decision: a fail status OR a non-empty failures list.
   if (publicationStatus(categories, result.conformance).wcagFails) return true;
+  // Minor counts too (2026-11-25): a category that lost points is an issue the
+  // text now lists, so the panel must not be hidden for it.
   return categories.some(
-    (c) => c.score !== null && (c.severity === "Moderate" || c.severity === "Critical"),
+    (c) =>
+      c.score !== null &&
+      (c.severity === "Minor" || c.severity === "Moderate" || c.severity === "Critical"),
   );
 }
 
@@ -140,14 +190,26 @@ export function buildAiAnalysis(
       c.severity === "Critical" ||
       (conformanceFails && failingCategoryIds.has(c.id)),
   );
+  // Every issue, not only the worst (user report, 2026-11-25): a Minor
+  // category with no confirmed criterion failure lost points too, and the text
+  // used to leave it out entirely. It gets its own section, apart from the
+  // failing ones, so "lost points" is never read as "fails WCAG".
+  const minorOnly = scored.filter((c) => c.severity === "Minor" && !failing.includes(c));
+  const rank = (sev: string | null | undefined) =>
+    sev === "Critical" ? 0 : sev === "Moderate" ? 1 : 2;
+  failing.sort((a, b) => rank(a.severity) - rank(b.severity) || a.score! - b.score!);
+  minorOnly.sort((a, b) => a.score! - b.score!);
+  const clean = scored.filter((c) => !failing.includes(c) && !minorOnly.includes(c));
+  const unscored = result.categories.filter((c) => c.score === null);
   const criticalCount = scored.filter((c) => c.severity === "Critical").length;
   const moderateCount = scored.filter((c) => c.severity === "Moderate").length;
-  const passingCount = scored.length - failing.length;
+  const minorCount = scored.filter((c) => c.severity === "Minor").length;
+  const passingCount = clean.length;
 
   lines.push(`# ${fileTypeLabel(result.fileType)} Accessibility Audit — For AI Analysis`);
   lines.push("");
 
-  if (!conformanceFails && failing.length === 0) {
+  if (!conformanceFails && failing.length === 0 && minorOnly.length === 0) {
     if (undetermined) {
       lines.push(
         `An automated ${fileTypeLabel(result.fileType)} accessibility audit ran, but its WCAG 2.1 check could not be completed for this file, so no pass can be confirmed. Treat every statement below as partial and recommend a full manual review.`,
@@ -188,6 +250,7 @@ export function buildAiAnalysis(
     // real best-practice debt — and until now this branch told the reader
     // there was nothing to act on while the on-screen report listed items.
     lines.push("");
+    appendCoverage(lines, result, clean, unscored);
     appendExtraCredit(lines, result);
     return lines.join("\n").trimEnd();
   }
@@ -195,7 +258,7 @@ export function buildAiAnalysis(
   const formatLabel = fileTypeLabel(result.fileType);
   const isPdfResult = !result.fileType || result.fileType === "pdf";
   lines.push(
-    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks documents against WCAG ${wcagVersion} Level AA, but the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require. Only categories with a confirmed WCAG 2.1 criterion failure, or Critical/Moderate severity, are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the items listed below. The audit checks documents against WCAG ${wcagVersion} Level AA, but the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require. Every category that lost points is included, worst first: the failing ones in full, then any that lost points without a confirmed WCAG 2.1 failure. After them come the categories that lost no points and the things this tool could not check.`,
   );
   lines.push("");
   lines.push(
@@ -223,6 +286,8 @@ export function buildAiAnalysis(
   lines.push(`- Verdict: ${verdict}`);
   lines.push(`- Critical issues: ${criticalCount}`);
   lines.push(`- Moderate issues: ${moderateCount}`);
+  lines.push(`- Minor issues: ${minorCount}`);
+  lines.push(`- Scored categories that lost no points: ${passingCount}`);
   if (result.isScanned) {
     lines.push(
       `- Scanned document: yes (screen readers cannot access content until OCR + tagging is applied)`,
@@ -241,7 +306,16 @@ export function buildAiAnalysis(
     lines.push("");
   }
 
-  lines.push(`## Failing categories (${failing.length} to fix)`);
+  if (failing.length === 0 && !conformanceFails) {
+    // Only Minor categories: points were lost, but nothing fails the standard.
+    lines.push(`## Failing categories (0)`);
+    lines.push("");
+    lines.push(
+      `No WCAG 2.1 remediation is needed: the audit confirmed no WCAG 2.1 criterion failure. The categories in the next section lost points and are worth improving, but none of them is a legal failure.`,
+    );
+  } else {
+    lines.push(`## Failing categories (${failing.length} to fix)`);
+  }
   lines.push("");
   if (conformanceFails && failing.length === 0) {
     lines.push(
@@ -249,7 +323,7 @@ export function buildAiAnalysis(
     );
     lines.push("");
   }
-  for (const c of failing) {
+  const writeCategory = (c: (typeof scored)[number], isFailing: boolean) => {
     lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`);
     if (c.explanation) {
       lines.push("");
@@ -273,7 +347,7 @@ export function buildAiAnalysis(
       for (const f of attributed) {
         lines.push(`- ${f.sc} ${f.name} (Level ${f.level}) — ${f.issue}`);
       }
-    } else {
+    } else if (isFailing) {
       // No verdict to consult (an older stored payload predates it). Fall back
       // to the map, but say plainly that it is a list of what the category can
       // fail — never that these are the failures.
@@ -305,19 +379,35 @@ export function buildAiAnalysis(
         // under the old heading claiming to be a WCAG failure. The criteria
         // block above is the authoritative list of what fails.
         lines.push(
-          `**What the checker reported in this category** (evidence as well as defects — the criteria above are the confirmed failures):`,
+          isFailing
+            ? `**What the checker reported in this category** (evidence as well as defects — the criteria above are the confirmed failures):`
+            : `**What the checker reported in this category** (evidence as well as defects):`,
         );
-        for (const f of legal) lines.push(`- ${f}`);
+        for (const f of legal) lines.push(`- ${oneLine(f)}`);
       }
       if (parts.notScored.length) {
         lines.push("");
         lines.push(`**Also reported — best practice, NOT scored and NOT required by WCAG 2.1:**`);
-        for (const f of parts.notScored) lines.push(`- ${f}`);
+        for (const f of parts.notScored) lines.push(`- ${oneLine(f)}`);
       }
     }
     lines.push("");
+  };
+  for (const c of failing) writeCategory(c, true);
+
+  if (minorOnly.length) {
+    lines.push(
+      `## Lost points, no confirmed WCAG 2.1 failure (${minorOnly.length} — fix after the failing categories)`,
+    );
+    lines.push("");
+    lines.push(
+      `These categories scored below 100, but the audit did not confirm a WCAG 2.1 criterion failure in them. Treat them as recommended improvements, not as legal failures.`,
+    );
+    lines.push("");
+    for (const c of minorOnly) writeCategory(c, false);
   }
 
+  appendCoverage(lines, result, clean, unscored);
   appendExtraCredit(lines, result);
 
   lines.push(`---`);
@@ -332,13 +422,19 @@ export function buildAiAnalysis(
       ? `2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`
       : `2. For each failing category, give me 2–4 concrete remediation steps in Microsoft ${formatLabel} itself (start from Review → Check Accessibility) — this ${formatLabel} file is the source document, so every fix belongs there.`,
   );
-  lines.push(`3. Prioritize the Critical items — which fix should I tackle first, and why?`);
+  lines.push(
+    `3. Give me one order to work in — Critical first, then Moderate, then Minor — and say which fix to tackle first and why. Cover every category listed above, not only the worst.`,
+  );
   lines.push(
     `4. Flag any findings that automated tools commonly mis-report, and tell me how to verify them manually.`,
     `5. Do NOT put anything from the "Also worth doing" or "Independent PDF/UA check" sections into the prioritised remediation list. List those separately, last, and label them optional — they are not required by the ADA Title II rule or the IITAA and they did not affect the score.`,
   );
   lines.push(
     `6. Keep the two standards straight in your answer: WCAG 2.1 A/AA is what the law (ADA Title II, Illinois IITAA) requires and is all the score measures. Anything labelled "not scored" or PDF/UA is the PDF industry's best practice (ISO 14289) — worth recommending, but never present it as legally required or as part of the score.`,
+  );
+  lines.push(
+    `7. Say what you were able to inspect. If you can only read the file's text and page images, you cannot see its tags, reading order or alt text — say so and base your steps on the findings above rather than claiming to have verified them. If you can run code on the file, check the structure directly and tell me where it differs from this report.`,
+    `8. For each item under "Not checked by this tool", tell me how to check it by hand in this file.`,
   );
 
   return lines.join("\n");
