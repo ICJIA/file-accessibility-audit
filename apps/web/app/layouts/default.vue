@@ -116,6 +116,55 @@
             >
               Can I trust this?
             </NuxtLink>
+            <NuxtLink
+              to="/announcements"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              What's New
+            </NuxtLink>
+            <!-- How the tool works, in full. /technical-details is a Vue page,
+                 so NuxtLink is correct (the footer link opens it in a new tab;
+                 this one stays in the tab, like its neighbours). -->
+            <NuxtLink
+              to="/technical-details"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              Technical
+            </NuxtLink>
+            <!-- What happens to an uploaded file (user request, 2026-11-25:
+                 "It's important that folks see this"). :prefetch="false" —
+                 /data-retention is a ~600 KB chunk, and a nav link is no
+                 reason to download it for every visitor. -->
+            <NuxtLink
+              to="/data-retention"
+              :prefetch="false"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              Data policy
+            </NuxtLink>
+            <!-- Plain <a>, NOT NuxtLink — see the note above.
+                 Same tab, deliberately: this opened in a new one originally,
+                 to protect an in-progress audit, but that left a stray tab
+                 behind on every visit. The status page now carries its own
+                 link back to the app, so the round trip is a normal one.
+
+                 The ONE exception, since v1.147.0: while an audit is running
+                 that leaving would actually destroy. A resumable audit is
+                 rejoined on return (utils/auditSession.ts) and needs no tab of
+                 its own; an unresumable one has nothing else protecting it.
+                 The stray-tab cost is now paid only when it buys something. -->
+            <a
+              href="/status?html"
+              :target="auditInProgress ? '_blank' : undefined"
+              :rel="auditInProgress ? 'noopener noreferrer' : undefined"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              Status<span v-if="auditInProgress" class="sr-only">
+                (opens in a new tab so your audit keeps running)</span
+              >
+            </a>
+            <!-- LAST on purpose (user request, 2026-11-25): it is the one link
+                 here that leaves this site. -->
             <a
               v-if="config.public.faqsUrl"
               :href="config.public.faqsUrl"
@@ -141,42 +190,6 @@
                 />
               </svg>
               <span class="sr-only">(opens in a new tab)</span>
-            </a>
-            <NuxtLink
-              to="/announcements"
-              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
-            >
-              What's New
-            </NuxtLink>
-            <!-- How the tool works, in full. /technical-details is a Vue page,
-                 so NuxtLink is correct (the footer link opens it in a new tab;
-                 this one stays in the tab, like its neighbours). -->
-            <NuxtLink
-              to="/technical-details"
-              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
-            >
-              Technical
-            </NuxtLink>
-            <!-- Plain <a>, NOT NuxtLink — see the note above.
-                 Same tab, deliberately: this opened in a new one originally,
-                 to protect an in-progress audit, but that left a stray tab
-                 behind on every visit. The status page now carries its own
-                 link back to the app, so the round trip is a normal one.
-
-                 The ONE exception, since v1.147.0: while an audit is running
-                 that leaving would actually destroy. A resumable audit is
-                 rejoined on return (utils/auditSession.ts) and needs no tab of
-                 its own; an unresumable one has nothing else protecting it.
-                 The stray-tab cost is now paid only when it buys something. -->
-            <a
-              href="/status?html"
-              :target="auditInProgress ? '_blank' : undefined"
-              :rel="auditInProgress ? 'noopener noreferrer' : undefined"
-              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
-            >
-              Status<span v-if="auditInProgress" class="sr-only">
-                (opens in a new tab so your audit keeps running)</span
-              >
             </a>
           </nav>
           <!-- The theme switch and the status light. On a narrow screen they

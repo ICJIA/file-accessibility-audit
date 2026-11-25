@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.179.0] - 2026-11-25
+
+### Added
+
+- **Live numbers on the home page; Data policy in the top navigation; a globe for the brand mark.** The home page's "What This Tool Does" section gains three tiles, in the same type and colour as the six already there: how many check-ups the tool has run (and how many in the last 30 days), how many self-checks the software runs before every release, and how many trap documents it judges correctly. The check-up count is live: the visitor's browser reads it from this site's own public `/status?format=json` after the page loads; the server render, and a visitor whose request fails, show the count recorded at the last release. The other two are the counts from the release's own test run (`scripts/brief-stats.json`) and change only when the code does. The top navigation gains a "Data policy" link to the data-retention page, and FAQs moves to the end, after Status, because it is the one link that leaves the site. The brand mark beside the site name is now a globe (outline, in the theme's primary blue) instead of a square. `rebuild.sh`'s post-deploy smoke checks now print the version the live site reports and compare it with the checkout (`✓ app version -> vX.Y.Z`); a mismatch is a failed smoke check.
+
+### Notes
+
+- Tests 5,516 across 310 files (API 2,880 · Web 2,464 · CLI 172).
+
 ## [1.178.3] - 2026-11-25
 
 ### Changed

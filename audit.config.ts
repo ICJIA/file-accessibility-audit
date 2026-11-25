@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "live-numbers-data-policy-2026-11-25",
+    badge: "New",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "The home page now shows how many documents this tool has checked and how it is tested. A Data policy link is at the top of every page.",
+    text: "The home page now shows three numbers under What This Tool Does: how many documents this tool has checked so far, how many tests the software runs on itself before every release, and how many trap documents (files built to fool the checker) it judges correctly. The first number is live. A Data policy link is now at the top of every page, so it is easy to find out what happens to a file you upload. FAQs moved to the end of the top menu because it opens a different site. Also from today: report colors read like a traffic light (red, yellow, green), a Start over button sits above every report, and the summary you can copy into an AI assistant lists every issue.",
+    linkText: "Read the data policy",
+    linkTo: "/data-retention",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 25, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "severity-colours-start-over-2026-11-25",
     badge: "Improved",
     /** What the landing-page banner shows — two sentences at most, see THE

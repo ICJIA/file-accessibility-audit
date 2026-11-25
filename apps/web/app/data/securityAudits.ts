@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.179.0",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: The home page, the site header, and the deploy script's smoke checks.",
+    body: [
+      {
+        kind: "p",
+        html: "This release adds three numbers to the home page: how many documents the tool has checked, how many tests the software runs on itself, and how many trick documents it gets right. To show an up-to-date count, your browser asks this site's own public status page for it; nothing about you is sent, and no other site is contacted. We also added a link to our data policy at the top of every page, because it matters that people can find it. Nothing about what the tool does with your file changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.178.3",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation only — one severity colour in both palettes, one button on the results page, and when theme-bound colours are chosen during hydration.",
     body: [

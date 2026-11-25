@@ -967,6 +967,9 @@
             accessibility pipeline.
           </p>
         </div>
+
+        <!-- Use and testing: three more cells of this grid. -->
+        <HomeLiveNumbers />
       </div>
     </template>
   </div>
