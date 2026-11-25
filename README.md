@@ -2,13 +2,13 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.181.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5571%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.182.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5526%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
 A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility — and **(optionally) auto-remediates** PDFs — against [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/) (the legal minimum under [IITAA 2.1 §E205.4](https://dhs.illinois.gov/accessibility/iitaa/iitaa-standards.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. WCAG 2.1 is the displayed standard; to display WCAG 2.2 instead set `WCAG_VERSION=2.2` and redeploy (API reverts on restart; web UI on rebuild).
 
-![The home page in dark mode. A top bar carries a small blue globe and the site name, ICJIA ACCESSIBILITY AUDIT, with links to "Can I trust this?", What's New, Technical, Data policy, Status and FAQs, a theme switch and a green "audit server online" light. Below, a large blue block holds the labels "Document accessibility check" and "WCAG 2.1 A/AA", the headline "Check your PDF, Word, PowerPoint, and Excel files for accessibility" in very large white type, a short paragraph naming WCAG 2.1, ADA Title II and IITAA 2.1 as links, and links to a sample report and to "What about WCAG 2.2?". To its right is the upload box, outlined with a thick dashed white line, reading "Drop PDF, Word, PowerPoint, or Excel files here — or click to browse — up to 25 files, max 25 MB each", and under it a form labelled "…or check a document by link" with a web-address field and a "Check this link" button.](docs/images/home.png)
+![The home page in dark mode. A top bar carries a small blue globe and the site name, ICJIA ACCESSIBILITY AUDIT, with links to "Can I trust this?", What's New, Technical, Data policy, Status and FAQs, a theme switch and a green "audit server online" light. Below, a large blue block holds the labels "Document accessibility check" and "WCAG 2.1 A/AA", the headline "Check your PDF, Word, PowerPoint, and Excel files for accessibility" in very large white type, a short paragraph naming WCAG 2.1, ADA Title II and IITAA 2.1 as links, and links to a sample report and to "What about WCAG 2.2?". To its right is the upload box, outlined with a thick dashed white line, reading "Drop PDF, Word, PowerPoint, or Excel files here — or click to browse — up to 25 files, max 25 MB each".](docs/images/home.png)
 
 ![The top of the "Can I trust this?" page in the same look. Under the line "audit.icjia.app · built for Title II ADA · WCAG · Illinois IITAA", the headline reads "Built to be checked." in white and "See for yourself." in green, followed by "Every claim on this page can be verified without taking anyone's word for it — including ours." An amber-bordered stamp says every number below was pulled live from the running system on Nov 25, 2026. Four figures stand on heavy white rules: 12,922 check-ups run for internal and external agencies; 5,498 self-checks the software runs on itself before anything goes live; 249 / 249 trap documents built to fool it, every one judged correctly; and 918 saved, dated, public changes over 38 weeks.](docs/images/trust-page.png)
 
@@ -23,7 +23,7 @@ A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xl
 | **0** | Files retained | Audit: in-memory only, gone in seconds. Remediation: output deleted when its download completes or at the 30-minute TTL, then verified absent. |
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF/Office SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
-| **25** | Files per batch | Upload up to 25 files (PDF, Word, PowerPoint, or Excel) at once and download a summary of the batch as a spreadsheet (CSV); per-file remediation for PDFs. A document on any public website can also be checked by pasting its link, and `POST /api/analyze-url` does the same for programs. |
+| **25** | Files per batch | Upload up to 25 files (PDF, Word, PowerPoint, or Excel) at once and download a summary of the batch as a spreadsheet (CSV); per-file remediation for PDFs. Programs can audit a document on an approved government site by its address with `POST /api/analyze-url`; the site itself takes uploaded files only. |
 | **Before / after** | Re-check comparison | Upload a fixed file again under the same name and the report shows what changed, check by check — or compare against an exported JSON report or an earlier share link. The comparison is made in the browser; nothing new is stored on the server. A [sample report](https://audit.icjia.app/sample-report) shows what a report looks like before anything is uploaded. |
 | **43** | Best practices evaluated | A separate report section evaluates every non-scored best practice for the file's format — 21 for PDF, 22 across Word, PowerPoint and Excel — and lists only the ones **this** document meets or could act on, with the evidence found in the document itself, both fix routes, and a link to the rule. Nothing in it is scored, and the section says so. |
 | **4** | Export formats | Text / HTML / Markdown / JSON report exports. 1-year shareable links — no account needed (the tool has none). |
@@ -319,11 +319,11 @@ Upload up to **25 files** (PDF, Word, PowerPoint, or Excel) at once. Files are a
 
 ## Analyze from URL
 
-`POST /api/analyze-url` — audits a document (PDF, Word, PowerPoint, or Excel) by URL instead of upload. Three surfaces:
+`POST /api/analyze-url` — audits a document (PDF, Word, PowerPoint, or Excel) by URL instead of upload. Two surfaces:
 
 1. **API** — `POST /api/analyze-url` with body `{ "url": "..." }` returns the same `AnalysisResult` shape as `POST /api/analyze`.
-2. **The link form on the home page** — "check a document by link", under the drop zone (`UrlAuditForm.vue`, `utils/urlAudit.ts`). A labelled field takes an `https://` address (up to 2,000 characters), the page says so in a sentence when the address is unusable, and the answer renders in the same report UI an upload uses. The server does the fetching and the policing — the form's own check is a courtesy, not a security control — and it accepts any public address: see [which hosts are accepted](#url-allowlist) below.
-3. **A prefilled link** — visiting `https://audit.icjia.app/?prefill=<url>` runs the same audit on page load. The `prefill` parameter is removed from the address as soon as it is read (no new history entry), so a reload or the Back button does not run the audit a second time or take the page back from a newer report.
+2. ~~The link form on the home page~~ — **removed in v1.182.0.** The home page had a "check a document by link" field from v1.176.0; in v1.180.0 it was opened to any public website, and the owner withdrew it the same day. The site takes uploaded files only.
+3. **A prefilled link** — visiting `https://audit.icjia.app/?prefill=<url>` runs the same audit on page load. The `prefill` parameter is removed from the address as soon as it is read (no new history entry), so a reload or the Back button does not run the audit a second time or take the page back from a newer report. It runs **only when the address is on the approved list below**; for any other address the page sends nothing to the server and says to upload the file. This is how ICJIA's own tools (`filecap-cli`) hand a document over.
 
 Both web surfaces run under the same ownership model as an upload: each request has its own abort signal, so Start over or a new upload cancels it and a late answer never lands on a page that has moved on.
 
@@ -337,26 +337,13 @@ curl -X POST https://audit.icjia.app/api/analyze-url \
   -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}'
 ```
 
-No credential is required — the endpoint is public and rate-limited per IP (same limiter as `/api/analyze`). Since v1.180.0 it fetches a document from **any public host**. An anonymous request for a host that is not on the approved list below is also counted against a second, much smaller budget — 20 an hour per IP (`RATE_LIMITS.urlAnyHost`) — and answers 429 beyond it. A request presenting the deployment's fleet service token (`Authorization: Bearer <API_PRIVILEGED_TOKEN>`) is not counted there and gets the generous rate tier.
+No credential is required — the endpoint is public and rate-limited per IP (same limiter as `/api/analyze`). Anonymous callers are restricted to the URL allowlist below; a request presenting the deployment's fleet service token (`Authorization: Bearer <API_PRIVILEGED_TOKEN>`) bypasses the allowlist and gets the generous rate tier.
 
-Failures use the same error mapping as an upload, and every error body carries a stable `code` — `URL_NOT_ALLOWED` for an address on a private network, on a non-standard port, or (on the endpoints that keep the approved list) on a host outside it, `FETCH_FAILED` when the document could not be fetched, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `FILE_ENCRYPTED` for a password-protected PDF, `FILE_UNREADABLE`, `TIMEOUT`. The full list is under [Error responses](#error-responses).
+Failures use the same error mapping as an upload, and every error body carries a stable `code` — `URL_NOT_ALLOWED` for an address outside the allowlist or on a private network, `FETCH_FAILED` when the document could not be fetched, `FILE_TOO_LARGE`, `UNSUPPORTED_TYPE`, `FILE_ENCRYPTED` for a password-protected PDF, `FILE_UNREADABLE`, `TIMEOUT`. The full list is under [Error responses](#error-responses).
 
 ### URL allowlist
 
-The approved list is ICJIA-affiliated and Illinois state government hosts. What it does depends on the endpoint:
-
-| Endpoint | A host on the list | Any other public host (anonymous) |
-| --- | --- | --- |
-| `POST /api/analyze-url` (the home page's link field) | fetched | fetched, within a budget of 20 an hour per IP |
-| `POST /api/audit-url`, `/api/audit-url-page`, `/api/bulk-from-inventory` | fetched | refused (`URL_NOT_ALLOWED`) |
-
-A link check to a host off the list is also bounded in four more ways, all enforced in `apps/api/src/services/urlAnyHostGate.ts` and set in `audit.config.ts` (`URL_FETCH.ANY_HOST_*`): one such fetch at a time per IP; 4 in flight across everyone (the body is held in memory, so that is at most 100 MB); 300 an hour across everyone; and 30 an hour toward any one website. Its overall deadline is 30 seconds, not 60. Beyond a bound the answer is 429 or 503 with a sentence that says to upload the file instead.
-
-A link that reaches the home page as `?prefill=<url>` starts by itself only when its host is on the approved list. For any other site the address is put in the field and waits for the visitor to press **Check this link**, so a link on someone else's page cannot start a fetch just by being followed.
-
-The first row changed in v1.180.0: the link field is for anyone with a link to a document, not only for government files. The other three endpoints were left as they were on purpose — they store a shareable report, drive a headless browser, or turn one request into up to a hundred fetches.
-
-Each entry matches the host exactly **or** any subdomain of it.
+Only ICJIA-affiliated and Illinois state government URLs are accepted by default. Each entry matches the host exactly **or** any subdomain of it.
 
 | Allowed host | Coverage |
 | --- | --- |
@@ -374,7 +361,7 @@ A request carrying a valid `API_PRIVILEGED_TOKEN` (`Authorization: Bearer <token
 
 ### SSRF protection
 
-Whatever the host — on the approved list, off it, or requested with the service token — every URL endpoint hard-rejects:
+Even if a hostname passes the allowlist (or the service token is presented), the endpoint hard-rejects:
 
 - `localhost`, `127.0.0.1`, `0.0.0.0`, `::1`
 - `*.local`, `*.internal`
@@ -545,7 +532,7 @@ Every JSON error has one shape:
 | Code | Typical status | Meaning |
 | --- | --- | --- |
 | `INVALID_REQUEST` | 400 | The request is missing something or is malformed |
-| `URL_NOT_ALLOWED` | 400 | The address points at a private network or a non-standard port, or (except on `/api/analyze-url`) is outside the approved list |
+| `URL_NOT_ALLOWED` | 400 | The address is outside the allowlist, on a non-standard port, or points at a private network |
 | `UNSUPPORTED_TYPE` | 400 / 422 | Not a PDF, Word, PowerPoint or Excel file (422 when a fetched URL turns out not to be one) |
 | `FORMAT_DISABLED` | 415 | The format is switched off on this deployment |
 | `AUDIT_REQUIRED` | 403 | Remediation was asked for a file that has not been audited recently |
@@ -1023,7 +1010,7 @@ In the first table, all but the last row live in [`docs/archive/`](docs/archive/
 
 ## Tests
 
-**5,571 tests** across 313 test files (API 2,915 · Web 2,484 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**5,526 tests** across 312 test files (API 2,893 · Web 2,461 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1108,8 +1095,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `pptxService.test.ts` | 56 | PowerPoint `.pptx` parsing: package/slide metadata, title-first-shape detection, picture/table/hyperlink/list/media extraction, run-level contrast (shape fill → slide background → theme scheme colors, large-text threshold), and DoS hardening — shape and text-element caps that count at any nesting depth (not just top-level, not just shape count), a linear frame/pic walk that avoids double-counting nested graphicFrames, theme-color resolution bounded per analysis rather than per run, and aggregate zip-package limits (entry-count and total-uncompressed-size caps, even when no single part exceeds `PPTX.MAX_UNCOMPRESSED_BYTES`). Since v1.160.0: layout grids — a bare table (no style, or "No Style, No Grid") is `looksLikeLayout`, while a styled table or one with a visible border or fill is data |
 | `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
 | `urlPolicy.test.ts` | 22 | The extracted URL/SSRF policy module: allowlist + subdomain matching, lookalike-suffix rejection, private/local-host blocking, `ANALYZE_URL_ALLOWED_HOSTS` env extension, the privileged public-URL validator, and `SafeFetchError`→HTTP status mapping |
-| `urlAnyHost.test.ts` | 8 | v1.180.0, link checks to any public host: what counts as "on the approved list" (look-alikes and malformed values do not); the widened validator still refuses other schemes and ports; only `/api/analyze-url` is opened; the 20-an-hour budget counts off-list and malformed requests, skips approved hosts and the service token, and answers 429 with a message that says to upload instead |
-| `redTeam20261125.test.ts` | 12 | Red-team review 2026-11-25, one group per finding: the off-list fetch gate (per caller, in flight, hourly, per target site) and its memory sum; the private-address refusal repeats neither the name nor the address; the 502 carries no remote status text; bracketed IPv6 literals are classified, and the SIIT and 6to4-relay ranges are private |
+| `redTeam20261125.test.ts` | 11 | 2026-11-25: the link option was opened to any public host for a day, red-teamed, and withdrawn. Pins the WITHDRAWAL (an anonymous caller is refused any host off the approved list; none of the any-host machinery remains in any route, the pipeline, the fetcher, the limiter or the config) and the hardening that was KEPT: the private-address refusal repeats neither name nor address; a name resolving to a private address is answered exactly like a missing name; local-only names are refused before any lookup; the 502 carries no remote status text; bracketed IPv6 literals are classified, and the SIIT and 6to4-relay ranges are private |
 | `rateLimiter.test.ts` | 38 | The privileged bearer-token tier — constant-time `isPrivilegedRequest` (missing/wrong/empty/prefix/over-length tokens, feature-off when unset), tier selection (strict per-IP vs generous shared bucket), a live limiter test proving a token exceeds the anonymous cap on the same IP — plus both global-limiter carve-outs: `isRemediationStatusRequest` and `isStatusRequest` route matching (including lookalikes like `/api/statuses` and `POST /api/status`), `isGlobalLimitExempt` exempting exactly those two and nothing else, `tieredLimiter`/`globalLimiter` skip semantics that exempt them without draining the shared bucket, and `remediationStatusLimiter`'s own generous per-IP cap |
 | `status.test.ts` | 98 | The public `/api/status` payload, built against a real `:memory:` database provisioned by the actual migration runner (so the SQL meets production's real column types — `audit_log.created_at` is a UTC datetime *string* while `remediation_jobs.created_at` is an INTEGER ms epoch). Covers the document-event-type split (page audits and auth events excluded), extension-derived format buckets including `unknown_extension` for extension-less URL filenames, the 24h/30d windows, `last_audit_at` emitted as zone-marked ISO so it can't be parsed as local time, tiered failure semantics (qpdf/database → outage; veraPDF/Chromium → degraded), a corrupt database degrading to `database:"down"` rather than throwing, probe failures becoming data (`{ok:false, reason}`) instead of exceptions, a hung probe timing out under fake timers, and the two independent cache TTLs asserted by **probe invocation count** — the property that stops an uptime monitor spawning a veraPDF JVM on every poll. Also the letter-grade distribution: the A–F split, a NULL grade counted as `ungraded` rather than dropped, an unrecognized value bucketed there too without injecting a key onto the struct, a lower-case grade normalized into its letter, per-window filtering, zeroed buckets on the database-down path, and — the headline guarantee — **every window's buckets summing to that window's document total**, so the page can never print two figures that disagree. Plus refused uploads: the rejection event type asserted disjoint from the audited and page types, refusals counted without moving the audit total or the grade split, the extension buckets (`.csv`/`.tsv` sharing one, `.docx`/`.xlsx`/`.pptx` never falling into the legacy ones — a regression to an unanchored `LIKE` would reclassify every modern file), buckets summing to the refusal total, per-window filtering, zeroed shape on the database-down path, and the invariant that a refusal **cannot satisfy the remediation audit-gate** because its `content_hash` is NULL; failed-audit rows are invisible to every count; local time from `DEPLOY.LOCAL_TIME_ZONE`. Plus the v1.89.0 aggregates: `distinct_documents` counting distinct content hashes per window (the same bytes re-checked stay one document; NULL-hash rows and page audits uncounted), and `document_progress_30d` — the 30-day loop grouped by filename with runs/improvable/improved/reached-an-A folded from one-row-per-document SQL, a NULL-score row never counted as a run, the median lift suppressed to `null` below `STATUS.PROGRESS_MIN_DOCS`, and same-second ties broken by insertion order so first and last scores are stable. Since v1.90.0 the loop counts public uploads only: a fleet (privileged) row that leaked in would flip `improvable` — watched directly; unknown-tier (pre-migration) rows contribute nothing so the figures climb from tier recording; and `distinct_documents` is pinned to keep counting every tier Since v1.174.0, the re-audit summary counts a document as re-checked only when its content hash changed: re-uploading the identical file is not a re-check. |
 | `auditLogTier.test.ts` | 3 | The write half of the privileged-tier metric: `recordAudit` must persist which rate-limit tier an audit came through. Runs the **real** writer against a real migrated in-memory SQLite database (the singleton is mocked to a `:memory:` instance), asserting a genuine round-trip — a trusted-tool audit stores `privileged = 1`, a public audit `0`, and a refused upload carries the tier too — not a spy on the insert |
@@ -1371,7 +1357,7 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `findingCodeParity.test.ts` | 81 | The report decides by finding code (2026-11-24): on 66 real engine results and the bundled sample report, fix-time estimates, action-plan steps and best-practice rows are identical with `findingDetails` present and with it stripped; with every wording test switched off the coded output is unchanged; forged or misaligned details are ignored; and every rule-to-code pair is checked against the text the engine's source tags with that code, so a rewording fails here the day it happens |
 | `findingMatch.test.ts` | 18 | `utils/findingMatch.ts`, the one table pairing codes with wording: a coded line is decided by its code alone, an uncoded line by wording, per line; counts come from the detail when present |
 | `compareResults.test.ts` | 40 | Before and after (`utils/compareResults.ts`, `ReportComparison.vue`): overall and per-check deltas, issues fixed / new / remaining, matching on the finding code when both reports carry structured findings and on text otherwise, "nothing changed" said plainly, different filenames or formats noted without refusing |
-| `urlAudit.test.ts` | 30 | Checking a document by link (`utils/urlAudit.ts`, `UrlAuditForm.vue`): address validation (https, length, no file-extension requirement), the sentence for a host that is not approved, and reading then removing `?prefill=` |
+| `urlAudit.test.ts` | 13 | Links (`utils/urlAudit.ts`, `usePrefill`): the home page has no field for typing an address and no component for one; what counts as an approved host (https, standard port, no user-info, look-alikes refused); a `?prefill=` link for an approved host runs once under an abortable run and is removed from the address; for any other address — including `javascript:` and a private IP — nothing is sent to the server, the address is never put on the page, and the page says to upload the file |
 | `remediateReselect.test.ts` | 16 | Automatic repair asks for the same file: `matchReselectedFile` accepts the same name and size (ignoring case and Unicode composition) and refuses a mismatch, naming both files; title and language are reseeded when the report underneath changes, and the page keys the button on the active report |
 | `remediationA11y.test.ts` | 12 | The remediation page for assistive technology: one polite status region announcing a step when the step changes (not on every poll), a progress bar with a role, name and values, each step's state in words, focus moved to the outcome heading, and the polling error as an alert |
 | `layoutLandmarks.test.ts` | 14 | The default layout: a skip link that is the first focusable element and targets `<main>`, exactly one `<main>` per page, no redundant landmark roles, every icon-only button named, and a print stylesheet that hides the site chrome the layout really renders |
@@ -1683,12 +1669,40 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
-### v1.181.3 — 2026-11-25 · One press to copy a shareable link; PDF/UA checkpoints as a row in the report (Presentation — the share control on the results page and one panel's placement in the report)
+### v1.182.0 — 2026-11-25 · The link option is removed: the site checks uploaded files only (SECURITY-RELEVANT — attack surface REDUCED: the any-host link check added in v1.180.0 is withdrawn)
 
-No new attack surface. The share button calls the same `POST /api/reports` with the same sealed body as before, once per press, and then writes the returned link to the clipboard with `navigator.clipboard.writeText` (falling back to `execCommand`); nothing is read from the clipboard. A report is still stored only on an explicit press. The checkpoints row renders the existing `MatterhornReportPanel` in a native `<details>`; no new data, input or request. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,571 green. Lint, format check, typecheck and the production build were clean.
+**The link option is withdrawn. The site checks uploaded files only.**
+
+**What happened, in order.** The home page gained a "check a document by link" field in v1.176.0, limited to an approved list of ICJIA and Illinois government hosts. On 2026-11-25 it was opened to any public website (v1.180.0). A red-team review that day, in five passes, found ten issues — none Critical or High, six Medium, three Low, one Info — and all ten were fixed (v1.180.0 to v1.181.2; each finding is listed beside its fix in the entries folded below). The owner then decided the feature should not exist at all: a box that accepts any address is an invitation to mischief, and uploading a file does the same job. This release removes it.
+
+| | Before today | v1.180.0 – v1.181.3 | Now (v1.182.0) |
+| --- | --- | --- | --- |
+| A field on the home page for typing a link | yes (since v1.176.0) | yes | **removed** |
+| `POST /api/analyze-url`, anonymous, approved host | fetched | fetched | fetched |
+| `POST /api/analyze-url`, anonymous, any other host | refused | fetched, within limits | **refused** |
+| `/api/audit-url`, `/api/audit-url-page`, `/api/bulk-from-inventory`, anonymous, any other host | refused | refused | refused |
+| `?prefill=<url>` on the home page | ran for any address the server accepted | ran by itself for approved hosts; others waited for a button | runs for approved hosts only; **for anything else the browser sends nothing** |
+
+**Removed with the feature:** the any-host rate budget (`RATE_LIMITS.urlAnyHost`), the fetch gate and its ceilings (`services/urlAnyHostGate.ts`, `URL_FETCH.ANY_HOST_*`), the per-hop validator and the `onResolved` hook in the fetcher. `redTeam20261125.test.ts` fails if any of those names reappears in a route, the pipeline, the fetcher, the limiter or the config.
+
+**Kept, because they protect the paths that remain** (the approved-list fetch and the service-token fetch), each still tested:
+
+- The refusal for a private address no longer repeats the name or the address, and a name that resolves to a private address is answered with the same status and body as a name that does not exist.
+- Names that can only be local (`localhost`, `*.local`, `*.internal`, single-label names) are refused before any DNS lookup on the service-token path.
+- A remote host's status text is not relayed; only the number.
+- IPv6 literals are classified by the address check itself, and the IPv4-translated and 6to4-relay ranges are private.
+- The text for AI assistants marks wording quoted from a file as data, not instructions. This applies to uploaded files too.
+
+**What can still make the server fetch something.** Only these, and none of them is new: an anonymous request naming a host on the approved list; and a request carrying the deployment's service token (`API_PRIVILEGED_TOKEN`), which may name any public host and is still subject to the private-address block, the port rule, the size cap and the timeouts. The token is a server-to-server credential held by the operator; it is not issued to visitors.
+
+`pnpm audit --prod`: no known advisories in production dependencies. Tests 5,526 green. Lint, format check, typecheck and the production build were clean.
 
 <details>
 <summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
+
+### v1.181.3 — 2026-11-25 · One press to copy a shareable link; PDF/UA checkpoints as a row in the report (Presentation — the share control on the results page and one panel's placement in the report)
+
+No new attack surface. The share button calls the same `POST /api/reports` with the same sealed body as before, once per press, and then writes the returned link to the clipboard with `navigator.clipboard.writeText` (falling back to `execCommand`); nothing is read from the clipboard. A report is still stored only on an explicit press. The checkpoints row renders the existing `MatterhornReportPanel` in a native `<details>`; no new data, input or request. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,571 green. Lint, format check, typecheck and the production build were clean.
 
 ### v1.181.2 — 2026-11-25 · The link-check address limit reads addresses as numbers, not text (SECURITY RELEASE — completes v1.180.0 to v1.181.1, none of which was deployed)
 

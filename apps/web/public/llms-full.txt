@@ -272,7 +272,7 @@ Audit a document by URL instead of upload. Returns the same result shape as `POS
 - Content-Type: application/json
 - Body: `{ "url": "https://..." }`
 - Auth: none — public, rate-limited per IP
-- The URL must resolve to a public host. `POST /api/analyze-url` accepts any public host; an anonymous request for a host outside the ICJIA / Illinois state government approved list (extendable via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable) is counted against a small hourly per-IP budget of its own. The other URL endpoints (`/api/audit-url`, `/api/audit-url-page`, `/api/bulk-from-inventory`) still require an approved host unless a valid privileged bearer token is presented. Either way, a private/reserved-IP SSRF block (localhost, `*.local`/`*.internal`, RFC1918 ranges, link-local addresses) is enforced unconditionally, re-checked on every redirect hop.
+- The URL must resolve to a public host. Anonymous callers are restricted to an ICJIA / Illinois state government allowlist (extendable via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable); a request bearing a valid privileged bearer token bypasses the allowlist and may fetch any public URL. Either way, a private/reserved-IP SSRF block (localhost, `*.local`/`*.internal`, RFC1918 ranges, link-local addresses) is enforced unconditionally, re-checked on every redirect hop.
 - Limits: 25 MB fetched content, 30 s fetch timeout, same rate limit as `/api/analyze`.
 
 ### POST /api/audit-url

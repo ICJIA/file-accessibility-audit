@@ -69,7 +69,7 @@ const URL_BODY = (withForce: boolean): Json => ({
         type: "string",
         format: "uri",
         description:
-          "http(s) URL on a standard port. Private and reserved addresses are always refused. /api/analyze-url accepts any public host (anonymous requests for a host off the server's approved list have a small hourly budget of their own); the other URL endpoints require a host on the approved list unless the service token is presented.",
+          "http(s) URL on a standard port. Without the service token the host must be on the server's allowlist; private and reserved addresses are always refused.",
       },
       ...(withForce
         ? {

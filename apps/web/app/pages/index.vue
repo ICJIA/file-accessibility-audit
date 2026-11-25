@@ -817,9 +817,6 @@
           </Transition>
 
           <DropZone class="flex-1" @file-selected="analyzeFile" @files-selected="analyzeBatch" />
-
-          <!-- The same audit, for a document that is already on the web. -->
-          <UrlAuditForm :pending="pendingLink" @submit="analyzeUrl" />
         </div>
       </section>
 
@@ -1034,7 +1031,6 @@ import {
   saveFinishedAudit,
   saveRunningAudit,
 } from "~/utils/auditSession";
-import UrlAuditForm from "~/components/UrlAuditForm.vue";
 import BatchSummaryTable from "~/components/BatchSummaryTable.vue";
 import ReportComparison from "~/components/ReportComparison.vue";
 import {
@@ -1043,7 +1039,7 @@ import {
   savePreviousResult,
 } from "~/utils/comparePrevious";
 import { clearBatchSession, readBatchSession, saveBatchSession } from "~/utils/batchSession";
-import { describeUrlAuditError, isApprovedHost } from "~/utils/urlAudit";
+import { LINKS_NOT_ACCEPTED, describeUrlAuditError, isApprovedHost } from "~/utils/urlAudit";
 import { ANALYZE_JOB, SHARED_REPORTS } from "../../../../audit.config";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
@@ -1511,11 +1507,11 @@ watch(
 );
 
 // --- Checking a document by its web address ---
-// Two ways in, one run: the "check a document by link" field under the drop
-// zone, and ?prefill=<url> (filecap-cli builds audit links of the form
-//   https://audit.icjia.app/?prefill=https%3A%2F%2Fexample.com%2Freport.pdf ).
-// Both call analyzeUrl(), which POSTs /api/analyze-url and feeds the answer
-// into the same single-file UI an upload uses.
+// One way in: ?prefill=<url> (filecap-cli builds audit links of the form
+//   https://audit.icjia.app/?prefill=https%3A%2F%2Ficjia.illinois.gov%2Freport.pdf ),
+// and only for a host on the approved list. There is no field for typing an
+// address. analyzeUrl() POSTs /api/analyze-url and feeds the answer into the
+// same single-file UI an upload uses.
 //
 // It runs under the SAME ownership as an upload (beginSingleRun): its own
 // AbortController, and it writes to the page only while it is still
@@ -1585,17 +1581,16 @@ async function analyzeUrl(url: string) {
   }
 }
 
-// A `?prefill=` link starts by itself only for a host on the approved list
-// (the fleet tool's links). For any other site the address is put in the
-// field and waits for the button: since v1.180.0 the server will fetch from
-// any public host, and a link on someone else's page must not be able to
-// spend a visitor's hourly budget, or aim this server at a third site, just
-// by being followed (red-team review 2026-11-25).
-const pendingLink = ref("");
+// The site takes uploaded files, not links: the field for typing an address
+// was removed on 2026-11-25 (owner decision — a box that accepts any
+// address is an invitation to mischief). What remains is `?prefill=`, the
+// way ICJIA's own tools hand a document over, and it runs ONLY for a host on
+// the approved list. Anything else is told to upload the file; nothing is
+// sent to the server.
 usePrefill({
   onUrl(url) {
     if (isApprovedHost(url)) return analyzeUrl(url);
-    pendingLink.value = url;
+    analysisError.value = { ...LINKS_NOT_ACCEPTED };
   },
   onError(err) {
     // Normalised like every other failure, so the alert always has a message.

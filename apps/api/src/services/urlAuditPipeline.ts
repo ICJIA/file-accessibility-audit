@@ -26,12 +26,10 @@
  *   check.
  */
 import type { Response } from "express";
-import { URL_FETCH } from "#config";
 import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
 import { sha256Hex, recordRejectedUpload, recordAuditFailure } from "./auditLog.js";
 import { safeFetch, SafeFetchError } from "./safeFetch.js";
-import { chargeAnyHostAddress, chargeAnyHostTarget } from "./urlAnyHostGate.js";
 import {
   MAX_PDF_BYTES,
   FETCH_TIMEOUT_MS,
@@ -40,47 +38,11 @@ import {
   validateUrlPublic,
 } from "./urlPolicy.js";
 
-/**
- * The validator for an anonymous fetch from a host off the approved list.
- * safeFetch calls it for the first address and for every redirect hop, so
- * each hop is (1) held to the public-address rules and (2) counted toward
- * the hourly ceiling of the website it belongs to — a redirect cannot reach
- * a site without being charged to it.
- */
-export function validateAnyHostHop(u: URL): void {
-  validateUrlPublic(u);
-  if (!chargeAnyHostTarget(u.hostname)) {
-    throw new SafeFetchError("target_limit", `hourly ceiling reached for '${u.hostname}'`);
-  }
-}
-
-/**
- * The other half of the per-hop accounting: after the hop's name is
- * resolved, count the fetch against the address block it will connect to.
- * A name-based ceiling alone is one the caller can sidestep by choosing
- * more names.
- */
-export function chargeAnyHostHopAddress(ip: string): void {
-  if (!chargeAnyHostAddress(ip)) {
-    throw new SafeFetchError(
-      "target_limit",
-      `hourly ceiling reached for the address block of ${ip}`,
-    );
-  }
-}
-
 export interface RunUrlAuditInput {
   /** Already validated as a non-empty string by the caller. */
   url: string;
   /** Whether the caller presented a valid API_PRIVILEGED_TOKEN. */
   privileged: boolean;
-  /** An anonymous caller allowed any public host (v1.180.0) — only
-   *  /api/analyze-url sets it, and only for an address that is not on the
-   *  approved list (so it has already been counted by urlAnyHostLimiter).
-   *  It widens the HOST rule and nothing else: validateUrlPublic keeps the
-   *  scheme, port and private-address checks, and safeFetch still resolves
-   *  and re-checks every redirect hop. It grants no rate tier. */
-  anyPublicHost?: boolean;
   /**
    * Which route is calling (v1.88.0). A fetch that fails is recorded as
    * `<eventType>-failed` / fetch-failed here — this is the only place fetch
@@ -141,19 +103,7 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
     fetched = await safeFetch(url, {
       timeoutMs: FETCH_TIMEOUT_MS,
       maxBytes: MAX_PDF_BYTES,
-      validateUrl: input.anyPublicHost
-        ? validateAnyHostHop
-        : privileged
-          ? validateUrlPublic
-          : validateUrlForFetch,
-      // A host chosen by an anonymous caller gets a shorter overall deadline,
-      // and each hop is also counted against the ADDRESS it resolves to.
-      ...(input.anyPublicHost
-        ? {
-            totalTimeoutMs: URL_FETCH.ANY_HOST_TOTAL_TIMEOUT_MS,
-            onResolved: chargeAnyHostHopAddress,
-          }
-        : {}),
+      validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
       signal: abort.signal,
     });
   } catch (err) {

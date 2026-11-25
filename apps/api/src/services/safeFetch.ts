@@ -116,10 +116,6 @@ export type SafeFetchErrorCode =
   | "timeout"
   | "network_error"
   | "oversized"
-  // A hop's website has reached the hourly ceiling for fetches to any one
-  // site (services/urlAnyHostGate.ts) — thrown by the validator the URL
-  // pipeline passes in, never by safeFetch itself.
-  | "target_limit"
   // The caller's AbortSignal fired (the client that asked for this fetch has
   // disconnected) — nobody is left to receive the result.
   | "aborted";
@@ -151,13 +147,6 @@ export interface SafeFetchOptions {
    * This is the URL allowlist plug-in point.
    */
   validateUrl: (url: URL) => void;
-  /**
-   * Runs for each hop AFTER its name has been resolved, with the address
-   * that will actually be dialled. May throw a SafeFetchError to refuse the
-   * hop. Exists so a caller can account for the ADDRESS, which a name-based
-   * rule cannot see: any number of names can point at one server.
-   */
-  onResolved?: (ip: string, url: URL) => void;
   /**
    * The request to send. Default: GET with this module's own headers.
    * POST and OPTIONS exist for one caller — the page auditor replaying a
@@ -545,7 +534,6 @@ export async function safeFetch(
 
     // (2) Per-hop DNS lookup with private-IP rejection.
     const resolvedIp = await budget.race(resolvePublicIp(currentUrl.hostname));
-    opts.onResolved?.(resolvedIp, currentUrl);
 
     // (3) Single HTTP hop to the resolved IP.
     budget.check();

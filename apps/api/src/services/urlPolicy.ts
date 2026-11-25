@@ -8,7 +8,6 @@
  */
 import type { Response } from "express";
 import { SafeFetchError } from "./safeFetch.js";
-import { ANY_HOST_REFUSALS } from "./urlAnyHostGate.js";
 import { ANALYSIS, URL_FETCH } from "#config";
 
 // Cap URL-fetched PDFs at the same size as direct uploads. safeFetch buffers
@@ -111,15 +110,6 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
 }
 
 /**
- * Is this address on the approved list? Anything that is not a string, does
- * not parse, or fails any other rule answers false — so an odd request is
- * counted against the tighter any-host budget, never excused from it.
- */
-export function isOnApprovedList(rawUrl: unknown): boolean {
-  return typeof rawUrl === "string" && isAllowedUrl(rawUrl).ok;
-}
-
-/**
  * Map a SafeFetchError to an HTTP response. Centralizes the
  * code→status mapping so all three URL-fetch endpoints behave
  * consistently.
@@ -138,10 +128,6 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
       res
         .status(400)
         .json({ error: "URL not allowed", details: err.message, code: "URL_NOT_ALLOWED" });
-      return;
-    case "target_limit":
-      // The hourly ceiling for fetches to any one website (urlAnyHostGate).
-      res.status(429).json({ error: ANY_HOST_REFUSALS["target-hourly"].error });
       return;
     case "private_ip":
       // A NAME that resolved to a private address is answered EXACTLY like a

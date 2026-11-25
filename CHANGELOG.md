@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.182.0] - 2026-11-25
+
+### Removed
+
+- **The link option is removed: the site checks uploaded files only.** The home page's "check a document by link" field is removed, and `POST /api/analyze-url` is back to what it was before v1.180.0: an anonymous caller is refused any host that is not on the approved list of ICJIA and Illinois government sites. The field existed from v1.176.0 and was opened to any public website in v1.180.0; a red-team review that day found ten issues, all of which were fixed, and the owner then withdrew the feature altogether — a box that accepts any address is an invitation to mischief, and uploading does the same job. Removed with it: the any-host rate budget, the fetch gate and its four ceilings, the `URL_FETCH.ANY_HOST_*` and `RATE_LIMITS.urlAnyHost` settings, and the `onResolved` hook. Kept, because they also protect the approved-list and service-token paths: the private-address refusal no longer repeats a name or address and is indistinguishable from a missing name; local-only names are refused before any lookup; a remote host's status text is not relayed; IPv6 literals are classified properly and two translated ranges are private; the text for AI assistants marks wording quoted from a file as data. `?prefill=<url>`, which ICJIA's own tools use to open a document here, still works, and only for an approved host: for any other address the page sends nothing to the server and says to upload the file. The approved list stays in `audit.config.ts` (`URL_FETCH.APPROVED_HOSTS`).
+
+### Notes
+
+- Tests 5,526 across 313 files (API 2,894 · Web 2,461 · CLI 172).
+
 ## [1.181.3] - 2026-11-25
 
 ### Changed

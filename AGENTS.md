@@ -294,21 +294,20 @@ generous rate tier and the URL-allowlist bypass):
 | `/api/health` | GET | Always HTTP 200 while the process is up. The body carries the SAME verdict `/status` computes, read from already-cached state: `{ status: "ok" \| "degraded", uptime, degraded?: [...], systems: [...] }` — it runs no probe of its own. Also served at `/` and `/api`. `rebuild.sh`'s health gate reads only the status code |
 | `/api/openapi.json` | GET | Machine-readable description of every route above (hand-written in `services/openapi.ts`, pinned to the real router by `openapi.test.ts`) |
 
-URL-fetching endpoints share a host allowlist ("the approved list") defined in
-`apps/api/src/services/urlPolicy.ts` `DEFAULT_ALLOWED_HOSTS`. The
-matcher accepts exact-host and any subdomain. Operators can extend
-per-deployment via `ANALYZE_URL_ALLOWED_HOSTS` env var. `/audit-url`,
-`/audit-url-page` and `/bulk-from-inventory` REFUSE an anonymous caller a
-host off the list. `/analyze-url` (the home page's link field) does not,
-since v1.180.0: any public host is fetched, and an anonymous request for
-an off-list host is counted against `RATE_LIMITS.urlAnyHost` (20/hour/IP,
-`urlAnyHostLimiter`) on top of the ordinary audit budget, and admitted
-through `services/urlAnyHostGate.ts` (in flight: 4 overall, 1 per caller;
-per hour: 300 overall, 30 per target site and 60 per address block, both
-charged on every redirect hop — `URL_FETCH.ANY_HOST_*`). The
-web app starts a `?prefill=` link by itself only for an approved host. Do not open the
-other three the same way without asking: they persist reports, drive a
-browser, or fan one request out into a hundred fetches.
+URL-fetching endpoints (`/analyze-url`, `/audit-url`, `/audit-url-page`,
+`/bulk-from-inventory`) share a host allowlist ("the approved list"). The
+list is `URL_FETCH.APPROVED_HOSTS` in `audit.config.ts`; the matcher in
+`apps/api/src/services/urlPolicy.ts` accepts exact-host and any subdomain,
+and operators can extend it per deployment via `ANALYZE_URL_ALLOWED_HOSTS`.
+An anonymous caller is REFUSED any host off the list on all four.
+
+**The site has no field for typing a link, and must not get one back
+without asking.** For one day (v1.180.0 – v1.181.3, 2026-11-25) the home
+page's link field and `/analyze-url` accepted any public host; it was
+red-teamed (ten findings) and the owner withdrew it in v1.182.0 — "It's only
+dropped files. No links." What remains is `?prefill=<url>`, which ICJIA's
+own tools use to open a document here: the web app runs it only for a host
+on the approved list and otherwise sends nothing and says to upload.
 
 The Nuxt tier additionally serves `/status` (service status as
 human-readable HTML or JSON; GET/HEAD, public, keyword-monitored) and

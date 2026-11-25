@@ -284,13 +284,13 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
-    id: "security-page-any-link-2026-11-25",
-    badge: "New",
+    id: "upload-only-2026-11-25",
+    badge: "Changed",
     /** What the landing-page banner shows — two sentences at most, see THE
      *  BANNER RULE above. The full story is `text`, shown on /announcements. */
     summary:
-      "You can now check a document on any public website by pasting its link. A new Security page lists every security review of this tool, with each finding beside its fix.",
-    text: "Two things are new. First, you can check a document on any public website by pasting its link into the box under the upload area. Before, this worked only for Illinois government sites. It is handy on a phone, or when you have a link to a file but not the file itself. A file checked by link is treated exactly like an uploaded one: it is held in memory for the check and is not kept. There are limits on how many links one person can check in an hour, and uploading always works if you reach them. Second, there is a new Security page, linked at the bottom of every page. It lists every security review of this tool, newest first, with each finding beside the fix that closed it. The newest review covers the check-by-link change: we had it attacked by a separate reviewer before release. That review and an automated follow-up check found no serious problem and ten smaller ones, and all ten are fixed.",
+      "This tool checks uploaded files only. The box for checking a document by its link has been removed.",
+    text: "This tool checks uploaded files only. For a short time today the home page had a box for checking a document by pasting its link, and for part of that time it accepted a link to any public website. We removed it the same day. A box that accepts any web address gives people a way to try to misuse the server, and uploading a file does the same job without that risk. If you have a link to a document, download it to your computer or phone and drop it in the upload box. Before the box was removed, the feature was reviewed by a separate security reviewer. The review found no serious problem and ten smaller ones, and all ten were fixed before the decision to remove it. Several of those fixes protect other parts of the tool and have been kept. The full record is on the Security page.",
     linkText: "Read the security reviews",
     linkTo: "/security",
     /** In-app route — an ordinary router link. */
@@ -300,15 +300,15 @@ export const ANNOUNCEMENTS = [
     requiresWcagVersion: null as "2.1" | "2.2" | null,
   },
   {
-    id: "check-any-link-2026-11-25",
+    id: "security-page-2026-11-25",
     badge: "New",
     /** What the landing-page banner shows — two sentences at most, see THE
      *  BANNER RULE above. The full story is `text`, shown on /announcements. */
     summary:
-      "You can now check a document on any public website by pasting its link. Before, this worked only for Illinois government sites.",
-    text: "You can now check a document on any public website by pasting its link into the box under the upload area. Before, this worked only for Illinois government sites. It is handy on a phone, or when you have a link to a file but not the file itself. A file checked by link is treated exactly like an uploaded one: it is held in memory for the check and is not kept. There are limits on how many links one person can check in an hour, and uploading a file always works if you reach them. Before releasing this, we had the change attacked by a separate security reviewer. The review found no serious problem and six smaller ones, and all six are fixed. The details are in the security section of the data policy.",
-    linkText: "Read the data policy",
-    linkTo: "/data-retention",
+      "A new Security page lists every security review of this tool, with each finding beside its fix.",
+    text: "There is a new Security page, linked at the bottom of every page. It lists every security review of this tool, newest first, with each finding beside the fix that closed it. The newest review is shown open, and you can open any earlier one.",
+    linkText: "Read the security reviews",
+    linkTo: "/security",
     /** In-app route — an ordinary router link. */
     linkExternal: false,
     wcagRefs: [],
@@ -385,8 +385,8 @@ export const ANNOUNCEMENTS = [
     /** What the landing-page banner shows — two sentences at most, see THE
      *  BANNER RULE above. The full story is `text`, shown on /announcements. */
     summary:
-      "You can now check up to 25 files at once, check a document by its link, and see what changed when you re-check a fixed file. A sample report shows what you get before you upload anything.",
-    text: "A review of the whole site, and what came out of it. New: you can check up to 25 files at once and download a summary of the batch as a spreadsheet (CSV); you can check a document on an approved government site by pasting its link; when you upload a fixed file again under the same name, the report shows what changed, check by check; and a sample report shows what you get before you upload anything. Fixed: an interrupted download of a repaired PDF can now be tried again, because the file is deleted when the download finishes rather than when it starts; repairing one file from a batch can no longer carry another file's title; a password-protected PDF is now reported as password-protected in every case; and the repair page now tells screen-reader users what is happening at each step. Easier to use: this banner is now two sentences at most, the page has a skip link, printed reports no longer include the site's header and footer, and the count on each report now says exactly how many scored checks passed. For people who automate: every error from the service now carries a stable code, the service describes itself at /api/openapi.json, and the command-line checker can gate a build on a score. No document's score changed.",
+      "You can now check up to 25 files at once, and see what changed when you re-check a fixed file. A sample report shows what you get before you upload anything.",
+    text: "A review of the whole site, and what came out of it. New: you can check up to 25 files at once and download a summary of the batch as a spreadsheet (CSV); (checking a document by its link was also added here, and was removed on November 25); when you upload a fixed file again under the same name, the report shows what changed, check by check; and a sample report shows what you get before you upload anything. Fixed: an interrupted download of a repaired PDF can now be tried again, because the file is deleted when the download finishes rather than when it starts; repairing one file from a batch can no longer carry another file's title; a password-protected PDF is now reported as password-protected in every case; and the repair page now tells screen-reader users what is happening at each step. Easier to use: this banner is now two sentences at most, the page has a skip link, printed reports no longer include the site's header and footer, and the count on each report now says exactly how many scored checks passed. For people who automate: every error from the service now carries a stable code, the service describes itself at /api/openapi.json, and the command-line checker can gate a build on a score. No document's score changed.",
     linkText: "See a sample report",
     linkTo: "/sample-report",
     /** In-app route — an ordinary router link. */
@@ -2452,15 +2452,6 @@ export const RATE_LIMITS = {
    *  into up to 100 server-side fetches and analyses. Keyed by IP; its own
    *  budget rather than the share-link limiter's (2026-09-02). */
   bulk: { max: 3, windowMs: 60 * 60 * 1000 }, // 3 per hour
-  /** POST /api/analyze-url, for a host that is NOT on the approved list
-   *  (apps/api/src/services/urlPolicy.ts). Since v1.180.0 an anonymous
-   *  visitor may check a document on any public site by link (owner decision,
-   *  2026-11-25). That makes the server something that fetches a stranger's
-   *  choice of address, so those requests get this budget of their own, far
-   *  below the `analyze` tier, on top of it. Keyed by IP. Approved hosts and
-   *  the privileged token are not counted here.
-   *  SAFE TO CHANGE: raise it if real visitors hit it; lower it on abuse. */
-  urlAnyHost: { max: 20, windowMs: 60 * 60 * 1000 }, // 20 per hour
 
   /**
    * All routes — catch-all burst guard against request floods. Two-tier,
@@ -3020,65 +3011,22 @@ export const URL_FETCH = {
    */
   TOTAL_TIMEOUT_MS: 60_000,
 
-  // -- Link checks to hosts OFF the approved list (v1.180.0) ---------------
-  // Since v1.180.0 an anonymous visitor may check a document on any public
-  // site (POST /api/analyze-url). These bound what that can cost this server
-  // and what it can send to somebody else's. Enforced in
-  // apps/api/src/services/urlAnyHostGate.ts; the per-IP hourly budget is
-  // RATE_LIMITS.urlAnyHost. Approved hosts and the service token are not
-  // subject to any of them.
-
   /**
-   * Shorter overall deadline for an off-list host: half the ordinary one. A
-   * host chosen by a stranger gets less time to hold memory open.
-   * SAFE TO CHANGE: Yes. 30 s downloads the 25 MB cap at ~6.7 Mbit/s.
-   */
-  ANY_HOST_TOTAL_TIMEOUT_MS: 30_000,
-  /**
-   * Off-list fetches in flight at once, across everyone. The body is
-   * buffered in memory before analysis, so this × 25 MB is the most this
-   * path can hold: 4 × 25 MB = 100 MB against the API's 768 MB cap.
-   * DO NOT RAISE without redoing that sum against ecosystem.config.cjs.
-   */
-  ANY_HOST_MAX_CONCURRENT: 4,
-  /** Off-list fetches in flight at once for ONE caller (per IP).
-   *  SAFE TO CHANGE: keep it well below ANY_HOST_MAX_CONCURRENT, or one
-   *  caller can hold every slot. */
-  ANY_HOST_MAX_PER_CALLER: 1,
-  /**
-   * Off-list fetches started per hour, across everyone. A link that makes
-   * every visitor's browser start a check (`?prefill=`) spreads requests
-   * over many addresses; this is the ceiling no number of addresses raises.
-   * SAFE TO CHANGE: Yes — raise it if real use reaches it.
-   */
-  ANY_HOST_MAX_PER_HOUR: 300,
-  /** Off-list fetches started per hour toward any ONE website, across
-   *  everyone — so this server cannot be turned into a steady stream of
-   *  requests at somebody else's site. SAFE TO CHANGE: Yes. */
-  ANY_HOST_MAX_PER_TARGET_PER_HOUR: 30,
-  /**
-   * Off-list fetches started per hour toward any one ADDRESS BLOCK (an IPv4
-   * /24 or an IPv6 /64), across everyone, counted on every hop after the
-   * name is resolved. The per-website ceiling above is keyed on a name, and
-   * any number of names can point at one server; this is the ceiling that
-   * follows the server. Higher than the per-website one because a content
-   * delivery network serves many unrelated sites from one block.
-   * SAFE TO CHANGE: Yes — raise it if real documents on a shared network
-   * are refused; lowering it tightens the bound.
-   */
-  ANY_HOST_MAX_PER_ADDRESS_PER_HOUR: 60,
-
-  /**
-   * The approved list: hosts the URL endpoints fetch from for an anonymous
-   * caller without the limits above (and the only hosts /api/audit-url,
-   * /api/audit-url-page and /api/bulk-from-inventory fetch from at all
-   * without the service token). Each entry matches the host exactly OR any
-   * subdomain of it. Operators can extend it per deployment, with no code
-   * change, via the ANALYZE_URL_ALLOWED_HOSTS environment variable.
+   * The approved list: the only hosts the URL endpoints (/api/analyze-url,
+   * /api/audit-url, /api/audit-url-page, /api/bulk-from-inventory) fetch from
+   * for a caller without the service token. Each entry matches the host
+   * exactly OR any subdomain of it. Operators can extend it per deployment,
+   * with no code change, via the ANALYZE_URL_ALLOWED_HOSTS environment
+   * variable.
    *
-   * The web app reads it too: a link that arrives as `?prefill=` is checked
-   * automatically only when its host is here; any other host is put in the
-   * field for the visitor to press the button themselves.
+   * For one day (v1.180.0 – v1.181.3, 2026-11-25) /api/analyze-url also
+   * fetched from any other public host, within limits. The owner withdrew
+   * that the same day: the site takes uploaded files, not links. Do not
+   * reopen it without asking.
+   *
+   * The web app reads this list too: a link that arrives as `?prefill=` (how
+   * ICJIA's other tools hand a document over) is run only when its host is
+   * here.
    *
    * Keep it conservative. SAFE TO CHANGE: add a host you operate or trust.
    */

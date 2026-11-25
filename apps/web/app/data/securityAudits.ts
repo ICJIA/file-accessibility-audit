@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.182.0",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY-RELEVANT — attack surface REDUCED: the any-host link check added in v1.180.0 is withdrawn.",
+    body: [
+      {
+        kind: "p",
+        html: "We removed the box for checking a document by its link. This tool now checks uploaded files only. For part of one day the box accepted a link to any public website. We had that reviewed, fixed everything the review found, and then decided the safer choice was not to offer it at all: a box that accepts any web address gives people a way to try to misuse the server, and uploading a file does the same job. Some of the fixes made during that review protect other parts of the tool, so they stay. If you have a link to a document, download it and upload the file. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.181.3",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation — the share control on the results page and one panel's placement in the report.",
     body: [
