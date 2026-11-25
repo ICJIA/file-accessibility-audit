@@ -61,6 +61,7 @@ const HOOKS = {
 const AXE_PAGES = [
   "/trust",
   "/data-retention",
+  "/security",
   "/technical-details",
   "/announcements",
   "/wcag-2-2",

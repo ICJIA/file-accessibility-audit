@@ -31,6 +31,7 @@ import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./ana
 import { unsupportedFormatMessage } from "@file-audit/shared";
 import { sha256Hex, recordRejectedUpload, recordAuditFailure } from "./auditLog.js";
 import { safeFetch, SafeFetchError } from "./safeFetch.js";
+import { chargeAnyHostTarget } from "./urlAnyHostGate.js";
 import {
   MAX_PDF_BYTES,
   FETCH_TIMEOUT_MS,
@@ -38,6 +39,20 @@ import {
   validateUrlForFetch,
   validateUrlPublic,
 } from "./urlPolicy.js";
+
+/**
+ * The validator for an anonymous fetch from a host off the approved list.
+ * safeFetch calls it for the first address and for every redirect hop, so
+ * each hop is (1) held to the public-address rules and (2) counted toward
+ * the hourly ceiling of the website it belongs to — a redirect cannot reach
+ * a site without being charged to it.
+ */
+export function validateAnyHostHop(u: URL): void {
+  validateUrlPublic(u);
+  if (!chargeAnyHostTarget(u.hostname)) {
+    throw new SafeFetchError("target_limit", `hourly ceiling reached for '${u.hostname}'`);
+  }
+}
 
 export interface RunUrlAuditInput {
   /** Already validated as a non-empty string by the caller. */
@@ -111,7 +126,11 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
     fetched = await safeFetch(url, {
       timeoutMs: FETCH_TIMEOUT_MS,
       maxBytes: MAX_PDF_BYTES,
-      validateUrl: privileged || input.anyPublicHost ? validateUrlPublic : validateUrlForFetch,
+      validateUrl: input.anyPublicHost
+        ? validateAnyHostHop
+        : privileged
+          ? validateUrlPublic
+          : validateUrlForFetch,
       // A host chosen by an anonymous caller gets a shorter overall deadline.
       ...(input.anyPublicHost ? { totalTimeoutMs: URL_FETCH.ANY_HOST_TOTAL_TIMEOUT_MS } : {}),
       signal: abort.signal,

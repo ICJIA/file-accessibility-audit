@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "security-page-any-link-2026-11-25",
+    badge: "New",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "You can now check a document on any public website by pasting its link. A new Security page lists every security review of this tool, with each finding beside its fix.",
+    text: "Two things are new. First, you can check a document on any public website by pasting its link into the box under the upload area. Before, this worked only for Illinois government sites. It is handy on a phone, or when you have a link to a file but not the file itself. A file checked by link is treated exactly like an uploaded one: it is held in memory for the check and is not kept. There are limits on how many links one person can check in an hour, and uploading always works if you reach them. Second, there is a new Security page, linked at the bottom of every page. It lists every security review of this tool, newest first, with each finding beside the fix that closed it. The newest review covers the check-by-link change: we had it attacked by a separate reviewer before release. That review and an automated follow-up check found no serious problem and eight smaller ones, and all eight are fixed.",
+    linkText: "Read the security reviews",
+    linkTo: "/security",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 25, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "check-any-link-2026-11-25",
     badge: "New",
     /** What the landing-page banner shows — two sentences at most, see THE

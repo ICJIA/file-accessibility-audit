@@ -403,7 +403,15 @@ ${headline}
 
   <!-- Name -->
   <rect x="776" y="318" width="368" height="5" fill="#ffffff"/>
-  <text x="776" y="386" ${font} font-size="50" font-weight="800" fill="#ffffff" letter-spacing="-2">${escapeXml(orgAbbrev || APP_NAME)}</text>
+  <!-- The site's brand mark: the outline globe from the header, at the
+       name's cap height (owner request, 2026-11-25). Same geometry as
+       layouts/default.vue, scaled 24 → 46. -->
+  <g transform="translate(776 344) scale(1.9167)" fill="none" stroke="#7391ff" stroke-width="1.7" stroke-linecap="round">
+    <circle cx="12" cy="12" r="10"/>
+    <ellipse cx="12" cy="12" rx="4.2" ry="10"/>
+    <path d="M2 12h20M3.6 7h16.8M3.6 17h16.8"/>
+  </g>
+  <text x="836" y="386" ${font} font-size="50" font-weight="800" fill="#ffffff" letter-spacing="-2">${escapeXml(orgAbbrev || APP_NAME)}</text>
   <text x="776" y="424" ${font} font-size="23" font-weight="800" fill="#ffffff" letter-spacing="0.5">${escapeXml(rest.toUpperCase())}</text>
   <text x="776" y="470" ${font} font-size="17" fill="#d4d4d4">PDF · Word · PowerPoint · Excel</text>
   <text x="776" y="496" ${font} font-size="17" fill="#d4d4d4">ADA Title II · Illinois IITAA 2.1</text>

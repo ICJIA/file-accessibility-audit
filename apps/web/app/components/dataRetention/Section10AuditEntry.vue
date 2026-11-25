@@ -38,7 +38,7 @@
           <span v-html="item.html" />
           <p
             v-if="item.note"
-            class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed"
+            class="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed"
             v-html="item.note"
           />
         </li>

@@ -23,6 +23,7 @@
  *   in flight, one caller  URL_FETCH.ANY_HOST_MAX_PER_CALLER
  *   per hour, everyone     URL_FETCH.ANY_HOST_MAX_PER_HOUR
  *   per hour, one target   URL_FETCH.ANY_HOST_MAX_PER_TARGET_PER_HOUR
+ *                          (counted per HOP — see chargeAnyHostTarget)
  *
  * Worst case held in memory by this path: MAX_CONCURRENT × the 25 MB cap.
  */
@@ -51,37 +52,58 @@ function prune(now: number): void {
   }
 }
 
-/** The host a URL names, lower-cased; "" when it does not parse (the fetch
- *  will refuse it anyway — it still counts against the global bounds). */
-export function targetOf(rawUrl: string): string {
-  try {
-    return new URL(rawUrl).hostname.toLowerCase().replace(/\.$/, "");
-  } catch {
-    return "";
-  }
+/**
+ * The website a host belongs to, for the per-target ceiling: its last two
+ * labels ("docs.example.com" → "example.com"), or its last three when the
+ * last two look like a shared public suffix ("a.example.co.uk" →
+ * "example.co.uk"). An approximation of the registrable domain, on purpose:
+ * there is no public-suffix list here, and the two ways it can be wrong are
+ * both safe for a CEILING — sites sharing an unusual suffix share a budget,
+ * which only ever refuses sooner. An address literal is its own target.
+ */
+export function targetOf(hostname: string): string {
+  const host = hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
+  if (!host || host.includes(":") || /^[0-9.]+$/.test(host)) return host;
+  const labels = host.split(".");
+  if (labels.length <= 2) return host;
+  const tld = labels[labels.length - 1]!;
+  const sld = labels[labels.length - 2]!;
+  const sharedSuffix = tld.length === 2 && sld.length <= 3;
+  return labels.slice(sharedSuffix ? -3 : -2).join(".");
 }
 
-export function admitAnyHostFetch(
-  callerKey: string,
-  rawUrl: string,
-  now: number = Date.now(),
-): AnyHostAdmission {
+/**
+ * Count one fetch toward a website, and say whether it is still within the
+ * hourly ceiling for that site. Called for EVERY hop of an off-list fetch —
+ * the first address and each redirect — by the validator the pipeline hands
+ * to safeFetch. Charging only the address the caller typed (as this did when
+ * first written, earlier the same day) let a caller name their own host and
+ * have it redirect to the site they meant to aim at: the redirect target was
+ * fetched and never counted (commit security review, 2026-11-25).
+ */
+export function chargeAnyHostTarget(hostname: string, now: number = Date.now()): boolean {
   prune(now);
-  const target = targetOf(rawUrl);
+  const target = targetOf(hostname);
+  const forTarget = startedByTarget.get(target) ?? [];
+  if (forTarget.length >= URL_FETCH.ANY_HOST_MAX_PER_TARGET_PER_HOUR) return false;
+  startedByTarget.set(target, [...forTarget, now]);
+  return true;
+}
+
+export function admitAnyHostFetch(callerKey: string, now: number = Date.now()): AnyHostAdmission {
+  prune(now);
   if ((inFlightByCaller.get(callerKey) ?? 0) >= URL_FETCH.ANY_HOST_MAX_PER_CALLER) {
     return { ok: false, reason: "caller-busy" };
   }
   if (inFlight >= URL_FETCH.ANY_HOST_MAX_CONCURRENT) return { ok: false, reason: "busy" };
   if (started.length >= URL_FETCH.ANY_HOST_MAX_PER_HOUR) return { ok: false, reason: "hourly" };
-  const forTarget = startedByTarget.get(target) ?? [];
-  if (forTarget.length >= URL_FETCH.ANY_HOST_MAX_PER_TARGET_PER_HOUR) {
-    return { ok: false, reason: "target-hourly" };
-  }
 
   inFlight += 1;
   inFlightByCaller.set(callerKey, (inFlightByCaller.get(callerKey) ?? 0) + 1);
   started.push(now);
-  startedByTarget.set(target, [...forTarget, now]);
 
   let released = false;
   return {

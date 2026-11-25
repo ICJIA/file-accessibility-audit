@@ -59,6 +59,24 @@ function onTrustBodyClick(e: MouseEvent) {
 <template>
   <!-- eslint-disable-next-line vue/no-v-html — repo-authored generated body, see header comment -->
   <div class="trust-page -mx-3 sm:-mx-6" @click="onTrustBodyClick" v-html="TRUST_BODY"></div>
+  <!-- Outside the generated body on purpose: the body is also emailed as a
+       standalone file, where a link into this site's pages has no place. -->
+  <aside
+    class="mx-auto mt-10 max-w-4xl border-t-4 border-[var(--text-heading)] pt-5"
+    data-testid="trust-security-link"
+    aria-label="Security reviews"
+  >
+    <p class="pk-label text-[var(--text-secondary)]">Security</p>
+    <p class="mt-2 text-base leading-relaxed text-[var(--text-secondary)]">
+      Accuracy is one half of trust; security is the other. Every release is reviewed, and the
+      larger changes are attacked on purpose before they go out.
+      <NuxtLink
+        to="/security"
+        class="font-bold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+        >Read every security review, with each finding beside its fix</NuxtLink
+      >.
+    </p>
+  </aside>
 </template>
 
 <style>

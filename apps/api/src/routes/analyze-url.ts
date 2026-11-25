@@ -64,7 +64,7 @@ router.post(
       // semaphore.
       let release: (() => void) | null = null;
       if (anyPublicHost) {
-        const admission = admitAnyHostFetch(ipKey(req), url);
+        const admission = admitAnyHostFetch(ipKey(req));
         if (!admission.ok) {
           const refusal = ANY_HOST_REFUSALS[admission.reason];
           res.status(refusal.status).json({ error: refusal.error });

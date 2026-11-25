@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.181.0] - 2026-11-25
+
+### Added
+
+- **A Security page; the red-team review completed with two follow-up fixes.** A new page, `/security`, lists every security review of the tool: the newest open, each earlier one a folded row with its version, date and scope. It draws the same entries with the same card as § 10 of the data policy, so the two cannot differ, and is linked from the footer and from the trust page. Two fixes complete the v1.180.0 red-team review; both were found by an automated review of the commit that carried the first six, and both were real gaps in those fixes. (A) The hourly ceiling for fetches to any one website counted only the address the caller typed, so a caller could name their own host and have it redirect to the site they meant to aim at; the ceiling is now charged on every redirect hop, per website (a host's last two labels, or three under a shared suffix such as `co.uk`). (B) A name that resolved to a private address was still answered with a different status (400) from a name that does not exist (502), so the pair of replies still told a caller which internal names the server's resolver knows, even though the message itself had been made generic; the two are now answered identically, and names that can only be local (`localhost`, `*.local`, `*.internal`, any single-label name) are refused before any lookup. v1.180.0 was never deployed, so no version with those two gaps reached the public site. Also: the fix line under each finding in the security log is larger (14px, not 12px).
+
+### Notes
+
+- Tests 5,560 across 313 files (API 2,909 · Web 2,479 · CLI 172).
+
 ## [1.180.0] - 2026-11-25
 
 ### Changed

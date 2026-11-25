@@ -8,6 +8,7 @@
  */
 import type { Response } from "express";
 import { SafeFetchError } from "./safeFetch.js";
+import { ANY_HOST_REFUSALS } from "./urlAnyHostGate.js";
 import { ANALYSIS, URL_FETCH } from "#config";
 
 // Cap URL-fetched PDFs at the same size as direct uploads. safeFetch buffers
@@ -123,6 +124,13 @@ export function isOnApprovedList(rawUrl: unknown): boolean {
  * code→status mapping so all three URL-fetch endpoints behave
  * consistently.
  */
+/** One object, so a name that does not exist and a name that resolves to a
+ *  private address cannot drift apart. */
+const DNS_FAILED_BODY = {
+  error: "Fetch failed",
+  details: "The address could not be found.",
+} as const;
+
 export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
   switch (err.code) {
     case "malformed_url":
@@ -131,7 +139,23 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
         .status(400)
         .json({ error: "URL not allowed", details: err.message, code: "URL_NOT_ALLOWED" });
       return;
+    case "target_limit":
+      // The hourly ceiling for fetches to any one website (urlAnyHostGate).
+      res.status(429).json({ error: ANY_HOST_REFUSALS["target-hourly"].error });
+      return;
     case "private_ip":
+      // A NAME that resolved to a private address is answered EXACTLY like a
+      // name that does not exist — same status, same body. Otherwise the two
+      // replies together tell an anonymous caller which internal names the
+      // server's resolver knows (commit security review, 2026-11-25: fixing
+      // the message was not enough while the status still differed). A
+      // private address written out in the URL is not such a secret and
+      // keeps its 400.
+      if (err.viaLookup) {
+        console.warn(`[safeFetch] private_ip (via lookup): ${err.message}`);
+        res.status(502).json(DNS_FAILED_BODY);
+        return;
+      }
       // SSRF block. 400 to the client; the details message names the
       // hostname + resolved IP, useful for the operator but not
       // dangerous to expose since the attacker provided the hostname.
@@ -163,7 +187,7 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
       res.status(502).json({ error: err.message });
       return;
     case "dns_failed":
-      res.status(502).json({ error: "Fetch failed", details: "The address could not be found." });
+      res.status(502).json(DNS_FAILED_BODY);
       return;
     case "network_error":
     default:
@@ -201,6 +225,22 @@ export function validateUrlForFetch(u: URL): void {
 export function validateUrlPublic(u: URL): void {
   if (u.protocol !== "https:" && u.protocol !== "http:") {
     throw new SafeFetchError("malformed_url", "only http/https URLs are accepted");
+  }
+  // Names that can only ever be local are refused BEFORE any lookup, so the
+  // resolver is never asked about them: localhost, *.local, *.internal, and
+  // any single-label name (no dot) — the forms a search domain or /etc/hosts
+  // answers. An address literal is left to the address check in safeFetch.
+  const host = u.hostname.toLowerCase().replace(/\.$/, "");
+  const literal = host.startsWith("[") || /^[0-9.]+$/.test(host);
+  if (
+    !literal &&
+    (host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      host.endsWith(".internal") ||
+      !host.includes("."))
+  ) {
+    throw new SafeFetchError("malformed_url", "that name is not on the public internet");
   }
   if (!isAllowedPort(u)) {
     throw new SafeFetchError(

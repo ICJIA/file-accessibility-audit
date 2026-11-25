@@ -53,8 +53,12 @@ describe("opening the host rule opens nothing else", () => {
 
   it("the pipeline widens only the validator, and still hands safeFetch one", () => {
     const pipeline = src("services/urlAuditPipeline.ts");
-    expect(pipeline).toContain(
-      "validateUrl: privileged || input.anyPublicHost ? validateUrlPublic : validateUrlForFetch,",
+    expect(pipeline).toMatch(
+      /validateUrl: input\.anyPublicHost\s*\?\s*validateAnyHostHop\s*:\s*privileged\s*\?\s*validateUrlPublic\s*:\s*validateUrlForFetch,/,
+    );
+    // …and the off-list validator starts with the public-address rules.
+    expect(pipeline).toMatch(
+      /export function validateAnyHostHop\(u: URL\): void \{\s*validateUrlPublic\(u\);/,
     );
   });
 

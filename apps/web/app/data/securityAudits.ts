@@ -54,12 +54,162 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.181.0",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY RELEASE — completes v1.180.0, which was not deployed.",
+    body: [
+      {
+        kind: "p",
+        html: "This release adds a Security page that lists every security review of this tool, and finishes the review of the new check-by-link feature. After the first six fixes were written, an automated check of that work found two more gaps, and both are fixed here. First, the limit on how many files the tool will fetch from any one website could be avoided by sending the request through another address that forwards to that website; the limit is now counted at every step of the way. Second, two different refusal messages could still be compared to learn the names of machines that are not on the public internet; the tool now gives the same answer in both cases, and refuses such names without looking them up. The version with those two gaps was never put on the public site. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+      { kind: "h", text: "Every finding in this review, and how each was fixed" },
+      {
+        kind: "p",
+        html: "A reviewer with no part in writing the change attacked it: read the code, ran the tests, and probed the address checks with their own script. They reported <strong>no critical and no high-severity finding</strong>, two of medium severity, three low, and one for information. An automated check of the fixes then found two more of medium severity. <strong>All eight are fixed</strong> &mdash; the first six in v1.180.0, the last two in this release &mdash; and each has an automated test that fails if the fix is taken out. v1.180.0 was never put on the public site.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "P2",
+            html: "<strong>Medium &mdash; the server could have been made to run out of memory.</strong> A file fetched by link is held in memory while it is checked, and nothing limited how many could be open at once. Someone could have asked for many large, deliberately slow files together until the service restarted.",
+            note: "<strong>Fix:</strong> at most 4 such files are fetched at once across everyone (about 100 MB in total), one at a time per visitor, and each must finish within 30 seconds. Beyond that the tool says it is busy and suggests uploading the file.",
+          },
+          {
+            badge: "P2",
+            html: "<strong>Medium &mdash; a link on someone else&rsquo;s page could start a check by itself.</strong> A web address can carry a document link for this tool to open (this is how other ICJIA tools hand a file over). That check started as soon as the page loaded, so another site could have sent its visitors here to make this server fetch a large file from a third site, over and over, with each request counted against a different visitor.",
+            note: "<strong>Fix:</strong> a link that arrives this way starts by itself only for the approved government sites. For any other site the address is put in the box and nothing happens until you press the button. The server also has two ceilings that no number of visitors can raise: 300 such fetches an hour in total, and 30 an hour from any one website.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Low &mdash; an error message said too much.</strong> When asked for an address on a private network, the tool&rsquo;s refusal repeated the technical name and number of that address. A stranger could have used that to learn about machines that are not on the public internet.",
+            note: "<strong>Fix:</strong> the refusal is now one fixed sentence. The detail is written to the server&rsquo;s own log, where only the operator can see it.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Low &mdash; another site&rsquo;s wording was passed along.</strong> When a link could not be fetched, the tool repeated the short status message the other website sent, which that website chooses.",
+            note: "<strong>Fix:</strong> only the status number is shown.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Low &mdash; a document could try to give instructions to an AI assistant.</strong> The summary you can copy into an assistant quotes words from the document: its filename, headings and image descriptions. Nothing told the assistant that those words are information about the file and not instructions. This was already true for uploaded files; checking by link makes it easier to put a stranger&rsquo;s document in front of someone.",
+            note: "<strong>Fix:</strong> the summary now begins by telling the assistant that text quoted from the file is data, that it must not follow anything in it that reads like an instruction, and that it should say so if it finds one. The filename is also cleaned up and shortened.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>For information &mdash; one kind of address was refused by accident.</strong> Addresses written in the newer internet numbering (IPv6) were turned away only because looking them up failed, not by the check written for them, and two rarely used ranges were treated as public.",
+            note: "<strong>Fix:</strong> those addresses are now judged by the check itself, and both ranges are treated as private.",
+          },
+          {
+            badge: "P2",
+            html: "<strong>Medium &mdash; the limit for one website could be avoided by going through another address.</strong> Found by the automated check of the first six fixes. The limit of 30 files an hour from any one website counted only the address that was typed in. Someone could type an address of their own that simply forwards to the website they wanted to pester, and the forwarded request was not counted.",
+            note: "<strong>Fix:</strong> the limit is now counted at every step, including each time a link forwards somewhere else, and it is counted per website rather than per exact address.",
+          },
+          {
+            badge: "P2",
+            html: "<strong>Medium &mdash; the error-message fix above was only half done.</strong> Found by the same automated check. The wording had been made the same, but the tool still gave a different kind of refusal for a private machine that exists than for a name that does not exist. Comparing the two could still reveal which private machines exist.",
+            note: "<strong>Fix:</strong> both cases now get exactly the same answer. Names that can only belong to a private network are refused straight away, without being looked up at all.",
+          },
+        ],
+      },
+      { kind: "h", text: "Attacks that were tried and did not work" },
+      {
+        kind: "bullets",
+        items: [
+          {
+            html: "Pointing a public-looking name at a private machine after it had been checked.",
+          },
+          {
+            html: "Writing a private address in an unusual way (as one number, in hexadecimal, with extra dots) to slip past the check.",
+          },
+          {
+            html: "Starting at a public site that redirects to a private one, or starting at an approved site that redirects elsewhere to avoid the new limit.",
+          },
+          { html: "Pretending to be a different visitor to get a fresh hourly allowance." },
+          { html: "Sending a compressed file that expands to an enormous size." },
+          {
+            html: "Using error messages to work out which services are running on another machine.",
+          },
+        ],
+      },
+      { kind: "h", text: "What this review did not cover" },
+      {
+        kind: "p",
+        html: "The reviewer confirmed that Word, PowerPoint and Excel files are read through a size-limited reader, but did not test an oversized archive delivered by link. The memory finding was reasoned from the code and the server&rsquo;s memory limit; it was not reproduced against a running server. The three other link-based features (saving a shareable report by link, checking a web page, and checking a list of files) were not opened and still accept only the approved government sites.",
+      },
+    ],
+  },
+  {
     version: "v1.180.0",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY-RELEVANT — one endpoint widened on purpose, then red-teamed; six findings, all fixed.",
     body: [
       {
         kind: "p",
         html: "You can now check a document on any public website by pasting its link; before, this worked only for Illinois government sites. Because that means our server fetches a file from an address a visitor chooses, we set limits on it and then had the change attacked by a separate reviewer before release. The review found no serious problem and six smaller ones, and all six are fixed. In plain terms: the server will only fetch a few such files at a time and a limited number per hour, in total and from any one website, so it cannot be overloaded or used to pester another site; it still refuses any address that is not on the public internet, and it no longer repeats technical details about such addresses in its error messages; a link on someone else's web page cannot make the tool start checking a file unless you press the button yourself; and the summary you can copy into an AI assistant now tells the assistant to treat words quoted from your file as information, not as instructions. A file checked by link is handled exactly like an uploaded one: it is held in memory for the check and not kept. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+      { kind: "h", text: "What the red team found, and how each was fixed" },
+      {
+        kind: "p",
+        html: "A reviewer with no part in writing the change attacked it: read the code, ran the tests, and probed the address checks with their own script. They reported <strong>no critical and no high-severity finding</strong>, two of medium severity, three low, and one for information. All six are fixed in this release, and each has an automated test that fails if the fix is taken out.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "P2",
+            html: "<strong>Medium &mdash; the server could have been made to run out of memory.</strong> A file fetched by link is held in memory while it is checked, and nothing limited how many could be open at once. Someone could have asked for many large, deliberately slow files together until the service restarted.",
+            note: "<strong>Fix:</strong> at most 4 such files are fetched at once across everyone (about 100 MB in total), one at a time per visitor, and each must finish within 30 seconds. Beyond that the tool says it is busy and suggests uploading the file.",
+          },
+          {
+            badge: "P2",
+            html: "<strong>Medium &mdash; a link on someone else&rsquo;s page could start a check by itself.</strong> A web address can carry a document link for this tool to open (this is how other ICJIA tools hand a file over). That check started as soon as the page loaded, so another site could have sent its visitors here to make this server fetch a large file from a third site, over and over, with each request counted against a different visitor.",
+            note: "<strong>Fix:</strong> a link that arrives this way starts by itself only for the approved government sites. For any other site the address is put in the box and nothing happens until you press the button. The server also has two ceilings that no number of visitors can raise: 300 such fetches an hour in total, and 30 an hour from any one website.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Low &mdash; an error message said too much.</strong> When asked for an address on a private network, the tool&rsquo;s refusal repeated the technical name and number of that address. A stranger could have used that to learn about machines that are not on the public internet.",
+            note: "<strong>Fix:</strong> the refusal is now one fixed sentence. The detail is written to the server&rsquo;s own log, where only the operator can see it.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Low &mdash; another site&rsquo;s wording was passed along.</strong> When a link could not be fetched, the tool repeated the short status message the other website sent, which that website chooses.",
+            note: "<strong>Fix:</strong> only the status number is shown.",
+          },
+          {
+            badge: "P3",
+            html: "<strong>Low &mdash; a document could try to give instructions to an AI assistant.</strong> The summary you can copy into an assistant quotes words from the document: its filename, headings and image descriptions. Nothing told the assistant that those words are information about the file and not instructions. This was already true for uploaded files; checking by link makes it easier to put a stranger&rsquo;s document in front of someone.",
+            note: "<strong>Fix:</strong> the summary now begins by telling the assistant that text quoted from the file is data, that it must not follow anything in it that reads like an instruction, and that it should say so if it finds one. The filename is also cleaned up and shortened.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>For information &mdash; one kind of address was refused by accident.</strong> Addresses written in the newer internet numbering (IPv6) were turned away only because looking them up failed, not by the check written for them, and two rarely used ranges were treated as public.",
+            note: "<strong>Fix:</strong> those addresses are now judged by the check itself, and both ranges are treated as private.",
+          },
+        ],
+      },
+      { kind: "h", text: "Attacks that were tried and did not work" },
+      {
+        kind: "bullets",
+        items: [
+          {
+            html: "Pointing a public-looking name at a private machine after it had been checked.",
+          },
+          {
+            html: "Writing a private address in an unusual way (as one number, in hexadecimal, with extra dots) to slip past the check.",
+          },
+          {
+            html: "Starting at a public site that redirects to a private one, or starting at an approved site that redirects elsewhere to avoid the new limit.",
+          },
+          { html: "Pretending to be a different visitor to get a fresh hourly allowance." },
+          { html: "Sending a compressed file that expands to an enormous size." },
+          {
+            html: "Using error messages to work out which services are running on another machine.",
+          },
+        ],
+      },
+      { kind: "h", text: "What this review did not cover" },
+      {
+        kind: "p",
+        html: "The reviewer confirmed that Word, PowerPoint and Excel files are read through a size-limited reader, but did not test an oversized archive delivered by link. The memory finding was reasoned from the code and the server&rsquo;s memory limit; it was not reproduced against a running server. The three other link-based features (saving a shareable report by link, checking a web page, and checking a list of files) were not opened and still accept only the approved government sites.",
       },
     ],
   },

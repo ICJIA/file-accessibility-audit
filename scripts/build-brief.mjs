@@ -359,6 +359,7 @@ const pages = [
   { path: "/trust", priority: "0.8", changefreq: "weekly" },
   { path: "/announcements", priority: "0.7", changefreq: "weekly" },
   { path: "/technical-details", priority: "0.6", changefreq: "monthly" },
+  { path: "/security", priority: "0.6", changefreq: "weekly" },
   { path: "/data-retention", priority: "0.5", changefreq: "monthly" },
   { path: "/wcag-2-2", priority: "0.5", changefreq: "monthly" },
 ];

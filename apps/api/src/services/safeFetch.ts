@@ -89,9 +89,19 @@ function passHeadersOf(h: http.IncomingHttpHeaders): Record<string, string> {
 
 export class SafeFetchError extends Error {
   readonly code: SafeFetchErrorCode;
-  constructor(code: SafeFetchErrorCode, message: string) {
+  /**
+   * True when a private address was reached by LOOKING UP A NAME, as opposed
+   * to being written in the URL. The caller already knows a literal address
+   * they typed is private; what a name resolves to is knowledge held by this
+   * server's resolver, and the reply must not give it away (see
+   * sendSafeFetchError — such an error is answered exactly like a name that
+   * does not exist).
+   */
+  readonly viaLookup: boolean;
+  constructor(code: SafeFetchErrorCode, message: string, opts: { viaLookup?: boolean } = {}) {
     super(message);
     this.code = code;
+    this.viaLookup = opts.viaLookup === true;
   }
 }
 
@@ -105,6 +115,10 @@ export type SafeFetchErrorCode =
   | "timeout"
   | "network_error"
   | "oversized"
+  // A hop's website has reached the hourly ceiling for fetches to any one
+  // site (services/urlAnyHostGate.ts) — thrown by the validator the URL
+  // pipeline passes in, never by safeFetch itself.
+  | "target_limit"
   // The caller's AbortSignal fired (the client that asked for this fetch has
   // disconnected) — nobody is left to receive the result.
   | "aborted";
@@ -329,6 +343,7 @@ export async function resolvePublicIp(rawHostname: string): Promise<string> {
         "private_ip",
         `'${hostname}' resolves to private/reserved IP '${r?.address ?? "?"}'. ` +
           `This is blocked to prevent SSRF.`,
+        { viaLookup: true },
       );
     }
   }
