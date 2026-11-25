@@ -397,3 +397,36 @@ describe.skipIf(!hasBash || !hasGit)("rebuild.sh rehearsal (stand-in pm2 / pnpm 
     expect(head()).toBe(v2);
   }, 60_000);
 });
+
+// Added 2026-11-25 (user request): the smoke checks said the site answered,
+// never which version answered.
+describe("rebuild.sh — the smoke checks name the version that is live", () => {
+  it("compares the live /status version with this checkout's and fails the smoke run on a mismatch", () => {
+    expect(script).toContain("✓ app version -> v${_live_version}");
+    expect(script).toMatch(/\[ "\$_live_version" = "\$_repo_version" \]/);
+    const block = script.slice(script.indexOf("# Which version is live"));
+    expect(block.slice(0, block.indexOf("✓ Deployed"))).toContain("_smoke_failed=1");
+    expect(script).toContain('echo "  Version now live: v${_live_version}"');
+  });
+
+  it("the two extractions read the version out of real input", () => {
+    const live = execFileSync(
+      "bash",
+      [
+        "-c",
+        `printf '%s' '{"status":"ok","version":"9.8.7","engines":{"verapdf":{"ok":true,"version":"1.30.1"}}}' | grep -o '"version":"[^"]*"' | head -n 1 | cut -d'"' -f4`,
+      ],
+      { encoding: "utf8" },
+    ).trim();
+    expect(live).toBe("9.8.7");
+    const repo = execFileSync(
+      "bash",
+      ["-c", `grep -m 1 '"version"' package.json | cut -d'"' -f4`],
+      {
+        cwd: root,
+        encoding: "utf8",
+      },
+    ).trim();
+    expect(repo).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});

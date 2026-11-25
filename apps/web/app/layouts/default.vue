@@ -33,11 +33,21 @@
             class="cursor-pointer hover:text-[var(--text-secondary)] transition-colors"
             @click.prevent="goAnalyze"
           >
-            <!-- Brand mark: a square of the brand blue. Decoration only. -->
-            <span
+            <!-- Brand mark: a globe in the brand blue — accessibility is for
+                 everyone, everywhere (user request, 2026-11-25; it was a plain
+                 square). Decoration only. -->
+            <svg
               aria-hidden="true"
-              class="inline-block w-3.5 h-3.5 mr-2 bg-[var(--brand)] align-[-0.08em]"
-            />{{ config.public.appName }}
+              data-testid="brand-mark"
+              viewBox="0 0 24 24"
+              class="inline-block w-5 h-5 mr-2 align-[-0.2em]"
+            >
+              <circle cx="12" cy="12" r="11" fill="var(--brand)" />
+              <g fill="none" stroke="var(--brand-ink)" stroke-width="1.5">
+                <ellipse cx="12" cy="12" rx="4.6" ry="11" />
+                <path d="M1 12h22M2.9 6.5h18.2M2.9 17.5h18.2" />
+              </g></svg
+            >{{ config.public.appName }}
           </a>
         </h1>
         <!-- max-md:contents: on a narrow screen this group dissolves, so its

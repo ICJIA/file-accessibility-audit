@@ -1417,8 +1417,31 @@ else
   _smoke_failed=1
 fi
 
+# ---------------------------------------------------------------------
+# Which version is live (added 2026-11-25).
+#
+# Everything above says the site ANSWERS; none of it says WHAT answered.
+# The version the public site reports (/status?format=json, read above)
+# is compared with the one in this checkout's package.json. A mismatch
+# means the processes are still serving an older build — a restart that
+# did not take, or a second copy of the app answering on the port.
+# ---------------------------------------------------------------------
+_live_version=$(printf '%s' "$_status_json" | grep -o '"version":"[^"]*"' | head -n 1 | cut -d'"' -f4 || true)
+_repo_version=$(grep -m 1 '"version"' package.json 2>/dev/null | cut -d'"' -f4 || true)
+if [ -n "$_live_version" ] && [ "$_live_version" = "$_repo_version" ]; then
+  echo "  ✓ app version -> v${_live_version} (the live site matches this checkout)"
+else
+  echo "  ✗ app version -> live: ${_live_version:-not reported}, this checkout: ${_repo_version:-unknown}"
+  echo "    The site is answering, but not with the version just built. Check"
+  echo "    'pm2 list' for a stale or duplicate process, then run ./rebuild.sh again."
+  _smoke_failed=1
+fi
+
 echo ""
 echo "✓ Deployed: the API and the web app both answer their local health checks."
+if [ -n "$_live_version" ]; then
+  echo "  Version now live: v${_live_version}"
+fi
 if [ -n "$_predeploy_snapshot" ]; then
   echo "  Pre-restart database snapshot: $_predeploy_snapshot"
 fi

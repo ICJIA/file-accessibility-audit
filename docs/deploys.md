@@ -33,7 +33,7 @@ site is served from. In order:
 | Database snapshot | `scripts/backup-db.sh` into `backups/pre-deploy/` (newest 3 kept) | Stops. No restart without a snapshot unless `REBUILD_SKIP_DB_SNAPSHOT=1`. |
 | PM2 restart | `pm2 restart ecosystem.config.cjs --update-env` (re-registers if the start command changed) | Stops; state uncertain; the banner names the snapshot. |
 | Health gate | `http://127.0.0.1:5103/api/health` and `http://127.0.0.1:5102/healthz` must each answer 200 within 90 s | **Automatic rollback** — next section. |
-| Smoke checks | Public URL, `/status`, `robots.txt`, veraPDF | Warnings only. The deploy has succeeded. |
+| Smoke checks | Public URL, `/status`, `robots.txt`, veraPDF, and that the version the live site reports matches this checkout (printed as `✓ app version -> vX.Y.Z`) | Warnings only. The deploy has succeeded. |
 
 Every run writes its full output to `~/deploy-logs/rebuild-<time>.log` (the
 newest 30 are kept).
