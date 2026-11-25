@@ -16,9 +16,7 @@
         class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-3 gap-y-2 border-t-2 border-[var(--border-alt)] pt-3 pb-4"
         :aria-label="rowLabel(cat)"
       >
-        <span
-          class="order-1 text-sm font-bold"
-          :class="isFlagged(cat) ? 'text-[var(--text-heading)]' : 'text-[var(--text-muted)]'"
+        <span class="order-1 text-sm font-bold text-[var(--text-heading)]"
           >{{ cat.label
           }}<a
             v-if="stepRanks?.[cat.id]"
@@ -31,7 +29,7 @@
           <div
             data-testid="bar-fill"
             class="h-2.5"
-            :class="isFlagged(cat) ? '' : 'bg-[var(--border-hover)]'"
+            :class="isFlagged(cat) ? '' : 'bg-[var(--sev-pass)]'"
             :style="
               isFlagged(cat)
                 ? { width: `${cat.score}%`, backgroundColor: sevColor(cat.severity!) }
@@ -40,8 +38,7 @@
           />
         </div>
         <span
-          class="order-3 text-right text-sm font-bold before:content-['·'] before:mr-2"
-          :class="isFlagged(cat) ? 'text-[var(--text-heading)]' : 'text-[var(--text-muted)]'"
+          class="order-3 text-right text-sm font-bold text-[var(--text-heading)] before:content-['·'] before:mr-2"
           aria-hidden="true"
           >{{ cat.score }}</span
         >
@@ -74,7 +71,7 @@
           ><span
             v-if="cat.severity"
             class="inline-block py-0.5 text-sm font-bold"
-            :class="isFlagged(cat) ? '' : 'text-[var(--text-muted)]'"
+            :class="isFlagged(cat) ? '' : 'text-[var(--sev-pass)]'"
             :style="isFlagged(cat) ? { color: sevColor(cat.severity) } : {}"
             >{{ cat.severity }}</span
           ></span
@@ -144,7 +141,9 @@ const ordered = computed(() =>
 
 // A category with a Critical, Moderate or Minor finding draws its bar and its
 // status in that severity's colour; one with nothing to fix draws them in the
-// page's own ink — so colour on this chart always means "look here".
+// pass green (--sev-pass, measured for both themes). They were grey for a few
+// hours of 2026-11-25 and read as "not scored" (user report) — grey is now
+// kept for the categories that really are not scored, listed under the bars.
 function isFlagged(cat: BarCategory): boolean {
   return cat.severity === "Critical" || cat.severity === "Moderate" || cat.severity === "Minor";
 }
