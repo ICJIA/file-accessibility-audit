@@ -40,13 +40,17 @@
               aria-hidden="true"
               data-testid="brand-mark"
               viewBox="0 0 24 24"
-              class="inline-block w-5 h-5 mr-2 align-[-0.2em]"
+              fill="none"
+              stroke="var(--ui-primary)"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              class="inline-block w-6 h-6 mr-2 align-[-0.28em]"
             >
-              <circle cx="12" cy="12" r="11" fill="var(--brand)" />
-              <g fill="none" stroke="var(--brand-ink)" stroke-width="1.5">
-                <ellipse cx="12" cy="12" rx="4.6" ry="11" />
-                <path d="M1 12h22M2.9 6.5h18.2M2.9 17.5h18.2" />
-              </g></svg
+              <!-- An outline globe: the first one was a filled disc with a
+                   narrow meridian and read as squashed (user, 2026-11-25). -->
+              <circle cx="12" cy="12" r="10" />
+              <ellipse cx="12" cy="12" rx="4.2" ry="10" />
+              <path d="M2 12h20M3.6 7h16.8M3.6 17h16.8" /></svg
             >{{ config.public.appName }}
           </a>
         </h1>
