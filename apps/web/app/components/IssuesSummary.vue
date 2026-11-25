@@ -193,8 +193,8 @@ function toggle(id: string) {
   color: rgb(253, 224, 71);
 }
 .sev.sev-minor {
-  background: rgba(59, 130, 246, 0.12);
-  color: rgb(147, 197, 253);
+  background: rgba(254, 240, 138, 0.1);
+  color: rgb(254, 240, 138);
 }
 .name {
   color: var(--text-secondary);

@@ -1,5 +1,31 @@
-import { computed } from "vue";
+import { computed, getCurrentInstance, onMounted, ref } from "vue";
 import { gradeColorFor, severityColorFor, withAlpha, type ColorScheme } from "@file-audit/shared";
+import { BRANDING } from "../../../../audit.config";
+
+/**
+ * Which palette the FIRST render uses, pulled out so it can be tested.
+ *
+ * The server cannot know a visitor's saved theme: it always renders with the
+ * site default. These colours are written as inline styles, and Vue does not
+ * repair an inline style that differs at hydration — so a visitor whose saved
+ * theme is not the default kept the server's palette on the other background
+ * for as long as the page stayed open. Measured 2026-11-25 on a
+ * server-rendered report: the light palette on the dark page, and (the case
+ * production has, default dark) Moderate #eab308 on white at 1.9:1.
+ *
+ * So a hydrating render repeats what the server drew, and the real theme is
+ * applied once the component has mounted, as an ordinary update Vue does
+ * patch. A client-side navigation is not hydrating and uses the real theme
+ * from its first frame.
+ */
+export function schemeFor(
+  mode: string,
+  hydrating: boolean,
+  serverDefault: ColorScheme,
+): ColorScheme {
+  if (hydrating) return serverDefault;
+  return mode === "light" ? "light" : "dark";
+}
 
 /**
  * Grade and severity colours bound to the active theme.
@@ -20,7 +46,17 @@ import { gradeColorFor, severityColorFor, withAlpha, type ColorScheme } from "@f
  */
 export function useTokenColors() {
   const mode = useColorMode();
-  const scheme = computed<ColorScheme>(() => (mode.value === "light" ? "light" : "dark"));
+  const hydrating = ref(import.meta.client && !!useNuxtApp().isHydrating);
+  if (hydrating.value && getCurrentInstance()) {
+    onMounted(() => {
+      hydrating.value = false;
+    });
+  } else {
+    hydrating.value = false;
+  }
+  const scheme = computed<ColorScheme>(() =>
+    schemeFor(mode.value, hydrating.value, BRANDING.DEFAULT_COLOR_MODE),
+  );
 
   return {
     gradeColor: (grade: string | null | undefined) => gradeColorFor(grade, scheme.value),

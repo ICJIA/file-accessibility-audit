@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "severity-colours-start-over-2026-11-25",
+    badge: "Improved",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "Report colors now read like a traffic light: red for critical, yellow for moderate and minor, green for nothing to fix. A Start over button sits above every report.",
+    text: "Report colors now read like a traffic light. Critical issues are red, moderate issues are gold, minor issues are a paler yellow, and a category with nothing to fix is green. Minor issues used to be blue, which did not fit the pattern. A Start over button now sits above every report, so there is a clear way to go back and check another file. We also fixed a display problem for people who use the light theme: on shared reports and the sample report, some colors were hard to read against the white background. Also new today: the summary you can copy into an AI assistant lists every issue in the report, not only the most serious ones, and says what passed and what this tool could not check.",
+    linkText: "See a sample report",
+    linkTo: "/sample-report",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 25, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "ai-text-every-issue-2026-11-25",
     badge: "Improved",
     /** What the landing-page banner shows — two sentences at most, see THE

@@ -51,7 +51,8 @@ describe("@file-audit/shared scoring constants", () => {
   it("severity colors cover both UI labels and API labels", () => {
     expect(SEVERITY_COLORS.Pass).toBe("#22c55e");
     expect(SEVERITY_COLORS["No issues found"]).toBe("#22c55e");
-    expect(SEVERITY_COLORS.Minor).toBe("#3b82f6");
+    // Red / yellow / green since 2026-11-25: Minor is a pale yellow, not blue.
+    expect(SEVERITY_COLORS.Minor).toBe("#fef08a");
     expect(SEVERITY_COLORS.Moderate).toBe("#eab308");
     expect(SEVERITY_COLORS.Critical).toBe("#ef4444");
   });

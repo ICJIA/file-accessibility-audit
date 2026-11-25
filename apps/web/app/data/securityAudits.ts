@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.178.3",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation only — one severity colour in both palettes, one button on the results page, and when theme-bound colours are chosen during hydration.",
+    body: [
+      {
+        kind: "p",
+        html: "This release changes some colours and adds a button. Minor issues are now shown in pale yellow instead of blue, so the colours read like a traffic light: red, yellow, green. A Start over button now sits above each report. We also fixed a display problem: if you use the light theme, some colours on shared reports were hard to read against the white background; they are now drawn in colours made for that theme. Nothing about what the tool does with your file changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.178.2",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation and one client-side export — the AI-assistant text builder, the rule that shows its panel, one colour in the category bars.",
     body: [

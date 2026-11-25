@@ -67,7 +67,7 @@
             <span aria-hidden="true" class="ml-1">↓</span></a
           >
           <!-- The host's controls: the view switch and, on the results page,
-               Reset and Export. -->
+               Export. -->
           <slot name="actions" />
         </div>
       </div>

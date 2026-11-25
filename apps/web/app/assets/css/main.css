@@ -132,15 +132,17 @@
   --grade-f: #ef4444;
 
   --sev-pass: #22c55e;
-  /* -400, not -500, for these two. Each severity pill draws its label on an 8%
+  /* Critical is red-400, not -500. Each severity pill draws its label on an 8%
      wash of its own colour, and measured against that composited surface (not
-     the page) blue-500 came to 4.45 and red-500 to 4.48 — both under 4.5, and
-     both only visible once the Scoring Rubric modal is actually open, which no
-     page-level contrast sweep can do. -400 takes them to 6.24 and 5.89.
+     the page) red-500 came to 4.48 — under 4.5, and only visible once the
+     Scoring Rubric modal is actually open, which no page-level contrast sweep
+     can do. -400 takes it to 5.89. Minor was blue until 2026-11-25; it is now
+     a pale yellow (12.8:1 on its own wash) so the severities read red /
+     yellow / green.
      These four variables are read in exactly one place, the rubric modal in
      layouts/default.vue; SEVERITY_COLORS keeps the -500 hexes for the report
      exports, whose background is always white. */
-  --sev-minor: #60a5fa;
+  --sev-minor: #fef08a;
   --sev-moderate: #eab308;
   --sev-critical: #f87171;
 }
@@ -168,7 +170,7 @@ html.light {
   --grade-f: #b91c1c;
 
   --sev-pass: #15803d;
-  --sev-minor: #1d4ed8;
+  --sev-minor: #6b6000;
   --sev-moderate: #946005;
   --sev-critical: #b91c1c;
 

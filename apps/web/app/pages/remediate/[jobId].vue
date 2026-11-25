@@ -972,7 +972,7 @@ function labelForEvent(name: string): string {
                         :class="{
                           'bg-red-500/15 text-red-400': o.severity === 'Critical',
                           'bg-amber-500/15 text-amber-400': o.severity === 'Moderate',
-                          'bg-blue-500/15 text-blue-400': o.severity === 'Minor',
+                          'bg-yellow-200/15 text-amber-200': o.severity === 'Minor',
                         }"
                       >
                         {{ o.severity }}

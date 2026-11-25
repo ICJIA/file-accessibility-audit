@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.178.3] - 2026-11-25
+
+### Changed
+
+- **Severity colours read red, yellow, green; a Start over button above the report; theme colours correct on server-rendered reports.** Minor is no longer blue. The severities now read as a traffic light: Critical red, Moderate gold, Minor a paler yellow, nothing to fix green — on the category bars, the fix-list numerals, the severity counts and the scoring rubric (dark theme `#fef08a`; light theme `#6b6000`, 6.37:1 on white). A "Start over — check another file" button now sits above every report on the results page, in both views; it replaces the small Reset button that sat among the hero's controls. Fixed, found while checking the new colour in a real browser: on a server-rendered report (the sample report, every shared report) a visitor whose saved theme was not the site default kept the OTHER theme's severity and grade colours for as long as the page stayed open, because they are inline styles and Vue does not repair an inline style that differs at hydration. On production that meant a visitor in light mode saw the dark palette on white — Moderate at 1.9:1. The same cause left the theme switch showing the wrong icon and label for those visitors. The first render now repeats what the server drew and the visitor's theme is applied on mount; verified with the default and the saved theme set opposite ways, no hydration warning. No scoring changed.
+
+### Notes
+
+- Tests 5,510 across 309 files (API 2,878 · Web 2,460 · CLI 172).
+
 ## [1.178.2] - 2026-11-25
 
 ### Fixed

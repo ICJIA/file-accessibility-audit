@@ -186,6 +186,18 @@
           @dismiss="dismissComparison"
         />
 
+        <!-- The way back, first thing above the report (user request,
+             2026-11-25): the only Reset was a small button among the hero's
+             controls, and a reader who wanted to check another file went to
+             the site title instead. Outside the exported subtree. -->
+        <div class="mb-6">
+          <button type="button" class="pk-btn" data-testid="start-over" @click="clearResults">
+            <span aria-hidden="true" class="mr-2">←</span>Start over<span class="hidden sm:inline"
+              >&nbsp;— check another file</span
+            >
+          </button>
+        </div>
+
         <!-- Report content — the exact subtree the HTML export snapshots, so
              the download is identical to the live results. Interactive-only
              controls inside are marked data-export-exclude. -->
@@ -227,7 +239,8 @@
                 class="mb-6"
               />
             </template>
-            <!-- The view switch, Reset and Export, in the hero. data-export-exclude:
+            <!-- The view switch and Export, in the hero (Start over is above the
+                 report). data-export-exclude:
                  controls have no place in a downloaded report. -->
             <template #actions>
               <div class="flex flex-wrap items-center gap-3" data-export-exclude>
@@ -236,7 +249,6 @@
                   :model-value="viewMode"
                   @update:model-value="switchView"
                 />
-                <button type="button" class="pk-btn" @click="clearResults">Reset</button>
                 <button type="button" class="pk-btn pk-btn-brand" @click="scrollToExport">
                   Export Results
                 </button>

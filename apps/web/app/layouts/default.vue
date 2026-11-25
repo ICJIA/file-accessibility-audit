@@ -176,13 +176,11 @@
             <button
               type="button"
               class="p-3 bg-[var(--text-heading)] text-[var(--surface-body)] hover:opacity-80 transition-opacity cursor-pointer"
-              :aria-label="
-                colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-              "
+              :aria-label="shownScheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
               @click="toggleColorMode"
             >
               <svg
-                v-if="colorMode.value === 'dark'"
+                v-if="shownScheme === 'dark'"
                 class="w-4 h-4"
                 aria-hidden="true"
                 fill="none"
@@ -655,6 +653,11 @@ const route = useRoute();
 const goAnalyze = inject<() => void>("goAnalyze");
 
 const colorMode = useColorMode();
+// What the theme switch SHOWS (its icon and label). On a hydrating render this
+// is the server's default, then the visitor's saved theme once mounted — read
+// straight from colorMode it mismatched at hydration and left a visitor on
+// the non-default theme with the wrong icon and label (2026-11-25).
+const { scheme: shownScheme } = useTokenColors();
 
 // The narrow-screen menu. Closed by default; closes again whenever the page
 // changes, so it is never left open over the page a link just opened.

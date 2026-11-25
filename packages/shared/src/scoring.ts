@@ -307,7 +307,10 @@ export const SEVERITY_COLORS: Record<string, string> = {
   "No issues found": "#22c55e",
   // Same green: nothing was counted against the document in either case.
   "No scored issues": "#22c55e",
-  Minor: "#3b82f6",
+  // Red / yellow / green (user decision, 2026-11-25): Minor was blue, which
+  // sat outside the traffic-light reading of every other severity. It is now
+  // a pale yellow beside Moderate's gold — the same family, a lighter step.
+  Minor: "#fef08a",
   Moderate: "#eab308",
   Critical: "#ef4444",
 };
@@ -353,7 +356,9 @@ export const SEVERITY_COLORS_LIGHT: Record<string, string> = {
   Pass: "#15803d",
   "No issues found": "#15803d",
   "No scored issues": "#15803d",
-  Minor: "#1d4ed8",
+  // Olive yellow: the lightest yellow that still clears 4.5:1 as text on
+  // white (6.37), the body surface and its own 8% wash.
+  Minor: "#6b6000",
   Moderate: "#946005",
   Critical: "#b91c1c",
 };

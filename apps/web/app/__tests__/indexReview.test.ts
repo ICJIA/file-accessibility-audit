@@ -284,6 +284,25 @@ describe("index.vue — AI analysis panel (finding 7)", () => {
     wrapper.unmount();
   });
 
+  // User request, 2026-11-25: a clear way back above the report.
+  it("puts a Start over button above the report, and it returns to the upload page", async () => {
+    const wrapper = mountIndex();
+    await analyzeSingle(wrapper, report({ categories: [minorCat] }));
+    const btn = wrapper.find('[data-testid="start-over"]');
+    expect(btn.exists()).toBe(true);
+    expect(btn.text()).toContain("Start over");
+    // Above the report, and outside what an export snapshots.
+    const html = wrapper.html();
+    expect(html.indexOf('data-testid="start-over"')).toBeLessThan(
+      html.indexOf("data-report-content"),
+    );
+    expect(btn.element.closest("[data-report-content]")).toBeNull();
+    await btn.trigger("click");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-report-content]").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it("stays hidden when no category lost points", async () => {
     const wrapper = mountIndex();
     await analyzeSingle(
