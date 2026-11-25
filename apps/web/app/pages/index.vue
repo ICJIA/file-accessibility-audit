@@ -794,7 +794,7 @@
           <DropZone class="flex-1" @file-selected="analyzeFile" @files-selected="analyzeBatch" />
 
           <!-- The same audit, for a document that is already on the web. -->
-          <UrlAuditForm @submit="analyzeUrl" />
+          <UrlAuditForm :pending="pendingLink" @submit="analyzeUrl" />
         </div>
       </section>
 
@@ -1018,7 +1018,7 @@ import {
   savePreviousResult,
 } from "~/utils/comparePrevious";
 import { clearBatchSession, readBatchSession, saveBatchSession } from "~/utils/batchSession";
-import { describeUrlAuditError } from "~/utils/urlAudit";
+import { describeUrlAuditError, isApprovedHost } from "~/utils/urlAudit";
 import { ANALYZE_JOB, SHARED_REPORTS } from "../../../../audit.config";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
@@ -1560,8 +1560,18 @@ async function analyzeUrl(url: string) {
   }
 }
 
+// A `?prefill=` link starts by itself only for a host on the approved list
+// (the fleet tool's links). For any other site the address is put in the
+// field and waits for the button: since v1.180.0 the server will fetch from
+// any public host, and a link on someone else's page must not be able to
+// spend a visitor's hourly budget, or aim this server at a third site, just
+// by being followed (red-team review 2026-11-25).
+const pendingLink = ref("");
 usePrefill({
-  onUrl: analyzeUrl,
+  onUrl(url) {
+    if (isApprovedHost(url)) return analyzeUrl(url);
+    pendingLink.value = url;
+  },
   onError(err) {
     // Normalised like every other failure, so the alert always has a message.
     analysisError.value = describeAnalysisError({ data: err });

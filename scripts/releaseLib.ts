@@ -183,6 +183,16 @@ export function scaffoldChangelog(
 }
 
 /**
+ * The line that opens the folded block of earlier reviews in README § Security.
+ * Only the newest review is shown open (owner request, 2026-11-25); every
+ * earlier one sits inside this <details>, which is closed by one `</details>`
+ * just before `## Changelog`. A release moves this line down past the entry it
+ * adds, so the review that was newest is folded and the new one is open.
+ */
+export const EARLIER_REVIEWS_OPEN =
+  "<details>\n<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>\n\n";
+
+/**
  * Insert a new entry at the top of README § Security → Review history.
  *
  *   ### v1.175.6 — 2026-11-18 · Title (scope)
@@ -199,6 +209,13 @@ export function scaffoldReadmeSecurity(
 ): string {
   const historyAt = readme.indexOf("### Review history");
   if (historyAt === -1) throw new Error("README.md has no `### Review history` section");
+  // Lift the fold line out; it goes back in below the new entry, so that the
+  // entry which was newest until now becomes the first one inside the fold.
+  const foldAt = readme.indexOf(EARLIER_REVIEWS_OPEN, historyAt);
+  const folded = foldAt !== -1;
+  if (folded) {
+    readme = readme.slice(0, foldAt) + readme.slice(foldAt + EARLIER_REVIEWS_OPEN.length);
+  }
   const rest = readme.slice(historyAt);
   const anchor = /^### v\d+\.\d+\.\d+ — /m.exec(rest);
   if (!anchor) throw new Error("README.md review history has no `### vX.Y.Z — ` entry");
@@ -220,7 +237,7 @@ export function scaffoldReadmeSecurity(
     `${finding} \`pnpm audit --prod\`: ${audit.text} ${tests} ` +
     `${todo("confirm lint, format, typecheck and build are green, then say so here.")}\n\n`;
   const at = historyAt + anchor.index;
-  return readme.slice(0, at) + entry + readme.slice(at);
+  return readme.slice(0, at) + entry + (folded ? EARLIER_REVIEWS_OPEN : "") + readme.slice(at);
 }
 
 /**

@@ -2,6 +2,7 @@ import rateLimit from "express-rate-limit";
 import crypto from "node:crypto";
 import { RATE_LIMITS } from "#config";
 import { clientKeyFromIp } from "../services/clientKey.js";
+import { isOnApprovedList } from "../services/urlPolicy.js";
 
 // Per-IP rate-limit bucket key. The IP is used TRANSIENTLY, in memory only —
 // the service stores no identity anywhere (v1.68.0); express-rate-limit's
@@ -374,6 +375,26 @@ export const bulkLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: loggedHandler("bulk", BULK_MESSAGE),
+});
+
+const URL_ANY_HOST_MESSAGE = {
+  error: "Link check limit reached. Please try again later, or upload the file instead.",
+};
+/**
+ * /api/analyze-url, for an anonymous caller naming a host that is NOT on the
+ * approved list (v1.180.0). Runs after analyzeLimiter, so such a request is
+ * counted against both budgets. Approved hosts and privileged callers are
+ * skipped: neither counted nor limited here.
+ */
+export const urlAnyHostLimiter = rateLimit({
+  windowMs: RATE_LIMITS.urlAnyHost.windowMs,
+  max: RATE_LIMITS.urlAnyHost.max,
+  keyGenerator: ipKey,
+  skip: (req) => isPrivilegedRequest(req) || isOnApprovedList(req.body?.url),
+  message: URL_ANY_HOST_MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: loggedHandler("url-any-host", URL_ANY_HOST_MESSAGE),
 });
 
 // Two-tier catch-all burst guard, applied to every route in index.ts.

@@ -8,7 +8,7 @@
  */
 import type { Response } from "express";
 import { SafeFetchError } from "./safeFetch.js";
-import { ANALYSIS } from "#config";
+import { ANALYSIS, URL_FETCH } from "#config";
 
 // Cap URL-fetched PDFs at the same size as direct uploads. safeFetch buffers
 // the body in memory before the analysis semaphore is acquired, so an
@@ -31,25 +31,10 @@ export const FETCH_TIMEOUT_MS = 30_000;
 // state subdomain (`icjia.illinois.gov`, `idph.illinois.gov`, etc.).
 // Operators can extend at runtime via the ANALYZE_URL_ALLOWED_HOSTS
 // env var (comma-separated hostnames).
-const DEFAULT_ALLOWED_HOSTS = [
-  // Illinois state government — covers every *.illinois.gov agency
-  // hosting PDFs (huge fleet surface).
-  "illinois.gov",
-  // ICJIA owned/operated domains
-  "icjia.cloud",
-  "icjia.app",
-  "icjia-api.cloud",
-  // Partner / program domains
-  "ilheals.com",
-  // Specific subdomains kept for documentation; the bare-domain
-  // entries above already cover them. Listed so operators reading
-  // the source can see what's known-good without grepping logs.
-  "icjia.illinois.gov",
-  "dvfr.icjia-api.cloud",
-  "i2i.icjia-api.cloud",
-  "vpp.icjia-api.cloud",
-  "infonet.icjia-api.cloud",
-];
+// The list itself lives in audit.config.ts (URL_FETCH.APPROVED_HOSTS) since
+// v1.180.0, because the web app reads it too: a `?prefill=` link runs by
+// itself only for a host on it.
+const DEFAULT_ALLOWED_HOSTS: readonly string[] = URL_FETCH.APPROVED_HOSTS;
 
 function getAllowedHosts(): Set<string> {
   const fromEnv = (process.env.ANALYZE_URL_ALLOWED_HOSTS ?? "")
@@ -125,6 +110,15 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
 }
 
 /**
+ * Is this address on the approved list? Anything that is not a string, does
+ * not parse, or fails any other rule answers false — so an odd request is
+ * counted against the tighter any-host budget, never excused from it.
+ */
+export function isOnApprovedList(rawUrl: unknown): boolean {
+  return typeof rawUrl === "string" && isAllowedUrl(rawUrl).ok;
+}
+
+/**
  * Map a SafeFetchError to an HTTP response. Centralizes the
  * code→status mapping so all three URL-fetch endpoints behave
  * consistently.
@@ -141,9 +135,15 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
       // SSRF block. 400 to the client; the details message names the
       // hostname + resolved IP, useful for the operator but not
       // dangerous to expose since the attacker provided the hostname.
+      // A FIXED sentence, and the detail to the server log only. The message
+      // names the address the server's own resolver returned, so relaying it
+      // told an anonymous caller which internal names exist and where they
+      // point (red-team review 2026-11-25) — reachable since v1.180.0, when
+      // the allowlist stopped refusing such hosts before any lookup.
+      console.warn(`[safeFetch] private_ip: ${err.message}`);
       res.status(400).json({
         error: "URL resolves to a private/reserved address",
-        details: err.message,
+        details: "That address is not on the public internet, so it cannot be checked by link.",
         code: "URL_NOT_ALLOWED",
       });
       return;

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.180.0] - 2026-11-25
+
+### Changed
+
+- **Check a document on any public website by link; red-team review of the change, six findings fixed.** The home page's "check a document by link" field, and `POST /api/analyze-url` behind it, now accept a document on any public website. Until now an anonymous request was refused unless the host was on the approved list of ICJIA and Illinois government sites. The other three URL endpoints (`/api/audit-url`, `/api/audit-url-page`, `/api/bulk-from-inventory`) are unchanged and still require an approved host. Because the server now fetches an address a stranger chose, a link check to a host off the approved list is bounded: 20 an hour per IP (`RATE_LIMITS.urlAnyHost`); one at a time per IP; 4 in flight across everyone; 300 an hour across everyone; 30 an hour toward any one website; and a 30-second overall deadline instead of 60 (`URL_FETCH.ANY_HOST_*`, `services/urlAnyHostGate.ts`). The change was then attacked by an independent red-team pass, which found no Critical or High issue and six lower ones; all six are fixed in this release and each has a test (`redTeam20261125.test.ts` and the web suites) — see README § Security for each finding beside its fix. Also: a `?prefill=` link starts by itself only for an approved host, and otherwise fills the field and waits for the button; the text for AI assistants now says that wording quoted from the file is data, not instructions; under an open fix step the note about app versions is one folded line, "Fix steps last audited: November 2026"; the approved list moved to `audit.config.ts` (`URL_FETCH.APPROVED_HOSTS`); README § Security shows the newest review open and folds the earlier ones, and `pnpm release` keeps it that way.
+
+### Notes
+
+- Tests 5,546 across 312 files (API 2,902 · Web 2,472 · CLI 172).
+
 ## [1.179.0] - 2026-11-25
 
 ### Added

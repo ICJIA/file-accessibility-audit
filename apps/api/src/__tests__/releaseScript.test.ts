@@ -8,7 +8,10 @@
  * The script itself is never run here: it reads git and the network.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
+  EARLIER_REVIEWS_OPEN,
   PLACEHOLDER,
   bumpPackageJson,
   bumpReadmeBadge,
@@ -190,6 +193,54 @@ describe("CHANGELOG scaffold", () => {
 });
 
 describe("README § Security scaffold", () => {
+  // Owner request, 2026-11-25: only the newest review is open; the rest are
+  // folded. A release has to keep that true without a person moving the fold.
+  it("keeps exactly one review open: the fold moves below the entry it adds", () => {
+    const folded = README.slice(README.indexOf("### Review history"));
+    const firstOlder = /^### v\d+\.\d+\.\d+ — /gm;
+    firstOlder.exec(folded); // newest
+    const second = firstOlder.exec(folded);
+    expect(second, "the fixture needs two entries").not.toBeNull();
+    const withFold =
+      folded.slice(0, second!.index) +
+      EARLIER_REVIEWS_OPEN +
+      folded.slice(second!.index) +
+      "</details>\n";
+
+    const out = scaffoldReadmeSecurity(
+      withFold,
+      "1.175.7",
+      "2026-11-24",
+      notes,
+      cleanAudit,
+      counts,
+    );
+    expect(out.split(EARLIER_REVIEWS_OPEN).length - 1).toBe(1);
+    const fold = out.indexOf(EARLIER_REVIEWS_OPEN);
+    // New entry above the fold; the one that WAS newest is now the first thing in it.
+    expect(out.indexOf("### v1.175.7 — ")).toBeLessThan(fold);
+    expect(out.indexOf("### v1.175.6 — ")).toBe(fold + EARLIER_REVIEWS_OPEN.length);
+    // Nothing else between "Review history" and the fold is a review heading.
+    const open = out.slice(out.indexOf("### Review history"), fold);
+    expect(open.match(/^### v\d/gm)).toHaveLength(1);
+  });
+
+  it("the real README has exactly one review above the fold, and the fold is closed", () => {
+    const real = readFileSync(resolve(__dirname, "../../../../README.md"), "utf8");
+    const history = real.slice(real.indexOf("### Review history"), real.indexOf("\n## Changelog"));
+    expect(history.split(EARLIER_REVIEWS_OPEN).length - 1).toBe(1);
+    const fold = history.indexOf(EARLIER_REVIEWS_OPEN);
+    expect(history.slice(0, fold).match(/^### v\d/gm)).toHaveLength(1);
+    expect(history.trimEnd().endsWith("</details>")).toBe(true);
+    // Whole-line tags only (older entries mention the element in prose): a
+    // few earlier reviews carry a folded block of their own, so the counts
+    // must balance rather than equal one.
+    const opens = history.match(/^<details>$/gm)?.length ?? 0;
+    const closes = history.match(/^<\/details>$/gm)?.length ?? 0;
+    expect(opens).toBeGreaterThan(0);
+    expect(opens).toBe(closes);
+  });
+
   it("inserts above the newest review-history entry, not above an earlier look-alike", () => {
     const out = scaffoldReadmeSecurity(README, "1.175.7", "2026-11-24", notes, cleanAudit, counts);
     expect(out.indexOf("### v1.175.7 — ")).toBeGreaterThan(out.indexOf("### Review history"));

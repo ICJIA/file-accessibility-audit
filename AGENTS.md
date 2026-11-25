@@ -294,11 +294,20 @@ generous rate tier and the URL-allowlist bypass):
 | `/api/health` | GET | Always HTTP 200 while the process is up. The body carries the SAME verdict `/status` computes, read from already-cached state: `{ status: "ok" \| "degraded", uptime, degraded?: [...], systems: [...] }` — it runs no probe of its own. Also served at `/` and `/api`. `rebuild.sh`'s health gate reads only the status code |
 | `/api/openapi.json` | GET | Machine-readable description of every route above (hand-written in `services/openapi.ts`, pinned to the real router by `openapi.test.ts`) |
 
-URL-fetching endpoints (`/analyze-url`, `/audit-url`, `/bulk-from-inventory`)
-share a host allowlist defined in
-`apps/api/src/routes/analyze-url.ts` `DEFAULT_ALLOWED_HOSTS`. The
+URL-fetching endpoints share a host allowlist ("the approved list") defined in
+`apps/api/src/services/urlPolicy.ts` `DEFAULT_ALLOWED_HOSTS`. The
 matcher accepts exact-host and any subdomain. Operators can extend
-per-deployment via `ANALYZE_URL_ALLOWED_HOSTS` env var.
+per-deployment via `ANALYZE_URL_ALLOWED_HOSTS` env var. `/audit-url`,
+`/audit-url-page` and `/bulk-from-inventory` REFUSE an anonymous caller a
+host off the list. `/analyze-url` (the home page's link field) does not,
+since v1.180.0: any public host is fetched, and an anonymous request for
+an off-list host is counted against `RATE_LIMITS.urlAnyHost` (20/hour/IP,
+`urlAnyHostLimiter`) on top of the ordinary audit budget, and admitted
+through `services/urlAnyHostGate.ts` (in flight: 4 overall, 1 per caller;
+per hour: 300 overall, 30 per target site — `URL_FETCH.ANY_HOST_*`). The
+web app starts a `?prefill=` link by itself only for an approved host. Do not open the
+other three the same way without asking: they persist reports, drive a
+browser, or fan one request out into a hundred fetches.
 
 The Nuxt tier additionally serves `/status` (service status as
 human-readable HTML or JSON; GET/HEAD, public, keyword-monitored) and

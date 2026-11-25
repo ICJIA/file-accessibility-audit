@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.180.0",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY-RELEVANT — one endpoint widened on purpose, then red-teamed; six findings, all fixed.",
+    body: [
+      {
+        kind: "p",
+        html: "You can now check a document on any public website by pasting its link; before, this worked only for Illinois government sites. Because that means our server fetches a file from an address a visitor chooses, we set limits on it and then had the change attacked by a separate reviewer before release. The review found no serious problem and six smaller ones, and all six are fixed. In plain terms: the server will only fetch a few such files at a time and a limited number per hour, in total and from any one website, so it cannot be overloaded or used to pester another site; it still refuses any address that is not on the public internet, and it no longer repeats technical details about such addresses in its error messages; a link on someone else's web page cannot make the tool start checking a file unless you press the button yourself; and the summary you can copy into an AI assistant now tells the assistant to treat words quoted from your file as information, not as instructions. A file checked by link is handled exactly like an uploaded one: it is held in memory for the check and not kept. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.179.0",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: The home page, the site header, and the deploy script's smoke checks.",
     body: [

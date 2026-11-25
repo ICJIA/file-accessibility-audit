@@ -1,15 +1,17 @@
 <template>
   <!-- "…or check a document by link." A real form: Enter submits, the field
        has a visible label, and the error is tied to the field and announced.
-       The server decides which sites may be fetched; this only catches what
-       is plainly not a web address before a request is made. -->
+       Any public https address works (v1.180.0); the server refuses private
+       addresses and limits how many link checks one visitor can run. This
+       only catches what is plainly not a web address before a request is
+       made. -->
   <form class="mt-6 text-left" data-testid="url-audit-form" novalidate @submit.prevent="submit">
     <label :for="inputId" class="block text-lg font-bold tracking-tight text-[var(--text-heading)]">
       …or check a document by link
     </label>
     <p :id="hintId" class="mt-0.5 text-xs text-[var(--text-muted)]">
-      Paste the web address of a document on an approved government site, for example an Illinois
-      state agency site. For anything else, upload the file.
+      Paste the web address of a PDF, Word, PowerPoint, or Excel file on any public website. Handy
+      on a phone, or when you have a link but not the file.
     </p>
     <div class="mt-3 flex flex-col sm:flex-row">
       <input
@@ -37,6 +39,21 @@
         Check this link
       </button>
     </div>
+    <!-- A link that arrived in the page's address (?prefill=) for a site off
+         the approved list is put in the field and NOT run: the visitor did
+         not type it, and a link on someone else's page must not be able to
+         make this server fetch from a third site on their behalf (red-team
+         review 2026-11-25). role="status": it appears on load, not in answer
+         to an action. -->
+    <p
+      v-if="pending && value === pending"
+      role="status"
+      data-testid="url-audit-pending"
+      class="mt-2 text-xs text-[var(--text-secondary)]"
+    >
+      This link came with the page you opened. If it is the document you want checked, press
+      <strong>Check this link</strong>.
+    </p>
     <!-- role="alert": appears in response to pressing the button, with no
          page change. -->
     <p
@@ -52,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, useId } from "vue";
+import { ref, useId, watch } from "vue";
 import { DOCUMENT_URL_MAX_LENGTH, validateDocumentUrl } from "~/utils/urlAudit";
 
 const emit = defineEmits<{ submit: [url: string] }>();
@@ -65,8 +82,21 @@ const errorId = `url-audit-error-${uid}`;
 // validator and gets its explanation instead of being silently cut short.
 const maxLength = DOCUMENT_URL_MAX_LENGTH + 200;
 
+const props = defineProps<{
+  /** An address to put in the field without submitting it. */
+  pending?: string;
+}>();
+
 const value = ref("");
 const error = ref("");
+
+watch(
+  () => props.pending,
+  (url) => {
+    if (url) value.value = url;
+  },
+  { immediate: true },
+);
 
 function submit() {
   const checked = validateDocumentUrl(value.value);

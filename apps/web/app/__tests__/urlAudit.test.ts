@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 /**
  * Checking a document by link (2026-11-24): the visible URL field, the
  * plain-language refusal for a site that is not approved, and the prefill
@@ -67,6 +69,24 @@ describe("validateDocumentUrl", () => {
 });
 
 describe("describeUrlAuditError", () => {
+  it("names the hourly link limit and the way round it, not 'wait a minute'", () => {
+    const out = describeUrlAuditError({
+      statusCode: 429,
+      data: {
+        error: "Link check limit reached. Please try again later, or upload the file instead.",
+      },
+    });
+    expect(out.error).toMatch(/this hour's limit/);
+    expect(out.details).toMatch(/Uploading has no such limit/);
+    expect(out.details).not.toMatch(/minute/);
+  });
+
+  it("the link field no longer says the site has to be a government one", () => {
+    const form = readFileSync(resolve(__dirname, "../components/UrlAuditForm.vue"), "utf8");
+    expect(form).toContain("on any public website");
+    expect(form).not.toMatch(/approved government site/);
+  });
+
   it("explains a host that is not approved, and that uploading always works", () => {
     // The API's real body (services/urlPolicy.ts).
     const out = describeUrlAuditError({
@@ -77,7 +97,7 @@ describe("describeUrlAuditError", () => {
       },
     });
     expect(out).toEqual({ ...URL_HOST_NOT_APPROVED });
-    expect(out.details).toContain("Only approved government sites can be checked by link");
+    expect(out.details).toContain("Uploading the file always works");
     expect(out.details).toContain("Uploading the file always works");
     // The server's list of hosts is not echoed at the visitor.
     expect(JSON.stringify(out)).not.toContain("allowlist");
@@ -310,7 +330,7 @@ describe("index.vue — checking a document by link", () => {
     });
     await flushPromises();
     const alert = wrapper.find('[role="alert"]');
-    expect(alert.text()).toContain("Only approved government sites can be checked by link");
+    expect(alert.text()).toContain("Uploading the file always works");
     expect(alert.text()).toContain("Uploading the file always works");
     wrapper.unmount();
   });
@@ -318,7 +338,8 @@ describe("index.vue — checking a document by link", () => {
 
 describe("index.vue — ?prefill= runs once", () => {
   it("removes the param from the address and audits the link under an abortable run", async () => {
-    window.history.replaceState({}, "", "/?prefill=https%3A%2F%2Fexample.gov%2Fa.pdf&x=1");
+    // An APPROVED host: only those start by themselves (see the next test).
+    window.history.replaceState({}, "", "/?prefill=https%3A%2F%2Ficjia.illinois.gov%2Fa.pdf&x=1");
     const resetSignal = ref(0);
     const calls = deferredUrlAudit();
     const wrapper = mountIndex(resetSignal);
@@ -326,7 +347,7 @@ describe("index.vue — ?prefill= runs once", () => {
 
     expect(replace).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith({ path: "/", query: { x: "1" } });
-    expect(calls.map((c) => c.url)).toEqual(["https://example.gov/a.pdf"]);
+    expect(calls.map((c) => c.url)).toEqual(["https://icjia.illinois.gov/a.pdf"]);
 
     // Reset mid-prefill: overlay gone, request aborted, answer ignored.
     resetSignal.value++;
@@ -339,11 +360,78 @@ describe("index.vue — ?prefill= runs once", () => {
     wrapper.unmount();
   });
 
+  // Red-team review 2026-11-25: a link to any other site waits for the button.
+  it("for a site off the approved list: fills the field, sends nothing, and runs on the button", async () => {
+    window.history.replaceState({}, "", "/?prefill=https%3A%2F%2Fexample.com%2Fa.pdf");
+    const resetSignal = ref(0);
+    const calls = deferredUrlAudit();
+    const wrapper = mountIndex(resetSignal);
+    await flushPromises();
+
+    expect(replace).toHaveBeenCalledTimes(1); // the param is still removed
+    expect(calls).toHaveLength(0);
+    const input = wrapper.find('[data-testid="url-audit-input"]');
+    expect((input.element as HTMLInputElement).value).toBe("https://example.com/a.pdf");
+    expect(wrapper.find('[data-testid="url-audit-pending"]').text()).toMatch(/press/i);
+
+    await wrapper.find('[data-testid="url-audit-form"]').trigger("submit");
+    await flushPromises();
+    expect(calls.map((c) => c.url)).toEqual(["https://example.com/a.pdf"]);
+    wrapper.unmount();
+  });
+
   it("does nothing, and replaces nothing, without the param", async () => {
     deferredUrlAudit();
     const wrapper = mountIndex();
     await flushPromises();
     expect(replace).not.toHaveBeenCalled();
     wrapper.unmount();
+  });
+});
+
+// Red-team review 2026-11-25, finding 2: since v1.180.0 the server fetches
+// from any public host, so a link on someone else's page must not be able to
+// start a check just by being followed.
+describe("a prefilled link starts by itself only for an approved host", () => {
+  it("isApprovedHost matches the approved list and nothing that merely resembles it", async () => {
+    const { isApprovedHost } = await import("~/utils/urlAudit");
+    expect(isApprovedHost("https://icjia.illinois.gov/a.pdf")).toBe(true);
+    expect(isApprovedHost("https://illinois.gov/a.pdf")).toBe(true);
+    for (const url of [
+      "https://example.com/a.pdf",
+      "https://illinois.gov.example.com/a.pdf",
+      "https://notillinois.gov/a.pdf",
+      "https://illinois.gov:8443/a.pdf",
+      "ftp://illinois.gov/a.pdf",
+      "not a url",
+    ]) {
+      expect(isApprovedHost(url), url).toBe(false);
+    }
+  });
+
+  it("the page runs an approved link and only fills the field for any other", () => {
+    const index = readFileSync(resolve(__dirname, "../pages/index.vue"), "utf8");
+    expect(index).toMatch(
+      /onUrl\(url\) \{\s*if \(isApprovedHost\(url\)\) return analyzeUrl\(url\);\s*pendingLink\.value = url;/,
+    );
+    expect(index).toContain('<UrlAuditForm :pending="pendingLink" @submit="analyzeUrl" />');
+    const form = readFileSync(resolve(__dirname, "../components/UrlAuditForm.vue"), "utf8");
+    expect(form).toContain('data-testid="url-audit-pending"');
+    // Filling the field never submits it.
+    expect(form).toMatch(
+      /watch\(\s*\(\) => props\.pending,\s*\(url\) => \{\s*if \(url\) value\.value = url;\s*\},/,
+    );
+  });
+
+  it("shows the server's own sentence for the other link-check refusals", () => {
+    const out = describeUrlAuditError({
+      statusCode: 503,
+      data: {
+        error:
+          "The link checker is busy right now. Try again in a moment, or upload the file instead.",
+      },
+    });
+    expect(out.error).toBe("That link cannot be checked right now.");
+    expect(out.details).toMatch(/upload the file instead/);
   });
 });

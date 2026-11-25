@@ -26,6 +26,7 @@
  *   check.
  */
 import type { Response } from "express";
+import { URL_FETCH } from "#config";
 import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
 import { sha256Hex, recordRejectedUpload, recordAuditFailure } from "./auditLog.js";
@@ -43,6 +44,13 @@ export interface RunUrlAuditInput {
   url: string;
   /** Whether the caller presented a valid API_PRIVILEGED_TOKEN. */
   privileged: boolean;
+  /** An anonymous caller allowed any public host (v1.180.0) — only
+   *  /api/analyze-url sets it, and only for an address that is not on the
+   *  approved list (so it has already been counted by urlAnyHostLimiter).
+   *  It widens the HOST rule and nothing else: validateUrlPublic keeps the
+   *  scheme, port and private-address checks, and safeFetch still resolves
+   *  and re-checks every redirect hop. It grants no rate tier. */
+  anyPublicHost?: boolean;
   /**
    * Which route is calling (v1.88.0). A fetch that fails is recorded as
    * `<eventType>-failed` / fetch-failed here — this is the only place fetch
@@ -103,7 +111,9 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
     fetched = await safeFetch(url, {
       timeoutMs: FETCH_TIMEOUT_MS,
       maxBytes: MAX_PDF_BYTES,
-      validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
+      validateUrl: privileged || input.anyPublicHost ? validateUrlPublic : validateUrlForFetch,
+      // A host chosen by an anonymous caller gets a shorter overall deadline.
+      ...(input.anyPublicHost ? { totalTimeoutMs: URL_FETCH.ANY_HOST_TOTAL_TIMEOUT_MS } : {}),
       signal: abort.signal,
     });
   } catch (err) {
@@ -124,8 +134,11 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
 
   if (!fetched.ok) {
     recordAuditFailure({ eventType, privileged, filename: url, reason: "fetch-failed" });
+    // The status NUMBER only. The reason phrase beside it is text the remote
+    // host chose, and since v1.180.0 that host can be anyone's (red-team
+    // review 2026-11-25): it was being relayed to the caller verbatim.
     res.status(502).json({
-      error: `fetch returned ${fetched.status} ${fetched.statusText}`,
+      error: `fetch returned ${Number(fetched.status) || 0}`,
     });
     return { ok: false };
   }

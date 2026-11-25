@@ -158,9 +158,13 @@ const cases: Case[] = [
     code: "INVALID_REQUEST",
     error: "Missing required field: url",
   },
+  // Since v1.180.0 /api/analyze-url accepts any PUBLIC host, so "a host that
+  // is not allowed" is no longer a refusal there (and asking for one would
+  // make this suite fetch from the internet). What it still refuses, with
+  // the same code: a non-standard port, and a private address.
   {
-    name: "POST /api/analyze-url with a host that is not allowed",
-    send: () => json("/api/analyze-url", { url: "https://example.com/a.pdf" }),
+    name: "POST /api/analyze-url with a non-standard port",
+    send: () => json("/api/analyze-url", { url: "https://example.com:8443/a.pdf" }),
     status: 400,
     code: "URL_NOT_ALLOWED",
     error: "URL not allowed",
@@ -170,7 +174,7 @@ const cases: Case[] = [
     send: () => json("/api/analyze-url", { url: "http://127.0.0.1/a.pdf" }),
     status: 400,
     code: "URL_NOT_ALLOWED",
-    error: "URL not allowed",
+    error: "URL resolves to a private/reserved address",
   },
   {
     name: "POST /api/audit-url with no url",

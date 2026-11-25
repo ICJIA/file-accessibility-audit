@@ -184,6 +184,9 @@ function isPrivateIPv4(ip: string): boolean {
   if (a === 192 && b === 0 && c === 2) return true;
   if (a === 198 && b === 51 && c === 100) return true;
   if (a === 203 && b === 0 && c === 113) return true;
+  // 192.88.99.0/24 (6to4 relay anycast, deprecated by RFC 7526 — added
+  // 2026-11-25: nothing legitimate is served from it)
+  if (a === 192 && b === 88 && c === 99) return true;
   // 192.168.0.0/16
   if (a === 192 && b === 168) return true;
   // 198.18.0.0/15 (benchmarking)
@@ -256,6 +259,9 @@ function isPrivateIPv6(ip: string): boolean {
   if (first80Zero && g5 === 0) return true;
   // ::ffff:a.b.c.d (IPv4-mapped) — judge the IPv4 underneath.
   if (first80Zero && g5 === 0xffff) return isPrivateIPv4(v4From(g6, g7));
+  // ::ffff:0:a.b.c.d (IPv4-translated, SIIT — RFC 7915): a translator turns
+  // it into the IPv4 it embeds. Refused outright, like NAT64 (2026-11-25).
+  if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0xffff && g5 === 0) return true;
   // 64:ff9b::/96 (NAT64) and 64:ff9b:1::/48 (local-use NAT64): an address
   // here is translated to the IPv4 it embeds — refused outright.
   if (g0 === 0x64 && g1 === 0xff9b) return true;
@@ -288,7 +294,13 @@ export function isPrivateIP(ip: string): boolean {
  * client that resolves on its own — Chromium in the page audit — could
  * connect to the private one.
  */
-export async function resolvePublicIp(hostname: string): Promise<string> {
+export async function resolvePublicIp(rawHostname: string): Promise<string> {
+  // A URL's hostname for an IPv6 literal arrives bracketed ("[::1]"), and
+  // isIP() answers 0 for the bracketed string. Until 2026-11-25 that sent
+  // every IPv6 literal to a DNS lookup, which failed — closed, but by
+  // accident, with isPrivateIPv6 never consulted. Strip them so the
+  // classifier is the defence.
+  const hostname = rawHostname.replace(/^\[(.*)\]$/, "$1");
   // If the hostname is already an IP literal, validate directly.
   if (isIP(hostname)) {
     if (isPrivateIP(hostname)) {

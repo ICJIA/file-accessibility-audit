@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "check-any-link-2026-11-25",
+    badge: "New",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "You can now check a document on any public website by pasting its link. Before, this worked only for Illinois government sites.",
+    text: "You can now check a document on any public website by pasting its link into the box under the upload area. Before, this worked only for Illinois government sites. It is handy on a phone, or when you have a link to a file but not the file itself. A file checked by link is treated exactly like an uploaded one: it is held in memory for the check and is not kept. There are limits on how many links one person can check in an hour, and uploading a file always works if you reach them. Before releasing this, we had the change attacked by a separate security reviewer. The review found no serious problem and six smaller ones, and all six are fixed. The details are in the security section of the data policy.",
+    linkText: "Read the data policy",
+    linkTo: "/data-retention",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 25, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "live-numbers-data-policy-2026-11-25",
     badge: "New",
     /** What the landing-page banner shows — two sentences at most, see THE
@@ -2420,6 +2436,15 @@ export const RATE_LIMITS = {
    *  into up to 100 server-side fetches and analyses. Keyed by IP; its own
    *  budget rather than the share-link limiter's (2026-09-02). */
   bulk: { max: 3, windowMs: 60 * 60 * 1000 }, // 3 per hour
+  /** POST /api/analyze-url, for a host that is NOT on the approved list
+   *  (apps/api/src/services/urlPolicy.ts). Since v1.180.0 an anonymous
+   *  visitor may check a document on any public site by link (owner decision,
+   *  2026-11-25). That makes the server something that fetches a stranger's
+   *  choice of address, so those requests get this budget of their own, far
+   *  below the `analyze` tier, on top of it. Keyed by IP. Approved hosts and
+   *  the privileged token are not counted here.
+   *  SAFE TO CHANGE: raise it if real visitors hit it; lower it on abuse. */
+  urlAnyHost: { max: 20, windowMs: 60 * 60 * 1000 }, // 20 per hour
 
   /**
    * All routes — catch-all burst guard against request floods. Two-tier,
@@ -2978,6 +3003,77 @@ export const URL_FETCH = {
    * it if legitimate slow hosts time out, lower it for a tighter bound.
    */
   TOTAL_TIMEOUT_MS: 60_000,
+
+  // -- Link checks to hosts OFF the approved list (v1.180.0) ---------------
+  // Since v1.180.0 an anonymous visitor may check a document on any public
+  // site (POST /api/analyze-url). These bound what that can cost this server
+  // and what it can send to somebody else's. Enforced in
+  // apps/api/src/services/urlAnyHostGate.ts; the per-IP hourly budget is
+  // RATE_LIMITS.urlAnyHost. Approved hosts and the service token are not
+  // subject to any of them.
+
+  /**
+   * Shorter overall deadline for an off-list host: half the ordinary one. A
+   * host chosen by a stranger gets less time to hold memory open.
+   * SAFE TO CHANGE: Yes. 30 s downloads the 25 MB cap at ~6.7 Mbit/s.
+   */
+  ANY_HOST_TOTAL_TIMEOUT_MS: 30_000,
+  /**
+   * Off-list fetches in flight at once, across everyone. The body is
+   * buffered in memory before analysis, so this × 25 MB is the most this
+   * path can hold: 4 × 25 MB = 100 MB against the API's 768 MB cap.
+   * DO NOT RAISE without redoing that sum against ecosystem.config.cjs.
+   */
+  ANY_HOST_MAX_CONCURRENT: 4,
+  /** Off-list fetches in flight at once for ONE caller (per IP).
+   *  SAFE TO CHANGE: keep it well below ANY_HOST_MAX_CONCURRENT, or one
+   *  caller can hold every slot. */
+  ANY_HOST_MAX_PER_CALLER: 1,
+  /**
+   * Off-list fetches started per hour, across everyone. A link that makes
+   * every visitor's browser start a check (`?prefill=`) spreads requests
+   * over many addresses; this is the ceiling no number of addresses raises.
+   * SAFE TO CHANGE: Yes — raise it if real use reaches it.
+   */
+  ANY_HOST_MAX_PER_HOUR: 300,
+  /** Off-list fetches started per hour toward any ONE website, across
+   *  everyone — so this server cannot be turned into a steady stream of
+   *  requests at somebody else's site. SAFE TO CHANGE: Yes. */
+  ANY_HOST_MAX_PER_TARGET_PER_HOUR: 30,
+
+  /**
+   * The approved list: hosts the URL endpoints fetch from for an anonymous
+   * caller without the limits above (and the only hosts /api/audit-url,
+   * /api/audit-url-page and /api/bulk-from-inventory fetch from at all
+   * without the service token). Each entry matches the host exactly OR any
+   * subdomain of it. Operators can extend it per deployment, with no code
+   * change, via the ANALYZE_URL_ALLOWED_HOSTS environment variable.
+   *
+   * The web app reads it too: a link that arrives as `?prefill=` is checked
+   * automatically only when its host is here; any other host is put in the
+   * field for the visitor to press the button themselves.
+   *
+   * Keep it conservative. SAFE TO CHANGE: add a host you operate or trust.
+   */
+  APPROVED_HOSTS: [
+    // Illinois state government — covers every *.illinois.gov agency
+    // hosting PDFs (huge fleet surface).
+    "illinois.gov",
+    // ICJIA owned/operated domains
+    "icjia.cloud",
+    "icjia.app",
+    "icjia-api.cloud",
+    // Partner / program domains
+    "ilheals.com",
+    // Specific subdomains kept for documentation; the bare-domain
+    // entries above already cover them. Listed so operators reading
+    // the source can see what's known-good without grepping logs.
+    "icjia.illinois.gov",
+    "dvfr.icjia-api.cloud",
+    "i2i.icjia-api.cloud",
+    "vpp.icjia-api.cloud",
+    "infonet.icjia-api.cloud",
+  ] as readonly string[],
 } as const;
 
 // ---------------------------------------------------------------------------

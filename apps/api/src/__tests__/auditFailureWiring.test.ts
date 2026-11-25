@@ -62,6 +62,7 @@ function mockCommon(privileged: boolean) {
   }));
   vi.doMock("../middleware/rateLimiter.js", () => ({
     analyzeLimiter: (_req: any, _res: any, next: () => void) => next(),
+    urlAnyHostLimiter: (_req: any, _res: any, next: () => void) => next(),
     reportsLimiter: (_req: any, _res: any, next: () => void) => next(),
     bulkLimiter: (_req: any, _res: any, next: () => void) => next(),
     isPrivilegedRequest: () => privileged,
@@ -154,7 +155,10 @@ describe("POST /api/analyze-url and /api/audit-url record their own failed twin"
       }),
       detectFileType: vi.fn(async () => "pdf"),
     }));
-    vi.doMock("../services/urlPolicy.js", () => ({ isAllowedUrl: vi.fn(() => ({ ok: true })) }));
+    vi.doMock("../services/urlPolicy.js", () => ({
+      isAllowedUrl: vi.fn(() => ({ ok: true })),
+      isOnApprovedList: vi.fn(() => true),
+    }));
     // `@vite-ignore`: a plain template-literal dynamic import here goes through
     // Vite's dynamicImportVars static-glob transform, which globs for literal
     // `../routes/*.js` on disk — this repo's routes are `.ts` (imported by
