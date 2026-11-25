@@ -5,11 +5,11 @@
  * the synchronous JS it's awaiting; a separate process can be SIGKILLed
  * mid-execution).
  *
- * This deliberately does NOT reuse pdfAnalyzer.ts's `withTimeout` for OOXML:
- * withTimeout's timeout branch only stops the CALLER from waiting — exactly
- * the gap this module closes by killing the child instead. PDF is unaffected
- * and keeps using withTimeout (qpdf's subprocess is already killable; pdfjs's
- * timeout risk is smaller and out of scope here).
+ * This deliberately does NOT rely on `withTimeout` for OOXML: withTimeout's
+ * timeout branch only stops the CALLER from waiting — exactly the gap this
+ * module closes by killing the child instead. PDF got the same treatment on
+ * 2026-11-25 (pdfRunner.ts / pdfWorker.ts): its pdf.js risk had been judged
+ * "smaller and out of scope here", and a red-team review showed it was not.
  */
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,7 @@ import type { PptxMetadata } from "./pptxService.js";
 import type { XlsxMetadata } from "./xlsxService.js";
 import type { ScoringResult } from "./scorer.js";
 import type { OoxmlType, OoxmlWorkerRequest, OoxmlWorkerResult } from "./ooxmlWorker.js";
+import { ANALYSIS } from "#config";
 
 // The child-process entry point, resolved once. Spawned as
 // `node --import tsx ooxmlWorker.ts` — the same launch the API itself uses
@@ -117,22 +118,35 @@ export function runOoxmlInWorker<T extends OoxmlType>(
   type: T,
   buffer: Buffer,
   timeoutMs: number,
+  /** Resident-memory ceiling for the child, in MB. Tests lower it. */
+  maxRssMb?: number,
 ): Promise<OoxmlRunResult<T>> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", TSX_SPECIFIER, WORKER_PATH], {
-      // fd3 IPC channel with advanced (structured-clone) serialization so
-      // the Buffer moves efficiently and arrives as a Buffer (no base64).
-      // stdin ignored; stdout/stderr inherited so any child diagnostics
-      // surface in the parent's logs, matching the remediation worker.
-      stdio: ["ignore", "inherit", "inherit", "ipc"],
-      serialization: "advanced",
-      // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
-      // child parses attacker-controlled document bytes, so it must not
-      // hold the API's secrets (JWT_SECRET, API_PRIVILEGED_TOKEN, SMTP
-      // creds, ...) while still getting everything it needs to boot under
-      // `node --import tsx` (PATH/HOME/NODE_*/TSX_*).
-      env: buildChildSpawnEnv(),
-    });
+    const child = spawn(
+      process.execPath,
+      [
+        // A heap ceiling: a part that inflates to tens of megabytes can cost
+        // many times that in parsed objects (red-team review 2026-11-25).
+        `--max-old-space-size=${ANALYSIS.OOXML_WORKER_MAX_OLD_SPACE_MB}`,
+        "--import",
+        TSX_SPECIFIER,
+        WORKER_PATH,
+      ],
+      {
+        // fd3 IPC channel with advanced (structured-clone) serialization so
+        // the Buffer moves efficiently and arrives as a Buffer (no base64).
+        // stdin ignored; stdout/stderr inherited so any child diagnostics
+        // surface in the parent's logs, matching the remediation worker.
+        stdio: ["ignore", "inherit", "inherit", "ipc"],
+        serialization: "advanced",
+        // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
+        // child parses attacker-controlled document bytes, so it must not
+        // hold the API's secrets (JWT_SECRET, API_PRIVILEGED_TOKEN, SMTP
+        // creds, ...) while still getting everything it needs to boot under
+        // `node --import tsx` (PATH/HOME/NODE_*/TSX_*).
+        env: buildChildSpawnEnv(),
+      },
+    );
 
     let settled = false;
     // Set synchronously the instant the timeout fires — BEFORE the promise
@@ -229,6 +243,22 @@ export function runOoxmlInWorker<T extends OoxmlType>(
         reject(timeoutError());
         return;
       }
+      // Not our kill and not a reply: the child's memory watchdog (SIGKILL),
+      // V8 giving up at its heap ceiling (SIGABRT, or exit code 134), or the
+      // operating system's out-of-memory killer. All mean the document needed
+      // more than the checker allows — the same answer a timeout gets (504),
+      // not an internal error.
+      if (signal === "SIGKILL" || signal === "SIGABRT" || code === 134) {
+        reject(
+          Object.assign(
+            new Error(
+              `${type} analysis was stopped: it needed more memory than the checker allows`,
+            ),
+            { killed: true, code: "OOXML_RESOURCE_LIMIT" },
+          ),
+        );
+        return;
+      }
       reject(
         new Error(
           `${type} analysis process exited without a result (code ${code}, signal ${signal})`,
@@ -240,7 +270,16 @@ export function runOoxmlInWorker<T extends OoxmlType>(
     // structured-cloned across the channel. If send fails (e.g. the channel
     // closed because the child died on spawn), reject once — unless a
     // timeout or exit already settled us.
-    const request: OoxmlWorkerRequest = { type, buffer };
+    const request: OoxmlWorkerRequest = {
+      type,
+      buffer,
+      limits: {
+        maxRssBytes: (maxRssMb ?? ANALYSIS.OOXML_WORKER_MAX_RSS_MB) * 1024 * 1024,
+        // The parent's timer is the real limit; this is for a parent that is
+        // no longer there to run it.
+        hardDeadlineMs: timeoutMs + 15_000,
+      },
+    };
     child.send(request, (sendErr: Error | null) => {
       if (sendErr && !settled && !timedOut) {
         settled = true;

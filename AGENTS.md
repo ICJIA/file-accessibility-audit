@@ -357,6 +357,19 @@ pages (link with a plain `<a href>`, never `<NuxtLink>`).
   source, regenerate them with `node scripts/generate-diagrams.mjs`
   (renders one diagram at a time in headless Chromium). Do not add the
   mermaid runtime to the web bundle.
+- **No document is parsed in the API process.** Since v1.183.0 a PDF is
+  analysed in a child process (`packages/analyzer/src/pdfRunner.ts` spawns
+  `pdfWorker.ts`), as Office files already were (`ooxmlRunner.ts`). The
+  parent keeps the clock and SIGKILLs the child's process group; a watchdog
+  thread in the child handles a dead parent and a memory limit
+  (`ANALYSIS.PDF_WORKER_*`). Do not move pdf.js or qpdf's JSON parse back
+  into `analyzePDF`: a crafted 1.2 MB PDF froze the whole API for minutes,
+  because a timeout cannot fire on the thread it is timing. Two things follow
+  for tests: a `vi.mock` of `qpdfService`/`pdfjsService` does not cross the
+  process boundary, so mock-driven tests call `analyzePdfInProcess` (from
+  `@file-audit/analyzer/pdfWorker`), not `analyzePDF`; and a test that
+  replaces `child_process.spawn` must pass the `pdfWorker.ts` spawn through
+  (see `remediateDownload.test.ts`).
 - **veraPDF JSON shape changed in 1.30.x.** `validationResult` is an
   array now, not an object. `apps/api/src/services/veraPdf.ts`
   handles both shapes. Don't "simplify" it unless you also update

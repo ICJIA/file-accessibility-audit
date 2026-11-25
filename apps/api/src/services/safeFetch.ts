@@ -363,7 +363,12 @@ async function singleHop(
     // socket itself: destroying the request tears down connect, headers and
     // body alike, whichever phase the hop is in.
     const deadlineTimer = setTimeout(() => {
-      req.destroy(budget.deadlineError());
+      // Reject FIRST, then tear the socket down. Destroying alone relies on
+      // the request emitting "error", and a request whose socket Node has
+      // already let go of (see the "upgrade" note below) emits nothing.
+      const err = budget.deadlineError();
+      reject(err);
+      req.destroy(err);
     }, budget.remainingMs());
     const onAbort = (): void => {
       req.destroy(budget.abortError());
@@ -419,6 +424,21 @@ async function singleHop(
     });
     req.on("timeout", () => {
       req.destroy(new SafeFetchError("timeout", `Request exceeded ${timeoutMs}ms`));
+    });
+    // A server may answer "101 Switching Protocols". With no listener for
+    // it, Node drops the socket and emits neither a response nor an error:
+    // the promise stayed pending forever, deadline and all (red-team review
+    // 2026-11-25 — measured still pending at 15 s against a 4 s deadline).
+    // This client never asks to switch protocols, so it is simply refused.
+    req.on("upgrade", (_res, socket) => {
+      socket.destroy();
+      reject(new SafeFetchError("network_error", "server tried to switch protocols"));
+    });
+    // The backstop for anything else that ends a request without a response
+    // or an error: once the request is closed, an unsettled promise is a bug.
+    // A no-op when the promise has already settled.
+    req.on("close", () => {
+      reject(new SafeFetchError("network_error", "connection closed without a response"));
     });
     budget.signal?.addEventListener("abort", onAbort, { once: true });
     if (budget.signal?.aborted) onAbort();

@@ -47,7 +47,12 @@ vi.mock("node:child_process", async (importActual) => {
   const { EventEmitter } = await import("node:events");
   return {
     ...actual,
-    spawn: () => Object.assign(new EventEmitter(), { unref: () => {}, pid: 999_999 }),
+    // …except the PDF analysis process (pdfRunner.ts, since 2026-11-25): the
+    // preflight audit really runs, so that one is really spawned.
+    spawn: ((cmd: string, args: readonly string[], opts: object) =>
+      args?.some((a) => String(a).endsWith("pdfWorker.ts"))
+        ? actual.spawn(cmd, args, opts)
+        : Object.assign(new EventEmitter(), { unref: () => {}, pid: 999_999 })) as never,
   };
 });
 

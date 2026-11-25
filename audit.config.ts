@@ -2312,6 +2312,63 @@ export const ANALYSIS = {
    */
   PDFJS_TIMEOUT_MS: 120_000,
 
+  // -- The PDF analysis process (v1.183.0) ---------------------------------
+  // A PDF is parsed in a child process of its own, killed when its time or
+  // memory runs out (packages/analyzer/src/pdfRunner.ts, pdfWorker.ts).
+  // Before that, pdf.js ran inside the API: a crafted 1.2 MB file held the
+  // whole service at 100% CPU for minutes, because a timeout cannot fire on
+  // the thread it is timing (red-team review 2026-11-25, finding 1).
+
+  /**
+   * Resident memory, in MB, above which a PDF analysis process is killed by
+   * its own watchdog. A crafted 385 KB PDF reached 1,536 MB; real documents
+   * measured on the production droplet stay far below this.
+   *
+   * SAFE TO CHANGE: Yes — but keep MAX_CONCURRENT_ANALYSES × this, plus the
+   * API itself and the veraPDF JVMs, inside the droplet's RAM (4 GB: 2 × 900
+   * leaves room). Raise it if real, very large PDFs are refused with
+   * "needed more memory or time than the checker allows".
+   */
+  PDF_WORKER_MAX_RSS_MB: 900,
+
+  /**
+   * V8 heap ceiling for a PDF analysis process, in MB
+   * (`--max-old-space-size`). Below PDF_WORKER_MAX_RSS_MB on purpose: the
+   * heap is only part of what the process holds, and a heap that hits this
+   * exits cleanly with its own error instead of being killed.
+   * SAFE TO CHANGE: keep it below PDF_WORKER_MAX_RSS_MB.
+   */
+  PDF_WORKER_MAX_OLD_SPACE_MB: 768,
+
+  /**
+   * Added to QPDF_TIMEOUT_MS for the first phase of a PDF analysis process:
+   * the time the process itself needs to start and load the engine before
+   * qpdf's own clock is running. ~0.5 s idle; generous because a busy
+   * two-core droplet starts processes slowly.
+   * SAFE TO CHANGE: Yes.
+   */
+  PDF_WORKER_STARTUP_ALLOWANCE_MS: 15_000,
+
+  /**
+   * Added to PDFJS_TIMEOUT_MS before the parent kills the process: a file
+   * that yields gets its clean "timed out" error from inside the process at
+   * PDFJS_TIMEOUT_MS; one that never yields is killed this much later.
+   * SAFE TO CHANGE: Yes — a few seconds.
+   */
+  PDF_WORKER_KILL_GRACE_MS: 5_000,
+
+  /**
+   * The same two memory ceilings for the Word / PowerPoint / Excel analysis
+   * process (packages/analyzer/src/ooxmlRunner.ts), in MB. That process was
+   * already killed at its time limit; until v1.183.0 nothing limited its
+   * memory, and a crafted 45 KB .docx whose one part inflates to 29 MB was
+   * measured at 1.0 to 1.6 GB (red-team review 2026-11-25) — two at once
+   * could exhaust the server before either timed out.
+   * SAFE TO CHANGE: the same rule as the PDF pair above.
+   */
+  OOXML_WORKER_MAX_RSS_MB: 900,
+  OOXML_WORKER_MAX_OLD_SPACE_MB: 768,
+
   /**
    * Maximum number of PDFs being analyzed simultaneously.
    * Implemented as a semaphore in pdfAnalyzer.ts. Requests beyond this limit

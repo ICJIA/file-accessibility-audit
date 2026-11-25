@@ -43,29 +43,31 @@ vi.mock("../services/pdfjsService.js", async () => {
   };
 });
 
-describe("analyzePDF pass ordering", () => {
+// Driven through the pipeline function, in process: since 2026-11-25
+// analyzePDF runs this same function in a child process, where a mock cannot
+// follow (see pdfWorker.ts).
+describe("PDF pipeline pass ordering", () => {
   beforeEach(() => {
     order.length = 0;
     vi.clearAllMocks();
   });
 
   it("does not start the pdfjs pass until qpdf has finished", async () => {
-    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
+    const { analyzePdfInProcess } = await import("@file-audit/analyzer/pdfWorker");
 
-    await analyzePDF(Buffer.from("%PDF-1.7 fake"), "annual-report.pdf");
+    await analyzePdfInProcess(Buffer.from("%PDF-1.7 fake"));
 
     expect(order).toEqual(["qpdf:start", "qpdf:end", "pdfjs:start"]);
   });
 
   it("still returns a fully scored result from both passes", async () => {
-    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
+    const { analyzePdfInProcess } = await import("@file-audit/analyzer/pdfWorker");
 
-    const result = await analyzePDF(Buffer.from("%PDF-1.7 fake"), "annual-report.pdf");
+    const result = await analyzePdfInProcess(Buffer.from("%PDF-1.7 fake"));
 
     // pageCount comes from pdfjs, the grade from scoring the qpdf structure.
     expect(result.pageCount).toBe(2);
-    expect(result.grade).toBeTruthy();
-    expect(result.filename).toBe("annual-report.pdf");
+    expect(result.scoring.grade).toBeTruthy();
   });
 
   it("never starts pdfjs when qpdf fails outright", async () => {
@@ -73,9 +75,9 @@ describe("analyzePDF pass ordering", () => {
     vi.mocked(analyzeWithQpdfAsync).mockRejectedValueOnce(
       Object.assign(new Error("QPDF timeout"), { killed: true }),
     );
-    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
+    const { analyzePdfInProcess } = await import("@file-audit/analyzer/pdfWorker");
 
-    await expect(analyzePDF(Buffer.from("%PDF-"), "broken.pdf")).rejects.toMatchObject({
+    await expect(analyzePdfInProcess(Buffer.from("%PDF-"))).rejects.toMatchObject({
       killed: true,
     });
     expect(order).not.toContain("pdfjs:start");

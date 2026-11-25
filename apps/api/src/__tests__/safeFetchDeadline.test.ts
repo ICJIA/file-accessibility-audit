@@ -41,6 +41,14 @@ const open = new Set<import("node:net").Socket>();
 beforeAll(async () => {
   const actual = await vi.importActual<typeof import("node:http")>("node:http");
   server = actual.createServer((req, res) => {
+    if (req.url === "/switch") {
+      // "101 Switching Protocols", written on the raw socket, then silence
+      // (red-team review 2026-11-25). safeFetch never asks for an upgrade.
+      res.socket!.write(
+        "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: x\r\n\r\n",
+      );
+      return;
+    }
     if (req.url === "/trickle") {
       // One byte every 40 ms, forever: never idle for long, never finished.
       res.writeHead(200, { "content-type": "application/pdf" });
@@ -91,6 +99,19 @@ async function failure(p: Promise<unknown>): Promise<SafeFetchError> {
   }
   throw new Error("expected the fetch to fail");
 }
+
+describe("safeFetch — a server that switches protocols", () => {
+  it("settles at once instead of hanging past its deadline", async () => {
+    const started = Date.now();
+    const err = await failure(
+      safeFetch("http://files.example/switch", { ...base, totalTimeoutMs: 4_000 }),
+    );
+    // Before the fix this promise was still pending at 15 s.
+    expect(Date.now() - started).toBeLessThan(4_500);
+    expect(err).toBeInstanceOf(SafeFetchError);
+    expect(["network_error", "timeout"]).toContain(err.code);
+  }, 10_000);
+});
 
 describe("safeFetch — overall deadline", () => {
   it("a normal fetch still succeeds", async () => {

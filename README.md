@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.182.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5526%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.183.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5539%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -1010,7 +1010,7 @@ In the first table, all but the last row live in [`docs/archive/`](docs/archive/
 
 ## Tests
 
-**5,526 tests** across 312 test files (API 2,893 · Web 2,461 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**5,539 tests** across 314 test files (API 2,906 · Web 2,461 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1130,7 +1130,9 @@ Beyond the unit suites, eleven corpus-level gates verify the **auditing itself**
 | `qpdfSpawnEnv.test.ts` | 3 | The qpdf subprocess spawn environment: both the sync (`execFileSync`) and async (`execFile`) qpdf call sites omit a planted secret (and other secret families like `JWT_SECRET`/`SMTP_PASS`) while keeping `PATH` |
 | `xlsxConformance.test.ts` | 5 | The Excel WCAG 2.2 conformance gate: clean for a well-formed workbook (3.1.1 honestly not-assessed — Excel has no language property), fires 1.1.1/2.4.2/1.3.1/1.4.3 only on confirmed violations, and does not fire for merged cells or table-less data sheets (advisory-only deductions, not conformance failures) |
 | `docxIntegration.test.ts` | 2 | End-to-end Word `.docx` analysis: a well-structured accessible document scores highly with no failures, and a poorly-authored one fails and cites the correct WCAG criteria |
-| `pdfAnalyzerTimeout.test.ts` | 3 | The in-process pdfjs parse timeout abandons a pathological document and frees its concurrency slot |
+| `pdfAnalyzerTimeout.test.ts` | 3 | The PDF pipeline's own (courtesy) pdfjs timeout: a pass that yields but never finishes is abandoned at `PDFJS_TIMEOUT_MS` and signalled to stop. Driven in process; the case it cannot handle — work that never yields — is `pdfWorkerIsolation.test.ts` |
+| `pdfWorkerIsolation.test.ts` | 9 | PDF analysis runs in a process of its own and is killed when time or memory runs out (red-team review 2026-11-25). Nothing mocked: the child-process result equals the in-process pipeline's; a real 1.2 MB PDF whose page tree repeats one page 200,000 times is stopped at the limit while the calling process never stalls and the worker is gone afterwards; a worker over its memory limit is stopped by its own watchdog; the next PDF is still analysed; the watchdog kills a spinning process whose parent has gone or whose absolute deadline has passed; the memory limits fit two workers beside the API |
+| `ooxmlMemoryLimit.test.ts` | 3 | The Word / PowerPoint / Excel analysis process is bounded in memory as well as time (red-team review 2026-11-25): an ordinary document is analysed as before; a document whose part inflates to the 30 MB cap is stopped by the worker's watchdog and reported like a timeout, not a crash; the heap and resident-memory limits are configured, passed to the child, and fit two workers beside the API |
 | `pptxIntegration.test.ts` | 2 | End-to-end PowerPoint `.pptx` analysis: an accessible deck scores ≥ 90 with a clean conformance gate, and a hostile deck scores ≤ 45 citing the correct WCAG criteria |
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 65 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
@@ -1669,6 +1671,28 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.183.0 — 2026-11-25 · PDF analysis runs in a process of its own, so a hostile PDF cannot freeze the service (SECURITY RELEASE — denial of service by a crafted PDF upload; found by red-team review, fixed here)
+
+**Red / blue review, 2026-11-25 — the pass on hostile documents.** The owner asked for a focused review of "check a document by link". That feature was withdrawn while the review ran (v1.182.0), and the reviewer was redirected to what stays true either way: what a hostile document can do, whether it arrives by upload or from an approved host. It worked dynamically — its own hostile PDFs and Office files, a hostile HTTP server on the loopback address, timing and memory measured — and reported one High finding, one Medium and two lower ones. All four are fixed in this release.
+
+| # | Severity | Finding (red) | Fix (blue) | Proved by |
+| --- | --- | --- | --- | --- |
+| 1 | **High** | **A small PDF could freeze the whole service.** One of the two PDF tools, pdf.js, ran inside the API process. On a crafted file it never returned to the event loop, and while it ran nothing else in that process did: no other request, not the health check, and not the 120-second timeout, which runs on the same thread as the work it times. Measured: a **1.2 MB** PDF whose page tree repeats one page 200,000 times held 100% CPU for **over seven minutes** at 1.1 GB; a **385 KB** PDF with one 50 MB content stream reached **1.5 GB** against the API's 768 MB limit. One anonymous upload was enough. | PDF analysis now runs in **a process of its own** (`packages/analyzer/src/pdfRunner.ts` spawns `pdfWorker.ts`), as Office files already did. The API keeps the clock and sends SIGKILL to the child's process group at each pass's deadline (qpdf 30 s, pdf.js 120 s). A watchdog thread inside the child stops it at **900 MB** of memory, if the API that started it has gone, or at an absolute deadline. The child gets the same secret-stripped environment as every other tool. | `pdfWorkerIsolation.test.ts` — a real child, the real engines, the real 200,000-page file: stopped at the limit, the caller's longest pause under one second, the worker gone afterwards |
+| 2 | Low–Medium | **qpdf's output was parsed in the API process.** A PDF with 600,000 tiny objects cost the API about 460 MB and a 1.5-second pause. | Parsed in the same child process as finding 1, which is disposable. | Covered by the finding-1 tests (the pipeline runs whole in the child) |
+| 3 | Low | **A fetch never finished on a "101 Switching Protocols" reply.** With no listener for it, the request emitted neither a response nor an error, and the promise stayed pending past its own deadline (measured: still pending at 15 s against a 4 s deadline). Reachable only from an approved host or with the service token. | The request is refused on `upgrade`, rejected on `close` without a response, and the deadline timer now rejects directly instead of relying on the socket to report. | `safeFetchDeadline.test.ts` — hangs without the fix |
+| 4 | Medium | **The Office analysis process had a time limit but no memory limit.** A 45 KB `.docx` whose document part inflates to just under the 30 MB part cap used 1.0 to 1.6 GB in the worker; the settings assumed about 660 MB. It was already contained — a separate process, killed at 20 seconds — but two at once could exhaust the server before either timed out. | The Word, PowerPoint and Excel worker gets the same two ceilings as the PDF one: a V8 heap limit (768 MB) and the watchdog's resident-memory limit (900 MB). A worker stopped for memory is reported like a timeout (504), not as an internal error. | `ooxmlMemoryLimit.test.ts` — a real worker and the real hostile file |
+
+**Nothing about scoring changed.** All eight accuracy gates pass (synthetic controls, synthetic Office controls, score ledger, legal basis, best-practice basis, re-save invariance, encoding invariance, Office encoding invariance), the PDF ones on all 367 reference documents, and a test holds the child's result equal to the in-process pipeline's. A PDF audit takes about half a second longer, the cost of starting the process.
+
+**Attacks the reviewer tried that the code already resisted**, confirmed dynamically unless noted: an archive entry declaring a small size and inflating to 1 GB (refused in 60 ms); XML nested 400,000 deep (27 ms); chunk and header trickles, endless interim replies, bodies with no length and lying lengths (all ended at the deadline); a 50 MB gzip body (never decoded); oversized headers; redirects to `javascript:`, `file:` and `data:`, and to private addresses in decimal, hexadecimal and IPv6-mapped form; redirect loops; CRLF in the URL; the outbound request carrying only `host`, `user-agent` and `accept`; script, attribute and link injection through a document's text into the HTML and Markdown exports; spreadsheet formula injection in the CSV exports. By reading only: shell or path injection through a filename into qpdf, SQL injection, forged reports at `/api/reports`, and the page's four `v-html` uses.
+
+**What this review did not cover.** PowerPoint and Excel were not attacked with the oversized-part file used on Word (the new memory limit covers all three, since they share one worker); pdf.js's image and font decoders and qpdf's object-stream handling were not attacked; veraPDF and the repair pipeline were out of scope.
+
+`pnpm audit --prod`: no known advisories in production dependencies. Tests 5,539 green. Lint, format check, typecheck and the production build were clean.
+
+<details>
+<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
+
 ### v1.182.0 — 2026-11-25 · The link option is removed: the site checks uploaded files only (SECURITY-RELEVANT — attack surface REDUCED: the any-host link check added in v1.180.0 is withdrawn)
 
 **The link option is withdrawn. The site checks uploaded files only.**
@@ -1696,9 +1720,6 @@ Entries marked **(entry recorded 2026-08-08)** were reconstructed from that rele
 **What can still make the server fetch something.** Only these, and none of them is new: an anonymous request naming a host on the approved list; and a request carrying the deployment's service token (`API_PRIVILEGED_TOKEN`), which may name any public host and is still subject to the private-address block, the port rule, the size cap and the timeouts. The token is a server-to-server credential held by the operator; it is not issued to visitors.
 
 `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,526 green. Lint, format check, typecheck and the production build were clean.
-
-<details>
-<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
 
 ### v1.181.3 — 2026-11-25 · One press to copy a shareable link; PDF/UA checkpoints as a row in the report (Presentation — the share control on the results page and one panel's placement in the report)
 

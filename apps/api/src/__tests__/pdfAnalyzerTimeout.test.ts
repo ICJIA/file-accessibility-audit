@@ -1,8 +1,14 @@
 /**
- * The pdfjs extraction pass runs in-process, so a pathological PDF could
- * otherwise hold a concurrency slot indefinitely. analyzePDF must abandon
- * the analysis with a timeout error once pdfjs exceeds PDFJS_TIMEOUT_MS,
- * freeing the slot. Verified via a stubbed pdfjs service that hangs.
+ * The pipeline's own (courtesy) timeout: when the pdfjs pass YIELDS but never
+ * finishes, the pipeline abandons it with a timeout error at
+ * PDFJS_TIMEOUT_MS and signals it to stop. Verified via a stubbed pdfjs
+ * service that hangs.
+ *
+ * Since 2026-11-25 the pipeline runs in a child process (pdfWorker.ts), and
+ * the case this timeout CANNOT handle — work that never yields — is the
+ * parent's SIGKILL, tested for real in pdfWorkerIsolation.test.ts. These
+ * tests drive the pipeline function directly, in process, because a mock
+ * does not cross a process boundary.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -58,31 +64,29 @@ vi.mock("#config", async (importOriginal) => {
   };
 });
 
-describe("analyzePDF pdfjs timeout", () => {
+describe("the PDF pipeline's own pdfjs timeout", () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.restoreAllMocks());
 
   it("rejects with a timeout error when pdfjs exceeds PDFJS_TIMEOUT_MS", async () => {
-    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
-    await expect(analyzePDF(Buffer.from("%PDF-1.7 fake"), "hang.pdf")).rejects.toMatchObject({
+    const { analyzePdfInProcess } = await import("@file-audit/analyzer/pdfWorker");
+    await expect(analyzePdfInProcess(Buffer.from("%PDF-1.7 fake"))).rejects.toMatchObject({
       killed: true,
     });
   });
 
-  it("signals the abandoned pdfjs pass to stop (it shares this process)", async () => {
-    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
+  it("signals the abandoned pdfjs pass to stop", async () => {
+    const { analyzePdfInProcess } = await import("@file-audit/analyzer/pdfWorker");
     const { analyzeWithPdfjs } = await import("../services/pdfjsService.js");
-    await expect(analyzePDF(Buffer.from("%PDF-1.7 fake"), "hang.pdf")).rejects.toThrow();
+    await expect(analyzePdfInProcess(Buffer.from("%PDF-1.7 fake"))).rejects.toThrow();
     const opts = vi.mocked(analyzeWithPdfjs).mock.calls[0]?.[1] as { signal?: AbortSignal };
     expect(opts?.signal).toBeInstanceOf(AbortSignal);
     expect(opts.signal!.aborted).toBe(true);
   });
 
-  it("frees the concurrency slot after a timeout (a second call still runs)", async () => {
-    const { analyzePDF } = await import("../services/pdfAnalyzer.js");
-    await expect(analyzePDF(Buffer.from("%PDF-"), "a.pdf")).rejects.toThrow();
-    // If the slot leaked, this second call would hang on the semaphore and
-    // the test would time out; instead it should reach pdfjs and time out too.
-    await expect(analyzePDF(Buffer.from("%PDF-"), "b.pdf")).rejects.toThrow();
+  it("a second run after a timeout still reaches pdfjs and times out too", async () => {
+    const { analyzePdfInProcess } = await import("@file-audit/analyzer/pdfWorker");
+    await expect(analyzePdfInProcess(Buffer.from("%PDF-"))).rejects.toThrow();
+    await expect(analyzePdfInProcess(Buffer.from("%PDF-"))).rejects.toThrow();
   });
 });

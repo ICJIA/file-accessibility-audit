@@ -1,6 +1,6 @@
-import { analyzeWithQpdfAsync } from "./qpdfService.js";
-import { analyzeWithPdfjs, PdfMetadata } from "./pdfjsService.js";
-import { scoreDocument, ScoringResult } from "./scorer.js";
+import type { PdfMetadata } from "./pdfjsService.js";
+import type { ScoringResult } from "./scorer.js";
+import { runPdfInWorker } from "./pdfRunner.js";
 import type { DocxMetadata } from "./docxService.js";
 import type { PptxMetadata } from "./pptxService.js";
 import type { XlsxMetadata } from "./xlsxService.js";
@@ -9,9 +9,6 @@ import { ANALYSIS } from "#config";
 
 // Simple semaphore for concurrency limiting with timeout
 const SEMAPHORE_TIMEOUT_MS = 60_000; // 60 seconds max wait
-/** How long a timed-out pdfjs pass is given to notice its abort signal and
- *  tear down before its concurrency slot is released regardless. */
-const PDFJS_ABORT_GRACE_MS = 2_000;
 let activeAnalyses = 0;
 const waitQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> = [];
 
@@ -85,95 +82,29 @@ export interface AnalysisResult extends ScoringResult {
   wcagVerdict?: PdfUaVerdict;
 }
 
-/**
- * Reject if `promise` doesn't settle within `ms`. The rejection carries
- * `killed: true` and `code: 'ETIMEDOUT'` so the analyze routes map it to a
- * 504 the same way a QPDF timeout is handled. The underlying in-process work
- * may linger briefly, but the caller stops awaiting it and frees its slot.
- */
-export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  let timer: NodeJS.Timeout;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
-      const err = new Error(label) as Error & {
-        killed?: boolean;
-        code?: string;
-      };
-      err.killed = true;
-      err.code = "ETIMEDOUT";
-      reject(err);
-    }, ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
-}
+// Kept exported from here: callers and tests have always imported it from
+// this module. It lives beside the pipeline it serves now (pdfWorker.ts).
+export { withTimeout } from "./pdfWorker.js";
 
+/**
+ * Audit one PDF.
+ *
+ * The parsing does NOT happen in this process (since 2026-11-25): it runs in
+ * a child that is killed when its time or memory runs out — see pdfWorker.ts
+ * for the measurements behind that. What stays here is the concurrency slot,
+ * which bounds how many of those children exist at once.
+ */
 export async function analyzePDF(buffer: Buffer, filename: string): Promise<AnalysisResult> {
   await acquireSemaphore();
 
   try {
-    // QPDF FIRST, to completion — then pdfjs. These two used to share one
-    // `Promise.all`, and that overlap was a trap rather than a saving: pdfjs
-    // runs IN-PROCESS, so Node only drains QPDF's multi-megabyte JSON off its
-    // stdout pipe between pdfjs page chunks. QPDF would sit blocked on a full
-    // pipe while its own subprocess timeout ran, which made QPDF_TIMEOUT_MS
-    // measure the whole audit's wall clock instead of QPDF's own work. On the
-    // production droplet a 246-page report measured 1.7s for QPDF alone but
-    // 15.7s beside pdfjs, and with the two veraPDF JVMs also competing for the
-    // two cores QPDF was killed at 30s — reported to the author as "this file
-    // is too complex", which it was not (v1.109.0).
-    //
-    // Sequencing costs almost nothing, because the overlap was never real on
-    // the documents that matter: 15.7s concurrent vs 1.7 + 14.2 sequential.
-    // What it buys is a timeout that means what it says.
-    const qpdfResult = await analyzeWithQpdfAsync(buffer);
-    // pdfjs is in-process, so a pathological PDF (millions of operators, huge
-    // page count) would otherwise pin this concurrency slot indefinitely. On
-    // timeout we reject with a killed-style error so the route maps it to a
-    // 504, and the `finally` below releases the semaphore slot.
-    //
-    // The timeout also has to STOP the work (2026-11-12). pdfjs shares this
-    // process's event loop; merely ceasing to await it left a pathological
-    // file parsing on for as long as it liked, with its slot already handed to
-    // the next request — so the two-slot limit did not bound anything for
-    // exactly the files it exists for. The signal makes the extraction quit at
-    // its next page boundary and tear the document down, and the slot is held
-    // for a short grace period so it is not released while that is happening.
-    const pdfjsAbort = new AbortController();
-    const pdfjsWork = analyzeWithPdfjs(buffer, { signal: pdfjsAbort.signal });
-    let pdfjsResult: Awaited<typeof pdfjsWork>;
-    try {
-      pdfjsResult = await withTimeout(
-        pdfjsWork,
-        ANALYSIS.PDFJS_TIMEOUT_MS,
-        "pdfjs extraction timed out",
-      );
-    } catch (err) {
-      pdfjsAbort.abort();
-      const grace = Math.min(PDFJS_ABORT_GRACE_MS, ANALYSIS.PDFJS_TIMEOUT_MS);
-      await Promise.race([
-        pdfjsWork.catch(() => undefined),
-        new Promise((resolve) => setTimeout(resolve, grace)),
-      ]);
-      throw err;
-    }
-
-    if (qpdfResult.error && pdfjsResult.error) {
-      const error = new Error("PDF parsing failed") as Error & {
-        code?: string;
-      };
-      error.code = "PDF_PARSE_FAILED";
-      throw error;
-    }
-
-    // Score the document
-    const scoringResult = scoreDocument(qpdfResult, pdfjsResult);
-
+    const result = await runPdfInWorker(buffer);
     return {
       filename,
-      pageCount: pdfjsResult.pageCount,
+      pageCount: result.pageCount,
       fileType: "pdf",
-      pdfMetadata: pdfjsResult.metadata,
-      ...scoringResult,
+      pdfMetadata: result.metadata,
+      ...result.scoring,
     };
   } finally {
     releaseSemaphore();

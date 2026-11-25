@@ -27,7 +27,9 @@ Client → HTTPS upload (multipart/form-data)
   │
   ▼
 [analyzeDocument(buffer, filename)] — detects format, dispatches:
-  ├── PDF → analyzePDF(), on the main API process
+  ├── PDF → a dedicated, short-lived child Node.js process (buffer
+  │     handed over a local, in-memory channel; killed if analysis
+  │     runs past its timeout or its memory limit)
   │     • qpdf subprocess: structure tree, language, outlines, tables
   │     • pdfjs (Node.js library): text, metadata, page order
   │

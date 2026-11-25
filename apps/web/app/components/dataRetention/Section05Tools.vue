@@ -134,15 +134,17 @@
     </div>
     <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed">
       Each tool is invoked as a separate operating-system process (qpdf, OpenDataLoader, veraPDF),
-      as a Node.js library running on the main API process (pdfjs-dist), or as a Node.js library
-      running inside a dedicated, short-lived child process spawned for that one request (JSZip and
-      fast-xml-parser, for Word, PowerPoint, and Excel). That child process receives the file buffer
-      over a local, in-memory channel — never a temporary file — and is terminated if it exceeds its
-      analysis timeout. None of these tools opens an outbound network connection during processing.
-      During a remediation job the API process makes no outbound network connections at all — the
-      only data store is the local SQLite database (no network), and since tool v1.68.0 the service
-      sends no email either: the sign-in system, the one thing that ever emailed anyone, was removed
-      along with the mail-sending code.
+      or as a Node.js library running inside a dedicated, short-lived child process spawned for that
+      one request (pdfjs-dist for PDF; JSZip and fast-xml-parser for Word, PowerPoint, and Excel).
+      No document is parsed inside the main API process. That child process receives the file buffer
+      over a local, in-memory channel and is terminated if it exceeds its analysis timeout; the PDF
+      one is also terminated if it uses more memory than it is allowed. (For a PDF, the child writes
+      the short-lived temporary copy that qpdf reads, described in § 8a; for Word, PowerPoint, and
+      Excel no temporary file is written at all.) None of these tools opens an outbound network
+      connection during processing. During a remediation job the API process makes no outbound
+      network connections at all — the only data store is the local SQLite database (no network),
+      and since tool v1.68.0 the service sends no email either: the sign-in system, the one thing
+      that ever emailed anyone, was removed along with the mail-sending code.
     </p>
   </section>
 </template>

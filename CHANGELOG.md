@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.183.0] - 2026-11-25
+
+### Security
+
+- **PDF analysis runs in a process of its own, so a hostile PDF cannot freeze the service.** A PDF is now analysed in a separate, short-lived process that is killed when its time or its memory runs out, as Word, PowerPoint and Excel files already were. Until now one of the two PDF tools (pdf.js) ran inside the API itself. A red-team review on 2026-11-25 showed that a crafted PDF could keep that tool busy without ever pausing, and while it ran nothing else in the API did: no other request was answered, the health check included, and the 120-second timeout could not fire because it runs on the same thread as the work it times. Measured: a 1.2 MB PDF whose page tree repeats one page 200,000 times held 100% CPU for over seven minutes at 1.1 GB; a 385 KB PDF with a single 50 MB content stream reached 1.5 GB against the API's 768 MB limit. The same file now runs in a child process (`packages/analyzer/src/pdfRunner.ts`, `pdfWorker.ts`): the API holds the clock and sends SIGKILL to the child's whole process group at the deadline, each pass keeping its own limit (qpdf 30 s, pdf.js 120 s). A watchdog thread inside the child stops it if it passes 900 MB of memory, if the API that started it has gone away, or at an absolute deadline. qpdf's JSON output is parsed in the child too, so a PDF with hundreds of thousands of objects no longer costs the API hundreds of megabytes. No score changed: the six PDF accuracy gates pass on all 367 reference documents, and the child's result is identical to the in-process pipeline's. A PDF audit costs about half a second more. Also fixed: a URL fetch (approved hosts and the service token) never finished when the remote server answered "101 Switching Protocols"; it now fails at once. Also bounded: the Word, PowerPoint and Excel analysis process, which had a time limit but no memory limit (a crafted 45 KB `.docx` reached 1.0 to 1.6 GB), now has the same heap and resident-memory ceilings (`ANALYSIS.OOXML_WORKER_*`). The data-retention policy is v1.22: §§ 2 and 5 said pdf.js runs in the main API process.
+
+### Notes
+
+- Tests 5,539 across 313 files (API 2,903 · Web 2,461 · CLI 172).
+
 ## [1.182.0] - 2026-11-25
 
 ### Removed

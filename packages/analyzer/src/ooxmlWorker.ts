@@ -44,6 +44,7 @@ import type { DocxMetadata } from "./docxService.js";
 import type { PptxMetadata } from "./pptxService.js";
 import type { XlsxMetadata } from "./xlsxService.js";
 import type { ScoringResult } from "./scorer.js";
+import { startWatchdog, type PdfWorkerLimits } from "./pdfWorker.js";
 
 export type OoxmlType = "docx" | "pptx" | "xlsx";
 
@@ -52,6 +53,9 @@ export type OoxmlType = "docx" | "pptx" | "xlsx";
 export interface OoxmlWorkerRequest {
   type: OoxmlType;
   buffer: Buffer;
+  /** Memory and lifetime limits for this process's watchdog (pdfWorker.ts
+   *  `startWatchdog`). Absent when a caller predates them; then none runs. */
+  limits?: PdfWorkerLimits;
 }
 
 export interface OoxmlWorkerSuccess {
@@ -118,6 +122,10 @@ export async function analyzeAndScore(
 if (typeof process.send === "function") {
   process.once("message", (msg: OoxmlWorkerRequest) => {
     void (async () => {
+      // The parent stops this process at its time limit; nothing stopped it
+      // for MEMORY, and the parsing below is synchronous, so only another
+      // thread can look. Same watchdog as the PDF process.
+      if (msg.limits) startWatchdog(msg.limits);
       let result: OoxmlWorkerResult;
       try {
         // Buffer arrives as a Buffer under advanced serialization; Buffer.from

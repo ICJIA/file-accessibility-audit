@@ -6,6 +6,17 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.22 · 2026-11-25</strong> — One change to where a document is processed, tool
+        v1.183.0 (§§ 2, 5). A PDF used to be read by one of its two tools (pdfjs-dist) inside the
+        main program that answers every visitor. It is now read in a separate, short-lived process
+        started for that one file, as Word, PowerPoint, and Excel files already were, and that
+        process is stopped if it runs too long or uses too much memory. The reason is safety: a
+        deliberately malformed PDF could keep the main program busy and make the site unresponsive
+        for everyone. Nothing about what is collected, stored, or sent changed. The short-lived
+        temporary copy of a PDF that qpdf reads (§ 8a) is now written by that separate process
+        instead of the main program, in the same private folder, and is deleted the same way.
+      </li>
+      <li>
         <strong>v1.21 · 2026-11-24</strong> — A correction and one change, tool v1.176.2, after the
         web server's live configuration was read line by line. <em>Correction</em> (§§ 7, 8a):
         earlier versions said the web server logs every request's IP address, path and browser. It

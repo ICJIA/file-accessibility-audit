@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.183.0",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY RELEASE — denial of service by a crafted PDF upload; found by red-team review, fixed here.",
+    body: [
+      {
+        kind: "p",
+        html: "This release fixes a way someone could have made the site stop responding for everyone. A security review found that a deliberately malformed PDF could keep one part of the checker busy for many minutes, and while it was busy the site could not answer anyone else. The checker now reads each PDF in a separate, temporary process. If that process takes too long or uses too much memory it is stopped, and the rest of the site carries on. Word, PowerPoint and Excel files were already handled this way; they now also have a limit on how much memory that process may use, which they did not have before. Nothing about what is collected or stored changed, and no document gets a different grade: we re-checked all 367 of our reference documents and every score is the same. A PDF check takes about half a second longer. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.182.0",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY-RELEVANT — attack surface REDUCED: the any-host link check added in v1.180.0 is withdrawn.",
     body: [
