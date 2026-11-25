@@ -397,6 +397,41 @@ a[class*="text-[var(--link)]"] {
   line-height: 1.375rem;
   color: var(--text-secondary);
 }
+/* A small folded note inside a fix step ("Fix steps last audited"): a quiet
+   card, closed until asked for. */
+.pk-note {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-muted);
+  background: var(--surface-hover);
+}
+.pk-note > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.625rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+.pk-note > summary::-webkit-details-marker {
+  display: none;
+}
+.pk-note > summary::after {
+  content: "Details +";
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-heading);
+}
+.pk-note[open] > summary::after {
+  content: "Close –";
+}
+.pk-note > summary:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
 /* Heavy rule that opens a section or a tile. */
 .pk-rule {
   border-top: 4px solid var(--text-heading);

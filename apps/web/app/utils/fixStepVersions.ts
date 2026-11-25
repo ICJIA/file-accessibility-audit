@@ -25,9 +25,14 @@
  * steps themselves are re-verified.
  */
 
+/** When the steps were last checked against the vendors' documentation —
+ *  the one place the date is written; the note and the report's folded
+ *  "Fix steps last audited" row both read it. */
+export const FIX_STEPS_VERIFIED_ON = "November 2026";
+
 /** Which app versions the fix steps target. */
 export const FIX_STEPS_WRITTEN_FOR =
-  "Fix steps were verified in November 2026 against the current versions of these apps: " +
+  `Fix steps were verified in ${FIX_STEPS_VERIFIED_ON} against the current versions of these apps: ` +
   "Microsoft Word, PowerPoint, and Excel for Microsoft 365 (Windows Version 2611; Mac 16.115), " +
   "Adobe Acrobat Pro (version 26 — the redesigned interface with an “All tools” panel that Adobe " +
   "rolled out through 2023), and — for PDFs that were laid out in it — Adobe InDesign 2026–2027 " +

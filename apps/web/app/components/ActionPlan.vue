@@ -218,19 +218,23 @@
                   </div>
                 </div>
 
-                <!-- A card of its own (user request, 2026-11-25): as plain text
-                     under the steps it read as one more step. It is ABOUT the
-                     steps — which app versions they were checked against. -->
-                <div
-                  class="mt-4 border border-[var(--border)] border-l-4 border-l-[var(--text-muted)] bg-[var(--surface-hover)] px-4 py-3"
-                  role="note"
-                  data-testid="fix-steps-note"
-                >
-                  <p class="pk-label mb-1.5 text-[var(--text-secondary)]">About these steps</p>
-                  <p class="text-sm leading-relaxed text-[var(--text-secondary)] m-0">
+                <!-- Folded by default (user request, 2026-11-25). As plain text
+                     under the steps this read as one more step, and as an open
+                     card it was a wall of text on every opened step. It is
+                     ABOUT the steps — which app versions they were checked
+                     against — so it is one line that opens on demand. A native
+                     <details>: keyboard and screen-reader behaviour for free,
+                     and the text stays in the page for find-in-page. -->
+                <details class="pk-note mt-4" data-testid="fix-steps-note">
+                  <summary>
+                    <span class="pk-label text-[var(--text-secondary)]"
+                      >Fix steps last audited: {{ FIX_STEPS_VERIFIED_ON }}</span
+                    >
+                  </summary>
+                  <p class="text-sm leading-relaxed text-[var(--text-secondary)] m-0 px-4 pb-3">
                     {{ FIX_STEPS_VERSION_NOTE }}
                   </p>
-                </div>
+                </details>
 
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                   <!-- LINKED (standing rule, 2026-08-31: naming a criterion
@@ -502,7 +506,7 @@ const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
 import { pdfUaFixRoutes } from "./pdfUaFixHint";
-import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
+import { FIX_STEPS_VERIFIED_ON, FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { planTimeTotal } from "~/utils/fixTime";
 import BestPracticesSection from "~/components/BestPracticesSection.vue";
 import { evaluateBestPractices } from "~/utils/bestPractices";

@@ -162,6 +162,12 @@ describe("ActionPlan", () => {
   it("renders the version note + IDS support line inside each step card", () => {
     const w = mount(ActionPlan, { props: { steps: [step(1, "alt_text", "Critical")] } });
     expect(w.text()).toContain(FIX_STEPS_VERSION_NOTE);
+    // Folded by default (user request, 2026-11-25): one dated line, the full
+    // note behind it, in a native <details> so it opens without script.
+    const note = w.find('[data-testid="fix-steps-note"]');
+    expect(note.element.tagName).toBe("DETAILS");
+    expect(note.attributes("open")).toBeUndefined();
+    expect(note.find("summary").text()).toMatch(/^Fix steps last audited: \w+ \d{4}$/);
     expect(w.text()).toContain("contact IDS at ICJIA");
   });
 
