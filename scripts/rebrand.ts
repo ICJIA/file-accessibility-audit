@@ -394,9 +394,10 @@ function buildOgImageSvg(): string {
   <text x="664" y="84" text-anchor="end" ${font} font-size="17" font-weight="700" fill="#ffffff" letter-spacing="2.5">WCAG 2.1 A/AA</text>
 ${headline}
 
-  <!-- Grade block: the letter knocked out of a solid block in the grade colour -->
-  <rect x="776" y="56" width="200" height="200" fill="#22c55e"/>
-  <text x="876" y="224" text-anchor="middle" ${font} font-size="190" font-weight="800" fill="#0a0a0a">A</text>
+  <!-- Grade block, as the report draws it: the letter in white on the brand colour -->
+  <rect x="776" y="56" width="200" height="200" fill="#3559e0"/>
+  <text x="792" y="80" ${font} font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1.5">GRADE</text>
+  <text x="876" y="232" text-anchor="middle" ${font} font-size="170" font-weight="800" fill="#ffffff">A</text>
   <text x="1004" y="206" ${font} font-size="76" font-weight="800" fill="#ffffff" letter-spacing="-3">92</text>
   <text x="1006" y="248" ${font} font-size="26" font-weight="700" fill="#d4d4d4">/100</text>
 

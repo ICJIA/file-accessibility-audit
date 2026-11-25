@@ -12,9 +12,10 @@
   <text x="56" y="478" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="70" font-weight="800" fill="#ffffff" letter-spacing="-3">and Excel files</text>
   <text x="56" y="550" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="70" font-weight="800" fill="#ffffff" letter-spacing="-3">for accessibility</text>
 
-  <!-- Grade block: the letter knocked out of a solid block in the grade colour -->
-  <rect x="776" y="56" width="200" height="200" fill="#22c55e"/>
-  <text x="876" y="224" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="190" font-weight="800" fill="#0a0a0a">A</text>
+  <!-- Grade block, as the report draws it: the letter in white on the brand colour -->
+  <rect x="776" y="56" width="200" height="200" fill="#3559e0"/>
+  <text x="792" y="80" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1.5">GRADE</text>
+  <text x="876" y="232" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="170" font-weight="800" fill="#ffffff">A</text>
   <text x="1004" y="206" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="76" font-weight="800" fill="#ffffff" letter-spacing="-3">92</text>
   <text x="1006" y="248" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="26" font-weight="700" fill="#d4d4d4">/100</text>
 

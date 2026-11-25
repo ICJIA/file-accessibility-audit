@@ -8,6 +8,8 @@
 
 A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility — and **(optionally) auto-remediates** PDFs — against [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/) (the legal minimum under [IITAA 2.1 §E205.4](https://dhs.illinois.gov/accessibility/iitaa/iitaa-standards.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. WCAG 2.1 is the displayed standard; to display WCAG 2.2 instead set `WCAG_VERSION=2.2` and redeploy (API reverts on restart; web UI on rebuild).
 
+![The home page in dark mode. A top bar carries a small blue square and the site name, ICJIA ACCESSIBILITY AUDIT, with links to "Can I trust this?", FAQs, What's New, Technical and Status, a theme switch and a green "audit server online" light. Below, a large blue block holds the labels "Document accessibility check" and "WCAG 2.1 A/AA", the headline "Check your PDF, Word, PowerPoint, and Excel files for accessibility" in very large white type, a short paragraph naming WCAG 2.1, ADA Title II and IITAA 2.1 as links, and links to a sample report and to "What about WCAG 2.2?". To its right is the upload box, outlined with a thick dashed white line, reading "Drop PDF, Word, PowerPoint, or Excel files here — or click to browse — up to 25 files, max 25 MB each", and under it a form labelled "…or check a document by link" with a web-address field and a "Check this link" button.](docs/images/home.png)
+
 ## What it does
 
 | | Feature | Detail |

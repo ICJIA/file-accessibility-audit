@@ -79,7 +79,7 @@
          the plan and tiles: a page-audit row (no categories[]) must not get a
          legal-verdict box the axe results could contradict. -->
     <div v-if="hasCategories" class="mb-12 @5xl:mb-20">
-      <div class="grid gap-1 @5xl:grid-cols-5">
+      <div class="grid gap-6 @5xl:gap-8 @5xl:grid-cols-5">
         <TwoStandardsStrip
           :conformance="result.conformance"
           :wcag-version="wcag.version"
