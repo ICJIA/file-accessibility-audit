@@ -151,6 +151,13 @@ export interface SafeFetchOptions {
    */
   validateUrl: (url: URL) => void;
   /**
+   * Runs for each hop AFTER its name has been resolved, with the address
+   * that will actually be dialled. May throw a SafeFetchError to refuse the
+   * hop. Exists so a caller can account for the ADDRESS, which a name-based
+   * rule cannot see: any number of names can point at one server.
+   */
+  onResolved?: (ip: string, url: URL) => void;
+  /**
    * The request to send. Default: GET with this module's own headers.
    * POST and OPTIONS exist for one caller — the page auditor replaying a
    * page's own data request (a GraphQL query) and the browser's CORS
@@ -575,6 +582,7 @@ export async function safeFetch(
 
     // (2) Per-hop DNS lookup with private-IP rejection.
     const resolvedIp = await budget.race(resolvePublicIp(currentUrl.hostname));
+    opts.onResolved?.(resolvedIp, currentUrl);
 
     // (3) Single HTTP hop to the resolved IP.
     budget.check();

@@ -24,6 +24,8 @@
  *   per hour, everyone     URL_FETCH.ANY_HOST_MAX_PER_HOUR
  *   per hour, one target   URL_FETCH.ANY_HOST_MAX_PER_TARGET_PER_HOUR
  *                          (counted per HOP — see chargeAnyHostTarget)
+ *   per hour, one address  URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR
+ *                          (per hop, after DNS — see chargeAnyHostAddress)
  *
  * Worst case held in memory by this path: MAX_CONCURRENT × the 25 MB cap.
  */
@@ -90,6 +92,44 @@ export function chargeAnyHostTarget(hostname: string, now: number = Date.now()):
   const forTarget = startedByTarget.get(target) ?? [];
   if (forTarget.length >= URL_FETCH.ANY_HOST_MAX_PER_TARGET_PER_HOUR) return false;
   startedByTarget.set(target, [...forTarget, now]);
+  return true;
+}
+
+/**
+ * The block an address belongs to: an IPv4 /24 ("93.184.216") or an IPv6 /64
+ * (its first four groups, as written). An IPv6 address is taken as written
+ * by the resolver — two spellings of one /64 could be told apart, which only
+ * ever splits a budget across forms the same resolver does not mix.
+ */
+export function addressBlockOf(ip: string): string {
+  const addr = ip.replace(/^\[|\]$/g, "").toLowerCase();
+  if (addr.includes(":")) {
+    const [head = ""] = addr.split("::");
+    const groups = head.split(":").filter(Boolean).slice(0, 4);
+    return `v6:${groups.join(":")}`;
+  }
+  return `v4:${addr.split(".").slice(0, 3).join(".")}`;
+}
+
+/**
+ * Count one fetch toward the address block it is about to connect to, and
+ * say whether that block is still within its hourly ceiling. Called for
+ * every hop, AFTER the name is resolved (safeFetch's onResolved).
+ *
+ * WHY, beside the per-website ceiling: that one is keyed on a name, and the
+ * caller chooses the name. A hundred names of the caller's own, all pointed
+ * at one victim's address, were a hundred separate budgets — and the
+ * grouping of a name into a "website" is an approximation with no
+ * public-suffix list behind it, so subdomains of a short two-letter-domain
+ * site ("a.t.co") were not grouped at all (commit security review,
+ * 2026-11-25). The address is what the traffic actually reaches.
+ */
+export function chargeAnyHostAddress(ip: string, now: number = Date.now()): boolean {
+  prune(now);
+  const key = `addr|${addressBlockOf(ip)}`;
+  const seen = startedByTarget.get(key) ?? [];
+  if (seen.length >= URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR) return false;
+  startedByTarget.set(key, [...seen, now]);
   return true;
 }
 

@@ -31,7 +31,7 @@ import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./ana
 import { unsupportedFormatMessage } from "@file-audit/shared";
 import { sha256Hex, recordRejectedUpload, recordAuditFailure } from "./auditLog.js";
 import { safeFetch, SafeFetchError } from "./safeFetch.js";
-import { chargeAnyHostTarget } from "./urlAnyHostGate.js";
+import { chargeAnyHostAddress, chargeAnyHostTarget } from "./urlAnyHostGate.js";
 import {
   MAX_PDF_BYTES,
   FETCH_TIMEOUT_MS,
@@ -51,6 +51,21 @@ export function validateAnyHostHop(u: URL): void {
   validateUrlPublic(u);
   if (!chargeAnyHostTarget(u.hostname)) {
     throw new SafeFetchError("target_limit", `hourly ceiling reached for '${u.hostname}'`);
+  }
+}
+
+/**
+ * The other half of the per-hop accounting: after the hop's name is
+ * resolved, count the fetch against the address block it will connect to.
+ * A name-based ceiling alone is one the caller can sidestep by choosing
+ * more names.
+ */
+export function chargeAnyHostHopAddress(ip: string): void {
+  if (!chargeAnyHostAddress(ip)) {
+    throw new SafeFetchError(
+      "target_limit",
+      `hourly ceiling reached for the address block of ${ip}`,
+    );
   }
 }
 
@@ -131,8 +146,14 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
         : privileged
           ? validateUrlPublic
           : validateUrlForFetch,
-      // A host chosen by an anonymous caller gets a shorter overall deadline.
-      ...(input.anyPublicHost ? { totalTimeoutMs: URL_FETCH.ANY_HOST_TOTAL_TIMEOUT_MS } : {}),
+      // A host chosen by an anonymous caller gets a shorter overall deadline,
+      // and each hop is also counted against the ADDRESS it resolves to.
+      ...(input.anyPublicHost
+        ? {
+            totalTimeoutMs: URL_FETCH.ANY_HOST_TOTAL_TIMEOUT_MS,
+            onResolved: chargeAnyHostHopAddress,
+          }
+        : {}),
       signal: abort.signal,
     });
   } catch (err) {

@@ -290,7 +290,7 @@ export const ANNOUNCEMENTS = [
      *  BANNER RULE above. The full story is `text`, shown on /announcements. */
     summary:
       "You can now check a document on any public website by pasting its link. A new Security page lists every security review of this tool, with each finding beside its fix.",
-    text: "Two things are new. First, you can check a document on any public website by pasting its link into the box under the upload area. Before, this worked only for Illinois government sites. It is handy on a phone, or when you have a link to a file but not the file itself. A file checked by link is treated exactly like an uploaded one: it is held in memory for the check and is not kept. There are limits on how many links one person can check in an hour, and uploading always works if you reach them. Second, there is a new Security page, linked at the bottom of every page. It lists every security review of this tool, newest first, with each finding beside the fix that closed it. The newest review covers the check-by-link change: we had it attacked by a separate reviewer before release. That review and an automated follow-up check found no serious problem and eight smaller ones, and all eight are fixed.",
+    text: "Two things are new. First, you can check a document on any public website by pasting its link into the box under the upload area. Before, this worked only for Illinois government sites. It is handy on a phone, or when you have a link to a file but not the file itself. A file checked by link is treated exactly like an uploaded one: it is held in memory for the check and is not kept. There are limits on how many links one person can check in an hour, and uploading always works if you reach them. Second, there is a new Security page, linked at the bottom of every page. It lists every security review of this tool, newest first, with each finding beside the fix that closed it. The newest review covers the check-by-link change: we had it attacked by a separate reviewer before release. That review and an automated follow-up check found no serious problem and nine smaller ones, and all nine are fixed.",
     linkText: "Read the security reviews",
     linkTo: "/security",
     /** In-app route — an ordinary router link. */
@@ -3056,6 +3056,17 @@ export const URL_FETCH = {
    *  everyone — so this server cannot be turned into a steady stream of
    *  requests at somebody else's site. SAFE TO CHANGE: Yes. */
   ANY_HOST_MAX_PER_TARGET_PER_HOUR: 30,
+  /**
+   * Off-list fetches started per hour toward any one ADDRESS BLOCK (an IPv4
+   * /24 or an IPv6 /64), across everyone, counted on every hop after the
+   * name is resolved. The per-website ceiling above is keyed on a name, and
+   * any number of names can point at one server; this is the ceiling that
+   * follows the server. Higher than the per-website one because a content
+   * delivery network serves many unrelated sites from one block.
+   * SAFE TO CHANGE: Yes — raise it if real documents on a shared network
+   * are refused; lowering it tightens the bound.
+   */
+  ANY_HOST_MAX_PER_ADDRESS_PER_HOUR: 60,
 
   /**
    * The approved list: hosts the URL endpoints fetch from for an anonymous

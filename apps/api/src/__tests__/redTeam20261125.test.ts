@@ -9,12 +9,14 @@ import { resolve } from "node:path";
 import { URL_FETCH } from "#config";
 import {
   ANY_HOST_REFUSALS,
+  addressBlockOf,
   admitAnyHostFetch,
+  chargeAnyHostAddress,
   chargeAnyHostTarget,
   resetAnyHostGate,
   targetOf,
 } from "../services/urlAnyHostGate.js";
-import { validateAnyHostHop } from "../services/urlAuditPipeline.js";
+import { chargeAnyHostHopAddress, validateAnyHostHop } from "../services/urlAuditPipeline.js";
 import { SafeFetchError, isPrivateIP, resolvePublicIp } from "../services/safeFetch.js";
 import { sendSafeFetchError, validateUrlPublic } from "../services/urlPolicy.js";
 
@@ -264,5 +266,61 @@ describe("finding 6 — IPv6 literals are judged by the classifier, not by a fai
     // Unchanged: an ordinary public address is still public.
     expect(isPrivateIP("93.184.216.34")).toBe(false);
     expect(isPrivateIP("2606:4700:4700::1111")).toBe(false);
+  });
+});
+
+// Found by the automated review of v1.181.0: the per-website ceiling follows
+// the NAME, and the caller chooses the name.
+describe("follow-up C — the ceiling follows the server, not only the name", () => {
+  beforeEach(() => resetAnyHostGate());
+
+  it("any number of names pointed at one address share that address's budget", () => {
+    const t0 = 9_000_000;
+    for (let i = 0; i < URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR; i++) {
+      // A different name each time — attacker-n.example, a.t.co, b.t.co …
+      expect(chargeAnyHostTarget(`name-${i}.attacker-${i}.example`, t0)).toBe(true);
+      expect(chargeAnyHostAddress("93.184.216.34", t0), `fetch ${i + 1}`).toBe(true);
+    }
+    expect(chargeAnyHostAddress("93.184.216.34", t0 + 1)).toBe(false);
+    // A neighbour in the same /24 shares it; another network does not.
+    expect(chargeAnyHostAddress("93.184.216.200", t0 + 1)).toBe(false);
+    expect(chargeAnyHostAddress("93.184.217.34", t0 + 1)).toBe(true);
+    // And it lifts after the hour.
+    expect(chargeAnyHostAddress("93.184.216.34", t0 + 60 * 60 * 1000 + 1000)).toBe(true);
+  });
+
+  it("groups IPv4 by /24 and IPv6 by /64", () => {
+    expect(addressBlockOf("93.184.216.34")).toBe("v4:93.184.216");
+    expect(addressBlockOf("2606:4700:4700:0:1:2:3:4")).toBe("v6:2606:4700:4700:0");
+    expect(addressBlockOf("[2606:4700:4700:0::1111]")).toBe("v6:2606:4700:4700:0");
+    expect(addressBlockOf("2606:4700:4700:0::1")).toBe(addressBlockOf("2606:4700:4700:0::ffff"));
+  });
+
+  it("the pipeline charges the address on every hop, through safeFetch's own hook", () => {
+    const pipeline = src("services/urlAuditPipeline.ts");
+    expect(pipeline).toMatch(/onResolved: chargeAnyHostHopAddress/);
+    const fetcher = src("services/safeFetch.ts");
+    // Inside the redirect loop, straight after the name is resolved.
+    expect(fetcher).toMatch(
+      /resolvePublicIp\(currentUrl\.hostname\)\);\s*opts\.onResolved\?\.\(resolvedIp, currentUrl\);/,
+    );
+    let thrown: unknown;
+    for (let i = 0; i <= URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR; i++) {
+      try {
+        chargeAnyHostHopAddress("203.0.114.9");
+      } catch (err) {
+        thrown = err;
+      }
+    }
+    expect(thrown).toMatchObject({ code: "target_limit" });
+  });
+
+  it("the address ceiling is looser than the per-website one, and still far below the total", () => {
+    expect(URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR).toBeGreaterThanOrEqual(
+      URL_FETCH.ANY_HOST_MAX_PER_TARGET_PER_HOUR,
+    );
+    expect(URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR).toBeLessThan(
+      URL_FETCH.ANY_HOST_MAX_PER_HOUR,
+    );
   });
 });

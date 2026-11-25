@@ -304,7 +304,8 @@ since v1.180.0: any public host is fetched, and an anonymous request for
 an off-list host is counted against `RATE_LIMITS.urlAnyHost` (20/hour/IP,
 `urlAnyHostLimiter`) on top of the ordinary audit budget, and admitted
 through `services/urlAnyHostGate.ts` (in flight: 4 overall, 1 per caller;
-per hour: 300 overall, 30 per target site — `URL_FETCH.ANY_HOST_*`). The
+per hour: 300 overall, 30 per target site and 60 per address block, both
+charged on every redirect hop — `URL_FETCH.ANY_HOST_*`). The
 web app starts a `?prefill=` link by itself only for an approved host. Do not open the
 other three the same way without asking: they persist reports, drive a
 browser, or fan one request out into a hundred fetches.

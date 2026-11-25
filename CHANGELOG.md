@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.181.1] - 2026-11-25
+
+### Security
+
+- **The link-check limit follows the server, not only the name.** One more fix completing the red-team review of check-by-link, found by an automated review of v1.181.0 before it was deployed. The hourly ceiling for fetches toward any one website was keyed on the name, and the caller chooses the name: any number of names pointed at one server each had a budget of their own, and the grouping of a name into a website is an approximation that did not group subdomains of some short two-letter domains at all. Every hop is now also counted, after its name is resolved, against the address block it connects to (an IPv4 /24 or IPv6 /64): 60 an hour across everyone (`URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR`, `chargeAnyHostAddress`, through a new `onResolved` hook in `safeFetch`). The name-based ceiling stays as well. Neither v1.180.0 nor v1.181.0 was deployed, so no version with this gap reached the public site. Also: the og:image carries the globe brand mark.
+
+### Notes
+
+- Tests 5,564 across 313 files (API 2,913 · Web 2,479 · CLI 172).
+
 ## [1.181.0] - 2026-11-25
 
 ### Added
