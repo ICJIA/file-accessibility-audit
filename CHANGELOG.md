@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.181.3] - 2026-11-25
+
+### Changed
+
+- **One press to copy a shareable link; PDF/UA checkpoints as a row in the report.** Sharing a report is one press instead of two: the button is now "Copy shareable link", and pressing it saves the report, copies the link to the clipboard and shows it, with a line saying the link was copied. If the browser refuses the copy (some do once a network request has intervened), the link is still shown and the line says to press Copy. Nothing about when a report is stored changed: it is still saved only when the button is pressed, and the text under the button now says so. In the Visual report, the Matterhorn regrouping of a PDF's findings is a fourth row of "More in this report", titled "PDF/UA checkpoints (what PAC tests)"; it was a separate card below the rows with a toggle of its own. PDF reports only. The panel's introductory text is 14px instead of 12px.
+
+### Notes
+
+- Tests 5,571 across 313 files (API 2,915 · Web 2,484 · CLI 172).
+
 ## [1.181.2] - 2026-11-25
 
 ### Security

@@ -327,6 +327,62 @@ function button(wrapper: ReturnType<typeof mountIndex>, label: string) {
 }
 
 describe("index.vue — share row (findings 8d, 8e, 9, 11)", () => {
+  // User request, 2026-11-25: one press creates the link AND copies it.
+  it("one press saves the report, copies the link, and says so", async () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: async (t: string) => void written.push(t) },
+    });
+    const wrapper = mountIndex();
+    await analyzeSingle(wrapper, report());
+    // Nothing is saved before the press.
+    expect(fetchMock.mock.calls.some((c) => c[0] === "/api/reports")).toBe(false);
+    expect(wrapper.text()).toContain("Nothing is saved until you press the button");
+
+    fetchMock.mockImplementation(async (url: string) =>
+      url === "/api/reports" ? { id: "rid-copy" } : {},
+    );
+    await button(wrapper, "Copy shareable link").trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(written).toHaveLength(1);
+    expect(written[0]).toContain("rid-copy");
+    expect(wrapper.get('[data-testid="share-copy-status"]').text()).toBe(
+      "Link copied to your clipboard.",
+    );
+    wrapper.unmount();
+  });
+
+  it("when the browser refuses the copy, the link is still shown and the reader is told to press Copy", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async () => {
+          throw new Error("NotAllowedError");
+        },
+      },
+    });
+    (document as any).execCommand = () => false;
+    const wrapper = mountIndex();
+    await analyzeSingle(wrapper, report());
+    fetchMock.mockImplementation(async (url: string) =>
+      url === "/api/reports" ? { id: "rid-refused" } : {},
+    );
+    await button(wrapper, "Copy shareable link").trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect((wrapper.get('[data-testid="share-url"]').element as HTMLInputElement).value).toContain(
+      "rid-refused",
+    );
+    expect(wrapper.get('[data-testid="share-copy-status"]').text()).toBe(
+      "Link created. Press Copy to copy it.",
+    );
+    wrapper.unmount();
+  });
+
   it("posts the result exactly as received, seal included, then focuses the labelled link field", async () => {
     const wrapper = mountIndex();
     const received = report({
@@ -340,7 +396,7 @@ describe("index.vue — share row (findings 8d, 8e, 9, 11)", () => {
     fetchMock.mockImplementation(async (url: string) =>
       url === "/api/reports" ? { id: "rid-1" } : {},
     );
-    await button(wrapper, "Create Shareable Link").trigger("click");
+    await button(wrapper, "Copy shareable link").trigger("click");
     await flushPromises();
     await nextTick();
 
@@ -369,7 +425,7 @@ describe("index.vue — share row (findings 8d, 8e, 9, 11)", () => {
     await button(wrapper, "Dismiss").trigger("click");
     await flushPromises();
     await nextTick();
-    expect(document.activeElement).toBe(button(wrapper, "Create Shareable Link").element);
+    expect(document.activeElement).toBe(button(wrapper, "Copy shareable link").element);
     wrapper.unmount();
   });
 
@@ -388,7 +444,7 @@ describe("index.vue — share row (findings 8d, 8e, 9, 11)", () => {
       }
       return {};
     });
-    await button(wrapper, "Create Shareable Link").trigger("click");
+    await button(wrapper, "Copy shareable link").trigger("click");
     await flushPromises();
     const err = wrapper.find('[data-testid="share-error"]');
     expect(err.attributes("role")).toBe("alert");
@@ -416,7 +472,7 @@ describe("index.vue — share row (findings 8d, 8e, 9, 11)", () => {
         : Promise.resolve({}),
     );
     // Share tab A, switch to B before the answer arrives.
-    await button(wrapper, "Create Shareable Link").trigger("click");
+    await button(wrapper, "Copy shareable link").trigger("click");
     wrapper.findComponent(BatchFileSwitcher).vm.$emit("switch", 1);
     await flushPromises();
     answerShare({ id: "for-a" });
@@ -424,7 +480,7 @@ describe("index.vue — share row (findings 8d, 8e, 9, 11)", () => {
 
     expect(wrapper.find('[data-testid="results-heading"]').text()).toContain("b.pdf");
     expect(wrapper.find('[data-testid="share-url"]').exists()).toBe(false);
-    expect(button(wrapper, "Create Shareable Link")).toBeTruthy();
+    expect(button(wrapper, "Copy shareable link")).toBeTruthy();
     wrapper.unmount();
   });
 });
@@ -439,7 +495,7 @@ describe("index.vue — follow-up (G, H, I, J)", () => {
         ? new Promise((resolve) => (answerShare = resolve))
         : Promise.resolve({}),
     );
-    const create = button(wrapper, "Create Shareable Link");
+    const create = button(wrapper, "Copy shareable link");
     (create.element as HTMLElement).focus();
     await create.trigger("click");
     // The reader tabs away to the AI preview while the request is out.

@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.181.3",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation — the share control on the results page and one panel's placement in the report.",
+    body: [
+      {
+        kind: "p",
+        html: "Sharing a report now takes one press instead of two: the button saves the report and copies its link for you. A report is still saved only when you press that button, never automatically. We also moved the list of PDF checkpoints into the folded section near the end of a report, where the other reference material is, so it is easier to find. Nothing about what the tool does with your file changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.181.2",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY RELEASE — completes v1.180.0 to v1.181.1, none of which was deployed.",
     body: [

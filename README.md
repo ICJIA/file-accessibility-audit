@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.181.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5566%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.181.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5571%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -1023,7 +1023,7 @@ In the first table, all but the last row live in [`docs/archive/`](docs/archive/
 
 ## Tests
 
-**5,566 tests** across 313 test files (API 2,915 · Web 2,479 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**5,571 tests** across 313 test files (API 2,915 · Web 2,484 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1683,6 +1683,13 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.181.3 — 2026-11-25 · One press to copy a shareable link; PDF/UA checkpoints as a row in the report (Presentation — the share control on the results page and one panel's placement in the report)
+
+No new attack surface. The share button calls the same `POST /api/reports` with the same sealed body as before, once per press, and then writes the returned link to the clipboard with `navigator.clipboard.writeText` (falling back to `execCommand`); nothing is read from the clipboard. A report is still stored only on an explicit press. The checkpoints row renders the existing `MatterhornReportPanel` in a native `<details>`; no new data, input or request. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,571 green. Lint, format check, typecheck and the production build were clean.
+
+<details>
+<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
+
 ### v1.181.2 — 2026-11-25 · The link-check address limit reads addresses as numbers, not text (SECURITY RELEASE — completes v1.180.0 to v1.181.1, none of which was deployed)
 
 **Red / blue review, 2026-11-25 — complete.** This is the full review of the change that lets anyone check a document on any public website by link. It was done in five passes on the same day, and this entry carries all of it: findings 1–6 were fixed in v1.180.0, 7–8 in v1.181.0, 9 in v1.181.1, and 10 here. **None of v1.180.0, v1.181.0 or v1.181.1 was deployed, so no version with an open finding reached the public site.**
@@ -1734,9 +1741,6 @@ Entries marked **(entry recorded 2026-08-08)** were reconstructed from that rele
 **Also in this release:** the address-parsing helpers moved from `safeFetch.ts` into `services/ipAddress.ts`, with no change in what they return.
 
 `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,566 green. Lint, format check, typecheck and the production build were clean.
-
-<details>
-<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
 
 ### v1.181.1 — 2026-11-25 · The link-check limit follows the server, not only the name (SECURITY RELEASE — completes v1.180.0 and v1.181.0, neither of which was deployed)
 

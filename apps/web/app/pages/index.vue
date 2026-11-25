@@ -492,11 +492,16 @@
                         />
                       </svg>
                     </template>
-                    Create Shareable Link
+                    Copy shareable link
                   </UButton>
                 </div>
-                <p class="text-xs text-[var(--text-muted)] mt-2">
-                  Creates a public link anyone can view. Expires in {{ shareExpiryDays }} days.
+                <!-- One press, not two (user request, 2026-11-25): it used to
+                     be "Create Shareable Link", then a second press on Copy.
+                     Still a press, on purpose — creating the link SAVES the
+                     report on the server, and nothing is saved until asked. -->
+                <p class="text-sm text-[var(--text-secondary)] mt-2">
+                  Saves this report and copies a public link that anyone can view. The link expires
+                  in {{ shareExpiryDays }} days. Nothing is saved until you press the button.
                 </p>
                 <!-- role="alert": the message appears without a page change, so
                  it has to announce itself. Focus stays on the button, which
@@ -513,6 +518,26 @@
 
               <!-- Share URL display -->
               <div v-else class="space-y-3">
+                <!-- role="status": says what just happened to the clipboard,
+                     which cannot be seen. When the browser refuses the copy
+                     (some do, once a network request has intervened), it says
+                     that instead, and the Copy button beside the field works. -->
+                <p
+                  role="status"
+                  data-testid="share-copy-status"
+                  class="text-sm font-semibold"
+                  :class="
+                    shareAutoCopied
+                      ? 'text-[var(--status-success)]'
+                      : 'text-[var(--text-secondary)]'
+                  "
+                >
+                  {{
+                    shareAutoCopied
+                      ? "Link copied to your clipboard."
+                      : "Link created. Press Copy to copy it."
+                  }}
+                </p>
                 <div class="flex gap-2">
                   <!-- The Create button is removed the moment the link exists,
                    taking keyboard focus with it — handleShare() moves focus
@@ -1850,6 +1875,9 @@ function clearResults() {
 }
 
 const copied = ref(false);
+// Whether the link now on screen has reached the clipboard (by the first
+// press, or by the Copy button after a refused first attempt).
+const shareAutoCopied = ref(false);
 
 // Focus management for the share row: the Create button is removed once a
 // link exists, and the link field is removed on Dismiss — in both cases the
@@ -1862,6 +1890,7 @@ async function handleShare() {
   // Posted exactly as received from the API (seal included) — see
   // useReportExport.shareReport.
   const startedFrom = document.activeElement;
+  shareAutoCopied.value = false;
   const url = await shareReport(result.value);
   if (!url) return; // the error is announced by its role="alert"
   // Is focus still where the request left it? Read BEFORE the button is
@@ -1873,6 +1902,8 @@ async function handleShare() {
     before === document.body ||
     before === startedFrom ||
     !!shareCreateRef.value?.contains(before);
+  // Copy it straight away — the press was "copy a link", not "make one".
+  shareAutoCopied.value = await copyShareUrl();
   await nextTick();
   if (stillOnShare) shareUrlInputRef.value?.focus();
 }
@@ -1883,8 +1914,10 @@ async function dismissShare() {
   shareCreateRef.value?.querySelector<HTMLElement>("button")?.focus();
 }
 
-async function copyShareUrl() {
-  if (!shareUrl.value) return;
+/** Copies the link; resolves true only when the browser accepted the copy. */
+async function copyShareUrl(): Promise<boolean> {
+  if (!shareUrl.value) return false;
+  let ok = true;
   try {
     await navigator.clipboard.writeText(shareUrl.value);
   } catch {
@@ -1895,13 +1928,20 @@ async function copyShareUrl() {
     textarea.style.opacity = "0";
     document.body.appendChild(textarea);
     textarea.select();
-    document.execCommand("copy");
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
     document.body.removeChild(textarea);
   }
+  if (!ok) return false;
+  shareAutoCopied.value = true;
   copied.value = true;
   setTimeout(() => {
     copied.value = false;
   }, 2000);
+  return true;
 }
 
 function emailShareUrl() {
