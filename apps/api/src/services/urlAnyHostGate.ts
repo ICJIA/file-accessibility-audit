@@ -30,6 +30,7 @@
  * Worst case held in memory by this path: MAX_CONCURRENT × the 25 MB cap.
  */
 import { URL_FETCH } from "#config";
+import { addressBlock } from "./ipAddress.js";
 
 export type AnyHostRefusal = "busy" | "caller-busy" | "hourly" | "target-hourly";
 
@@ -95,21 +96,10 @@ export function chargeAnyHostTarget(hostname: string, now: number = Date.now()):
   return true;
 }
 
-/**
- * The block an address belongs to: an IPv4 /24 ("93.184.216") or an IPv6 /64
- * (its first four groups, as written). An IPv6 address is taken as written
- * by the resolver — two spellings of one /64 could be told apart, which only
- * ever splits a budget across forms the same resolver does not mix.
- */
-export function addressBlockOf(ip: string): string {
-  const addr = ip.replace(/^\[|\]$/g, "").toLowerCase();
-  if (addr.includes(":")) {
-    const [head = ""] = addr.split("::");
-    const groups = head.split(":").filter(Boolean).slice(0, 4);
-    return `v6:${groups.join(":")}`;
-  }
-  return `v4:${addr.split(".").slice(0, 3).join(".")}`;
-}
+/** The block an address belongs to — see `addressBlock` in ipAddress.ts,
+ *  which parses the address numerically and unwraps the forms that only
+ *  carry an IPv4 address inside them. */
+export const addressBlockOf = addressBlock;
 
 /**
  * Count one fetch toward the address block it is about to connect to, and

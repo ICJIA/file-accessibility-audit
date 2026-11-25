@@ -289,11 +289,45 @@ describe("follow-up C — the ceiling follows the server, not only the name", ()
     expect(chargeAnyHostAddress("93.184.216.34", t0 + 60 * 60 * 1000 + 1000)).toBe(true);
   });
 
-  it("groups IPv4 by /24 and IPv6 by /64", () => {
+  it("groups IPv4 by /24 and IPv6 by /64, whatever the spelling", () => {
     expect(addressBlockOf("93.184.216.34")).toBe("v4:93.184.216");
-    expect(addressBlockOf("2606:4700:4700:0:1:2:3:4")).toBe("v6:2606:4700:4700:0");
-    expect(addressBlockOf("[2606:4700:4700:0::1111]")).toBe("v6:2606:4700:4700:0");
-    expect(addressBlockOf("2606:4700:4700:0::1")).toBe(addressBlockOf("2606:4700:4700:0::ffff"));
+    const block = "v6:2606:4700:4700:0";
+    for (const spelling of [
+      "2606:4700:4700:0:1:2:3:4",
+      "2606:4700:4700::1111",
+      "[2606:4700:4700:0::1111]",
+      "2606:4700:4700:0000:0000:0000:0000:0001",
+      "2606:4700:4700::1.2.3.4",
+    ]) {
+      expect(addressBlockOf(spelling), spelling).toBe(block);
+    }
+    // A neighbouring /64 is a different block.
+    expect(addressBlockOf("2606:4700:4700:1::1")).not.toBe(block);
+  });
+
+  // Found by the automated review of v1.181.1.
+  it("an address that only wraps an IPv4 one shares that IPv4 address's budget", () => {
+    const v4 = addressBlockOf("93.184.216.34");
+    expect(addressBlockOf("::ffff:93.184.216.34")).toBe(v4);
+    expect(addressBlockOf("::ffff:5db8:d822")).toBe(v4);
+    expect(addressBlockOf("0:0:0:0:0:ffff:5db8:d822")).toBe(v4);
+    // 6to4: 2002:AABB:CCDD::/48 embeds a.b.c.d
+    expect(addressBlockOf("2002:5db8:d822::1")).toBe(v4);
+
+    resetAnyHostGate();
+    const t0 = 12_000_000;
+    for (let i = 0; i < URL_FETCH.ANY_HOST_MAX_PER_ADDRESS_PER_HOUR; i++) {
+      expect(chargeAnyHostAddress("93.184.216.34", t0)).toBe(true);
+    }
+    for (const other of ["::ffff:93.184.216.34", "2002:5db8:d822::1", "::ffff:5db8:d822"]) {
+      expect(chargeAnyHostAddress(other, t0 + 1), other).toBe(false);
+    }
+  });
+
+  it("something that is not an address never opens a fresh allowance", () => {
+    expect(addressBlockOf("not-an-ip")).toBe("unparsed");
+    expect(addressBlockOf("")).toBe("unparsed");
+    expect(addressBlockOf("1.2.3")).toBe("unparsed");
   });
 
   it("the pipeline charges the address on every hop, through safeFetch's own hook", () => {

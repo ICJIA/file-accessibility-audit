@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.181.2] - 2026-11-25
+
+### Security
+
+- **The link-check address limit reads addresses as numbers, not text.** A correction to the address-based ceiling added in v1.181.1, found by an automated review of that commit before any of these versions was deployed. The ceiling grouped an address into its network block by reading its text, and an IPv6 address has many spellings: one /64 could land in several buckets, and an address that only wraps an IPv4 one (IPv4-mapped `::ffff:a.b.c.d`, or 6to4 `2002:AABB:CCDD::/48`) was counted apart from the IPv4 address it reaches. Addresses are now parsed into numbers before grouping (`services/ipAddress.ts` `addressBlock`), both wrapped forms are counted as the IPv4 address inside them, and anything that is not an address shares one bucket instead of opening a fresh allowance. The parsing helpers moved out of `safeFetch.ts` into `ipAddress.ts`. None of v1.180.0, v1.181.0 or v1.181.1 was deployed.
+
+### Notes
+
+- Tests 5,566 across 313 files (API 2,915 · Web 2,479 · CLI 172).
+
 ## [1.181.1] - 2026-11-25
 
 ### Security
