@@ -70,24 +70,23 @@ describe("ReportVisualView", () => {
       // 80"), so "/100" now first matches inside the technical report far
       // below and the marker pointed at the wrong element. The hero's own
       // panel label is the stable anchor.
-      html.indexOf("Fix progress"), // hero
+      // Plakat layout (2026-11-25, user decision): grade block and severity
+      // counts, then the plan beside the bars; the explanatory panels — the
+      // fix-progress meter, the two-standards strip (the ONE verdict), the
+      // About-this-document card — follow them.
+      html.indexOf('data-testid="grade-block"'), // hero
       html.indexOf("severity-tile-critical"),
       // The one verdict is the two-standards strip (VerdictStrip retired
-      // v1.137.0 — ONE publish verdict, and it names WCAG 2.1).
+      // v1.137.0 — ONE publish verdict, and it names WCAG 2.1): full width,
+      // between the hero and the plan.
       html.indexOf("two-standards-strip"),
-      // The About-this-document card sits directly above the plan so the
-      // reader sees what made the document (and when) before the steps that
-      // depend on it (user request 2026-08-16). Its property TABLE folds away
-      // (v1.131.0) so the position costs the plan only three facts of height,
-      // not twenty rows — the reason for the position is preserved, the bulk
-      // is not.
+      html.indexOf('id="action-plan-title"'),
+      html.indexOf('id="category-bars-title"'),
+      html.indexOf("Fix progress"),
       html.indexOf("about-document"),
-      html.indexOf("Your action plan"),
-      // The source-first advice moved BELOW the plan (v1.131.0): it is
-      // strategy about HOW to do the work, and it used to put ~120 words
-      // between a reader and the one thing they came for.
+      // The source-first advice stays below the plan (v1.131.0): it is
+      // strategy about HOW to do the work.
       html.indexOf("notice-slot-marker"),
-      html.indexOf("Where the score comes from"),
       // Anchor to the TechnicalReport section's own opening tag, not the
       // bare substring, which could match an earlier href.
       html.indexOf('id="technical-report"'),

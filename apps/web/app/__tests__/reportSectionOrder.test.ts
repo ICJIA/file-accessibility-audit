@@ -111,11 +111,13 @@ describe.each([
 describe("ReportVisualView.vue — visual composition order", () => {
   const src = componentSource("ReportVisualView.vue");
   it("hero → tiles → verdict → plan → bars → technical report", () => {
+    // Plakat layout (2026-11-25): the page opens as the designed poster —
+    // grade block and severity counts — then the one verdict strip across the
+    // full width, then the plan beside the bars. The strip is the ONE verdict
+    // (VerdictStrip retired v1.137.0 — two stacked verdict banners violated
+    // the one-verdict rule), and it is stated before the plan.
     const hero = at(src, "ReportGradeHero");
     const tiles = at(src, "SeverityTiles");
-    // The one verdict is the TwoStandardsStrip (VerdictStrip retired
-    // v1.137.0 — two stacked verdict banners violated the one-verdict rule,
-    // and the old one said "WCAG 2.2" an inch above "only WCAG 2.1 counts").
     const verdict = at(src, "TwoStandardsStrip");
     const plan = at(src, "ActionPlan");
     const bars = at(src, "CategoryBars");

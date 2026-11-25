@@ -3,11 +3,11 @@
     <button
       type="button"
       data-testid="print-plan"
-      class="group flex w-full items-center gap-4 rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 px-5 py-4 text-left transition-colors cursor-pointer hover:border-emerald-400/70 hover:bg-emerald-500/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+      class="group flex w-full items-center gap-4 border-2 border-[var(--text-heading)] bg-transparent px-5 py-4 text-left transition-colors cursor-pointer hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
       @click="openPlan"
     >
       <span
-        class="shrink-0 flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-300"
+        class="shrink-0 flex h-12 w-12 items-center justify-center bg-[var(--text-heading)] text-[var(--surface-body)]"
         aria-hidden="true"
       >
         <svg
@@ -33,7 +33,7 @@
         </span>
       </span>
       <span
-        class="ml-auto shrink-0 text-xs font-semibold uppercase tracking-wider text-emerald-300"
+        class="ml-auto shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--text-heading)]"
         aria-hidden="true"
         >Open ↗</span
       >

@@ -21,7 +21,7 @@ import { shallowRef } from "vue";
 import ReportVisualView from "~/components/ReportVisualView.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
 
-definePageMeta({ middleware: [] });
+definePageMeta({ middleware: [], wide: true });
 
 const runtimeConfig = useRuntimeConfig();
 const siteUrl = String(runtimeConfig.public.siteUrl ?? "");
@@ -56,10 +56,8 @@ try {
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">
-      Example
-    </p>
-    <h1 class="text-2xl sm:text-3xl font-black text-[var(--text-heading)] mb-4">Sample report</h1>
+    <p class="pk-label pk-rule pt-6 text-[var(--text-muted)] mb-4">Example</p>
+    <h1 class="pk-page-title text-[var(--text-heading)] mb-6">Sample report</h1>
 
     <!-- The banner: unmissable, in words, and before any grade. A sample that
          could be mistaken for the visitor's own document would be worse than
@@ -83,27 +81,29 @@ try {
         <NuxtLink
           to="/"
           data-testid="sample-cta-top"
-          class="inline-block rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+          class="inline-block rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cobalt-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
           >Check your own document</NuxtLink
         >
       </p>
     </div>
 
     <template v-if="sample">
-      <ReportFileBanner
-        :filename="sample.filename"
-        :page-count="sample.pageCount"
-        :is-scanned="sample.isScanned"
-        :file-type="sample.fileType"
-        class="mb-6"
-      />
-
       <!-- No #cta slot: that is where a live report puts the repair button. -->
       <ReportVisualView
         :result="sample"
         :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
         data-testid="sample-report"
       >
+        <template #banner>
+          <ReportFileBanner
+            compact
+            :filename="sample.filename"
+            :page-count="sample.pageCount"
+            :is-scanned="sample.isScanned"
+            :file-type="sample.fileType"
+            class="mb-6"
+          />
+        </template>
         <template #notice>
           <SourceDocumentNotice variant="audit" :file-type="sample.fileType" class="mb-4" />
         </template>
@@ -120,7 +120,7 @@ try {
           <NuxtLink
             to="/"
             data-testid="sample-cta-bottom"
-            class="inline-block rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+            class="inline-block rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cobalt-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
             >Check your own document</NuxtLink
           >
         </p>

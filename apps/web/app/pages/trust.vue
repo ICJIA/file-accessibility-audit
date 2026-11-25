@@ -794,4 +794,54 @@ html.light .trust-page {
     font-size: 11px;
   }
 }
+
+/* ── Plakat look (2026-11) ────────────────────────────────────────────────
+   Shape, weight and scale only, to match the rest of the app: poster-scale
+   heavy headings set tight, heavy rules between sections, and figures that
+   stand on a rule instead of sitting in a card. The four accent colours and
+   their light-mode values above are measured and are left alone. The body
+   arrives via v-html, so this is done here in CSS, not in the markup. */
+.trust-page .display,
+.trust-page .hero h1 {
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.94;
+}
+.trust-page .hero h1 {
+  font-size: clamp(44px, 8.4vw, 92px);
+}
+.trust-page h2.display {
+  font-size: clamp(32px, 5.4vw, 56px);
+  margin-bottom: 18px;
+}
+.trust-page section {
+  border-top: 4px solid var(--tp-text);
+}
+.trust-page .stamp {
+  border-width: 4px;
+}
+.trust-page .stat {
+  background: transparent;
+  border: 0;
+  border-top: 4px solid var(--tp-text);
+  padding: 14px 0 0;
+}
+.trust-page .stat .n {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: clamp(28px, 17cqi, 56px);
+  letter-spacing: -0.05em;
+  text-align: left;
+}
+/* Full strength: at the original 85% these captions measured 4.46:1 on their
+   tint in light mode once the node behind them lost its panel. */
+.trust-page .verdicts .v small {
+  opacity: 1;
+}
+.trust-page .pipe .node {
+  background: transparent;
+  border: 0;
+  border-top: 4px solid var(--tp-text);
+  padding: 14px 0 0;
+}
 </style>

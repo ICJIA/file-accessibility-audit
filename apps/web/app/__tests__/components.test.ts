@@ -451,8 +451,8 @@ describe("ScoreCard", () => {
       const wrapper = mount(ScoreCard, {
         props: { result: { ...baseResult, grade, overallScore: 50 } },
       });
-      // The grade circle border uses the grade color
-      const circle = wrapper.find('[class*="rounded-full"]');
+      // The grade block is drawn in the grade color
+      const circle = wrapper.find('[data-testid="grade-block"]');
       expect(circle.exists()).toBe(true);
       expect(circle.attributes("style")).toContain(expectedColor);
       // The label text should appear

@@ -22,10 +22,8 @@ useHead({
 
 <template>
   <div class="mx-auto max-w-3xl px-4 py-10">
-    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">
-      Standards explainer
-    </p>
-    <h1 class="text-3xl font-black text-[var(--text-heading)] mb-4">
+    <p class="pk-label pk-rule pt-6 text-[var(--text-muted)] mb-4">Standards explainer</p>
+    <h1 class="pk-page-title text-[var(--text-heading)] mb-6">
       How WCAG 2.2 differs from WCAG 2.1
     </h1>
 

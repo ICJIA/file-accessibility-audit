@@ -238,7 +238,7 @@ describe("fixture flows through the real UI (ReportVisualView)", () => {
 
   it("renders the action plan, category bars, and technical report sections (hasCategories branch)", () => {
     const w = mount(ReportVisualView, { props: { result: fixture } });
-    expect(w.text()).toContain("Your action plan");
+    expect(w.text()).toContain("What to fix, in order");
     expect(w.find("[data-testid='bar-row']").exists()).toBe(true);
     expect(w.find("#technical-report").exists()).toBe(true);
     // 2 Criticals (per the fixture-sanity check above) means the plan is

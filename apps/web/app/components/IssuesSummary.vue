@@ -126,9 +126,11 @@ function toggle(id: string) {
 }
 .title {
   color: var(--text-heading);
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0;
+  font-size: clamp(1.875rem, 4vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.94;
+  margin: 0 0 6px;
 }
 .subtitle {
   color: var(--text-muted);

@@ -6,7 +6,38 @@
    Bump Tailwind's default text size scale up one tier for readability.
    xs: 12px→14px, sm: 14px→16px, base: 16px→17px, lg: 18px→20px
    ========================================================================== */
+/* The brand colour scale. `static` matters: Nuxt UI's primary colour reads
+   these by variable name (--color-cobalt-400 and so on, nuxt.config.ts
+   appConfig.ui.colors.primary), and Tailwind only emits a theme variable some
+   utility class uses. Without it most shades were dropped from the build, the
+   primary variable resolved to nothing, and every solid primary button drew
+   as faint text with no button behind it (found 2026-11-25).
+   -500 is the brand cobalt: white on it measures 5.7:1. */
+@theme static {
+  --color-cobalt-50: #eef2ff;
+  --color-cobalt-100: #dfe6ff;
+  --color-cobalt-200: #c2cfff;
+  --color-cobalt-300: #9db2ff;
+  --color-cobalt-400: #7391ff;
+  --color-cobalt-500: #3559e0;
+  --color-cobalt-600: #2a49c4;
+  --color-cobalt-700: #223da6;
+  --color-cobalt-800: #1c3187;
+  --color-cobalt-900: #162a70;
+  --color-cobalt-950: #0e1a47;
+}
+
 @theme {
+  /* Plakat look (2026-11): one heavy grotesque, set tight. Archivo is
+     downloaded at build time and served from this origin by @nuxt/fonts
+     (nuxt.config.ts `fonts`), so the browser makes no third-party request
+     and the CSP's font-src 'self' holds. */
+  --font-sans: "Archivo", "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
+  --font-weight-black: 800;
+  --tracking-tight: -0.035em;
+
   --font-size-xs: 1.0625rem;
   --font-size-xs--line-height: 1.5rem;
   --font-size-sm: 1.1875rem;
@@ -55,6 +86,11 @@
   /* Links */
   --link: #60a5fa;
   --link-hover: #93c5fd;
+  /* Brand block (Plakat): the one colour field on a page — the home hero,
+     primary buttons. Same in both themes; --brand-ink on --brand is 5.7:1.
+     Never use --brand as TEXT on the dark page (3.4:1): use --link there. */
+  --brand: #3559e0;
+  --brand-ink: #ffffff;
 
   /* Accents */
   --accent-green: #4ade80;
@@ -181,11 +217,194 @@ body {
   color: var(--text-primary);
 }
 
-/* Report action buttons: green on hover */
+/* ==========================================================================
+   Plakat look — global rules
+   Square corners everywhere except true circles (status dots, spinners,
+   pills that are meant to be round). Unlayered on purpose: it must win over
+   Tailwind's utilities layer and over Nuxt UI's component classes.
+   ========================================================================== */
+:root {
+  --ui-radius: 0rem;
+}
+[class*="rounded"]:not([class*="rounded-full"]) {
+  border-radius: 0;
+}
+h1,
+h2,
+h3 {
+  letter-spacing: -0.03em;
+}
+/* The trust page carries its own stylesheet (a twin of the printed brief),
+   with its own radii — square those too. */
+.trust-page * {
+  border-radius: 0 !important;
+}
+/* Poster-scale headline: the home hero, the page titles. */
+.pk-display {
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.94;
+}
+/* Title of a reading page (policy, technical details, what's new…). */
+.pk-page-title {
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.94;
+  font-size: clamp(2.75rem, 7vw, 5rem);
+  text-wrap: balance;
+}
+/* Small capitals label that sits above a block. */
+.pk-label {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* The brand colour field. */
+.pk-block {
+  background-color: var(--brand);
+  color: var(--brand-ink);
+}
+.pk-block a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pk-block a:hover {
+  opacity: 0.8;
+}
+.pk-block :focus-visible {
+  outline: 3px solid var(--brand-ink);
+  outline-offset: 2px;
+}
+/* Site links on a narrow screen: collapsed behind the header's Menu button
+   (layouts/default.vue), and when opened a full-width list of large, ruled
+   links under the header row. From 768px up this block does not apply and
+   the links sit in the header as before. */
+@media (max-width: 767.98px) {
+  .site-nav {
+    order: 99;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    border-bottom: 4px solid var(--text-heading);
+  }
+  .site-nav:not(.is-open) {
+    display: none;
+  }
+  .site-nav > a {
+    padding: 0.875rem 0;
+    border-top: 2px solid var(--border-alt);
+    font-size: 1.375rem;
+    line-height: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-heading);
+  }
+}
+/* A link in running text is underlined, in both themes. Colour alone does
+   not separate it from the words around it — in light mode the link blue and
+   the body grey measure 1.1:1 against each other, where WCAG 1.4.1 asks for
+   3:1 or a non-colour cue (found by axe, 2026-11-25). Keyed on the link
+   colour class the app's text links all carry. */
+a[class*="text-[var(--link)]"] {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* Outlined control button (report hero). 44px tall: a full touch target. */
+.pk-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  border: 2px solid var(--text-heading);
+  background: transparent;
+  color: var(--text-heading);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pk-btn:hover {
+  background: var(--surface-hover);
+}
+.pk-btn:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+/* The pressed half of a segmented pair. */
+.pk-btn-on,
+.pk-btn-on:hover {
+  background: var(--text-heading);
+  color: var(--surface-body);
+}
+.pk-btn-brand {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.pk-btn-brand:hover {
+  background: var(--color-cobalt-600);
+  border-color: var(--color-cobalt-600);
+}
+/* A folded reference row in the report ("More in this report"): a native
+   <details> whose summary reads as one ruled line — title, a short hint, and
+   an Open/Close cue. */
+.pk-more {
+  border-top: 2px solid var(--border-alt);
+}
+.pk-more > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.5rem;
+  padding: 1.125rem 0;
+  cursor: pointer;
+  list-style: none;
+}
+.pk-more > summary::-webkit-details-marker {
+  display: none;
+}
+.pk-more > summary::after {
+  content: "Open +";
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+.pk-more[open] > summary::after {
+  content: "Close –";
+}
+.pk-more > summary:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+.pk-more-title {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-heading);
+}
+.pk-more-hint {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  color: var(--text-secondary);
+}
+/* Heavy rule that opens a section or a tile. */
+.pk-rule {
+  border-top: 4px solid var(--text-heading);
+}
+
+/* Report action buttons: brand blue on hover */
 .report-actions button:hover {
-  background-color: rgba(34, 197, 94, 0.15) !important;
-  color: var(--report-hover-text) !important;
-  border-color: rgba(34, 197, 94, 0.3) !important;
+  background-color: rgba(53, 89, 224, 0.18) !important;
+  color: var(--link) !important;
+  border-color: rgba(53, 89, 224, 0.45) !important;
 }
 
 /* Mobile nav slide transition */

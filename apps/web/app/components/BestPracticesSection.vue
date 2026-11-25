@@ -59,7 +59,7 @@
       <span aria-hidden="true" class="text-2xl leading-none text-sky-400">○</span>
       <h2
         id="best-practices-title"
-        class="text-lg sm:text-xl font-bold text-[var(--text-heading)] m-0"
+        class="pk-display text-3xl sm:text-4xl text-[var(--text-heading)] m-0"
       >
         Best practices — not scored
       </h2>

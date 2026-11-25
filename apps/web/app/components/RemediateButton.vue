@@ -189,21 +189,19 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="visible"
-    class="w-full max-w-2xl rounded-xl px-5 sm:px-8 py-5 sm:py-6 text-center transition-all duration-200"
+    class="w-full rounded-xl px-5 sm:px-8 py-6 sm:py-8 text-left transition-all duration-200"
     :class="
       alreadyAccessible
         ? 'border border-[var(--border)] bg-[var(--surface-card)]'
         : busy
-          ? 'border-2 border-blue-400/70 bg-blue-950/40 shadow-[0_0_28px_rgba(59,130,246,0.25)] animate-pulse-soft'
-          : 'border border-blue-700/40 bg-blue-950/20'
+          ? 'border-2 border-[var(--brand)] bg-[var(--surface-raised)] animate-pulse-soft'
+          : 'border-2 border-[var(--brand)] bg-[var(--surface-raised)]'
     "
     :aria-busy="busy ? 'true' : 'false'"
   >
     <p
       class="text-xs uppercase tracking-wide mb-3"
-      :class="
-        alreadyAccessible ? 'text-[var(--text-muted)]' : busy ? 'text-blue-200' : 'text-blue-300/80'
-      "
+      :class="alreadyAccessible ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)]'"
     >
       {{
         alreadyAccessible
@@ -213,9 +211,26 @@ onBeforeUnmount(() => {
             : "Optional next step"
       }}
     </p>
+    <!-- What this panel is and what pressing the button does, said first.
+         It used to open with two form fields and no heading, and the reader
+         could not tell that a repair was on offer at all. -->
+    <template v-if="!alreadyAccessible && !busy">
+      <h3 class="pk-display text-3xl sm:text-4xl text-[var(--text-heading)]">
+        Try an automatic repair
+      </h3>
+      <p class="mt-3 mb-6 max-w-3xl text-base text-[var(--text-secondary)] leading-relaxed">
+        This tool can try to fix the PDF for you: it adds structure tags, writes the title and
+        language below, then checks the result again. You get a repaired copy to download.
+        <strong class="text-[var(--text-heading)]">Results vary by source document</strong> — the
+        new check shows exactly what improved.
+      </p>
+      <p class="pk-label text-[var(--text-muted)] mb-3">
+        Set these first if you like — both are optional
+      </p>
+    </template>
     <div
       v-if="!alreadyAccessible && !busy"
-      class="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] text-left max-w-xl mx-auto"
+      class="mb-6 grid gap-4 sm:grid-cols-[1fr_auto] text-left max-w-3xl"
     >
       <label class="block text-sm">
         <span class="text-[var(--text-secondary)] font-medium">Document title</span>
@@ -250,15 +265,20 @@ onBeforeUnmount(() => {
       v-if="needsReselect && !busy"
       id="remediate-reselect-note"
       data-testid="remediate-reselect-note"
-      class="mb-3 text-sm text-[var(--text-secondary)] max-w-xl mx-auto break-words"
+      class="mb-4 text-base text-[var(--text-primary)] max-w-3xl break-words"
     >
+      <!-- Says HOW: the button opens the file chooser. "Choose it again" on
+           its own left readers asking where (user report, 2026-11-25). -->
       <template v-if="expectedFile?.name">
-        The file itself is no longer held in this browser. Choose
+        This page was reloaded, so the browser no longer has the file itself. Press the button
+        below, then choose
         <strong class="font-semibold text-[var(--text-heading)]">{{ expectedFile.name }}</strong>
-        again to repair it.
+        from your computer when asked — the repair starts as soon as you pick it.
       </template>
       <template v-else>
-        The file itself is no longer held in this browser. Choose the same PDF again to repair it.
+        This page was reloaded, so the browser no longer has the file itself. Press the button
+        below, then choose the same PDF from your computer when asked — the repair starts as soon as
+        you pick it.
       </template>
     </p>
     <UButton
@@ -291,7 +311,7 @@ onBeforeUnmount(() => {
          users have an unambiguous signal something is happening. -->
     <div
       v-if="busy"
-      class="mt-4 flex items-center justify-center gap-2 text-sm text-blue-100"
+      class="mt-4 flex items-center gap-2 text-sm text-[var(--text-heading)]"
       aria-live="polite"
     >
       <span class="inline-flex gap-1">
@@ -308,10 +328,7 @@ onBeforeUnmount(() => {
       <span>{{ phaseCopy }}</span>
     </div>
 
-    <p
-      v-if="!busy && alreadyAccessible"
-      class="text-sm text-[var(--text-muted)] mt-3 max-w-lg mx-auto"
-    >
+    <p v-if="!busy && alreadyAccessible" class="text-sm text-[var(--text-muted)] mt-3 max-w-2xl">
       This PDF already scored {{ props.inputScore }} on the audit and won't benefit from additional
       automated remediation. We still recommend a manual review pass in Adobe Acrobat (All tools →
       Prepare for accessibility → Check for accessibility) to verify alt text, reading order, and
@@ -319,14 +336,9 @@ onBeforeUnmount(() => {
     </p>
     <div
       v-else-if="!busy"
-      class="mt-3 text-sm text-[var(--text-muted)] max-w-xl mx-auto space-y-2 text-left sm:text-center"
+      class="mt-4 text-sm text-[var(--text-muted)] max-w-3xl space-y-2 text-left"
     >
-      <p>
-        Attempts to add structure tags, fix metadata, and re-audit the file.
-        <strong class="text-[var(--text-secondary)]">Results vary by source document</strong> — a
-        re-audit will show you exactly what improved.
-      </p>
-      <details class="text-xs">
+      <details class="text-sm">
         <summary
           class="cursor-pointer text-[var(--link)] hover:text-[var(--link-hover)] inline-block"
         >

@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-[var(--surface-body)] text-[var(--text-primary)]">
-    <main class="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
+    <main class="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
       <!-- Loading -->
       <div v-if="pending" class="text-center py-20" role="status">
         <div
@@ -31,6 +31,7 @@
           <!-- Prominent filename banner — leaves no doubt which file this
              shared report (and its PDF print) refers to -->
           <ReportFileBanner
+            v-if="viewMode !== 'visual'"
             :filename="data.report.filename"
             :page-count="data.report.pageCount"
             :is-scanned="data.report.isScanned"
@@ -85,8 +86,8 @@
                 </svg>
               </button>
             </div>
-            <div class="mb-6">
-              <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
+            <div v-if="viewMode !== 'visual'" class="mb-6">
+              <ReportViewToggle :model-value="viewMode" @update:model-value="switchView" />
             </div>
             <h1 class="text-xl sm:text-2xl font-bold mb-1">
               {{ appName.replace("Audit", "Report") }}
@@ -116,10 +117,32 @@
             :result="data.report"
             :analyzed-at="data.createdAt"
             :verapdf-url="String(config.public.verapdfUrl ?? '')"
-          />
+          >
+            <!-- In the Visual view the banner heads the summary column, beside
+                 the grade block; the Detailed view keeps it above. -->
+            <template #actions>
+              <div data-export-exclude>
+                <ReportViewToggle
+                  compact
+                  :model-value="viewMode"
+                  @update:model-value="switchView"
+                />
+              </div>
+            </template>
+            <template #banner>
+              <ReportFileBanner
+                compact
+                :filename="data.report.filename"
+                :page-count="data.report.pageCount"
+                :is-scanned="data.report.isScanned"
+                :file-type="data.report.fileType"
+                class="mb-6"
+              />
+            </template>
+          </ReportVisualView>
 
           <!-- DETAILED VIEW -->
-          <template v-else>
+          <div v-else class="mx-auto max-w-4xl">
             <!-- Score Hero -->
             <div
               class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
@@ -257,7 +280,7 @@
             <MethodologyCard :file-type="data.report.fileType" />
 
             <ReportContent :result="data.report" :analyzed-at="data.createdAt" />
-          </template>
+          </div>
         </div>
         <!-- /report content -->
 
@@ -279,7 +302,7 @@
             <p class="text-sm text-[var(--text-muted)] mb-3">Want to audit your own document?</p>
             <a
               :href="auditUrl"
-              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--brand)] hover:bg-cobalt-600 text-white text-sm font-semibold transition-colors"
             >
               <svg
                 class="w-4 h-4"
@@ -340,6 +363,14 @@ const auditUrl = config.public.siteUrl as string;
 const appName = config.public.appName as string;
 const colorMode = useColorMode();
 const { mode: viewMode, setMode: setViewMode } = useReportView();
+// Switching view replaces the control that was just pressed (the Visual view
+// carries its own compact switch in the report hero), so put keyboard focus
+// back on the pressed option of whichever switch is now on the page.
+async function switchView(mode: Parameters<typeof setViewMode>[0]) {
+  setViewMode(mode);
+  await nextTick();
+  document.querySelector<HTMLElement>('[data-view-toggle] button[aria-pressed="true"]')?.focus();
+}
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";

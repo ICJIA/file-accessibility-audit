@@ -5,7 +5,7 @@
       type="button"
       aria-label="Scroll back to top"
       title="Back to top"
-      class="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-green-600 text-white shadow-lg ring-1 ring-black/10 hover:bg-green-500 hover:scale-105 active:scale-95 transition-all"
+      class="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand)] text-white shadow-lg ring-1 ring-black/10 hover:bg-cobalt-600 hover:scale-105 active:scale-95 transition-all"
       @click="toTop"
     >
       <svg

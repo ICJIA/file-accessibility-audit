@@ -151,7 +151,9 @@ describe("re-selecting the file when it is no longer held", () => {
     });
     const note = w.find('[data-testid="remediate-reselect-note"]');
     expect(note.exists()).toBe(true);
-    expect(note.text()).toContain("Choose report-a.pdf again to repair it");
+    expect(note.text()).toContain(
+      "Press the button below, then choose report-a.pdf from your computer",
+    );
   });
 
   it("shows no such note while the file is still held", () => {

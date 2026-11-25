@@ -72,13 +72,9 @@ function goBack(): void {
     </nav>
 
     <!-- Header -->
-    <header>
-      <p class="text-xs uppercase tracking-[0.25em] text-[var(--text-muted)] mb-3">
-        Technical Details
-      </p>
-      <h1 class="text-3xl sm:text-5xl font-black text-[var(--text-heading)] leading-tight">
-        How This Tool Works
-      </h1>
+    <header class="pk-rule pt-6">
+      <p class="pk-label text-[var(--text-muted)] mb-4">Technical Details</p>
+      <h1 class="pk-page-title text-[var(--text-heading)]">How This Tool Works</h1>
       <p class="mt-4 text-sm text-[var(--text-secondary)] leading-relaxed">
         The complete technical reference — identical to the <em>Technical Details</em> section on
         the

@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "new-look-verdict-first-2026-11-25",
+    badge: "New",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "The site has a new look. Reports now open with the answer — whether the file is ready to publish and how many fixes it needs — then the fix list.",
+    text: "The site has a new look, and the report has been rearranged so the most important things come first. A report now opens with the answer in large type — for example, Not ready to publish — and one plain sentence saying how many fixes are needed. The list of what to fix comes next, in order, with a Show how button on each step. Beside it, Where the points went shows each category's score, the ones with something to fix first, each linked to its fix. After the fixes there is one section for the checks only a person can do, and the reference material — best practices, details about the document, the technical report — is folded into rows you can open. Nothing about scoring changed: the same file gets the same grade as before. Also new: on a phone the links at the top fold into a Menu button, a Technical link joins the top of every page, links inside text are now underlined so they do not rely on color, and several pieces of text that were hard to read in light mode have been fixed.",
+    linkText: "See a sample report",
+    linkTo: "/sample-report",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 25, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "whole-app-review-2026-11-24",
     badge: "New",
     /** What the landing-page banner shows — two sentences at most, see THE

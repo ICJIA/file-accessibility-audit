@@ -70,6 +70,22 @@ installer in console mode into `/opt/verapdf`, then persist the path (§ 3).
 The WCAG checks also need the profile file that ships in the repository at
 `apps/api/resources/verapdf/WCAG-2-2-Machine.xml`.
 
+### 2.1a The web font (build time only)
+
+Since v1.178.0 the site is set in Archivo. `pnpm --filter web build` (and so
+`./rebuild.sh`) downloads the font files from Google Fonts **while building**
+(`@nuxt/fonts`, configured in `apps/web/nuxt.config.ts` → `fonts`) and writes
+them into the build, where they are served from this site's own `/_fonts/`
+path. A visitor's browser never contacts a font service, and the
+Content-Security-Policy's `font-src 'self'` is unchanged.
+
+What this means on the server: the build needs outbound HTTPS to
+`fonts.googleapis.com` and `fonts.gstatic.com`, the same way `pnpm install`
+needs the npm registry. A build with those hosts blocked has not been tested;
+the stylesheet names Helvetica and Arial after Archivo, so those are what a
+visitor would see if the files were missing from a build. `@nuxt/fonts` caches the files under `apps/web/node_modules/.cache`, so
+a rebuild without network reuses them.
+
 ### 2.2 Chromium
 
 `pnpm install` runs puppeteer's install step, which downloads its own Chromium

@@ -1,5 +1,31 @@
 <template>
-  <div class="w-full" data-export-exclude>
+  <div
+    v-if="compact"
+    class="inline-flex"
+    role="group"
+    aria-label="Report view"
+    data-view-toggle
+    data-export-exclude
+  >
+    <!-- compact: the same two choices as a small segmented control, for the
+         report hero. Same options, same aria-pressed, same event; the blurb
+         each card shows is kept for assistive technology and as a tooltip.
+         (This note sits inside the element on purpose: a comment before a
+         v-if root makes the component a fragment.) -->
+    <button
+      v-for="(opt, i) in options"
+      :key="opt.mode"
+      type="button"
+      :aria-pressed="modelValue === opt.mode"
+      :title="opt.blurb"
+      class="pk-btn"
+      :class="[modelValue === opt.mode ? 'pk-btn-on' : '', i > 0 ? '-ml-0.5' : '']"
+      @click="$emit('update:modelValue', opt.mode)"
+    >
+      {{ opt.title }}<span class="sr-only"> view. {{ opt.blurb }}</span>
+    </button>
+  </div>
+  <div v-else class="w-full" data-view-toggle data-export-exclude>
     <p class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
       How do you want to read this report?
     </p>
@@ -72,7 +98,7 @@ import type { ReportViewMode } from "~/composables/useReportView";
 // saying what you get, and marks the active one in words ("Showing") rather
 // than by background colour alone — colour is not available to everyone, and
 // this is an accessibility tool.
-const props = defineProps<{ modelValue: ReportViewMode }>();
+const props = defineProps<{ modelValue: ReportViewMode; compact?: boolean }>();
 defineEmits<{ (e: "update:modelValue", v: ReportViewMode): void }>();
 
 const options: Array<{ mode: ReportViewMode; title: string; blurb: string }> = [

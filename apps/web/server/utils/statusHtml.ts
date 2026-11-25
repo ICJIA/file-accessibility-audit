@@ -1023,6 +1023,14 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  .k{color:#0550ae}.p{color:#6e7781}
  .v.str{color:#0a7b28}.v.num{color:#953800}.v.bool{color:#6639ba}.v.null{color:#59636e}
 }
+/* Plakat look, to match the app (2026-11): square corners and a heavy
+   grotesque title. Shape and weight only — every colour above is measured by
+   statusHtml.test.ts and is left alone. The body stays monospace: the tree
+   depends on it for alignment. This page loads no web font, so the title uses
+   the same fallback stack the app falls back to. */
+*{border-radius:0!important}
+h1{font:800 30px/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:-.04em;
+ text-transform:uppercase;margin:0 0 18px;padding-top:14px;border-top:4px solid currentColor}
 `.trim();
 
 /**

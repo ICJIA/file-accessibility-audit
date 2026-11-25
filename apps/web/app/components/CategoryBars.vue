@@ -1,35 +1,47 @@
 <template>
-  <section
-    class="category-bars rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-5"
-    aria-labelledby="category-bars-title"
-  >
-    <h2
-      id="category-bars-title"
-      class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
-    >
-      Where the score comes from
+  <section class="category-bars" aria-labelledby="category-bars-title">
+    <h2 id="category-bars-title" class="pk-display text-2xl sm:text-3xl text-[var(--text-heading)]">
+      Where the points went
     </h2>
 
-    <ul class="mt-3 space-y-2.5 list-none m-0 p-0" role="list">
+    <p class="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed">
+      Each category is scored out of 100. The ones with something to fix come first.
+    </p>
+
+    <ul class="mt-5 list-none m-0 p-0" role="list">
       <li
-        v-for="cat in scored"
+        v-for="cat in ordered"
         :key="cat.id"
         data-testid="bar-row"
-        class="flex items-center gap-2 sm:gap-3"
+        class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-3 gap-y-2 border-t-2 border-[var(--border-alt)] pt-3 pb-4"
         :aria-label="rowLabel(cat)"
       >
-        <span class="w-28 sm:w-44 flex-shrink-0 text-xs text-[var(--text-secondary)] truncate">{{
-          cat.label
-        }}</span>
-        <div class="flex-1 h-2.5 rounded bg-[var(--surface-deep)]" aria-hidden="true">
+        <span
+          class="order-1 text-sm font-bold"
+          :class="isFlagged(cat) ? 'text-[var(--text-heading)]' : 'text-[var(--text-muted)]'"
+          >{{ cat.label
+          }}<a
+            v-if="stepRanks?.[cat.id]"
+            :href="`#plan-item-${cat.id}`"
+            class="ml-2 font-semibold underline whitespace-nowrap text-[var(--link)] hover:text-[var(--link-hover)]"
+            >fix {{ stepRanks[cat.id] }}</a
+          ></span
+        >
+        <div class="order-4 col-span-3 h-2.5 bg-[var(--surface-icon)]" aria-hidden="true">
           <div
             data-testid="bar-fill"
-            class="h-2.5 rounded"
-            :style="{ width: `${cat.score}%`, backgroundColor: barColor(cat) }"
+            class="h-2.5"
+            :class="isFlagged(cat) ? '' : 'bg-[var(--border-hover)]'"
+            :style="
+              isFlagged(cat)
+                ? { width: `${cat.score}%`, backgroundColor: sevColor(cat.severity!) }
+                : { width: `${cat.score}%` }
+            "
           />
         </div>
         <span
-          class="w-8 text-right font-mono text-xs text-[var(--text-secondary)]"
+          class="order-3 text-right text-sm font-bold before:content-['·'] before:mr-2"
+          :class="isFlagged(cat) ? 'text-[var(--text-heading)]' : 'text-[var(--text-muted)]'"
           aria-hidden="true"
           >{{ cat.score }}</span
         >
@@ -51,17 +63,19 @@
              7rem, not 6.5: "No scored issues" (v1.149.0) measures 99px in a
              104px track — it fits, but five pixels is not margin, it is luck
              with one font. Widening the shared track keeps every bar
-             comparable and costs nothing. -->
+             comparable and costs nothing.
+
+             Plakat layout (2026-11): the bar now has a row to itself, under
+             the label, the status and the score, so every track is the full
+             width of the list by construction and the bars stay comparable. -->
         <span
-          class="w-[7rem] flex-shrink-0 text-[10px] text-center whitespace-nowrap"
+          class="order-2 w-[7rem] flex-shrink-0 text-xs font-semibold text-right whitespace-nowrap"
           aria-hidden="true"
           ><span
             v-if="cat.severity"
-            class="inline-block px-2 py-0.5 rounded-full"
-            :style="{
-              backgroundColor: withAlpha(sevColor(cat.severity), 8),
-              color: sevColor(cat.severity),
-            }"
+            class="inline-block py-0.5 text-sm font-bold"
+            :class="isFlagged(cat) ? '' : 'text-[var(--text-muted)]'"
+            :style="isFlagged(cat) ? { color: sevColor(cat.severity) } : {}"
             >{{ cat.severity }}</span
           ></span
         >
@@ -71,16 +85,20 @@
     <div
       v-if="na.length"
       data-testid="bars-na"
-      class="mt-4 pt-3 border-t border-[var(--border-subtle)] space-y-1"
+      class="pt-3 border-t-2 border-[var(--border-alt)] space-y-1"
     >
-      <p class="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-        Not scored
-      </p>
-      <p v-for="cat in na" :key="cat.id" class="text-xs text-[var(--text-muted)]">
-        <span class="text-[var(--text-secondary)]">{{ cat.label }}</span>
-        — {{ cat.notAssessed ? "Not assessed" : "Not applicable" }}:
-        {{ naReason(cat.id, cat.notAssessed) }}
-      </p>
+      <p class="sr-only">Not scored</p>
+      <div v-for="cat in na" :key="cat.id" class="pb-3">
+        <p
+          class="flex items-baseline justify-between gap-4 text-sm font-bold text-[var(--text-muted)]"
+        >
+          <span>{{ cat.label }}</span>
+          <span>{{ cat.notAssessed ? "Not assessed" : "Not applicable" }}</span>
+        </p>
+        <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+          {{ naReason(cat.id, cat.notAssessed) }}
+        </p>
+      </div>
     </div>
   </section>
 </template>
@@ -89,7 +107,7 @@
 import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
-const { gradeColor, severityColor, withAlpha } = useTokenColors();
+const { severityColor } = useTokenColors();
 import { naReason } from "~/utils/modeDivergence";
 
 interface BarCategory {
@@ -101,16 +119,34 @@ interface BarCategory {
   notAssessed?: boolean;
 }
 
-const props = defineProps<{ categories: BarCategory[] }>();
+const props = defineProps<{
+  categories: BarCategory[];
+  /** Category id → the number of the action-plan step that fixes it, so a bar
+   *  can point at its fix. Absent = no links. */
+  stepRanks?: Record<string, number>;
+}>();
 
 const safe = computed<BarCategory[]>(() =>
   Array.isArray(props.categories) ? props.categories : [],
 );
 const scored = computed(() => safe.value.filter((c) => c.score !== null));
 const na = computed(() => safe.value.filter((c) => c.score === null));
+// Problems first: categories with something to fix, lowest score first; then
+// the rest in their usual order. Array.sort is stable, so ties keep it.
+const ordered = computed(() =>
+  [...scored.value].sort((a, b) => {
+    const fa = isFlagged(a);
+    const fb = isFlagged(b);
+    if (fa !== fb) return fa ? -1 : 1;
+    return fa ? (a.score ?? 0) - (b.score ?? 0) : 0;
+  }),
+);
 
-function barColor(cat: BarCategory): string {
-  return gradeColor(cat.grade);
+// A category with a Critical, Moderate or Minor finding draws its bar and its
+// status in that severity's colour; one with nothing to fix draws them in the
+// page's own ink — so colour on this chart always means "look here".
+function isFlagged(cat: BarCategory): boolean {
+  return cat.severity === "Critical" || cat.severity === "Moderate" || cat.severity === "Minor";
 }
 function sevColor(severity: string): string {
   return severityColor(severity);

@@ -163,8 +163,10 @@ describe("every bar is measured against the same track (2026-08-31 bug report)",
   it("keeps the fill a plain percentage of its own track", () => {
     const w = mountBars();
     const widths = w.findAll('[data-testid="bar-fill"]').map((f) => f.attributes("style"));
-    expect(widths[0]).toContain("width: 100%");
-    expect(widths[1]).toContain("width: 94%");
+    // Rows are drawn problems-first (2026-11-25): the Minor 94 leads, then
+    // the two categories with nothing to fix, in their given order.
+    expect(widths[0]).toContain("width: 94%");
+    expect(widths[1]).toContain("width: 100%");
     expect(widths[2]).toContain("width: 100%");
   });
 });

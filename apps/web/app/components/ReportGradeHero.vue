@@ -1,88 +1,146 @@
 <template>
-  <div class="text-center">
-    <div class="flex justify-center">
-      <div
-        class="w-44 h-44 sm:w-56 sm:h-56 rounded-full flex items-center justify-center border-[6px]"
-        :style="{
-          borderColor: color,
-          backgroundColor: withAlpha(color, 8),
-          boxShadow: `0 0 80px ${withAlpha(color, 25)}, 0 0 24px ${withAlpha(color, 15)}`,
-        }"
-      >
-        <span class="text-8xl sm:text-9xl font-black" :style="{ color }">{{ grade }}</span>
-      </div>
-    </div>
-    <p class="text-4xl sm:text-5xl font-bold mt-5">
-      {{ overallScore }}<span class="text-xl sm:text-2xl text-[var(--text-secondary)]">/100</span>
-    </p>
-    <p
-      data-testid="grade-label"
-      class="text-base sm:text-lg font-semibold mt-2"
-      :style="{ color: labelColor }"
-    >
-      {{ label }}
-    </p>
-    <!-- What this format's grade covers (user decision 2026-11-18): the same
-         content can grade differently by format, so say why beside the letter. -->
-    <p
-      v-if="scopeNote"
-      data-testid="format-scope-note"
-      class="mt-2 mx-auto max-w-xl text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
-    >
-      {{ scopeNote }}
-    </p>
+  <!-- Plakat hero. The grade stands in the brand block: label at the head,
+       the letter at poster scale, the score at the foot — white on the brand
+       blue (5.7:1) in both themes.
 
-    <!-- Directly under the verdict, BEFORE the fix-progress meter (v1.74.1):
+       `part` lets the Visual view place the three pieces of this component
+       where its layout needs them — the block, the verdict lines, and the
+       two explanatory panels — while every piece keeps the same props and
+       the same computed values. Without `part` it renders all three, in
+       order, as it always has. -->
+  <div class="text-center @5xl:text-left" :class="part === 'block' ? 'h-full' : ''">
+    <div
+      v-if="!part || part === 'block'"
+      data-testid="grade-block"
+      class="pk-block flex flex-col justify-between gap-4 text-left p-5 sm:p-7 min-h-[21rem] @5xl:min-h-[30rem]"
+      :class="part === 'block' ? 'h-full' : ''"
+    >
+      <p class="pk-label flex justify-between gap-4">
+        <span>Grade</span>
+        <span v-if="wcagVersion">WCAG {{ wcagVersion }} A/AA</span>
+      </p>
+      <span
+        class="block text-[clamp(12rem,42vw,17rem)] @5xl:text-[22rem] leading-[0.76] font-black tracking-tight -ml-[0.04em]"
+        >{{ grade }}</span
+      >
+      <p class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <span class="text-3xl sm:text-4xl font-black tracking-tight"
+          >{{ overallScore }}<span class="text-xl sm:text-2xl font-bold">/100</span></span
+        >
+        <!-- The grade's own word, beside its number. Left out when something
+             blocks publication: "Excellent" beside "Not ready to publish" is
+             the contradiction the verdict line was rewritten to avoid. -->
+        <span
+          v-if="adjective"
+          data-testid="grade-adjective"
+          class="text-lg sm:text-xl font-black tracking-tight"
+          >{{ adjective }}</span
+        >
+      </p>
+    </div>
+    <template v-if="!part || part === 'verdict'">
+      <!-- The answer to "can I publish this?" — the largest words in the
+           hero. The verdict is one sentence; its lead clause is set as the
+           headline and the rest directly under it. The dash between them is
+           kept for assistive technology and for anything reading the text. -->
+      <p
+        data-testid="grade-label"
+        :class="part === 'verdict' ? '' : 'mt-4'"
+        :style="{ color: labelColor }"
+      >
+        <span
+          class="block font-black tracking-tight"
+          :class="
+            part === 'verdict'
+              ? 'text-[clamp(2.5rem,6vw,5.25rem)] leading-[0.94]'
+              : 'text-xl sm:text-2xl leading-tight'
+          "
+          >{{ labelHead }}</span
+        ><template v-if="plainRest"
+          ><span class="sr-only">. </span
+          ><span
+            data-testid="grade-plain"
+            class="block mt-4 text-xl sm:text-2xl leading-snug font-bold tracking-tight text-[var(--text-heading)]"
+            >{{ plainRest }}</span
+          ></template
+        ><template v-else-if="labelRest"
+          ><span class="sr-only"> — </span
+          ><span
+            class="block font-bold tracking-tight text-[var(--text-heading)]"
+            :class="part === 'verdict' ? 'mt-4 text-xl sm:text-2xl leading-snug' : 'text-base'"
+            >{{ labelRest }}</span
+          ></template
+        >
+      </p>
+      <!-- What this format's grade covers (user decision 2026-11-18): the same
+         content can grade differently by format, so say why beside the letter. -->
+      <p
+        v-if="scopeNote"
+        data-testid="format-scope-note"
+        class="mt-2 @5xl:mt-3 mx-auto @5xl:mx-0 max-w-xl text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
+      >
+        {{ scopeNote }}
+      </p>
+    </template>
+
+    <template v-if="!part || part === 'details' || part === 'band' || part === 'progress'">
+      <!-- Directly under the verdict, BEFORE the fix-progress meter (v1.74.1):
          non-technical managers stopped reading at "ready to publish", so the
          warning now interrupts the celebration rather than trailing it.
          Ungated since v1.102.0 — every grade gets the full subset band. -->
-    <AutomationLimitBand
-      :not-assessed-count="notAssessedCount"
-      :link-manual-review="hasCategories"
-      class="mt-5 mx-auto max-w-2xl"
-    />
+      <AutomationLimitBand
+        v-if="part !== 'progress'"
+        id="automation-limit"
+        :not-assessed-count="notAssessedCount"
+        :link-manual-review="hasCategories"
+        class="mx-auto @5xl:mx-0 max-w-2xl @5xl:max-w-none scroll-mt-6"
+        :class="part === 'details' || part === 'band' ? '' : 'mt-5'"
+      />
 
-    <!-- Score and letter are a matched pair again: the score is capped by the
+      <!-- Score and letter are a matched pair again: the score is capped by the
          worst finding and the letter is derived from it through the published
          scale, so 69 is a D and always will be. v1.58.0 capped the LETTER
          instead and produced "D" above "80/100", which readers correctly
          called wrong. What the panel now has to explain is not the letter but
          the NUMBER — why it stalls below the raw average until a blocking
          finding is fixed. -->
-    <div
-      class="mt-5 mx-auto max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-5 py-4 text-left"
-    >
-      <div class="flex items-baseline justify-between gap-3">
-        <span class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          Fix progress
-        </span>
-        <span
-          class="text-sm font-semibold text-[var(--text-heading)] text-right"
-          data-testid="fix-progress-count"
-        >
-          {{ progress.headline }}
-        </span>
-      </div>
       <div
-        class="mt-2 h-2 rounded-full bg-[var(--surface-deep)] overflow-hidden"
-        aria-hidden="true"
+        v-if="part !== 'band'"
+        :class="part === 'progress' ? '' : 'mt-5'"
+        class="mx-auto @5xl:mx-0 max-w-md @5xl:max-w-none rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-5 py-4 text-left"
       >
-        <div class="h-full rounded-full bg-sky-500/70" :style="{ width: `${barWidth}%` }" />
-      </div>
-      <!-- The checks the count above leaves out, said outright: it used to
+        <div class="flex items-baseline justify-between gap-3">
+          <span class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Fix progress
+          </span>
+          <span
+            class="text-sm font-semibold text-[var(--text-heading)] text-right"
+            data-testid="fix-progress-count"
+          >
+            {{ progress.headline }}
+          </span>
+        </div>
+        <div
+          class="mt-2 h-2 rounded-full bg-[var(--surface-deep)] overflow-hidden"
+          aria-hidden="true"
+        >
+          <div class="h-full rounded-full bg-sky-500/70" :style="{ width: `${barWidth}%` }" />
+        </div>
+        <!-- The checks the count above leaves out, said outright: it used to
            fold "did not apply" into "passed", which made the sentence
            disagree with the chart of scored bars further down. -->
-      <p
-        v-if="progress.others"
-        data-testid="fix-progress-others"
-        class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
-      >
-        {{ progress.others }}
-      </p>
-      <p class="mt-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
-        {{ progressNote }}
-      </p>
-    </div>
+        <p
+          v-if="progress.others"
+          data-testid="fix-progress-others"
+          class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
+        >
+          {{ progress.others }}
+        </p>
+        <p class="mt-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
+          {{ progressNote }}
+        </p>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -94,7 +152,7 @@ import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 import { formatScopeNote } from "~/utils/formatScope";
 import { fixProgress } from "~/utils/fixProgress";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
-const { gradeColor, severityColor, withAlpha } = useTokenColors();
+const { gradeColor, severityColor } = useTokenColors();
 import { gradeLabel } from "~/utils/exportFormats/shared";
 import { publicationVerdict } from "~/utils/actionPlan";
 import { allChecksPassedCaveat, publicationStatus } from "~/utils/publicationStatus";
@@ -112,6 +170,15 @@ const props = defineProps<{
   notAssessedCount?: number | null;
   /** The document's format, for the format-scope note under the label. */
   fileType?: string | null;
+  /** Render one piece only — see the template note. Absent = all of it. */
+  part?: "block" | "verdict" | "details" | "band" | "progress";
+  /** The Visual view's plain statement of what stands between this file and
+   *  publication, counted in fixes — the same unit the plan below uses.
+   *  When given, it is shown in place of the verdict sentence's second
+   *  clause ("4 WCAG 2.1 requirements not met"); the headline is unchanged. */
+  plainRest?: string | null;
+  /** The WCAG version the grade measures, shown at the head of the block. */
+  wcagVersion?: string | null;
 }>();
 
 const scopeNote = computed(() =>
@@ -142,6 +209,14 @@ const label = computed(() => {
   return v.tone === "critical" ? v.text : `${gradeLabel(props.grade)} — ${v.text}`;
 });
 
+// The grade's adjective at the foot of the block — see the template note.
+const adjective = computed(() =>
+  hasCategories.value && verdict.value.tone === "critical" ? null : gradeLabel(props.grade),
+);
+// The verdict sentence, split at its dash for display: "Not ready to publish"
+// as the headline, "4 WCAG 2.1 requirements not met" under it.
+const labelHead = computed(() => label.value.split(" — ")[0] ?? label.value);
+const labelRest = computed(() => label.value.split(" — ").slice(1).join(" — "));
 // A blocking verdict must never render in reassuring grade-green.
 const labelColor = computed(() =>
   hasCategories.value && verdict.value.tone === "critical"

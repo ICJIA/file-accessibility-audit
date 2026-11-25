@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.178.0",
+    meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: Presentation only — the web app's stylesheet, templates and layout, and the release tooling's social-card template.",
+    body: [
+      {
+        kind: "p",
+        html: "This release changes how the site looks and how the report is arranged. It does not change what the tool does with your file: nothing new is collected, stored or sent anywhere, and scoring is the same. One thing changed behind the scenes: the site now uses a typeface called Archivo. The font files are downloaded once, when the site is built on our server, and are then served from this site itself, so your browser never contacts a font company. We tested the new pages in a real browser in both light and dark mode, including uploading a file and reading its report, and an automated accessibility check found no problems on any page. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.177.0",
     meta: "Reviewed <strong>2026-11-24</strong> &middot; scope: No new attack surface — report logic, tooling and documents.",
     body: [

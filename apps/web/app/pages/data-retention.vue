@@ -84,13 +84,9 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
     </nav>
 
     <!-- Header -->
-    <header>
-      <p class="text-xs uppercase tracking-[0.25em] text-[var(--text-muted)] mb-3">
-        Policy · v{{ POLICY_VERSION }}
-      </p>
-      <h1 class="text-3xl sm:text-5xl font-black text-[var(--text-heading)] leading-tight">
-        Data Retention Policy
-      </h1>
+    <header class="pk-rule pt-6">
+      <p class="pk-label text-[var(--text-muted)] mb-4">Policy · v{{ POLICY_VERSION }}</p>
+      <h1 class="pk-page-title text-[var(--text-heading)]">Data Retention Policy</h1>
       <p class="mt-4 text-sm text-[var(--text-muted)]">
         Last updated <strong class="text-[var(--text-secondary)]">{{ POLICY_UPDATED }}</strong> ·
         Effective <strong>{{ POLICY_EFFECTIVE }}</strong> · Applies to tool version

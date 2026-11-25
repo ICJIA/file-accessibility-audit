@@ -48,10 +48,8 @@ useHead({
 
 <template>
   <div class="mx-auto max-w-3xl px-4 py-10">
-    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">
-      Update archive
-    </p>
-    <h1 class="text-3xl font-black text-[var(--text-heading)] mb-4">What's new</h1>
+    <p class="pk-label pk-rule pt-6 text-[var(--text-muted)] mb-4">Update archive</p>
+    <h1 class="pk-page-title text-[var(--text-heading)] mb-6">What's new</h1>
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-8">
       Every update announced on the home page, newest first. The banner there shows only the most
       recent one and can be dismissed, so this is the full list.

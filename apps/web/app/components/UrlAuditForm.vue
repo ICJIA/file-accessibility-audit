@@ -3,20 +3,15 @@
        has a visible label, and the error is tied to the field and announced.
        The server decides which sites may be fetched; this only catches what
        is plainly not a web address before a request is made. -->
-  <form
-    class="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-4 py-4 sm:px-5 text-left"
-    data-testid="url-audit-form"
-    novalidate
-    @submit.prevent="submit"
-  >
-    <label :for="inputId" class="block text-sm font-medium text-[var(--text-heading)]">
+  <form class="mt-6 text-left" data-testid="url-audit-form" novalidate @submit.prevent="submit">
+    <label :for="inputId" class="block text-lg font-bold tracking-tight text-[var(--text-heading)]">
       …or check a document by link
     </label>
     <p :id="hintId" class="mt-0.5 text-xs text-[var(--text-muted)]">
       Paste the web address of a document on an approved government site, for example an Illinois
       state agency site. For anything else, upload the file.
     </p>
-    <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+    <div class="mt-3 flex flex-col sm:flex-row">
       <input
         :id="inputId"
         v-model="value"
@@ -31,13 +26,13 @@
         data-testid="url-audit-input"
         :aria-invalid="error ? 'true' : undefined"
         :aria-describedby="error ? `${errorId} ${hintId}` : hintId"
-        class="min-w-0 flex-1 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] px-3 py-2 text-sm text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+        class="min-w-0 flex-1 border-2 border-[var(--text-heading)] bg-[var(--surface-body)] px-3 py-3 text-sm text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
         @input="error = ''"
       />
       <button
         type="submit"
         data-testid="url-audit-submit"
-        class="shrink-0 rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+        class="shrink-0 bg-[var(--text-heading)] px-5 py-3 text-sm font-bold text-[var(--surface-body)] transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
       >
         Check this link
       </button>

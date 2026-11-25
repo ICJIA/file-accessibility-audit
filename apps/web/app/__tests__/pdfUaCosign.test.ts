@@ -466,7 +466,9 @@ describe("the strip's failing-verdict link points at the fixes", () => {
     expect(src).toContain('href="#action-plan"');
     expect(src).not.toContain('href="#technical-report"');
     const plan = readFileSync(resolve(__dirname, "../components/ActionPlan.vue"), "utf8");
-    expect(plan).toContain('id="action-plan"');
+    // The id is bound: the steps render as #action-plan, and the reference
+    // sections the Visual view places separately as #action-plan-more.
+    expect(plan).toContain(`:id="part === 'extras' ? 'action-plan-more' : 'action-plan'"`);
   });
 });
 

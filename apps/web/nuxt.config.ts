@@ -69,8 +69,17 @@ export default defineNuxtConfig({
 
   css: ["~/assets/css/main.css"],
 
+  // Archivo, self-hosted: @nuxt/fonts downloads the files at build time and
+  // serves them from /_fonts on this origin — no request to a font CDN from
+  // the visitor's browser.
+  fonts: {
+    families: [{ name: "Archivo", provider: "google", weights: [400, 500, 600, 700, 800] }],
+  },
+
   // JSON-LD structured data injected via app.vue useHead()
   appConfig: {
+    // Nuxt UI's primary colour: the brand cobalt scale defined in main.css.
+    ui: { colors: { primary: "cobalt" } },
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "WebApplication",

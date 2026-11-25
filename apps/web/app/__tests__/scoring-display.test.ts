@@ -36,14 +36,15 @@ describe("Score display — grade color mapping", () => {
         props: { result: makeResult(grade, score) },
       });
 
-      // The grade letter element should have the correct color
+      // The grade letter is knocked out of a solid block in the grade's
+      // colour (Plakat look): the BLOCK carries the colour, as its fill and
+      // its border; the letter takes the page colour.
       const gradeSpan = wrapper.find("span.text-5xl");
       expect(gradeSpan.exists()).toBe(true);
-      expect(gradeSpan.attributes("style")).toContain(expectedColor);
 
-      // The grade circle border should have the correct color
       const circle = wrapper.find("div.w-28");
       expect(circle.attributes("style")).toContain(`border-color: ${expectedColor}`);
+      expect(circle.attributes("style")).toContain(`background-color: ${expectedColor}`);
     },
   );
 
@@ -51,8 +52,8 @@ describe("Score display — grade color mapping", () => {
     const wrapper = mount(ScoreCard, {
       props: { result: makeResult("Z", 50) },
     });
-    const gradeSpan = wrapper.find("span.text-5xl");
-    expect(gradeSpan.attributes("style")).toContain("#666");
+    const block = wrapper.find("div.w-28");
+    expect(block.attributes("style")).toContain("#666");
   });
 });
 

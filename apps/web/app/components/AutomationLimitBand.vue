@@ -40,7 +40,7 @@
        states too ("Checked" / "Still open") — never color alone. -->
   <section
     data-testid="automation-limit"
-    class="rounded-xl border border-amber-500/60 overflow-hidden text-left"
+    class="@container rounded-xl border border-amber-500/60 overflow-hidden text-left"
     aria-labelledby="automation-limit-h"
   >
     <!-- Solid amber, dark text: the loudest element on the page after the
@@ -76,7 +76,7 @@
         ></div>
       </div>
 
-      <div class="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div class="mt-2.5 grid grid-cols-1 @md:grid-cols-2 gap-2.5">
         <div class="rounded-lg border border-[var(--border-alt)] bg-[var(--surface-deep)] p-3.5">
           <p class="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Machine-checkable · roughly 30–40%

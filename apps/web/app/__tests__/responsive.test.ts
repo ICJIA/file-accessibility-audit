@@ -66,7 +66,7 @@ describe("Responsive — ScoreCard", () => {
 
   it("grade circle uses responsive sizing (w-28 sm:w-40)", () => {
     const wrapper = mount(ScoreCard, { props: { result: baseResult } });
-    const circle = wrapper.find('[class*="rounded-full"][class*="border-4"]');
+    const circle = wrapper.find('[data-testid="grade-block"]');
     expect(circle.exists()).toBe(true);
     expect(circle.classes()).toContain("w-28");
     expect(circle.classes()).toContain("sm:w-40");
@@ -98,8 +98,10 @@ describe("Responsive — Index Page", () => {
   // used a few tests down for the MethodologyCard.vue split.
   const sourceWithExplainer = source + readSource("components/TechnicalExplainer.vue");
 
-  it("main heading uses responsive font size (text-xl sm:text-2xl)", () => {
-    expect(source).toContain("text-xl sm:text-2xl");
+  it("main heading scales with the viewport (a clamp, not one fixed size)", () => {
+    // Plakat hero: the headline is poster-scale on a desktop and must still
+    // fit a phone, so its size is a clamp between a floor and a ceiling.
+    expect(source).toContain("pk-display text-[clamp(2.5rem,6.2vw,5rem)]");
   });
 
   it("category scores table has overflow-x-auto", () => {
@@ -119,8 +121,8 @@ describe("Responsive — Index Page", () => {
     expect(source).toContain("p-4 sm:p-8");
   });
 
-  it("findings cards use responsive padding (p-3 sm:p-5)", () => {
-    expect(source).toContain("p-3 sm:p-5");
+  it("the download, share and AI blocks use responsive padding (p-5 sm:p-7)", () => {
+    expect(source).toContain("p-5 sm:p-7");
   });
 
   it("info cards use responsive text size", () => {

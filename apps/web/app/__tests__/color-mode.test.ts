@@ -113,10 +113,11 @@ describe("Light Mode WCAG 2.1 Color Contrast", () => {
     }
   });
 
-  it("green-700 CTA button meets 4.5:1 with white text", () => {
-    const green700 = "#15803d";
-    const ratio = contrastRatio("#ffffff", green700);
-    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  it("the brand CTA button meets 4.5:1 with white text, at rest and on hover", () => {
+    // --brand (cobalt-500) and its hover shade cobalt-600, from main.css.
+    for (const bg of ["#3559e0", "#2a49c4"]) {
+      expect(contrastRatio("#ffffff", bg), `white on ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 

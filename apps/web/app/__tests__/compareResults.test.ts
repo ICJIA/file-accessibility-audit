@@ -486,7 +486,15 @@ describe("index.vue — uploading the same filename again offers the comparison"
       global: {
         provide: { resetSignal },
         components: { DropZone, UButton, ReportComparison },
-        stubs: { UButton: false, ReportComparison: false, RemediateButton: true },
+        stubs: {
+          UButton: false,
+          ReportComparison: false,
+          RemediateButton: true,
+          // In the Visual view the comparison control is handed to the report
+          // view's `compare` slot (it sits beside the standards block), so
+          // the stand-in for that view has to render the slot.
+          ReportVisualView: { template: '<div><slot name="compare" /></div>' },
+        },
       },
     });
   }

@@ -4,7 +4,7 @@
     <div
       v-if="!isBatchMode && analysisError"
       role="alert"
-      class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6"
+      class="mx-auto max-w-4xl mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6"
     >
       <!-- Never an empty red box: describeAnalysisError() always supplies a
            message and a next step, and the fallback here covers an error
@@ -110,7 +110,9 @@
         <ScrollToTop />
 
         <!-- Quick actions: start over, or jump to the export options below -->
-        <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+        <!-- In the Visual view these two live in the report hero, beside the
+             view switch (the #actions slot below). -->
+        <div v-if="viewMode !== 'visual'" class="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
           <button
             type="button"
             class="group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[var(--border-input)] bg-[var(--surface-card-50)] px-4 py-5 sm:py-6 hover:border-[var(--border-hover)] hover:bg-[var(--surface-hover)] transition-all"
@@ -141,11 +143,11 @@
           </button>
           <button
             type="button"
-            class="group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-green-500/40 bg-green-500/5 px-4 py-5 sm:py-6 hover:border-green-400 hover:bg-green-500/10 transition-all"
+            class="group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-blue-500/50 bg-blue-500/10 px-4 py-5 sm:py-6 hover:border-blue-400 hover:bg-blue-500/20 transition-all"
             @click="scrollToExport"
           >
             <span
-              class="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-green-500/15 text-green-400 group-hover:scale-105 transition-transform"
+              class="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-[var(--brand)] text-[var(--brand-ink)] group-hover:scale-105 transition-transform"
             >
               <svg
                 class="w-6 h-6"
@@ -177,6 +179,7 @@
              link). Outside the exported subtree: it is about two reports,
              not part of this one. -->
         <ReportComparison
+          v-if="compareOnTop"
           :result="result"
           :earlier="isBatchMode ? null : earlierResult"
           :recheck-of="!isBatchMode && earlierResult ? result.filename : null"
@@ -190,6 +193,7 @@
           <!-- Prominent filename banner — first thing identifying which file
              this result (and any download/print) belongs to, incl. batch tabs -->
           <ReportFileBanner
+            v-if="viewMode !== 'visual'"
             :filename="result.filename"
             :page-count="result.pageCount"
             :is-scanned="result.isScanned"
@@ -200,8 +204,8 @@
           <!-- Full width, above the report. It was a small right-aligned
                strip and got missed — a reader looking for the step-by-step
                plan could not find the control that shows it. -->
-          <div class="mb-6">
-            <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
+          <div v-if="viewMode !== 'visual'" class="mb-6">
+            <ReportViewToggle :model-value="viewMode" @update:model-value="switchView" />
           </div>
 
           <!-- VISUAL VIEW -->
@@ -210,6 +214,48 @@
             :result="result"
             :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
           >
+            <!-- In the Visual view the banner heads the summary column, beside
+                 the grade block; the Detailed view keeps it above (see the
+                 v-if on the banner there). Same component, same props. -->
+            <template #banner>
+              <ReportFileBanner
+                compact
+                :filename="result.filename"
+                :page-count="result.pageCount"
+                :is-scanned="result.isScanned"
+                :file-type="result.fileType"
+                class="mb-6"
+              />
+            </template>
+            <!-- The view switch, Reset and Export, in the hero. data-export-exclude:
+                 controls have no place in a downloaded report. -->
+            <template #actions>
+              <div class="flex flex-wrap items-center gap-3" data-export-exclude>
+                <ReportViewToggle
+                  compact
+                  :model-value="viewMode"
+                  @update:model-value="switchView"
+                />
+                <button type="button" class="pk-btn" @click="clearResults">Reset</button>
+                <button type="button" class="pk-btn pk-btn-brand" @click="scrollToExport">
+                  Export Results
+                </button>
+              </div>
+            </template>
+            <!-- Before and after, as a block beside the standards block. When
+                 this upload re-checks a file the comparison is the news, and
+                 it stays at the top of the page instead (compareOnTop).
+                 data-export-exclude: it is about two reports, not this one. -->
+            <template v-if="!compareOnTop" #compare>
+              <div data-export-exclude>
+                <ReportComparison
+                  :result="result"
+                  :earlier="isBatchMode ? null : earlierResult"
+                  :recheck-of="!isBatchMode && earlierResult ? result.filename : null"
+                  @dismiss="dismissComparison"
+                />
+              </div>
+            </template>
             <template #notice>
               <SourceDocumentNotice variant="audit" :file-type="result?.fileType" class="mb-4" />
             </template>
@@ -235,7 +281,7 @@
           </ReportVisualView>
 
           <!-- DETAILED VIEW -->
-          <template v-else>
+          <div v-else class="mx-auto max-w-4xl">
             <!-- Scanned warning banner -->
             <div
               v-if="result.isScanned"
@@ -387,199 +433,133 @@
             <MethodologyCard :file-type="result?.fileType" />
 
             <ReportContent :result="result" />
-          </template>
+          </div>
         </div>
         <!-- /report content -->
 
-        <!-- Export & Share -->
-        <div
-          id="export-section"
-          class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5 report-actions scroll-mt-6"
-        >
-          <!-- Download row -->
-          <p class="text-sm font-medium text-[var(--text-muted)] mb-3 text-center">
-            Download Report
-          </p>
-          <ReportDownloadBar :result="result" />
-
-          <!-- Share divider -->
-          <div class="border-t border-[var(--border)] my-4" />
-
-          <!-- Share row -->
-          <p class="text-sm font-medium text-[var(--text-muted)] mb-3 text-center">Share Report</p>
-
-          <div v-if="!shareUrl">
-            <div ref="shareCreateRef" class="flex flex-wrap gap-2 justify-center">
-              <UButton
-                variant="soft"
-                color="neutral"
-                size="sm"
-                :loading="sharing"
-                @click="handleShare"
-              >
-                <template #leading>
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"
-                    />
-                  </svg>
-                </template>
-                Create Shareable Link
-              </UButton>
+        <!-- Download and Share side by side; the AI summary below them across
+             the full width — it holds a long text preview that needs the room. -->
+        <div class="mt-1 grid gap-1 lg:grid-cols-3 items-stretch">
+          <!-- Export & Share -->
+          <div
+            id="export-section"
+            class="lg:col-span-3 grid gap-1 sm:grid-cols-2 report-actions scroll-mt-6"
+          >
+            <!-- Download block -->
+            <div class="bg-[var(--surface-card)] p-5 sm:p-7 min-w-0">
+              <p class="pk-label text-[var(--text-muted)] mb-4">Download Report</p>
+              <ReportDownloadBar :result="result" />
             </div>
-            <p class="text-xs text-[var(--text-muted)] mt-2 text-center">
-              Creates a public link anyone can view. Expires in {{ shareExpiryDays }} days.
-            </p>
-            <!-- role="alert": the message appears without a page change, so
+
+            <!-- Share block -->
+            <div class="bg-[var(--surface-card)] p-5 sm:p-7 min-w-0">
+              <!-- Share row -->
+              <p class="pk-label text-[var(--text-muted)] mb-4">Share Report</p>
+
+              <div v-if="!shareUrl">
+                <div ref="shareCreateRef" class="flex flex-wrap gap-2 justify-start">
+                  <UButton
+                    variant="soft"
+                    color="neutral"
+                    size="sm"
+                    :loading="sharing"
+                    @click="handleShare"
+                  >
+                    <template #leading>
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"
+                        />
+                      </svg>
+                    </template>
+                    Create Shareable Link
+                  </UButton>
+                </div>
+                <p class="text-xs text-[var(--text-muted)] mt-2">
+                  Creates a public link anyone can view. Expires in {{ shareExpiryDays }} days.
+                </p>
+                <!-- role="alert": the message appears without a page change, so
                  it has to announce itself. Focus stays on the button, which
                  is still here to try again. -->
-            <p
-              v-if="shareError"
-              role="alert"
-              data-testid="share-error"
-              class="text-xs text-[var(--status-error)] mt-2 text-center"
-            >
-              {{ shareError }}
-            </p>
-          </div>
+                <p
+                  v-if="shareError"
+                  role="alert"
+                  data-testid="share-error"
+                  class="text-xs text-[var(--status-error)] mt-2"
+                >
+                  {{ shareError }}
+                </p>
+              </div>
 
-          <!-- Share URL display -->
-          <div v-else class="space-y-3">
-            <div class="flex gap-2">
-              <!-- The Create button is removed the moment the link exists,
+              <!-- Share URL display -->
+              <div v-else class="space-y-3">
+                <div class="flex gap-2">
+                  <!-- The Create button is removed the moment the link exists,
                    taking keyboard focus with it — handleShare() moves focus
                    here, and the label says what the field holds. -->
-              <input
-                ref="shareUrlInputRef"
-                type="text"
-                aria-label="Shareable report link"
-                data-testid="share-url"
-                :value="shareUrl"
-                readonly
-                class="flex-1 bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] font-mono select-all"
-                @focus="($event.target as HTMLInputElement).select()"
-              />
-              <UButton variant="soft" color="neutral" size="sm" @click="copyShareUrl">
-                {{ copied ? "Copied!" : "Copy" }}
-              </UButton>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <UButton variant="soft" color="primary" size="sm" @click="emailShareUrl">
-                <template #leading>
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
-                    />
-                  </svg>
-                </template>
-                Email Link
-              </UButton>
-              <UButton variant="ghost" color="neutral" size="xs" @click="dismissShare">
-                Dismiss
-              </UButton>
+                  <input
+                    ref="shareUrlInputRef"
+                    type="text"
+                    aria-label="Shareable report link"
+                    data-testid="share-url"
+                    :value="shareUrl"
+                    readonly
+                    class="flex-1 bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] font-mono select-all"
+                    @focus="($event.target as HTMLInputElement).select()"
+                  />
+                  <UButton variant="soft" color="neutral" size="sm" @click="copyShareUrl">
+                    {{ copied ? "Copied!" : "Copy" }}
+                  </UButton>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <UButton variant="soft" color="primary" size="sm" @click="emailShareUrl">
+                    <template #leading>
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
+                        />
+                      </svg>
+                    </template>
+                    Email Link
+                  </UButton>
+                  <UButton variant="ghost" color="neutral" size="xs" @click="dismissShare">
+                    Dismiss
+                  </UButton>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- AI-Ready Analysis — shown whenever the hand-off has something to
+          <!-- AI-Ready Analysis — shown whenever the hand-off has something to
              fix: a Critical or Moderate category, or a confirmed WCAG 2.1
              failure in a category that is only Minor in extent. -->
-        <div
-          v-if="hasRemediationItems"
-          data-testid="ai-analysis-panel"
-          class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6"
-        >
-          <div class="flex items-start gap-3 mb-4">
-            <div
-              class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center"
-            >
-              <svg
-                class="w-5 h-5 text-purple-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.847.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
-                />
-              </svg>
-            </div>
-            <div class="flex-1 min-w-0 text-left">
-              <h2 class="text-base sm:text-lg font-semibold text-[var(--text-heading)]">
-                For Use with AI Assistants
-              </h2>
-              <p class="text-xs sm:text-sm text-[var(--text-muted)] mt-1 leading-relaxed">
-                Copy a plain-text summary of this audit — what's working, what isn't, WCAG
-                references, and guided questions — into ChatGPT, Claude, or any LLM to study the
-                results or get step-by-step remediation advice.
-              </p>
-            </div>
-          </div>
-
-          <ul class="text-xs text-[var(--text-muted)] space-y-1 mb-4 pl-1">
-            <li class="flex items-start gap-2">
-              <span class="text-purple-400 mt-0.5">•</span
-              ><span>Overall verdict, grade, and score</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-purple-400 mt-0.5">•</span
-              ><span>Passing categories (what's working)</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-purple-400 mt-0.5">•</span
-              ><span>Failing categories with findings and WCAG 2.1 references</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-purple-400 mt-0.5">•</span
-              ><span>A set of remediation questions for the AI to answer</span>
-            </li>
-          </ul>
-
-          <label
-            for="ai-analysis-preview"
-            class="block text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2"
-            >AI Analysis Preview</label
+          <div
+            v-if="hasRemediationItems"
+            data-testid="ai-analysis-panel"
+            class="lg:col-span-3 bg-[var(--surface-card)] p-5 sm:p-7 min-w-0"
           >
-          <textarea
-            id="ai-analysis-preview"
-            readonly
-            class="block w-full min-h-[18rem] sm:min-h-[22rem] max-h-[32rem] bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-mono text-[var(--text-secondary)] leading-relaxed resize-y"
-            :value="aiAnalysisPreview"
-          />
-
-          <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-center gap-2">
-            <UButton
-              variant="solid"
-              color="primary"
-              size="md"
-              block
-              class="sm:w-auto"
-              data-testid="copy-ai-analysis"
-              @click="handleCopyAiAnalysis"
-            >
-              <template #leading>
+            <div class="flex items-start gap-3 mb-4">
+              <div
+                class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center"
+              >
                 <svg
-                  v-if="!aiCopied"
-                  class="w-4 h-4"
+                  class="w-5 h-5 text-purple-300"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -588,30 +568,111 @@
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"
+                    d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.847.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
                   />
                 </svg>
-                <svg
-                  v-else
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-              </template>
-              {{ aiCopied ? "Copied to clipboard!" : "Copy Analysis for AI" }}
-            </UButton>
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <h2 class="text-base sm:text-lg font-semibold text-[var(--text-heading)]">
+                  For Use with AI Assistants
+                </h2>
+                <p class="text-xs sm:text-sm text-[var(--text-muted)] mt-1 leading-relaxed">
+                  Copy a plain-text summary of this audit — what's working, what isn't, WCAG
+                  references, and guided questions — into ChatGPT, Claude, or any LLM to study the
+                  results or get step-by-step remediation advice.
+                </p>
+              </div>
+            </div>
+
+            <ul class="text-xs text-[var(--text-muted)] space-y-1 mb-4 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-purple-400 mt-0.5">•</span
+                ><span>Overall verdict, grade, and score</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-purple-400 mt-0.5">•</span
+                ><span>Passing categories (what's working)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-purple-400 mt-0.5">•</span
+                ><span>Failing categories with findings and WCAG 2.1 references</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-purple-400 mt-0.5">•</span
+                ><span>A set of remediation questions for the AI to answer</span>
+              </li>
+            </ul>
+
+            <label
+              for="ai-analysis-preview"
+              class="block text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2"
+              >AI Analysis Preview</label
+            >
+            <textarea
+              id="ai-analysis-preview"
+              readonly
+              class="block w-full min-h-[18rem] sm:min-h-[22rem] max-h-[32rem] bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-mono text-[var(--text-secondary)] leading-relaxed resize-y"
+              :value="aiAnalysisPreview"
+            />
+
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-center gap-2">
+              <UButton
+                variant="solid"
+                color="primary"
+                size="md"
+                block
+                class="sm:w-auto"
+                data-testid="copy-ai-analysis"
+                @click="handleCopyAiAnalysis"
+              >
+                <template #leading>
+                  <svg
+                    v-if="!aiCopied"
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"
+                    />
+                  </svg>
+                  <svg
+                    v-else
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m4.5 12.75 6 6 9-13.5"
+                    />
+                  </svg>
+                </template>
+                {{ aiCopied ? "Copied to clipboard!" : "Copy Analysis for AI" }}
+              </UButton>
+            </div>
+            <p v-if="aiCopyError" class="text-xs text-[var(--status-error)] mt-2 text-center">
+              Clipboard copy failed. Use the preview above to select and copy manually.
+            </p>
           </div>
-          <p v-if="aiCopyError" class="text-xs text-[var(--status-error)] mt-2 text-center">
-            Clipboard copy failed. Use the preview above to select and copy manually.
-          </p>
         </div>
 
-        <div class="mt-4 text-center">
-          <UButton variant="outline" color="neutral" @click="clearResults">
+        <div class="mt-8">
+          <UButton
+            block
+            size="xl"
+            variant="solid"
+            color="neutral"
+            class="justify-start px-7 py-6 text-2xl sm:text-3xl font-black tracking-tight cursor-pointer"
+            @click="clearResults"
+          >
             Analyze More Files
           </UButton>
         </div>
@@ -631,6 +692,7 @@
     <!-- Batch processing progress -->
     <BatchProgress
       v-else-if="isBatchMode && batchProcessing"
+      class="mx-auto max-w-4xl"
       :items="batchItems"
       @cancel="cancelBatch"
     />
@@ -638,6 +700,7 @@
     <!-- Processing overlay (single file) -->
     <ProcessingOverlay
       v-else-if="processing"
+      class="mx-auto max-w-4xl"
       :stage="processingStage"
       :rotate="processingRotate"
       :file-type="processingFileType"
@@ -647,246 +710,261 @@
 
     <!-- Drop zone (idle state) -->
     <div v-else>
-      <AnnouncementBanner />
-
-      <div class="mb-5 sm:mb-6 text-center">
-        <h2 class="text-xl sm:text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]">
-          {{ heroTitle }}
-        </h2>
-        <!-- Two short sentences (2026-11-24): what you upload and what you
-             get; then the standard the grade measures. It was one 90-word
-             sentence that led with WCAG 2.2's criteria for interactive forms
-             — true, and not what a first-time visitor needs before the drop
-             zone. That nuance has its own page, linked on the line below. -->
-        <p
-          class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed"
-          data-testid="hero-intro"
-        >
-          Upload a {{ heroUploadNoun }} and get an accessibility grade with a plain-language list of
-          what to fix. The grade measures
-          <a
-            href="https://www.w3.org/WAI/WCAG21/quickref/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
-            >WCAG 2.1</a
-          >
-          A/AA — the standard
-          <a
-            href="https://www.ada.gov/resources/title-ii-rule/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
-            >ADA Title II</a
-          >
-          and the Illinois
-          <a
-            href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
-            >IITAA 2.1</a
-          >
-          require.
-        </p>
-        <p class="mt-2 text-sm text-[var(--text-muted)]" data-testid="hero-links">
-          <NuxtLink
-            to="/sample-report"
-            :prefetch="false"
-            class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >See a sample report</NuxtLink
-          >{{ " " }}<span aria-hidden="true">·</span>{{ " " }}
-          <NuxtLink
-            to="/wcag-2-2"
-            :prefetch="false"
-            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >What about WCAG 2.2?</NuxtLink
-          >
-        </p>
-      </div>
-
-      <!-- Drop hint banner -->
-      <Transition name="fade">
+      <!-- Plakat hero: the brand block carries the headline and what the tool
+           does; the upload box and the by-link form sit beside it. -->
+      <section class="grid lg:grid-cols-12 gap-y-6 lg:gap-x-8 mb-6">
         <div
-          v-if="showDropHint"
-          class="mb-4 rounded-xl bg-blue-500/10 border border-blue-500/25 px-5 py-3 text-center"
+          class="pk-block lg:col-span-7 flex flex-col justify-between gap-10 p-6 sm:p-10 lg:min-h-[36rem]"
         >
-          <p class="text-sm text-blue-400 font-medium">
-            Drop a {{ heroUploadNoun }} on the area below, or click it to browse your files.
+          <p class="pk-label flex flex-wrap justify-between gap-x-6 gap-y-1">
+            <span>Document accessibility check</span>
+            <span>WCAG 2.1 A/AA</span>
           </p>
+          <div>
+            <h2 class="pk-display text-[clamp(2.5rem,6.2vw,5rem)]">
+              {{ heroTitle }}
+            </h2>
+            <!-- Two short sentences (2026-11-24): what you upload and what you
+                 get; then the standard the grade measures. It was one 90-word
+                 sentence that led with WCAG 2.2's criteria for interactive forms
+                 — true, and not what a first-time visitor needs before the drop
+                 zone. That nuance has its own page, linked on the line below. -->
+            <p class="mt-8 max-w-xl font-medium leading-relaxed" data-testid="hero-intro">
+              Upload a {{ heroUploadNoun }} and get an accessibility grade with a plain-language
+              list of what to fix. The grade measures
+              <a
+                href="https://www.w3.org/WAI/WCAG21/quickref/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-semibold"
+                >WCAG 2.1</a
+              >
+              A/AA — the standard
+              <a
+                href="https://www.ada.gov/resources/title-ii-rule/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-semibold"
+                >ADA Title II</a
+              >
+              and the Illinois
+              <a
+                href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-semibold"
+                >IITAA 2.1</a
+              >
+              require.
+            </p>
+            <p class="mt-4 text-sm" data-testid="hero-links">
+              <NuxtLink to="/sample-report" :prefetch="false" class="font-semibold"
+                >See a sample report</NuxtLink
+              >{{ " " }}<span aria-hidden="true">·</span>{{ " " }}
+              <NuxtLink to="/wcag-2-2" :prefetch="false">What about WCAG 2.2?</NuxtLink>
+            </p>
+          </div>
         </div>
-      </Transition>
 
-      <DropZone @file-selected="analyzeFile" @files-selected="analyzeBatch" />
+        <div class="lg:col-span-5 flex flex-col">
+          <!-- Drop hint banner -->
+          <Transition name="fade">
+            <div
+              v-if="showDropHint"
+              class="mb-4 rounded-xl bg-blue-500/10 border border-blue-500/25 px-5 py-3 text-center"
+            >
+              <p class="text-sm text-blue-400 font-medium">
+                Drop a {{ heroUploadNoun }} on the area below, or click it to browse your files.
+              </p>
+            </div>
+          </Transition>
 
-      <!-- The same audit, for a document that is already on the web. -->
-      <UrlAuditForm @submit="analyzeUrl" />
+          <DropZone class="flex-1" @file-selected="analyzeFile" @files-selected="analyzeBatch" />
+
+          <!-- The same audit, for a document that is already on the web. -->
+          <UrlAuditForm @submit="analyzeUrl" />
+        </div>
+      </section>
+
+      <AnnouncementBanner />
     </div>
 
-    <LazyTechnicalExplainer hydrate-on-visible />
+    <!-- Home-page material: how the tool works, the Matterhorn checklist and
+         the feature tiles. Shown with the upload box and while
+         a file is being checked — not under a finished report, which shows
+         the report's own data and nothing else (user request, 2026-11-25). -->
+    <template v-if="!showingReport">
+      <div class="mx-auto max-w-4xl">
+        <LazyTechnicalExplainer hydrate-on-visible />
 
-    <!-- Checkpoint-by-checkpoint Matterhorn Protocol coverage — the trust
+        <!-- Checkpoint-by-checkpoint Matterhorn Protocol coverage — the trust
          disclosure, placed directly beneath the Technical Details expander
          so it sits near the fold instead of below every tile (user request,
          v1.94.0). Collapsible; the What's New banner's /#matterhorn link
          auto-opens it. Data in ~/data/matterhorn.ts; honesty-critical
          entries pinned by matterhornChecklist.test.ts. -->
-    <MatterhornChecklist />
+        <MatterhornChecklist />
+      </div>
 
-    <!-- Feature stats (infographic style) -->
-    <div class="mt-12 mb-2 text-center">
-      <h2 class="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--text-muted)]">
-        What This Tool Does
-      </h2>
-      <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Audit any PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) document for WCAG 2.1 AA
-        accessibility — and (optionally) auto-remediate PDFs — all on infrastructure you control,
-        with no AI and no per-document fees.
-      </p>
-    </div>
+      <!-- Feature stats (infographic style) -->
+      <div class="mt-20 mb-2">
+        <h2 class="pk-display text-4xl sm:text-6xl text-[var(--text-heading)]">
+          What This Tool Does
+        </h2>
+        <p class="mt-5 text-base text-[var(--text-secondary)] max-w-3xl">
+          Audit any PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) document for WCAG 2.1 AA
+          accessibility — and (optionally) auto-remediate PDFs — all on infrastructure you control,
+          with no AI and no per-document fees.
+        </p>
+      </div>
 
-    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
-      <!-- Audit -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
-        <!-- "9" counts SCORED (weighed) categories — the basis llms.txt and
+      <div class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+        <!-- Audit -->
+        <div class="pk-rule pt-4">
+          <!-- "9" counts SCORED (weighed) categories — the basis llms.txt and
              MethodologyCard use: PDF 9, PowerPoint 9, Word 8, Excel 6 (7 until v1.175.0, when Sheet Names became reported-not-graded). The
              report additionally shows always-"Not Assessed" placeholder rows
              (PDF displays 10 in total), so do NOT "correct" this to 10 —
              that recount happened once (v1.73.1's README) and was itself the
              error, reverted in v1.73.2. -->
-        <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          9
-        </div>
-        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
-          WCAG categories audited
-        </div>
-        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          <!-- "Serious" was named here for a long time and the scorer has never
+          <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
+            9
+          </div>
+          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+            WCAG categories audited
+          </div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            <!-- "Serious" was named here for a long time and the scorer has never
                emitted it: the severities are Critical / Moderate / Minor. On a
                page whose job is telling staff what the grades mean, inventing a
                fourth level is the same class of error as the grade cap fixed. -->
-          Each document scored across up to 9 categories, counting only
-          <strong>WCAG 2.1 Level A/AA</strong> criteria — the standard ADA Title II and the Illinois
-          IITAA require. Critical / Moderate / Minor severity per category so you know what to fix
-          first, and an A–F letter grade capped by the worst issue found — so a document is never
-          graded above its most serious problem.
-        </p>
-      </div>
+            Each document scored across up to 9 categories, counting only
+            <strong>WCAG 2.1 Level A/AA</strong> criteria — the standard ADA Title II and the
+            Illinois IITAA require. Critical / Moderate / Minor severity per category so you know
+            what to fix first, and an A–F letter grade capped by the worst issue found — so a
+            document is never graded above its most serious problem.
+          </p>
+        </div>
 
-      <!-- Auto-Remediate -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
-        <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          <!-- Not "F → A" (user decision 2026-11-18): auto-tagging cannot
+        <!-- Auto-Remediate -->
+        <div class="pk-rule pt-4">
+          <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
+            <!-- Not "F → A" (user decision 2026-11-18): auto-tagging cannot
                write image descriptions, and real files rarely reach an A from
                it alone. The tile says what the step does. -->
-          Auto-tag
+            Auto-tag
+          </div>
+          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+            Auto-remediation (optional)
+          </div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            Tags untagged PDFs and writes the title and language you give it, using the qpdf →
+            <a
+              href="https://github.com/opendataloader-project/opendataloader-pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+              >OpenDataLoader</a
+            >
+            →
+            <a
+              href="https://verapdf.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+              >veraPDF</a
+            >
+            pipeline. A result that makes any category worse, or fails a WCAG rule the original
+            passed, is thrown away. It cannot describe images, so most files still need a person to
+            finish them.
+          </p>
         </div>
-        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
-          Auto-remediation (optional)
-        </div>
-        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Tags untagged PDFs and writes the title and language you give it, using the qpdf →
-          <a
-            href="https://github.com/opendataloader-project/opendataloader-pdf"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >OpenDataLoader</a
-          >
-          →
-          <a
-            href="https://verapdf.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >veraPDF</a
-          >
-          pipeline. A result that makes any category worse, or fails a WCAG rule the original
-          passed, is thrown away. It cannot describe images, so most files still need a person to
-          finish them.
-        </p>
-      </div>
 
-      <!-- Standards alignment -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
-        <!-- v1.94.0: veraPDF runs the ua2 flavour when a document declares
+        <!-- Standards alignment -->
+        <div class="pk-rule pt-4">
+          <!-- v1.94.0: veraPDF runs the ua2 flavour when a document declares
              PDF/UA-2, so the headline is the family, not just part 1. -->
-        <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          PDF/UA
+          <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
+            PDF/UA
+          </div>
+          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Standards aligned</div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            WCAG 2.1 Level AA, ADA Title II (compliance due April 26, 2027 for larger entities, 2028
+            for smaller), Illinois IITAA 2.1, and PDF/UA-1 (ISO 14289-1) via veraPDF — with PDF/UA-2
+            (ISO 14289-2) validated when a document declares it. Full lifecycle audit trail with
+            deletion verification for compliance reporting.
+          </p>
         </div>
-        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Standards aligned</div>
-        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          WCAG 2.1 Level AA, ADA Title II (compliance due April 26, 2027 for larger entities, 2028
-          for smaller), Illinois IITAA 2.1, and PDF/UA-1 (ISO 14289-1) via veraPDF — with PDF/UA-2
-          (ISO 14289-2) validated when a document declares it. Full lifecycle audit trail with
-          deletion verification for compliance reporting.
-        </p>
-      </div>
 
-      <!-- Privacy -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
-        <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          0
+        <!-- Privacy -->
+        <div class="pk-rule pt-4">
+          <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
+            0
+          </div>
+          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Files retained</div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            Uploaded files exist on the server only as long as the pipeline requires. Audited files:
+            in-memory, gone in seconds. Remediated outputs: deleted on first download or after 30
+            minutes — and the deletion is then checked, not assumed.
+          </p>
         </div>
-        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Files retained</div>
-        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Uploaded files exist on the server only as long as the pipeline requires. Audited files:
-          in-memory, gone in seconds. Remediated outputs: deleted on first download or after 30
-          minutes — and the deletion is then checked, not assumed.
-        </p>
-      </div>
 
-      <!-- No AI / no third-party -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
-        <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          $0
-        </div>
-        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
-          No AI, no third-party APIs
-        </div>
-        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Every audit step runs on this server. No data is sent to vision models, hosted AI
-          services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
-          veraPDF) is entirely open source — no per-document fees, no SDK licensing. Page views are
-          counted by ICJIA's own self-hosted, cookie-free
-          <!-- :prefetch="false" — /data-retention is a ~600 KB chunk, and a
+        <!-- No AI / no third-party -->
+        <div class="pk-rule pt-4">
+          <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
+            $0
+          </div>
+          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+            No AI, no third-party APIs
+          </div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            Every audit step runs on this server. No data is sent to vision models, hosted AI
+            services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
+            veraPDF) is entirely open source — no per-document fees, no SDK licensing. Page views
+            are counted by ICJIA's own self-hosted, cookie-free
+            <!-- :prefetch="false" — /data-retention is a ~600 KB chunk, and a
                link in a tile at the bottom of the home page is no reason to
                download it for every visitor. -->
-          <NuxtLink
-            to="/data-retention"
-            :prefetch="false"
-            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >Plausible</NuxtLink
-          >
-          — never document data.
-        </p>
-      </div>
-
-      <!-- Open source / cost -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
-        <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          100%
+            <NuxtLink
+              to="/data-retention"
+              :prefetch="false"
+              class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+              >Plausible</NuxtLink
+            >
+            — never document data.
+          </p>
         </div>
-        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Open source</div>
-        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Every line of code is on
-          <a
-            href="https://github.com/ICJIA/file-accessibility-audit"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >GitHub</a
-          >
-          — fork it, audit it, run it on your own infrastructure. Underlying tools use Apache 2.0 /
-          MIT / MPL licenses. Designed for state agencies that need control over their accessibility
-          pipeline.
-        </p>
+
+        <!-- Open source / cost -->
+        <div class="pk-rule pt-4">
+          <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
+            100%
+          </div>
+          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Open source</div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            Every line of code is on
+            <a
+              href="https://github.com/ICJIA/file-accessibility-audit"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+              >GitHub</a
+            >
+            — fork it, audit it, run it on your own infrastructure. Underlying tools use Apache 2.0
+            / MIT / MPL licenses. Designed for state agencies that need control over their
+            accessibility pipeline.
+          </p>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
+// The landing hero uses the wide (poster) measure; the results, progress and
+// error states below are held to the reading measure in the template.
+definePageMeta({ wide: true });
+
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
@@ -1000,6 +1078,23 @@ const {
 } = useReportExport();
 
 const { mode: viewMode, setMode: setViewMode } = useReportView();
+// A finished report (or batch of reports) is on screen — the same condition
+// the template's results branch uses.
+const showingReport = computed(() => hasAnyResult.value && !batchProcessing.value);
+// Where the before-and-after comparison sits: above the report in the
+// Detailed view and whenever this upload re-checks an earlier file; as a block
+// near the foot of the Visual view otherwise.
+const compareOnTop = computed(
+  () => viewMode.value !== "visual" || (!isBatchMode.value && !!earlierResult.value),
+);
+// Switching view replaces the control that was just pressed (the Visual view
+// carries its own compact switch in the report hero), so put keyboard focus
+// back on the pressed option of whichever switch is now on the page.
+async function switchView(mode: Parameters<typeof setViewMode>[0]) {
+  setViewMode(mode);
+  await nextTick();
+  document.querySelector<HTMLElement>('[data-view-toggle] button[aria-pressed="true"]')?.focus();
+}
 
 const aiCopyError = ref(false);
 async function handleCopyAiAnalysis() {
@@ -1721,6 +1816,12 @@ function clearResults() {
   activeTabIndex.value = 0;
   batchProcessing.value = false;
   clearShare();
+  // Back to the top: the report is replaced by the home page, and the control
+  // that was pressed ("Analyze More Files" is the last thing on a report) would
+  // otherwise leave the reader at the foot of a page whose upload box is at
+  // the head of it. A jump, not a glide — the content under the reader has
+  // changed completely, and a jump also honours "reduce motion".
+  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 const copied = ref(false);

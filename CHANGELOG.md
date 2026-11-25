@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.178.0] - 2026-11-25
+
+### Changed
+
+- **A new look, and a report that leads with the answer.** The whole site has a new visual design ("Plakat": one heavy grotesque typeface, square corners, a single blue field), and the Visual report has been rearranged so a first-time reader meets things in the order they need them. The report now opens with the verdict as the largest text on the page and one plain sentence counted in fixes ("4 fixes needed to meet WCAG 2.1 A/AA."). The fix list follows in the wide column with every step closed, beside "Where the points went" — the category bars, problems first, each linked to its fix. One amber section then holds the checks only a person can do, and the reference material (document details, source-document advice, best practices, veraPDF's verdict) is folded behind one-line rows. No scoring changed: the same file gets the same grade. Also: the top navigation collapses behind a Menu button below 768px and gains a Technical link; text links are underlined in both themes (in light mode the link colour and body text measured 1.1:1 against each other, so colour alone did not mark a link); a finished report no longer shows the home page's explanatory sections beneath it; Reset, the site title and "Analyze More Files" return to the top of the home page; the automatic-repair panel says what it is and what its button does; several light-mode contrast failures on the report were fixed (two action-plan headings at about 2.2:1, the WCAG reference chip at 2.63:1, the manual-check captions, the repair panel's label); the og:image was redrawn. The grade display is now a block in the brand colour, so the grade's colour is carried by the verdict line and the category bars rather than by the letter.
+
+### Notes
+
+- Tests 5,498 across 307 files (API 2,878 · Web 2,448 · CLI 172).
+
 ## [1.177.0] - 2026-11-24
 
 ### Changed

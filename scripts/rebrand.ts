@@ -364,167 +364,52 @@ Health check.
 // ── og-image.svg ──────────────────────────────────────────────────────────
 
 function buildOgImageSvg(): string {
-  // For the SVG bottom bar: use abbreviation if available, otherwise skip
-  const abbrevLine = orgAbbrev
-    ? `  <text x="640" y="575" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#555555" letter-spacing="3">${escapeXml(orgAbbrev)}</text>`
-    : "";
-  const orgLine = `  <text x="640" y="600" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#444444">${escapeXml(ORG_NAME)}</text>`;
+  // Plakat look (2026-11), matching the site: one cobalt block carrying the
+  // headline, a solid grade block beside it, heavy grotesque type, square
+  // corners. sharp renders the text with the build machine's fonts, so the
+  // stack names faces that exist there (the site's Archivo is a web font).
+  const font = `font-family="Helvetica Neue, Helvetica, Arial, sans-serif"`;
+  const rest = orgAbbrev ? APP_NAME.replace(orgAbbrev, "").trim() : APP_NAME;
+  const host = SITE_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const headline = [
+    "Check your",
+    "PDF, Word,",
+    "PowerPoint,",
+    "and Excel files",
+    "for accessibility",
+  ]
+    .map(
+      (line, i) =>
+        `  <text x="56" y="${262 + i * 72}" ${font} font-size="70" font-weight="800" fill="#ffffff" letter-spacing="-3">${line}</text>`,
+    )
+    .join("\n");
 
   return `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a0a0a"/>
-      <stop offset="100%" stop-color="#141414"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#22c55e"/>
-      <stop offset="100%" stop-color="#14b8a6"/>
-    </linearGradient>
-    <linearGradient id="accentFade" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.15"/>
-      <stop offset="100%" stop-color="#14b8a6" stop-opacity="0.05"/>
-    </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="20" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="40" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
+  <!-- Page -->
+  <rect width="1200" height="630" fill="#0a0a0a"/>
 
-  <!-- Background -->
-  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Brand block -->
+  <rect x="0" y="0" width="720" height="630" fill="#3559e0"/>
+  <text x="56" y="84" ${font} font-size="17" font-weight="700" fill="#ffffff" letter-spacing="2.5">DOCUMENT ACCESSIBILITY CHECK</text>
+  <text x="664" y="84" text-anchor="end" ${font} font-size="17" font-weight="700" fill="#ffffff" letter-spacing="2.5">WCAG 2.1 A/AA</text>
+${headline}
 
-  <!-- Subtle grid pattern -->
-  <g opacity="0.03">
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(60,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(120,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(180,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(240,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(300,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(360,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(420,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(480,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(540,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(600,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(660,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(720,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(780,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(840,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(900,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(960,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(1020,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(1080,0)"/>
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#f5f5f5" stroke-width="1" transform="translate(1140,0)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,60)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,120)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,180)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,240)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,300)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,360)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,420)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,480)"/>
-    <line x1="0" y1="0" x2="1200" y2="0" stroke="#f5f5f5" stroke-width="1" transform="translate(0,540)"/>
-  </g>
+  <!-- Grade block: the letter knocked out of a solid block in the grade colour -->
+  <rect x="776" y="56" width="200" height="200" fill="#22c55e"/>
+  <text x="876" y="224" text-anchor="middle" ${font} font-size="190" font-weight="800" fill="#0a0a0a">A</text>
+  <text x="1004" y="206" ${font} font-size="76" font-weight="800" fill="#ffffff" letter-spacing="-3">92</text>
+  <text x="1006" y="248" ${font} font-size="26" font-weight="700" fill="#d4d4d4">/100</text>
 
-  <!-- Ambient glow orbs -->
-  <circle cx="900" cy="200" r="200" fill="#22c55e" opacity="0.04" filter="url(#softGlow)"/>
-  <circle cx="300" cy="450" r="150" fill="#14b8a6" opacity="0.03" filter="url(#softGlow)"/>
+  <!-- Name -->
+  <rect x="776" y="318" width="368" height="5" fill="#ffffff"/>
+  <text x="776" y="386" ${font} font-size="50" font-weight="800" fill="#ffffff" letter-spacing="-2">${escapeXml(orgAbbrev || APP_NAME)}</text>
+  <text x="776" y="424" ${font} font-size="23" font-weight="800" fill="#ffffff" letter-spacing="0.5">${escapeXml(rest.toUpperCase())}</text>
+  <text x="776" y="470" ${font} font-size="17" fill="#d4d4d4">PDF · Word · PowerPoint · Excel</text>
+  <text x="776" y="496" ${font} font-size="17" fill="#d4d4d4">ADA Title II · Illinois IITAA 2.1</text>
 
-  <!-- Top accent line -->
-  <rect x="0" y="0" width="1200" height="3" fill="url(#accent)"/>
-
-  <!-- Left content area -->
-
-  <!-- Grade circle -->
-  <g transform="translate(140, 260)">
-    <circle cx="0" cy="0" r="80" fill="none" stroke="#222222" stroke-width="6"/>
-    <circle cx="0" cy="0" r="80" fill="none" stroke="url(#accent)" stroke-width="6" stroke-dasharray="440" stroke-dashoffset="44" stroke-linecap="round" transform="rotate(-90)"/>
-    <circle cx="0" cy="0" r="65" fill="#111111" opacity="0.8"/>
-    <text x="0" y="8" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="700" fill="#22c55e">A</text>
-    <text x="0" y="32" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#888888" letter-spacing="2">92/100</text>
-  </g>
-
-  <!-- Score bars (mini category preview) -->
-  <g transform="translate(260, 195)">
-    <rect x="0" y="0" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="0" width="190" height="6" rx="3" fill="#22c55e" opacity="0.9"/>
-    <text x="210" y="8" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Text</text>
-
-    <rect x="0" y="22" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="22" width="180" height="6" rx="3" fill="#22c55e" opacity="0.8"/>
-    <text x="210" y="30" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Title</text>
-
-    <rect x="0" y="44" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="44" width="200" height="6" rx="3" fill="#22c55e" opacity="0.9"/>
-    <text x="210" y="52" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Headings</text>
-
-    <rect x="0" y="66" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="66" width="170" height="6" rx="3" fill="#14b8a6" opacity="0.8"/>
-    <text x="210" y="74" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Alt Text</text>
-
-    <rect x="0" y="88" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="88" width="200" height="6" rx="3" fill="#22c55e" opacity="0.9"/>
-    <text x="210" y="96" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Tables</text>
-
-    <rect x="0" y="110" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="110" width="140" height="6" rx="3" fill="#eab308" opacity="0.7"/>
-    <text x="210" y="118" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Links</text>
-
-    <rect x="0" y="132" width="200" height="6" rx="3" fill="#1a1a1a"/>
-    <rect x="0" y="132" width="190" height="6" rx="3" fill="#22c55e" opacity="0.85"/>
-    <text x="210" y="140" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#666666">Order</text>
-  </g>
-
-  <!-- Right content area -->
-
-  <!-- PDF icon -->
-  <g transform="translate(640, 140)">
-    <rect x="0" y="0" width="52" height="64" rx="4" fill="none" stroke="#333333" stroke-width="1.5"/>
-    <path d="M34,0 L52,18" fill="none" stroke="#333333" stroke-width="1.5"/>
-    <path d="M34,0 L34,18 L52,18" fill="#1a1a1a" stroke="#333333" stroke-width="1.5"/>
-    <text x="26" y="46" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#ef4444" opacity="0.8">PDF</text>
-  </g>
-
-  <!-- Title -->
-  <text x="640" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700" fill="#f5f5f5" letter-spacing="-1">File Accessibility</text>
-  <text x="640" y="320" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700" fill="url(#accent)" letter-spacing="-1">Audit</text>
-
-  <!-- Tagline -->
-  <text x="640" y="370" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#888888">Automated PDF accessibility scoring</text>
-  <text x="640" y="396" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#888888">across 9 WCAG-aligned categories</text>
-
-  <!-- Feature pills -->
-  <g transform="translate(640, 430)">
-    <rect x="0" y="0" width="90" height="30" rx="15" fill="#111111" stroke="#222222" stroke-width="1"/>
-    <text x="45" y="20" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#22c55e">WCAG 2.1</text>
-
-    <rect x="100" y="0" width="120" height="30" rx="15" fill="#111111" stroke="#222222" stroke-width="1"/>
-    <text x="160" y="20" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#14b8a6">9 Categories</text>
-
-    <rect x="230" y="0" width="110" height="30" rx="15" fill="#111111" stroke="#222222" stroke-width="1"/>
-    <text x="285" y="20" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#888888">PDF Analysis</text>
-
-    <rect x="350" y="0" width="130" height="30" rx="15" fill="#111111" stroke="#222222" stroke-width="1"/>
-    <text x="415" y="20" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#888888">Instant Grading</text>
-  </g>
-
-  <!-- Bottom bar -->
-  <rect x="0" y="530" width="1200" height="100" fill="#111111" opacity="0.6"/>
-  <line x1="0" y1="530" x2="1200" y2="530" stroke="#222222" stroke-width="1"/>
-${abbrevLine}
-${orgLine}
-
-  <!-- Divider between left preview and right content -->
-  <line x1="600" y1="140" x2="600" y2="490" stroke="#222222" stroke-width="1" opacity="0.5"/>
+  <!-- Foot -->
+  <text x="776" y="560" ${font} font-size="15" font-weight="700" fill="#ffffff" letter-spacing="1.5">${escapeXml(host.toUpperCase())}</text>
+  <text x="776" y="584" ${font} font-size="13" fill="#a3a3a3">${escapeXml(ORG_NAME)}</text>
 </svg>
 `;
 }

@@ -5,7 +5,7 @@
     class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6"
     aria-labelledby="manual-review-h"
   >
-    <h2 id="manual-review-h" class="text-lg font-bold text-[var(--text-heading)]">
+    <h2 id="manual-review-h" class="pk-display text-3xl sm:text-4xl text-[var(--text-heading)]">
       Still worth checking by hand
     </h2>
     <p
@@ -53,7 +53,11 @@
                  so the ✓ would claim a verification that never happened. -->
             <p
               class="text-xs mt-1"
-              :class="c.tone === 'caution' ? 'text-amber-300/90' : 'text-emerald-300/90'"
+              :class="
+                c.tone === 'caution'
+                  ? 'text-[var(--status-warning-yellow)]'
+                  : 'text-[var(--status-success)]'
+              "
             >
               <span aria-hidden="true">{{ c.tone === "caution" ? "!" : "✓" }}</span>
               {{ c.verified }}

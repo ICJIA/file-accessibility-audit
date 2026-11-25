@@ -13,11 +13,11 @@
          old print selectors keyed on roles this markup never carried — so
          the site chrome printed on every "Save as PDF". Pinned by
          layoutLandmarks.test.ts. -->
-    <header class="site-header border-b border-[var(--border)] px-3 sm:px-6 py-4">
+    <header class="site-header px-3 sm:px-6 py-3">
       <!-- Wider than <main> on purpose (max-w-6xl vs 4xl): the nav rows carry
            seven items and were forcing labels to wrap in half at laptop
            widths ("What's / New"). Chrome may run wide; prose may not. -->
-      <div class="mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-y-2">
+      <div class="mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
         <!-- The title is the way to start a new audit — the redundant
              "Analyze" nav links were removed in v1.41.0.
              It is an <a href="/">, not a bare @click on the <h1>, because it
@@ -27,17 +27,53 @@
              especially poor thing to ship. As a link it gets keyboard focus,
              Enter activation, middle-click/open-in-new-tab and no-JS
              behaviour for free; @click.prevent adds the state reset. -->
-        <h1 class="text-base sm:text-lg font-semibold tracking-tight">
+        <h1 class="text-base sm:text-lg font-extrabold uppercase tracking-tight max-md:mr-auto">
           <a
             href="/"
             class="cursor-pointer hover:text-[var(--text-secondary)] transition-colors"
             @click.prevent="goAnalyze"
           >
-            {{ config.public.appName }}
+            <!-- Brand mark: a square of the brand blue. Decoration only. -->
+            <span
+              aria-hidden="true"
+              class="inline-block w-3.5 h-3.5 mr-2 bg-[var(--brand)] align-[-0.08em]"
+            />{{ config.public.appName }}
           </a>
         </h1>
-        <div class="flex items-center gap-2 sm:gap-4">
-          <!-- Always-visible site links. There is no auth state to gate on —
+        <!-- max-md:contents: on a narrow screen this group dissolves, so its
+             children sit directly in the header row and the opened menu can
+             take a full row of its own beneath it. -->
+        <div class="flex items-center gap-2 sm:gap-4 max-md:contents">
+          <!-- Menu button, narrow screens only. The four site links collapse
+               behind it (the .site-nav rules in main.css). A real button:
+               aria-expanded says whether the menu is open, aria-controls
+               names it, Escape closes it and puts focus back here. It comes
+               BEFORE the nav in the document so that Tab goes from the button
+               straight into the links it has just revealed. -->
+          <button
+            ref="menuButtonRef"
+            type="button"
+            data-testid="site-menu-button"
+            class="md:hidden inline-flex items-center gap-2 p-3 border-2 border-[var(--text-heading)] text-[var(--text-heading)] text-sm font-bold uppercase tracking-wide cursor-pointer"
+            aria-controls="site-nav"
+            :aria-expanded="menuOpen ? 'true' : 'false'"
+            @click="menuOpen = !menuOpen"
+            @keydown.esc="closeMenu(true)"
+          >
+            <svg
+              class="w-4 h-4"
+              aria-hidden="true"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="3"
+            >
+              <path v-if="menuOpen" stroke-linecap="square" d="M5 5l14 14M19 5L5 19" />
+              <path v-else stroke-linecap="square" d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+            Menu
+          </button>
+          <!-- Always-rendered site links. There is no auth state to gate on —
                the tool has no accounts or sign-in (v1.68.0) — so every
                header link renders for every visitor, always.
 
@@ -50,13 +86,19 @@
                /status" without ever contacting the server. That exact bug
                shipped in v1.39.0 and was fixed in v1.39.1 — do not
                "tidy" this into a NuxtLink. -->
-          <nav aria-label="Site information" class="flex items-center gap-3 sm:gap-4">
+          <nav
+            id="site-nav"
+            aria-label="Site information"
+            class="site-nav flex items-center gap-3 sm:gap-4"
+            :class="{ 'is-open': menuOpen }"
+            @keydown.esc="closeMenu(true)"
+          >
             <!-- FIRST on purpose (user request, 2026-08-28): the skeptic's
                  question leads the nav. /trust is a real Vue route since
                  v1.119.0, so NuxtLink is correct. Pinned by trustPage.test.ts. -->
             <NuxtLink
               to="/trust"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               Can I trust this?
             </NuxtLink>
@@ -65,7 +107,7 @@
               :href="config.public.faqsUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+              class="inline-flex items-center gap-1 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               FAQs
               <!-- external-link icon to signal this opens in a new tab
@@ -88,9 +130,18 @@
             </a>
             <NuxtLink
               to="/announcements"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               What's New
+            </NuxtLink>
+            <!-- How the tool works, in full. /technical-details is a Vue page,
+                 so NuxtLink is correct (the footer link opens it in a new tab;
+                 this one stays in the tab, like its neighbours). -->
+            <NuxtLink
+              to="/technical-details"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              Technical
             </NuxtLink>
             <!-- Plain <a>, NOT NuxtLink — see the note above.
                  Same tab, deliberately: this opened in a new one originally,
@@ -107,55 +158,63 @@
               href="/status?html"
               :target="auditInProgress ? '_blank' : undefined"
               :rel="auditInProgress ? 'noopener noreferrer' : undefined"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+              class="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               Status<span v-if="auditInProgress" class="sr-only">
                 (opens in a new tab so your audit keeps running)</span
               >
             </a>
           </nav>
-          <!-- Color mode toggle -->
-          <button
-            type="button"
-            class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-            :aria-label="
-              colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-            "
-            @click="toggleColorMode"
+          <!-- The theme switch and the status light. On a narrow screen they
+               belong to the menu: hidden until it is open, then on a row of
+               their own beneath the links. -->
+          <div
+            class="flex items-center gap-2 sm:gap-4 max-md:order-[100] max-md:basis-full max-md:pb-2"
+            :class="{ 'max-md:hidden': !menuOpen }"
           >
-            <svg
-              v-if="colorMode.value === 'dark'"
-              class="w-4 h-4"
-              aria-hidden="true"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
+            <!-- Color mode toggle -->
+            <button
+              type="button"
+              class="p-3 bg-[var(--text-heading)] text-[var(--surface-body)] hover:opacity-80 transition-opacity cursor-pointer"
+              :aria-label="
+                colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+              "
+              @click="toggleColorMode"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
-              />
-            </svg>
-            <svg
-              v-else
-              class="w-4 h-4"
-              aria-hidden="true"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
-              />
-            </svg>
-          </button>
-          <!-- Server status indicator (green = online, red = down) -->
-          <ServerStatusIndicator />
+              <svg
+                v-if="colorMode.value === 'dark'"
+                class="w-4 h-4"
+                aria-hidden="true"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
+                />
+              </svg>
+              <svg
+                v-else
+                class="w-4 h-4"
+                aria-hidden="true"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
+                />
+              </svg>
+            </button>
+            <!-- Server status indicator (green = online, red = down) -->
+            <ServerStatusIndicator />
+          </div>
         </div>
       </div>
     </header>
@@ -166,15 +225,16 @@
     <main
       id="main-content"
       tabindex="-1"
-      class="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8 focus:outline-none"
+      class="mx-auto px-3 sm:px-6 py-4 sm:py-8 focus:outline-none"
+      :class="route.meta.wide ? 'max-w-6xl' : 'max-w-4xl'"
     >
       <slot />
     </main>
 
-    <footer class="site-footer border-t border-[var(--border)] px-3 sm:px-6 py-4">
+    <footer class="site-footer mt-12 px-3 sm:px-6 py-4">
       <!-- max-w-6xl + flex-wrap + nowrap labels: rows wrap as WHOLE items,
            never mid-label (see the header note; pinned by trustPage.test.ts). -->
-      <div class="mx-auto max-w-6xl">
+      <div class="mx-auto max-w-6xl pk-rule pt-4">
         <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
           <a
             v-if="config.public.githubUrl"
@@ -589,9 +649,25 @@ const auditInProgress = useAuditInProgress();
 import { SCORING_PROFILES, GRADE_THRESHOLDS } from "@file-audit/shared";
 
 const config = useRuntimeConfig();
+// A page opts into the wide (poster) measure with definePageMeta({ wide: true });
+// reading pages keep the narrower one.
+const route = useRoute();
 const goAnalyze = inject<() => void>("goAnalyze");
 
 const colorMode = useColorMode();
+
+// The narrow-screen menu. Closed by default; closes again whenever the page
+// changes, so it is never left open over the page a link just opened.
+const menuOpen = ref(false);
+const menuButtonRef = ref<HTMLButtonElement | null>(null);
+function closeMenu(returnFocus = false) {
+  menuOpen.value = false;
+  if (returnFocus) menuButtonRef.value?.focus();
+}
+watch(
+  () => route.fullPath,
+  () => closeMenu(),
+);
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";

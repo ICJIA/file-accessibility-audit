@@ -100,7 +100,7 @@ describe("/sample-report", () => {
     const text = wrapper.text();
     expect(text).toContain("sample-evaluation-report.pdf");
     expect(text).toContain(`${data.overallScore}`);
-    expect(text).toContain("Your action plan");
+    expect(text).toContain("What to fix, in order");
     expect(text).toContain("Fix progress");
   });
 

@@ -98,7 +98,7 @@
         <div class="mt-3 flex gap-2 justify-center">
           <button
             type="button"
-            class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-medium transition-colors"
+            class="px-4 py-2 rounded-lg bg-[var(--brand)] hover:bg-cobalt-600 text-white text-sm font-medium transition-colors"
             @click="submitStaged"
           >
             Analyze {{ stagedFiles.length }} {{ stagedFiles.length === 1 ? "File" : "Files" }}
@@ -129,11 +129,11 @@
     <button
       type="button"
       data-testid="dropzone"
-      class="flex flex-col items-center justify-center w-full min-h-[50vh] border-2 border-dashed rounded-2xl transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
+      class="flex flex-col justify-end w-full h-full min-h-[22rem] border-4 border-dashed transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
       :class="
         dragging
           ? 'border-green-400 bg-green-400/5 scale-[1.01]'
-          : 'border-[var(--border-input)] hover:border-[var(--border-hover)] bg-[var(--surface-card-50)]'
+          : 'border-[var(--text-heading)] hover:bg-[var(--surface-hover)] bg-transparent'
       "
       @dragover.prevent
       @dragenter.prevent="onDragEnter"
@@ -141,13 +141,13 @@
       @drop.prevent="handleDrop"
       @click="openPicker"
     >
-      <span class="block text-center space-y-4 p-8">
+      <span class="block text-left space-y-6 p-6 sm:p-8">
         <span
-          class="mx-auto w-16 h-16 rounded-full bg-[var(--surface-icon)] flex items-center justify-center"
+          class="w-16 h-16 bg-[var(--brand)] text-[var(--brand-ink)] flex items-center justify-center"
           aria-hidden="true"
         >
           <svg
-            class="w-8 h-8 text-[var(--text-muted)]"
+            class="w-9 h-9"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -163,7 +163,7 @@
 
         <span class="block">
           <span
-            class="block text-lg font-medium"
+            class="block pk-display text-3xl sm:text-4xl"
             :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'"
           >
             {{ dragging ? dropLabelActive : dropLabelIdle }}
@@ -172,7 +172,7 @@
                for files to audit — up to (the limit) files, max 25 MB each" — while the
                visible label still opens it, so speech input can say what it
                sees (WCAG 2.5.3). -->
-          <span class="block text-sm text-[var(--text-muted)] mt-1">
+          <span class="block text-sm text-[var(--text-secondary)] mt-3">
             or click to browse<span class="sr-only"> for files to audit</span> — up to
             {{ MAX_FILES }} files, max 25 MB each
           </span>

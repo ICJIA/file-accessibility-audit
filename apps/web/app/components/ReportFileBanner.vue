@@ -1,11 +1,8 @@
 <template>
-  <div
-    class="flex items-start gap-3 sm:gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-4 py-4 sm:px-6 sm:py-5"
-    data-testid="report-file-banner"
-  >
+  <div class="flex items-start gap-3 sm:gap-4" data-testid="report-file-banner">
     <!-- Document icon -->
     <svg
-      class="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 text-[var(--text-muted)]"
+      class="hidden"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -20,13 +17,18 @@
     </svg>
 
     <div class="min-w-0">
-      <p class="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+      <!-- compact: in the report hero the verdict is the headline, so the
+           file's name steps back to a label-sized line above it. -->
+      <p class="pk-label text-[var(--text-muted)] mb-1">
         {{ BANNER_EYEBROW }}
       </p>
-      <p class="text-lg sm:text-xl font-bold leading-snug text-[var(--text-heading)] break-words">
+      <p
+        class="text-[var(--text-heading)] break-words"
+        :class="compact ? 'text-lg font-bold tracking-tight' : 'pk-display text-3xl sm:text-5xl'"
+      >
         {{ filename }}
       </p>
-      <p class="mt-0.5 text-sm text-[var(--text-muted)]">
+      <p class="text-sm text-[var(--text-muted)]" :class="compact ? 'mt-0.5' : 'mt-2'">
         {{ bannerMetaLine(pageCount, fileType) }}
         <span
           v-if="isScanned"
@@ -47,6 +49,8 @@ withDefaults(
     pageCount: number;
     isScanned?: boolean;
     fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+    /** Label-sized, for the report hero. */
+    compact?: boolean;
   }>(),
   { fileType: "pdf" },
 );

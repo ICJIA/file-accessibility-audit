@@ -162,7 +162,7 @@
     </div>
 
     <!-- Detailed Findings -->
-    <h2 class="text-base sm:text-lg font-semibold mb-4">Detailed Findings</h2>
+    <h2 class="pk-display text-3xl sm:text-4xl mb-5">Detailed Findings</h2>
 
     <div class="space-y-4">
       <div
@@ -525,7 +525,7 @@
 
     <!-- Not Included in Scoring -->
     <div v-if="naCategories.length">
-      <h2 class="text-base sm:text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]">
+      <h2 class="pk-display text-2xl sm:text-3xl mb-4 mt-10 text-[var(--text-secondary)]">
         Not Included in Scoring
       </h2>
 

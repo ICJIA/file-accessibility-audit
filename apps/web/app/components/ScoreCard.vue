@@ -7,10 +7,11 @@
     <!-- Grade circle -->
     <div class="flex justify-center">
       <div
-        class="w-28 h-28 sm:w-40 sm:h-40 rounded-full flex items-center justify-center border-4"
-        :style="{ borderColor: gradeColor, backgroundColor: withAlpha(gradeColor, 8) }"
+        data-testid="grade-block"
+        class="w-28 h-28 sm:w-40 sm:h-40 flex items-center justify-center border-4"
+        :style="{ borderColor: gradeColor, backgroundColor: gradeColor }"
       >
-        <span class="text-5xl sm:text-7xl font-black" :style="{ color: gradeColor }">
+        <span class="text-5xl sm:text-7xl leading-none font-black text-[var(--surface-body)]">
           {{ displayedProfile.grade }}
         </span>
       </div>
@@ -248,7 +249,7 @@ import {
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
 import { allChecksPassedCaveat, gradeLabelFor, publicationStatus } from "~/utils/publicationStatus";
-import { GRADE_THRESHOLDS, safeHttpUrl, scoreCapReason, withAlpha } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, safeHttpUrl, scoreCapReason } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 

@@ -1,26 +1,21 @@
 <template>
-  <div class="flex gap-2 sm:gap-3 max-w-xl mx-auto">
+  <div class="flex gap-4 sm:gap-6">
     <div
       v-for="tile in tiles"
       :key="tile.key"
       :data-testid="`severity-tile-${tile.key}`"
-      class="flex-1 rounded-xl border px-3 py-2.5 text-center"
-      :class="tile.count === 0 ? 'tile-zero border-[var(--border-subtle)]' : ''"
-      :style="
-        tile.count === 0
-          ? {}
-          : { borderColor: withAlpha(tile.color, 25), backgroundColor: withAlpha(tile.color, 6) }
-      "
+      class="flex-1 border-t-4 pt-3 text-left"
+      :class="[RULE[tile.key], tile.count === 0 ? 'tile-zero border-[var(--border-alt)]' : '']"
+      :style="tile.count === 0 ? {} : { borderColor: tile.color }"
     >
       <div
-        class="text-2xl font-extrabold leading-tight"
-        :style="tile.count === 0 ? {} : { color: tile.color }"
-        :class="tile.count === 0 ? 'text-[var(--text-muted)]' : ''"
+        class="text-6xl sm:text-7xl font-black leading-none tracking-tight"
+        :class="tile.count === 0 ? 'text-[var(--text-muted)]' : 'text-[var(--text-heading)]'"
       >
         {{ tile.count }}
       </div>
       <div
-        class="text-[10px] font-semibold tracking-wide uppercase"
+        class="mt-1 text-xs font-semibold tracking-wide uppercase"
         :style="tile.count === 0 ? {} : { color: tile.color }"
         :class="tile.count === 0 ? 'text-[var(--text-muted)]' : ''"
       >
@@ -34,7 +29,14 @@
 import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
-const { severityColor, withAlpha } = useTokenColors();
+const { severityColor } = useTokenColors();
+// The three rules differ in line style as well as colour, so the levels can
+// be told apart without relying on hue.
+const RULE: Record<string, string> = {
+  critical: "border-solid",
+  moderate: "border-dashed",
+  minor: "border-dotted",
+};
 import { tallySeverity } from "~/utils/severityTally";
 
 const props = defineProps<{ categories: Array<{ severity?: string | null }> }>();
