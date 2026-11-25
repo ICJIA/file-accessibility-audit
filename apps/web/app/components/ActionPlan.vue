@@ -218,12 +218,19 @@
                   </div>
                 </div>
 
-                <p
-                  class="text-sm leading-relaxed text-[var(--text-secondary)] mt-3 mb-0"
+                <!-- A card of its own (user request, 2026-11-25): as plain text
+                     under the steps it read as one more step. It is ABOUT the
+                     steps — which app versions they were checked against. -->
+                <div
+                  class="mt-4 border border-[var(--border)] border-l-4 border-l-[var(--text-muted)] bg-[var(--surface-hover)] px-4 py-3"
                   role="note"
+                  data-testid="fix-steps-note"
                 >
-                  {{ FIX_STEPS_VERSION_NOTE }}
-                </p>
+                  <p class="pk-label mb-1.5 text-[var(--text-secondary)]">About these steps</p>
+                  <p class="text-sm leading-relaxed text-[var(--text-secondary)] m-0">
+                    {{ FIX_STEPS_VERSION_NOTE }}
+                  </p>
+                </div>
 
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                   <!-- LINKED (standing rule, 2026-08-31: naming a criterion
