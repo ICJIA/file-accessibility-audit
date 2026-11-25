@@ -20,9 +20,9 @@ import { defaultPdfRunLimits, runPdfInWorker } from "@file-audit/analyzer/pdfRun
 import { WATCHDOG_SOURCE, analyzePdfInProcess } from "@file-audit/analyzer/pdfWorker";
 import { repeatedPagePdf } from "./helpers/hostilePdf.js";
 
-const REAL_PDF = readFileSync(
-  resolve(__dirname, "../../../../controls/10drug_arrests_1999-2008.pdf"),
-);
+// A fixture that is committed with the tests (the documents under controls/
+// are not all in the repository, so CI does not have them).
+const REAL_PDF = readFileSync(resolve(__dirname, "fixtures/accessible.pdf"));
 const src = (p: string) =>
   readFileSync(resolve(__dirname, "../../../../packages/analyzer/src", p), "utf8");
 

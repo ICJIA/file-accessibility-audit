@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 const analyzerSrc = fileURLToPath(new URL("../../packages/analyzer/src", import.meta.url));
 
 export default defineConfig({
+  test: {
+    // A PDF audit starts a process of its own since v1.183.0 (pdfRunner.ts).
+    // That costs ~0.5 s on a developer machine and several seconds on a
+    // two-core CI runner under a parallel suite — past vitest's 5 s default
+    // for any test that audits a PDF through a route. The limit is a
+    // backstop against a hung test, not a performance assertion.
+    testTimeout: 30_000,
+  },
   resolve: {
     // Phase E extracted the audit engine into @file-audit/analyzer. apps/api
     // keeps thin `export *` re-export shims at src/services/<m>.ts, so both
