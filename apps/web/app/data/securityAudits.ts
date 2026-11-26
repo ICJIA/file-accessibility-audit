@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.183.1",
+    meta: "Reviewed <strong>2026-11-26</strong> &middot; scope: report and policy page markup, light-theme colours.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: markup, CSS and client-side colour selection only; no route, input, storage, upload handling or scoring changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.183.0",
     meta: "Reviewed <strong>2026-11-25</strong> &middot; scope: SECURITY RELEASE — denial of service by a crafted PDF upload; found by red-team review, fixed here.",
     body: [

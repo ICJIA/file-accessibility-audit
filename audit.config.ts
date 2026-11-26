@@ -284,6 +284,22 @@ export const ANNOUNCEMENT_BANNER_MAX_WORDS = 40;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "report-accessibility-2026-11-26",
+    badge: "Fixed",
+    /** What the landing-page banner shows — two sentences at most, see THE
+     *  BANNER RULE above. The full story is `text`, shown on /announcements. */
+    summary:
+      "Reports are easier to move around with a screen reader, and every part of a report is readable in light mode.",
+    text: "An accessibility checker found places where this tool's own reports fell short, and they are fixed. The verdict at the top of a report, the WCAG verdict box, each step of the fix plan and each item to check by hand are now real headings, so a screen reader can jump straight to them. In light mode, the Detailed view showed some scores, grade words and severity labels in colours too pale to read on a white background; they now use darker colours. Every report — PDF, Word, PowerPoint and Excel, in both views and both themes — was rechecked afterwards with no problems found. Nothing about how documents are scored has changed.",
+    linkText: "See a sample report",
+    linkTo: "/sample-report",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    wcagRefs: [],
+    date: "November 26, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "upload-only-2026-11-25",
     badge: "Changed",
     /** What the landing-page banner shows — two sentences at most, see THE

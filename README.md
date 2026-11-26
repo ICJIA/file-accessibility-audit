@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.183.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5539%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.183.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5540%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -1010,7 +1010,7 @@ In the first table, all but the last row live in [`docs/archive/`](docs/archive/
 
 ## Tests
 
-**5,539 tests** across 314 test files (API 2,906 · Web 2,461 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**5,540 tests** across 314 test files (API 2,906 · Web 2,462 · CLI 172) — plus the **accuracy gates**, eleven corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1671,6 +1671,13 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.183.1 — 2026-11-26 · Reports read better with a screen reader, and light mode is readable everywhere (report and policy page markup, light-theme colours)
+
+No new attack surface: markup, CSS and client-side colour selection only; no route, input, storage, upload handling or scoring changed. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,540 green. Lint, format check, typecheck and build green.
+
+<details>
+<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
+
 ### v1.183.0 — 2026-11-25 · PDF analysis runs in a process of its own, so a hostile PDF cannot freeze the service (SECURITY RELEASE — denial of service by a crafted PDF upload; found by red-team review, fixed here)
 
 **Red / blue review, 2026-11-25 — the pass on hostile documents.** The owner asked for a focused review of "check a document by link". That feature was withdrawn while the review ran (v1.182.0), and the reviewer was redirected to what stays true either way: what a hostile document can do, whether it arrives by upload or from an approved host. It worked dynamically — its own hostile PDFs and Office files, a hostile HTTP server on the loopback address, timing and memory measured — and reported one High finding, one Medium and two lower ones. All four are fixed in this release.
@@ -1689,9 +1696,6 @@ Entries marked **(entry recorded 2026-08-08)** were reconstructed from that rele
 **What this review did not cover.** PowerPoint and Excel were not attacked with the oversized-part file used on Word (the new memory limit covers all three, since they share one worker); pdf.js's image and font decoders and qpdf's object-stream handling were not attacked; veraPDF and the repair pipeline were out of scope.
 
 `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,539 green. Lint, format check, typecheck and the production build were clean.
-
-<details>
-<summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
 
 ### v1.182.0 — 2026-11-25 · The link option is removed: the site checks uploaded files only (SECURITY-RELEVANT — attack surface REDUCED: the any-host link check added in v1.180.0 is withdrawn)
 

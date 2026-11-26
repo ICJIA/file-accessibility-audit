@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.183.1] - 2026-11-26
+
+### Fixed
+
+- **Reports read better with a screen reader, and light mode is readable everywhere.** axe DevTools Pro flagged 7 serious issues on the sample report. Every report type (PDF, Word, PowerPoint, Excel) was then scanned in both views and both themes: verdicts, the WCAG verdict box, fix-plan steps and manual-review items are now real headings; label-and-value pairs use list markup; seven scrollable tables are labelled regions; and the Detailed view's scores, grade words, severity pills and banners use the light palette in light mode (they measured as low as 1.03:1). Every report and page now scans with 0 axe violations (WCAG 2.1 AA plus best-practice and experimental rules) in Visual and Detailed views, dark and light.
+
+### Notes
+
+- Tests 5,540 across 314 files (API 2,906 · Web 2,462 · CLI 172).
+
 ## [1.183.0] - 2026-11-25
 
 ### Security
