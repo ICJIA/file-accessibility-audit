@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.183.3] - 2026-11-26
+
+### Fixed
+
+- **The information pages' titled boxes are real headings.** A third axe DevTools Pro pass, on the Technical Details and Data Retention pages, found boxes whose titles looked like headings but were not marked as headings. Those, and every other box built the same way on the home page and the WCAG 2.2 page, now have heading markup, so a screen reader can step through them. Nothing looks different.
+
+### Notes
+
+- Tests 5,540 across 314 files (API 2,906 · Web 2,462 · CLI 172).
+
 ## [1.183.2] - 2026-11-26
 
 ### Fixed

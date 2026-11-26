@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.183.3",
+    meta: "Reviewed <strong>2026-11-26</strong> &middot; scope: information-page heading markup.",
+    body: [
+      {
+        kind: "p",
+        html: "No new attack surface: heading markup only; no route, input, storage, upload handling or scoring changed. Dependency scan for this release: no known advisories in production dependencies.",
+      },
+    ],
+  },
+  {
     version: "v1.183.2",
     meta: "Reviewed <strong>2026-11-26</strong> &middot; scope: report markup and export-button labels.",
     body: [
