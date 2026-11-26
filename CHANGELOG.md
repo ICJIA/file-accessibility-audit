@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.183.4] - 2026-11-26
+
+### Changed
+
+- **Larger text in the home page tiles.** The nine 'What This Tool Does' tiles on the home page use larger text: body text from 14px to the site's base size, tile headings one step larger. Visitors had said the small text was hard to read. Wording unchanged.
+
+### Notes
+
+- Tests 5,540 across 314 files (API 2,906 · Web 2,462 · CLI 172).
+
 ## [1.183.3] - 2026-11-26
 
 ### Fixed
