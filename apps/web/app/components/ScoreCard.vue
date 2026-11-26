@@ -17,19 +17,21 @@
       </div>
     </div>
 
-    <!-- Score -->
-    <p class="text-3xl font-bold">
-      {{ displayedProfile.overallScore
-      }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
-    </p>
-
-    <!-- Label -->
-    <p
-      data-testid="scorecard-grade-label"
-      class="text-sm font-medium"
-      :style="{ color: gradeLabelColor }"
-    >
-      {{ gradeLabel }}
+    <!-- Score and its label: one statement, one paragraph. As two <p>s the
+         big score read to axe DevTools as a heading in paragraph markup
+         (p-as-heading, 2026-11-26). -->
+    <p>
+      <span class="block text-3xl font-bold"
+        >{{ displayedProfile.overallScore
+        }}<span class="text-lg text-[var(--text-secondary)]">/100</span></span
+      ><span class="sr-only">. </span>
+      <span
+        data-testid="scorecard-grade-label"
+        class="block mt-4 text-sm font-medium"
+        :style="{ color: gradeLabelColor }"
+      >
+        {{ gradeLabel }}
+      </span>
     </p>
     <!-- Same note as the Visual view's hero (user decision 2026-11-18). -->
     <p
@@ -97,13 +99,16 @@
         backgroundColor: conformanceStyle.background,
       }"
     >
-      <p
-        class="text-sm font-semibold flex items-start gap-2"
+      <!-- The conformance box's title is a heading (p-as-heading,
+           2026-11-26); its level comes from where the card sits. -->
+      <component
+        :is="`h${headingLevel}`"
+        class="text-sm font-semibold flex items-start gap-2 tracking-normal"
         :style="{ color: conformanceStyle.heading }"
       >
         <span aria-hidden="true">{{ conformanceStyle.icon }}</span>
         <span>{{ conformanceHeading }}</span>
-      </p>
+      </component>
       <p class="text-xs text-[var(--text-secondary)] leading-relaxed mt-2">
         {{ conformanceBody }}
       </p>
@@ -251,6 +256,7 @@ import { escapeHtml } from "~/utils/escapeHtml";
 import { allChecksPassedCaveat, gradeLabelFor, publicationStatus } from "~/utils/publicationStatus";
 import { GRADE_THRESHOLDS, safeHttpUrl, scoreCapReason } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
+import { useTokenColors } from "~/composables/useTokenColors";
 import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 
 const wcag = useWcag();
@@ -338,8 +344,12 @@ const props = withDefaults(
     // ManualReviewCard anywhere, so the anchor would jump nowhere. The audit
     // and shared-report pages opt in.
     linkManualReview?: boolean;
+    /** Level of the conformance box's heading. The shared report page puts
+     *  the card straight under its h1 and passes 2; the home page and the
+     *  remediation page nest it inside their own sections. */
+    headingLevel?: 2 | 3 | 4;
   }>(),
-  { showFilename: true, showPdfUaSignals: true, linkManualReview: false },
+  { showFilename: true, showPdfUaSignals: true, linkManualReview: false, headingLevel: 3 },
 );
 
 const scopeNote = computed(() =>
@@ -398,7 +408,14 @@ const displayedCategories = computed(() =>
   categoriesForScoringMode(props.result.categories, props.result.scoreProfiles, "strict"),
 );
 
-const gradeColor = computed(() => gradeMap[displayedProfile.value.grade]?.color || "#666");
+// Theme-aware (2026-11-26): gradeMap's colours are the DARK palette, which
+// drew "Excellent" at 2.3:1 on the light theme's white card.
+const tokenColors = useTokenColors();
+const gradeColor = computed(() =>
+  gradeMap[displayedProfile.value.grade]
+    ? tokenColors.gradeColor(displayedProfile.value.grade)
+    : "#666",
+);
 
 // The shared publish decision for the document on screen. Null when the
 // payload has no categories (page-audit rows): nothing document-level is
@@ -512,7 +529,9 @@ const conformanceStyle = computed(() => {
       return {
         border: "var(--icon-fail)",
         background: "rgba(239, 68, 68, 0.08)",
-        heading: "var(--icon-fail)",
+        // Text, not an icon: --icon-fail measured 4.35:1 on this tint in
+        // light mode (2026-11-26); --sev-critical is the text red.
+        heading: "var(--sev-critical)",
         icon: "⚠",
       };
     default:

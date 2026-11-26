@@ -27,7 +27,12 @@
       >
         The document itself — held seconds to minutes, never kept
       </p>
-      <div class="overflow-x-auto" tabindex="0">
+      <div
+        class="overflow-x-auto"
+        tabindex="0"
+        role="region"
+        aria-label="The document itself (scrollable table)"
+      >
         <table class="w-full text-sm">
           <caption class="sr-only">
             The uploaded document and its remediation intermediates: where each briefly exists,
@@ -124,7 +129,12 @@
       >
         Application records — metadata only, never file content
       </p>
-      <div class="overflow-x-auto" tabindex="0">
+      <div
+        class="overflow-x-auto"
+        tabindex="0"
+        role="region"
+        aria-label="Application records (scrollable table)"
+      >
         <table class="w-full text-sm">
           <caption class="sr-only">
             The service's own records about audits and remediations: where each is stored, maximum
@@ -291,7 +301,12 @@
       >
         Adjacent systems — outside this application
       </p>
-      <div class="overflow-x-auto" tabindex="0">
+      <div
+        class="overflow-x-auto"
+        tabindex="0"
+        role="region"
+        aria-label="Adjacent systems (scrollable table)"
+      >
         <table class="w-full text-sm">
           <caption class="sr-only">
             Systems adjacent to the application (the host web server and the self-hosted analytics

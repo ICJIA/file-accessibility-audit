@@ -31,17 +31,23 @@
             : 'border-[var(--status-ok-green)]/50 bg-[var(--status-ok-green)]/10'
       "
     >
-      <p class="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-        Required by WCAG 2.1 · ADA Title II · Illinois IITAA
-      </p>
-      <p
-        data-testid="law-verdict"
-        class="text-lg sm:text-xl font-bold text-[var(--text-heading)] mt-1 leading-snug"
-      >
-        <!-- Never a green tick for a check that did not finish. -->
-        <span aria-hidden="true">{{ lawFailing ? "✕" : lawUndetermined ? "⚠" : "✓" }}</span>
-        {{ lawVerdict }}
-      </p>
+      <!-- One heading: the eyebrow names the rulebook, the verdict answers
+           it. It was two styled <p>s, which axe DevTools flagged as a heading
+           in paragraph markup (p-as-heading, 2026-11-26) — this box opens a
+           section of the report and screen-reader users navigate by it. -->
+      <component :is="`h${headingLevel}`">
+        <span class="block text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+          Required by WCAG 2.1 · ADA Title II · Illinois IITAA</span
+        ><span class="sr-only">: </span>
+        <span
+          data-testid="law-verdict"
+          class="block text-lg sm:text-xl font-bold text-[var(--text-heading)] mt-1 leading-snug tracking-normal"
+        >
+          <!-- Never a green tick for a check that did not finish. -->
+          <span aria-hidden="true">{{ lawFailing ? "✕" : lawUndetermined ? "⚠" : "✓" }}</span>
+          {{ lawVerdict }}
+        </span>
+      </component>
       <p class="text-sm text-[var(--text-secondary)] mt-1">
         <template v-if="currentEra">
           <strong class="font-semibold">This — and only this — is what your grade measures.</strong>
@@ -98,33 +104,39 @@ import type { PdfUaVerdict } from "@file-audit/shared";
 import { computed } from "vue";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
-const props = defineProps<{
-  conformance?: ConformanceVerdict | null;
-  wcagVersion: string;
-  fileType?: string | null;
-  pdfUaVerdict?: {
-    available?: boolean;
-    passed?: boolean;
-    failures?: Array<{ count?: number }>;
-    /** Whole-document totals — the stored failure list is truncated to the
-     *  top 20 rules, so these are the numbers to display when present. */
-    totalFailureCount?: number;
-    distinctRuleCount?: number;
-    /** Set when veraPDF started but could not finish (crash/timeout). */
-    error?: string;
-  } | null;
-  /** veraPDF's WCAG-profile pass (wcagVerdict). Only consulted for the
-   *  clean line: "No automated failures found" is true of THIS checker, and
-   *  when the profile run beside it flagged WCAG items the line says so and
-   *  points at the technical report (2026-09-02). Never a failure here. */
-  wcagVerdict?: Partial<PdfUaVerdict> | null;
-  /** The stored row's createdAt on /report/[id]; absent for a live analysis.
-   *  Gates the "nothing beyond WCAG 2.1 is counted" claim: a payload
-   *  analysed before the legal-only sweep carries deductions today's model
-   *  reports without counting, and the absolute sentence was false over
-   *  exactly those grades. */
-  analyzedAt?: string | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** Level of the verdict heading. 2 on the report pages (under the h1);
+     *  the remediation page nests the strip inside its own sections. */
+    headingLevel?: 2 | 3 | 4;
+    conformance?: ConformanceVerdict | null;
+    wcagVersion: string;
+    fileType?: string | null;
+    pdfUaVerdict?: {
+      available?: boolean;
+      passed?: boolean;
+      failures?: Array<{ count?: number }>;
+      /** Whole-document totals — the stored failure list is truncated to the
+       *  top 20 rules, so these are the numbers to display when present. */
+      totalFailureCount?: number;
+      distinctRuleCount?: number;
+      /** Set when veraPDF started but could not finish (crash/timeout). */
+      error?: string;
+    } | null;
+    /** veraPDF's WCAG-profile pass (wcagVerdict). Only consulted for the
+     *  clean line: "No automated failures found" is true of THIS checker, and
+     *  when the profile run beside it flagged WCAG items the line says so and
+     *  points at the technical report (2026-09-02). Never a failure here. */
+    wcagVerdict?: Partial<PdfUaVerdict> | null;
+    /** The stored row's createdAt on /report/[id]; absent for a live analysis.
+     *  Gates the "nothing beyond WCAG 2.1 is counted" claim: a payload
+     *  analysed before the legal-only sweep carries deductions today's model
+     *  reports without counting, and the absolute sentence was false over
+     *  exactly those grades. */
+    analyzedAt?: string | null;
+  }>(),
+  { headingLevel: 2 },
+);
 
 // Live analyses (no analyzedAt) are always current-era. A stored date is
 // compared as its ISO day; anything unparseable is treated as PRE-sweep —

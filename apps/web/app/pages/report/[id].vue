@@ -152,6 +152,7 @@
                 :show-filename="false"
                 :show-pdf-ua-signals="false"
                 :link-manual-review="true"
+                :heading-level="2"
               />
             </div>
 

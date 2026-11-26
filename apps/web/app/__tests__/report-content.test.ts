@@ -1,3 +1,4 @@
+import "./test-helpers";
 import { describe, it, expect, vi } from "vitest";
 import { WCAG } from "../../../../audit.config";
 
@@ -26,7 +27,12 @@ vi.mock("~/composables/useWcag", () => ({
 import { mount } from "@vue/test-utils";
 import ReportContent from "../components/ReportContent.vue";
 import { FIX_STEPS_VERSION_NOTE } from "../utils/fixStepVersions";
-import { GRADE_COLORS, SEVERITY_COLORS } from "@file-audit/shared";
+import {
+  GRADE_COLORS,
+  GRADE_COLORS_LIGHT,
+  SEVERITY_COLORS,
+  SEVERITY_COLORS_LIGHT,
+} from "@file-audit/shared";
 
 // Behavioral coverage for the shared report subtree (Score Table, Document
 // Metadata, Detailed Findings, Not Included in Scoring). Replaces the old
@@ -97,6 +103,31 @@ describe("ReportContent — score table", () => {
     // severity chips use the shared severity palette (ports the old
     // CategoryRow severity-badge coverage)
     expect(html).toContain(SEVERITY_COLORS.Minor);
+  });
+
+  it("follows the light theme: no dark-palette grade or severity colour (2026-11-26)", () => {
+    // The dark hexes drew scores and pills at 1.9-3.8:1 on white in the
+    // Detailed view; axe found 19-73 contrast failures per saved report.
+    const g = globalThis as unknown as { useColorMode: () => unknown };
+    const prev = g.useColorMode;
+    g.useColorMode = () => ({ value: "light", preference: "light" });
+    try {
+      const html = mountReport([
+        cat({
+          id: "heading_structure",
+          label: "Heading Structure",
+          score: 85,
+          grade: "B",
+          severity: "Moderate",
+        }),
+      ]).html();
+      expect(html).toContain(GRADE_COLORS_LIGHT.B);
+      expect(html).not.toContain(GRADE_COLORS.B);
+      expect(html).toContain(SEVERITY_COLORS_LIGHT.Moderate);
+      expect(html).not.toContain(SEVERITY_COLORS.Moderate);
+    } finally {
+      g.useColorMode = prev;
+    }
   });
 
   it("splits N/A categories into the Not Included in Scoring subsection", () => {

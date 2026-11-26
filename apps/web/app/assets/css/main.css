@@ -702,6 +702,51 @@ html.light .text-blue-400 {
   color: #1e40af;
 }
 
+/* Added 2026-11-26 — hues the v1.151 pass did not cover, found scanning saved
+   reports' Detailed view in light mode (it never measured a report): the
+   WCAG-reference list (indigo), the conformance-signals card (teal, sky-100
+   body text in a sky tint) and the numbered manual-review list (amber-400/70,
+   an opacity variant the plain amber-400 rule above does not match). */
+html.light .text-indigo-200,
+html.light .text-indigo-300,
+html.light .text-indigo-400 {
+  color: #3730a3;
+}
+html.light .text-teal-200,
+html.light .text-teal-300,
+html.light .text-teal-400 {
+  color: #115e59;
+}
+html.light .text-sky-50,
+html.light .text-sky-100 {
+  color: #075985;
+}
+html.light .hover\:text-sky-50:hover {
+  color: #0c4a6e;
+}
+html.light .text-amber-400\/70 {
+  color: #92400e;
+}
+/* Scoped component colours (IssuesSummary pills, ReportActionBanner) are the
+   dark palette; html.light out-ranks their [data-v] selectors by one element. */
+html.light .sev.sev-critical,
+html.light .action-banner.critical {
+  color: var(--sev-critical);
+}
+html.light .sev.sev-moderate,
+html.light .action-banner.moderate {
+  color: var(--sev-moderate);
+}
+html.light .sev.sev-minor {
+  color: var(--sev-minor);
+}
+html.light .action-banner.minor {
+  color: #1e40af;
+}
+html.light .action-banner.pass {
+  color: var(--sev-pass);
+}
+
 /* Dark tints composite muddy over a light page; same hue, light step. */
 html.light .bg-emerald-950\/10 {
   background-color: #ecfdf5;

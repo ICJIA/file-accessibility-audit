@@ -55,19 +55,24 @@
                 step.severity === 'Critical' ? 'border-red-500/60' : 'border-[var(--border-alt)]'
               "
             >
-              <button
-                type="button"
-                class="w-full flex flex-wrap items-center gap-x-2 gap-y-1.5 text-left pt-5 pb-1 cursor-pointer"
-                :aria-expanded="openId === step.categoryId"
-                :aria-controls="`plan-step-${step.categoryId}`"
-                @click="toggle(step.categoryId)"
-              >
-                <span class="sr-only">Step {{ step.rank }} of {{ steps.length }}: </span>
-                <span
-                  class="order-last basis-full text-lg font-bold tracking-tight leading-snug text-[var(--text-heading)]"
-                  >{{ step.title }}</span
+              <!-- Each step's title is a heading with the disclosure button
+                   inside it — the WAI-ARIA accordion pattern — so the steps
+                   appear in a screen reader's heading list under "What to
+                   fix, in order" (axe DevTools heading-markup, 2026-11-26). -->
+              <h3 class="m-0 text-base font-normal tracking-normal">
+                <button
+                  type="button"
+                  class="w-full flex flex-wrap items-center gap-x-2 gap-y-1.5 text-left pt-5 pb-1 cursor-pointer"
+                  :aria-expanded="openId === step.categoryId"
+                  :aria-controls="`plan-step-${step.categoryId}`"
+                  @click="toggle(step.categoryId)"
                 >
-                <!-- The chip is EARNED, not stamped (v1.135.0). v1.132's
+                  <span class="sr-only">Step {{ step.rank }} of {{ steps.length }}: </span>
+                  <span
+                    class="order-last basis-full text-lg font-bold tracking-tight leading-snug text-[var(--text-heading)]"
+                    >{{ step.title }}</span
+                  >
+                  <!-- The chip is EARNED, not stamped (v1.135.0). v1.132's
                    unconditional REQUIRED chip was wrong for the class of
                    scored-technique steps: the SFY25 report said "3 criteria
                    failing" above five REQUIRED chips, and the bookmarks
@@ -81,54 +86,55 @@
                    subtitle reconciles the arithmetic. No conformance verdict
                    (old stored reports) → no chip: never assert what cannot
                    be verified. -->
-                <!-- Fixed-width slot so every row's chip starts at the same x —
+                  <!-- Fixed-width slot so every row's chip starts at the same x —
                    the chips, severity pills, and Show-how links each form a
                    clean vertical column (user request 2026-08-29). -->
-                <span
-                  v-if="conformance"
-                  class="order-2 hidden sm:flex flex-shrink-0 before:content-['·'] before:mr-2 before:text-[var(--text-muted)]"
-                >
                   <span
-                    v-if="isRequiredStep(step)"
-                    data-testid="step-law-chip"
-                    class="pk-label whitespace-nowrap text-[var(--status-error-red)]"
-                    >REQUIRED BY WCAG 2.1</span
+                    v-if="conformance"
+                    class="order-2 hidden sm:flex flex-shrink-0 before:content-['·'] before:mr-2 before:text-[var(--text-muted)]"
                   >
-                  <span
-                    v-else
-                    data-testid="step-reco-chip"
-                    class="pk-label whitespace-nowrap text-[var(--status-warning-yellow)]"
-                    >RECOMMENDED</span
-                  >
-                </span>
-                <!-- Time chip: same fixed-slot discipline as the chips above so
+                    <span
+                      v-if="isRequiredStep(step)"
+                      data-testid="step-law-chip"
+                      class="pk-label whitespace-nowrap text-[var(--status-error-red)]"
+                      >REQUIRED BY WCAG 2.1</span
+                    >
+                    <span
+                      v-else
+                      data-testid="step-reco-chip"
+                      class="pk-label whitespace-nowrap text-[var(--status-warning-yellow)]"
+                      >RECOMMENDED</span
+                    >
+                  </span>
+                  <!-- Time chip: same fixed-slot discipline as the chips above so
                    the column stays a clean vertical line; the slot itself only
                    exists when some step earned a chip. -->
-                <span
-                  v-if="anyEstimates && step.estimate"
-                  class="order-3 hidden sm:flex flex-shrink-0 before:content-['·'] before:mr-2 before:text-[var(--text-muted)]"
-                >
                   <span
-                    v-if="step.estimate"
-                    data-testid="step-time-chip"
-                    class="pk-label whitespace-nowrap text-[var(--text-muted)]"
-                    >{{ step.estimate.label }}</span
+                    v-if="anyEstimates && step.estimate"
+                    class="order-3 hidden sm:flex flex-shrink-0 before:content-['·'] before:mr-2 before:text-[var(--text-muted)]"
                   >
-                </span>
-                <span class="order-1 flex flex-shrink-0">
+                    <span
+                      v-if="step.estimate"
+                      data-testid="step-time-chip"
+                      class="pk-label whitespace-nowrap text-[var(--text-muted)]"
+                      >{{ step.estimate.label }}</span
+                    >
+                  </span>
+                  <span class="order-1 flex flex-shrink-0">
+                    <span
+                      class="pk-label whitespace-nowrap"
+                      :style="{ color: severityColor(step.severity) }"
+                      ><span aria-hidden="true">{{ sevIcon(step.severity) }}</span>
+                      {{ step.severity }}</span
+                    >
+                  </span>
                   <span
-                    class="pk-label whitespace-nowrap"
-                    :style="{ color: severityColor(step.severity) }"
-                    ><span aria-hidden="true">{{ sevIcon(step.severity) }}</span>
-                    {{ step.severity }}</span
+                    class="order-4 ml-auto border-2 border-[var(--text-heading)] px-3 py-1.5 text-sm font-bold text-[var(--text-heading)] whitespace-nowrap flex-shrink-0"
+                    data-export-exclude
+                    >{{ openId === step.categoryId ? "Hide" : "Show how" }}</span
                   >
-                </span>
-                <span
-                  class="order-4 ml-auto border-2 border-[var(--text-heading)] px-3 py-1.5 text-sm font-bold text-[var(--text-heading)] whitespace-nowrap flex-shrink-0"
-                  data-export-exclude
-                  >{{ openId === step.categoryId ? "Hide" : "Show how" }}</span
-                >
-              </button>
+                </button>
+              </h3>
 
               <!-- Why this step matters: always shown, under the title. -->
               <p class="text-sm text-[var(--text-secondary)] leading-relaxed pb-4">
@@ -293,17 +299,23 @@
         data-testid="plan-pass-card"
         class="rounded-lg border border-green-500/30 bg-green-500/5 px-4 py-3 mt-2"
       >
+        <!-- One message, so one paragraph: the status line and its caveat
+             were two <p>s, and a bold <p> over a small one reads to axe
+             DevTools as a heading in paragraph markup (p-as-heading). -->
         <p class="text-sm font-semibold text-[var(--status-success)]">
           <span aria-hidden="true">✓</span> Nothing to fix — this document passes all automated
           checks.
-        </p>
-        <!-- Was a list of bare SC numbers, which told an author nothing they
-           could act on. The manual-review card directly below now names each
-           criterion and links it, so this only has to hand off to it. -->
-        <p v-if="conformance?.notAssessed?.length" class="text-xs text-[var(--text-muted)] mt-1.5">
-          Passing every automated check is not the same as being accessible — see
-          <strong class="text-[var(--text-secondary)]">Still worth checking by hand</strong> below
-          for what a person still needs to confirm.
+          <!-- Was a list of bare SC numbers, which told an author nothing they
+             could act on. The manual-review card directly below now names each
+             criterion and links it, so this only has to hand off to it. -->
+          <span
+            v-if="conformance?.notAssessed?.length"
+            class="block text-xs font-normal text-[var(--text-muted)] mt-1.5"
+          >
+            Passing every automated check is not the same as being accessible — see
+            <strong class="text-[var(--text-secondary)]">Still worth checking by hand</strong> below
+            for what a person still needs to confirm.</span
+          >
         </p>
       </div>
 

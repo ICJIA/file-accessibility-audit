@@ -47,7 +47,7 @@
             >{{ i + 1 }}</span
           >
           <div class="min-w-0">
-            <p class="text-sm font-semibold text-[var(--text-heading)]">{{ c.label }}</p>
+            <h3 class="text-sm font-semibold text-[var(--text-heading)]">{{ c.label }}</h3>
             <!-- A caution entry is NOT a passed check — the category was
                  excluded from scoring (e.g. every image marked decorative),
                  so the ✓ would claim a verification that never happened. -->

@@ -54,7 +54,12 @@
       audit-engine version a shared report was made with — and nothing that can hold document
       content or identify anyone.
     </p>
-    <div class="overflow-x-auto mb-4" tabindex="0">
+    <div
+      class="overflow-x-auto mb-4"
+      tabindex="0"
+      role="region"
+      aria-label="Every database table (scrollable table)"
+    >
       <table class="w-full text-sm">
         <caption class="sr-only">
           Every database table: name, purpose, and which columns hold user-supplied data
@@ -281,7 +286,12 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
 
     <!-- Verdict table -->
     <h3 class="text-lg font-semibold text-[var(--text-heading)] mb-2">Verdict on each § 8 claim</h3>
-    <div class="overflow-x-auto mb-4" tabindex="0">
+    <div
+      class="overflow-x-auto mb-4"
+      tabindex="0"
+      role="region"
+      aria-label="Verdict on each section 8 claim (scrollable table)"
+    >
       <table class="w-full text-sm">
         <caption class="sr-only">
           Verification verdict for each claim in section 8, with the evidence that supports it

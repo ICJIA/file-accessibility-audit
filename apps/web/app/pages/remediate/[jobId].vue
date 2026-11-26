@@ -787,6 +787,7 @@ function labelForEvent(name: string): string {
                what the law requires vs PDF/UA extra credit — for the AFTER
                document a reader is deciding whether to publish. -->
           <TwoStandardsStrip
+            :heading-level="3"
             :conformance="receipt.outputAudit.conformance"
             :wcag-version="wcagVersion"
             file-type="pdf"
@@ -1554,13 +1555,14 @@ function labelForEvent(name: string): string {
         </div>
         <div class="p-4 sm:p-6">
           <TwoStandardsStrip
+            :heading-level="4"
             :conformance="receipt.inputAudit.conformance"
             :wcag-version="wcagVersion"
             file-type="pdf"
             :pdf-ua-verdict="receipt.inputAudit.pdfUaVerdict"
             class="mb-4"
           />
-          <ScoreCard :result="receipt.inputAudit" />
+          <ScoreCard :result="receipt.inputAudit" :heading-level="4" />
         </div>
       </div>
     </section>

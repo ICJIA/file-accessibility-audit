@@ -7,7 +7,12 @@
       open source, license-clear, and runs locally on the ICJIA-controlled server. No commercial PDF
       or Office-document SDK is licensed, and no per-document fees are paid. The tools are:
     </p>
-    <div class="overflow-x-auto" tabindex="0">
+    <div
+      class="overflow-x-auto"
+      tabindex="0"
+      role="region"
+      aria-label="The open-source toolchain (scrollable table)"
+    >
       <table class="w-full text-sm">
         <caption class="sr-only">
           The open-source toolchain: each tool, what it's used for, its license, and source

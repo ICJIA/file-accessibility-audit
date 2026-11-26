@@ -43,7 +43,12 @@
            hero. The verdict is one sentence; its lead clause is set as the
            headline and the rest directly under it. The dash between them is
            kept for assistive technology and for anything reading the text. -->
-      <p
+      <!-- In the Visual view the verdict IS the page's first section heading
+           (axe DevTools heading-markup, 2026-11-26): it is set at poster
+           scale, so a screen-reader user must be able to reach it by heading
+           too. Elsewhere it stays a paragraph inside the hero. -->
+      <component
+        :is="part === 'verdict' ? 'h2' : 'p'"
         data-testid="grade-label"
         :class="part === 'verdict' ? '' : 'mt-4'"
         :style="{ color: labelColor }"
@@ -71,7 +76,7 @@
             >{{ labelRest }}</span
           ></template
         >
-      </p>
+      </component>
       <!-- What this format's grade covers (user decision 2026-11-18): the same
          content can grade differently by format, so say why beside the letter. -->
       <p

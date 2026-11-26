@@ -125,11 +125,13 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           />
         </svg>
       </div>
-      <p
+      <!-- The banner's headline is its heading: this section had none, and
+           the styled <p> was flagged by axe DevTools (p-as-heading). -->
+      <h2
         class="text-2xl sm:text-4xl font-black uppercase tracking-[0.15em] text-red-300 leading-tight mb-3"
       >
         No AI is used.
-      </p>
+      </h2>
       <p
         class="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto"
       >

@@ -607,8 +607,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import {
-  gradeColor,
-  severityColor,
   safeHttpUrl,
   type CategoryResult,
   type ScoreProfileResult,
@@ -616,6 +614,7 @@ import {
   withAlpha,
 } from "@file-audit/shared";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
+import { useTokenColors } from "~/composables/useTokenColors";
 import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
 import {
   partitionCardFindings,
@@ -761,19 +760,25 @@ const metadataItems = computed(() =>
 );
 const metadataTieIn = computed(() => sourceTieInLine(props.result));
 
+// Theme-aware grade and severity colours (2026-11-26). The shared hex helpers
+// are the DARK palette: in light mode they drew every score, grade word and
+// severity pill in this view at 1.9-3.8:1 on white (axe color-contrast, found
+// scanning saved reports' Detailed view, which the v1.151 light-mode pass
+// never reached). Same helpers the Visual view's CategoryBars uses.
+const tokenColors = useTokenColors();
+
 function catColor(cat: { grade?: string | null }): string {
   // Keep the lookup INSIDE the function. A top-level <script setup> const
   // got dropped from catColor\'s scope in the production SSR build (only
   // catColor is referenced by the template), throwing "ReferenceError" —
   // a 500 on every report page. Regressed before; see commit 0f39c96.
-  // gradeColor is a module import, which the compiler preserves, but the
-  // call stays wrapped here so the template contract has one name.
-  if (cat.grade) return gradeColor(cat.grade);
+  // The call stays wrapped here so the template contract has one name.
+  if (cat.grade) return tokenColors.gradeColor(cat.grade);
   return "#555";
 }
 
 function sevColor(severity: string): string {
-  return severityColor(severity);
+  return tokenColors.severityColor(severity);
 }
 
 // "Independently confirmed … it failed the same point" is only true when THIS

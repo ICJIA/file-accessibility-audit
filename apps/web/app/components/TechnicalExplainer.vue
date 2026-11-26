@@ -2368,7 +2368,12 @@ pm2 restart ecosystem.config.cjs</pre>
         <h3 class="font-semibold text-[var(--text-heading)] mb-2">
           The Open-Source Toolchain at a Glance
         </h3>
-        <div class="overflow-x-auto" tabindex="0">
+        <div
+          class="overflow-x-auto"
+          tabindex="0"
+          role="region"
+          aria-label="The open-source toolchain at a glance (scrollable table)"
+        >
           <table class="w-full text-sm">
             <caption class="sr-only">
               The open-source toolchain: each tool, its job, license, and pipeline stage
