@@ -18,10 +18,10 @@
     <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
       {{ fmt(checkups) }}
     </div>
-    <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+    <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
       Check-ups run
     </h3>
-    <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+    <p class="text-base text-[var(--text-muted)] leading-relaxed">
       Documents checked with this tool so far, by ICJIA and by other agencies.
       {{ fmt(last30) }} in the last 30 days. This count is live; see
       <a href="/status" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -35,10 +35,10 @@
     <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
       {{ fmt(stats.tests) }}
     </div>
-    <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+    <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
       Self-checks before every release
     </h3>
-    <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+    <p class="text-base text-[var(--text-muted)] leading-relaxed">
       Tests the software runs on itself before anything goes live. All of them must pass, or nothing
       ships.
       <!-- Plain <a>, a full-page load: /trust opens its inventory from the
@@ -53,10 +53,10 @@
     <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
       {{ fmt(stats.traps) }}<span class="text-[var(--text-muted)]">/</span>{{ fmt(stats.traps) }}
     </div>
-    <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+    <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
       Trap documents judged correctly
     </h3>
-    <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+    <p class="text-base text-[var(--text-muted)] leading-relaxed">
       Documents built to fool the checker, each with a known right answer. Every one is judged
       correctly before a release goes out.
       <a href="/trust#all-traps" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"

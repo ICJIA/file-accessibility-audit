@@ -864,10 +864,10 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             9
           </div>
-          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
             WCAG categories audited
           </h3>
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <p class="text-base text-[var(--text-muted)] leading-relaxed">
             <!-- "Serious" was named here for a long time and the scorer has never
                emitted it: the severities are Critical / Moderate / Minor. On a
                page whose job is telling staff what the grades mean, inventing a
@@ -888,10 +888,10 @@
                it alone. The tile says what the step does. -->
             Auto-tag
           </div>
-          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
             Auto-remediation (optional)
           </h3>
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <p class="text-base text-[var(--text-muted)] leading-relaxed">
             Tags untagged PDFs and writes the title and language you give it, using the qpdf →
             <a
               href="https://github.com/opendataloader-project/opendataloader-pdf"
@@ -921,10 +921,10 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             PDF/UA
           </div>
-          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
             Standards aligned
           </h3>
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <p class="text-base text-[var(--text-muted)] leading-relaxed">
             WCAG 2.1 Level AA, ADA Title II (compliance due April 26, 2027 for larger entities, 2028
             for smaller), Illinois IITAA 2.1, and PDF/UA-1 (ISO 14289-1) via veraPDF — with PDF/UA-2
             (ISO 14289-2) validated when a document declares it. Full lifecycle audit trail with
@@ -937,10 +937,10 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             0
           </div>
-          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
             Files retained
           </h3>
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <p class="text-base text-[var(--text-muted)] leading-relaxed">
             Uploaded files exist on the server only as long as the pipeline requires. Audited files:
             in-memory, gone in seconds. Remediated outputs: deleted on first download or after 30
             minutes — and the deletion is then checked, not assumed.
@@ -952,10 +952,10 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             $0
           </div>
-          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
             No AI, no third-party APIs
           </h3>
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <p class="text-base text-[var(--text-muted)] leading-relaxed">
             Every audit step runs on this server. No data is sent to vision models, hosted AI
             services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
             veraPDF) is entirely open source — no per-document fees, no SDK licensing. Page views
@@ -978,10 +978,10 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             100%
           </div>
-          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-lg font-semibold text-[var(--text-heading)] mb-2">
             Open source
           </h3>
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <p class="text-base text-[var(--text-muted)] leading-relaxed">
             Every line of code is on
             <a
               href="https://github.com/ICJIA/file-accessibility-audit"
