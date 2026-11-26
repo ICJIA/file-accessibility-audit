@@ -14,7 +14,7 @@
  * What it does, with headless Chromium:
  *   1. loads `/`, uploads a tracked fixture PDF through the page's own
  *      <input type="file">, and waits for the grade;
- *   2. checks the report rendered and that "Download report as JSON" produces
+ *   2. checks the report rendered and that the JSON download button produces
  *      a file that parses;
  *   3. runs axe-core (WCAG 2.0 + 2.1, levels A and AA) on `/`, on the result
  *      view, and on /trust, /data-retention, /technical-details,
@@ -54,7 +54,7 @@ const HOOKS = {
   fileInput: 'input[type="file"]',
   resultsHeading: '[data-testid="results-heading"]',
   gradeLabel: '[data-testid="grade-label"]',
-  jsonDownload: '[aria-label="Download report as JSON"]',
+  jsonDownload: '[data-export="json"]',
 };
 
 /** Pages checked with axe after the upload flow. */

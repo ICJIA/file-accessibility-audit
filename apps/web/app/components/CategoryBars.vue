@@ -84,26 +84,27 @@
       data-testid="bars-na"
       class="pt-3 border-t-2 border-[var(--border-alt)] space-y-1"
     >
-      <p class="sr-only">Not scored</p>
-      <!-- A term and its explanation, so a description list — not a bold
-           <p> over a small one, which axe DevTools read as a heading in
-           paragraph markup (p-as-heading, 2026-11-26). -->
-      <dl>
-        <div v-for="cat in na" :key="cat.id" class="pb-3">
-          <dt
-            class="flex items-baseline justify-between gap-4 text-sm font-bold text-[var(--text-muted)]"
+      <!-- Each not-scored category is a small titled block: its name and
+           status over the reason. They are headings (h3 group, h4 each), so a
+           screen-reader user can step through them the way the layout invites
+           a sighted reader to. A bold <p> was flagged as a heading in
+           paragraph markup (p-as-heading), and a <dt> was still read as an
+           unmarked heading by axe DevTools Pro (heading-markup), 2026-11-26. -->
+      <h3 class="sr-only">Not scored</h3>
+      <div v-for="cat in na" :key="cat.id" class="pb-3">
+        <h4
+          class="flex items-baseline justify-between gap-4 text-sm font-bold text-[var(--text-muted)]"
+        >
+          <span>{{ cat.label }}</span>
+          <span
+            ><span class="sr-only">: </span
+            >{{ cat.notAssessed ? "Not assessed" : "Not applicable" }}</span
           >
-            <span>{{ cat.label }}</span>
-            <span
-              ><span class="sr-only">: </span
-              >{{ cat.notAssessed ? "Not assessed" : "Not applicable" }}</span
-            >
-          </dt>
-          <dd class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-            {{ naReason(cat.id, cat.notAssessed) }}
-          </dd>
-        </div>
-      </dl>
+        </h4>
+        <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+          {{ naReason(cat.id, cat.notAssessed) }}
+        </p>
+      </div>
     </div>
   </section>
 </template>

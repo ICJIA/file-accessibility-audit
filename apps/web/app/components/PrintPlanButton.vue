@@ -1,10 +1,11 @@
 <template>
   <div v-if="hasSomethingToPrint" class="w-full" data-export-exclude>
-    <button
-      type="button"
-      data-testid="print-plan"
-      class="group flex w-full items-center gap-4 border-2 border-[var(--text-heading)] bg-transparent px-5 py-4 text-left transition-colors cursor-pointer hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]"
-      @click="openPlan"
+    <!-- A card with a heading, not a heading-shaped button (axe DevTools
+         heading-markup, 2026-11-26): the title is an h3 holding the button,
+         and the button's ::after stretches over the whole card so all of it
+         stays clickable. The blurb describes the button. -->
+    <div
+      class="group relative flex w-full items-center gap-4 border-2 border-[var(--text-heading)] bg-transparent px-5 py-4 text-left transition-colors hover:bg-[var(--surface-hover)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--link)]"
     >
       <span
         class="shrink-0 flex h-12 w-12 items-center justify-center bg-[var(--text-heading)] text-[var(--surface-body)]"
@@ -24,25 +25,33 @@
           <rect x="6" y="14" width="12" height="8" rx="1" />
         </svg>
       </span>
-      <span class="min-w-0">
-        <span class="block text-base font-bold text-[var(--text-heading)]">
-          Printer-friendly action steps
-        </span>
-        <span class="mt-0.5 block text-sm text-[var(--text-secondary)] leading-snug">
+      <div class="min-w-0">
+        <h3 class="m-0 text-base font-bold tracking-normal text-[var(--text-heading)]">
+          <button
+            type="button"
+            data-testid="print-plan"
+            class="text-left cursor-pointer after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+            :aria-describedby="blurbId"
+            @click="openPlan"
+          >
+            Printer-friendly action steps
+          </button>
+        </h3>
+        <span :id="blurbId" class="mt-0.5 block text-sm text-[var(--text-secondary)] leading-snug">
           {{ blurb }}
         </span>
-      </span>
+      </div>
       <span
         class="ml-auto shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--text-heading)]"
         aria-hidden="true"
         >Open ↗</span
       >
-    </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useId } from "vue";
 import { buildPrintablePlan, openPrintablePlan } from "~/utils/printablePlan";
 import { manualChecks, withVeraContrast } from "~/utils/manualReview";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
@@ -163,6 +172,7 @@ const hasSomethingToPrint = computed(
     bestPractices.value.length > 0,
 );
 
+const blurbId = useId();
 const blurb = computed(() => {
   const n = steps.value.length;
   // Countless on purpose: the catalog's row count is a constant per format

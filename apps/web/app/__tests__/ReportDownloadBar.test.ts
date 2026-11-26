@@ -52,11 +52,12 @@ describe("ReportDownloadBar — cards variant (index.vue)", () => {
     ]);
   });
 
-  it("every button gets a descriptive aria-label", () => {
+  it("every button gets a descriptive aria-label that starts with its visible label (WCAG 2.5.3)", () => {
     const wrapper = mount(ReportDownloadBar, { props: { result } });
     const buttons = wrapper.findAll("button");
-    expect(buttons[0]!.attributes("aria-label")).toBe("Download report as plain text");
-    expect(buttons[4]!.attributes("aria-label")).toBe("Print report to PDF");
+    expect(buttons[0]!.attributes("aria-label")).toBe("Text (.txt): download report as plain text");
+    expect(buttons[4]!.attributes("aria-label")).toBe("PDF (browser print): print report to PDF");
+    for (const b of buttons) expect(b.attributes("aria-label")!.startsWith(b.text())).toBe(true);
   });
 
   it("clicking each button calls the matching useReportExport function with the result prop", async () => {

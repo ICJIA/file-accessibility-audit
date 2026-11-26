@@ -11,6 +11,7 @@
         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
         :title="btn.title"
         :aria-label="btn.ariaLabel"
+        :data-export="btn.format"
         @click="btn.handler"
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -28,6 +29,7 @@
         size="sm"
         :title="btn.title"
         :aria-label="btn.ariaLabel"
+        :data-export="btn.format"
         @click="btn.handler"
       >
         <template #leading>
@@ -209,7 +211,15 @@ const compactButtons = computed<DownloadButtonDef[]>(() => [
   },
 ]);
 
+// The accessible name STARTS with the visible label (WCAG 2.5.3 Label in
+// Name, 2026-11-26): "Download report as plain text" alone did not contain
+// the visible "Text (.txt)", so a voice-control user saying "click Text"
+// could miss the button (axe label-content-name-mismatch). The description
+// follows the label, so the name still says what the button does.
 const buttons = computed(() =>
-  props.variant === "compact" ? compactButtons.value : cardButtons.value,
+  (props.variant === "compact" ? compactButtons.value : cardButtons.value).map((b) => ({
+    ...b,
+    ariaLabel: `${b.label}: ${b.ariaLabel.charAt(0).toLowerCase()}${b.ariaLabel.slice(1)}`,
+  })),
 );
 </script>
