@@ -862,9 +862,9 @@
         <div
           class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)] p-4 mb-4"
         >
-          <p class="text-[var(--text-heading)] font-semibold mb-2">
+          <h4 class="text-[var(--text-heading)] font-semibold mb-2">
             The score is capped by the worst finding
-          </p>
+          </h4>
           <p class="text-[var(--text-muted)] mb-3">
             A document's score may never outrank its worst unresolved finding — a Minor caps it at
             89, a Moderate at 79, a Critical at 69. The letter then comes off the same published
@@ -959,7 +959,7 @@
         <div
           class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-4 space-y-2"
         >
-          <p class="font-medium text-[var(--text-secondary)]">About this score</p>
+          <h4 class="font-medium text-[var(--text-secondary)]">About this score</h4>
           <p class="text-xs text-[var(--text-muted)]">
             This is a <strong>WCAG-based</strong> evaluation. It aligns with
             <strong>WCAG 2.1 Level AA</strong>, <strong>ADA Title II</strong>, and Illinois
@@ -999,9 +999,9 @@
         <div
           class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-4 space-y-2"
         >
-          <p class="font-medium text-[var(--text-secondary)]">
+          <h4 class="font-medium text-[var(--text-secondary)]">
             Word, PowerPoint &amp; Excel: adapted category sets
-          </p>
+          </h4>
           <p class="text-xs text-[var(--text-muted)]">
             The nine-category table above is the PDF model. Word, PowerPoint, and Excel files are
             scored the same way — a weighted average of 0–100 category scores, grounded in the same
@@ -1075,13 +1075,17 @@
         <h4 class="font-medium text-[var(--text-secondary)] mb-2 text-xs uppercase tracking-wide">
           Category scoring logic
         </h4>
+        <!-- Each card's title is a heading under "Category scoring logic"
+             (h5 under that h4): the cards are sections a reader steps
+             through. axe DevTools Pro flagged the styled <p>s as unmarked
+             headings (heading-markup, 2026-11-26). -->
         <div class="space-y-3">
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">
               Text Extractability (20% weight — highest)
-            </p>
+            </h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Can a screen reader actually read the words in this PDF? Some
               PDFs are just pictures of text (scanned documents) — they look normal on screen but
@@ -1106,7 +1110,9 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Title &amp; Language (15%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">
+              Title &amp; Language (15%)
+            </h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> The document title is the first thing a screen reader
               announces when a user opens the PDF. The language tag controls how the screen reader
@@ -1144,7 +1150,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Heading Structure (15%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">Heading Structure (15%)</h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Headings (H1, H2, H3, etc.) are how screen reader users
               navigate and skim documents — the same way sighted users scan bold section titles.
@@ -1178,7 +1184,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Alt Text on Images (15%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">Alt Text on Images (15%)</h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Every informative image in a PDF must have "alternative text"
               — a short description that a screen reader reads aloud. Without alt text, a blind user
@@ -1198,7 +1204,9 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Bookmarks / Navigation (5%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">
+              Bookmarks / Navigation (5%)
+            </h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Bookmarks act as a clickable table of contents in the PDF
               viewer's sidebar — for longer documents, a real navigation aid for every reader,
@@ -1216,7 +1224,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Table Markup (10%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">Table Markup (10%)</h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> When a sighted user looks at a data table, they can glance at
               the column headers to understand what each number means. Screen readers need explicit
@@ -1253,7 +1261,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Link Quality (5%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">Link Quality (5%)</h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Screen reader users often navigate by tabbing through links.
               Hearing "https://www.example.com/documents/2024/report-final-v3.pdf" read aloud
@@ -1278,7 +1286,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Form Accessibility (5%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">Form Accessibility (5%)</h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> If a PDF contains fillable form fields (text boxes,
               checkboxes, dropdowns), each field needs a label that assistive technology can read.
@@ -1298,7 +1306,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Reading Order (10%)</p>
+            <h5 class="font-medium text-[var(--text-secondary)] mb-1">Reading Order (10%)</h5>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> PDFs with multi-column layouts, sidebars, or callout boxes can
               confuse screen readers if the reading order isn't explicitly defined. A sighted user

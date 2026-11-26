@@ -18,7 +18,9 @@
     <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
       {{ fmt(checkups) }}
     </div>
-    <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Check-ups run</div>
+    <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+      Check-ups run
+    </h3>
     <p class="text-xs text-[var(--text-muted)] leading-relaxed">
       Documents checked with this tool so far, by ICJIA and by other agencies.
       {{ fmt(last30) }} in the last 30 days. This count is live; see
@@ -33,9 +35,9 @@
     <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
       {{ fmt(stats.tests) }}
     </div>
-    <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+    <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
       Self-checks before every release
-    </div>
+    </h3>
     <p class="text-xs text-[var(--text-muted)] leading-relaxed">
       Tests the software runs on itself before anything goes live. All of them must pass, or nothing
       ships.
@@ -51,9 +53,9 @@
     <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
       {{ fmt(stats.traps) }}<span class="text-[var(--text-muted)]">/</span>{{ fmt(stats.traps) }}
     </div>
-    <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+    <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
       Trap documents judged correctly
-    </div>
+    </h3>
     <p class="text-xs text-[var(--text-muted)] leading-relaxed">
       Documents built to fool the checker, each with a known right answer. Every one is judged
       correctly before a release goes out.

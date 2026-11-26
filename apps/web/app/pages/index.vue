@@ -864,9 +864,9 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             9
           </div>
-          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
             WCAG categories audited
-          </div>
+          </h3>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed">
             <!-- "Serious" was named here for a long time and the scorer has never
                emitted it: the severities are Critical / Moderate / Minor. On a
@@ -888,9 +888,9 @@
                it alone. The tile says what the step does. -->
             Auto-tag
           </div>
-          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
             Auto-remediation (optional)
-          </div>
+          </h3>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed">
             Tags untagged PDFs and writes the title and language you give it, using the qpdf →
             <a
@@ -921,7 +921,9 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             PDF/UA
           </div>
-          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Standards aligned</div>
+          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+            Standards aligned
+          </h3>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed">
             WCAG 2.1 Level AA, ADA Title II (compliance due April 26, 2027 for larger entities, 2028
             for smaller), Illinois IITAA 2.1, and PDF/UA-1 (ISO 14289-1) via veraPDF — with PDF/UA-2
@@ -935,7 +937,9 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             0
           </div>
-          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Files retained</div>
+          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+            Files retained
+          </h3>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed">
             Uploaded files exist on the server only as long as the pipeline requires. Audited files:
             in-memory, gone in seconds. Remediated outputs: deleted on first download or after 30
@@ -948,9 +952,9 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             $0
           </div>
-          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
             No AI, no third-party APIs
-          </div>
+          </h3>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed">
             Every audit step runs on this server. No data is sent to vision models, hosted AI
             services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
@@ -974,7 +978,9 @@
           <div class="pk-display font-black text-6xl sm:text-7xl text-[var(--text-heading)] mb-5">
             100%
           </div>
-          <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Open source</div>
+          <h3 class="tracking-normal text-sm font-semibold text-[var(--text-heading)] mb-1">
+            Open source
+          </h3>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed">
             Every line of code is on
             <a

@@ -3,13 +3,14 @@
   <section id="ai" class="scroll-mt-8">
     <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">4. AI usage statement</h2>
     <div class="rounded-xl border-2 border-red-700/50 bg-red-950/15 p-6 sm:p-8">
-      <!-- One paragraph: the bold lead sentence and the detail it introduces.
-           As two <p>s, axe DevTools read the lead as a heading in paragraph
-           markup (p-as-heading); section 4's heading is the <h2> above. -->
+      <!-- The box's own heading under "4. AI usage statement". It was a bold
+           <p> (flagged p-as-heading), then a bold lead inside the paragraph,
+           which axe DevTools Pro still read as an unmarked heading
+           (heading-markup), 2026-11-26. -->
+      <h3 class="text-lg sm:text-xl font-bold text-red-300 mb-3 tracking-normal">
+        No artificial intelligence is used in this tool.
+      </h3>
       <p class="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-        <span class="block text-lg sm:text-xl font-bold text-red-300 mb-3 leading-normal"
-          >No artificial intelligence is used in this tool.</span
-        >
         Specifically: no file content, no extracted text, no metadata, no filenames, no derivative
         artifacts, no diagnostic data, and no telemetry of any kind are transmitted to any
         artificial-intelligence service, large language model, vision model, or hosted machine

@@ -28,7 +28,9 @@ useHead({
     </h1>
 
     <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-5 py-4 mb-8">
-      <p class="text-sm font-semibold text-emerald-200 mb-1">Compliance bottom line</p>
+      <h2 class="tracking-normal text-sm font-semibold text-emerald-200 mb-1">
+        Compliance bottom line
+      </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
         Illinois law (<strong>IITAA 2.1</strong>, effective June 24, 2024) and the federal
         <strong>ADA Title II</strong> rule both require <strong>WCAG 2.1 Level AA</strong> — that is
