@@ -290,7 +290,7 @@ export const ANNOUNCEMENTS = [
      *  BANNER RULE above. The full story is `text`, shown on /announcements. */
     summary:
       "Reports are easier to move around with a screen reader, and every part of a report is readable in light mode.",
-    text: "An accessibility checker found places where this tool's own reports fell short, and they are fixed. The verdict at the top of a report, the WCAG verdict box, each step of the fix plan and each item to check by hand are now real headings, so a screen reader can jump straight to them. In light mode, the Detailed view showed some scores, grade words and severity labels in colours too pale to read on a white background; they now use darker colours. Every report — PDF, Word, PowerPoint and Excel, in both views and both themes — was rechecked afterwards with no problems found. Nothing about how documents are scored has changed.",
+    text: "An accessibility checker found places where this tool's own reports fell short, and they are fixed. The verdict at the top of a report, the WCAG verdict box, each step of the fix plan and each item to check by hand are now real headings, so a screen reader can jump straight to them. The download buttons under a report now have spoken names that start with the words on them, so voice control finds them. In light mode, the Detailed view showed some scores, grade words and severity labels in colours too pale to read on a white background; they now use darker colours. Every report — PDF, Word, PowerPoint and Excel, in both views and both themes — was rechecked afterwards with no problems found. Nothing about how documents are scored has changed.",
     linkText: "See a sample report",
     linkTo: "/sample-report",
     /** In-app route — an ordinary router link. */

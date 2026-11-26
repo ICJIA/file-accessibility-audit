@@ -2,7 +2,7 @@
 
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.183.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5540%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.183.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-5540%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.1 AA](https://img.shields.io/badge/audits-WCAG%202.1%20AA-blueviolet)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
@@ -1671,12 +1671,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
-### v1.183.1 — 2026-11-26 · Reports read better with a screen reader, and light mode is readable everywhere (report and policy page markup, light-theme colours)
+### v1.183.2 — 2026-11-26 · Export buttons say what they show; the last two unmarked headings (report markup and export-button labels)
 
-No new attack surface: markup, CSS and client-side colour selection only; no route, input, storage, upload handling or scoring changed. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,540 green. Lint, format check, typecheck and build green.
+No new attack surface: markup and accessible names only; no route, input, storage, upload handling or scoring changed. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,540 green. Lint, format check, typecheck and build green.
 
 <details>
 <summary><strong>Earlier reviews</strong> — every release before this one, most recent first (select to open)</summary>
+
+### v1.183.1 — 2026-11-26 · Reports read better with a screen reader, and light mode is readable everywhere (report and policy page markup, light-theme colours)
+
+No new attack surface: markup, CSS and client-side colour selection only; no route, input, storage, upload handling or scoring changed. `pnpm audit --prod`: no known advisories in production dependencies. Tests 5,540 green. Lint, format check, typecheck and build green.
 
 ### v1.183.0 — 2026-11-25 · PDF analysis runs in a process of its own, so a hostile PDF cannot freeze the service (SECURITY RELEASE — denial of service by a crafted PDF upload; found by red-team review, fixed here)
 

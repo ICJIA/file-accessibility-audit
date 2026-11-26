@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.183.2] - 2026-11-26
+
+### Fixed
+
+- **Export buttons say what they show; the last two unmarked headings.** A second axe DevTools Pro pass on the deployed v1.183.1 found what the first round left. The five export buttons shown after an upload (and on shared reports) had spoken names that replaced their visible labels, so a voice-control user saying "click Text" could miss them (WCAG 2.5.3 Label in Name); each name now starts with the visible label. The not-scored categories under "Where the points went" and the Printer-friendly action steps card are now real headings; the whole card stays clickable. Scans now include the home page after a real upload, in both views and both themes, with 0 violations.
+
+### Notes
+
+- Tests 5,540 across 314 files (API 2,906 · Web 2,462 · CLI 172).
+
 ## [1.183.1] - 2026-11-26
 
 ### Fixed
